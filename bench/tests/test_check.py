@@ -50,6 +50,8 @@ class RecordedChecks(unittest.TestCase):
 
     def test_pass_and_fail_recordings_for_every_set(self):
         for directory in sorted((BENCH / 'sets').iterdir()):
+            if directory.name == 'sc98':
+                continue  # The screen-protocol fixtures are checked by tests/bench_sc98.rs.
             with self.subTest(set=directory.name):
                 fixture = json.loads((BENCH/'tests'/'fixtures'/(directory.name+'.json')).read_text())
                 self.assertEqual({True, False}, {r['pass'] for r in fixture['cases']})
@@ -86,6 +88,8 @@ class RecordedChecks(unittest.TestCase):
 
     def test_task_and_reference_files_load(self):
         for directory in (BENCH/'sets').iterdir():
+            if directory.name == 'sc98':
+                continue  # The Rust checker validates this application's references.
             tasks = run.task_file(directory/'tasks.json')
             controls = run.load(directory/'do-nothing.json')['expectations']
             self.assertEqual({t['id'] for t in tasks}, {t['id'] for t in controls})

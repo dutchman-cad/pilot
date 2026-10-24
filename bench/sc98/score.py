@@ -13,7 +13,7 @@ def timeline(screen):
         raise ValueError('screen exceeds 256 KiB')
     rows = []
     for line in screen.splitlines():
-        parts = [v.strip() for v in line.split('|')]
+        parts = [v.strip().removesuffix('<- selected').strip() for v in line.split('|')]
         if len(parts) == 5 and parts[0].isdigit():
             rows.append(dict(zip(('number', 'name', 'kind', 'params', 'status'), parts)))
     if len(rows) > 64:

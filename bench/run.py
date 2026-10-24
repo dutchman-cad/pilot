@@ -408,7 +408,7 @@ def run_one(args, root, task, mode, url):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--set', default='v1', choices=sorted(p.name for p in (HERE/'sets').iterdir() if p.is_dir()))
+    parser.add_argument('--set', default='v1', choices=sorted(p.name for p in (HERE/'sets').iterdir() if p.is_dir() and p.name != 'sc98'))
     parser.add_argument('--model')
     parser.add_argument('--endpoint', default='http://127.0.0.1:11434')
     parser.add_argument('--through-pilot', metavar='PATH')

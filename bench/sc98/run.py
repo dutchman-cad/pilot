@@ -301,8 +301,8 @@ def one_run(args, task, model, plain, repetition, directory):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--pilot', default=str(Path(os.environ.get('CARGO_TARGET_DIR', HERE.parent / 'target')) / 'debug/dutchman-pilot'))
-    p.add_argument('--program', default='/home/ray/Documents/GitHub/sc98-remote-bin/sc98')
-    p.add_argument('--tasks', default='/home/ray/Documents/GitHub/solidcraft98-ai/tasks.json')
+    p.add_argument('--program', required=True)
+    p.add_argument('--tasks', required=True)
     p.add_argument('--upstream', default='http://127.0.0.1:11435/v1')
     p.add_argument('--models', nargs='+', required=True)
     p.add_argument('--reps', type=int, default=3)

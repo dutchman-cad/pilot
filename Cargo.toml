@@ -70,3 +70,8 @@ required-features = ["proxy"]
 [[test]]
 name = "profile"
 required-features = ["proxy"]
+
+[[example]]
+name = "bench_sc98"
+path = "bench/sc98/main.rs"
+required-features = ["proxy"]

@@ -1,0 +1,343 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "format": 1,
+  "application": "SolidCraft 98",
+  "minimum_version": "1.1.1",
+  "executable_sha256": "f48e3abd4ce621f077e91191197ba6e1831e3645d10a21f16925192e9f5aa34c",
+  "transport": "FreeBASIC --remote --headless",
+  "definitions": [
+    {
+      "sha256": "e46b88f28f7a2398b6e6d7b20fb890d00d55faf8d48c51ce960292979528e530",
+      "path": "bench/sets/sc98/tasks.json"
+    },
+    {
+      "sha256": "3e1f826c4188cfc9ae4352753894c59bb7353619f3a2e28327ee2fb9c388a52a",
+      "path": "bench/sets/sc98/do-nothing.json"
+    },
+    {
+      "sha256": "be7c0a34bcb3a0896cef615d1b17ba2a01d4f107cceeeca060118aaf5a9020b8",
+      "path": "bench/sets/sc98/references/01.json"
+    },
+    {
+      "sha256": "bdb465d86f0b3e8e90a19d7dba815673477f8d2735689f740fa1539c2b640be8",
+      "path": "bench/sets/sc98/references/02.json"
+    },
+    {
+      "sha256": "028de28f5cb6e1eb1e8b1d0a3941264e9019aa6f0459fa92abe88ca065c2e1bc",
+      "path": "bench/sets/sc98/references/03.json"
+    },
+    {
+      "sha256": "7ad068a11995be55888d6efe290bcff911f173c10cdf21e3894e49b07be6a88f",
+      "path": "bench/sets/sc98/references/04.json"
+    },
+    {
+      "sha256": "5f1f886941b29e58dc8420540d3136c4469eeb1ff94f1356dc2d471a9bc51f2f",
+      "path": "bench/sets/sc98/references/05.json"
+    },
+    {
+      "sha256": "cb09644cebcd4ed0add0d9f4d85c71d41dbcdccacd0043987543504baf200fe6",
+      "path": "bench/sets/sc98/references/06.json"
+    },
+    {
+      "sha256": "f2352aa3fc97dc64393d2481ec29df451d9518162ce2184924eebb2694676782",
+      "path": "bench/sets/sc98/references/07.json"
+    },
+    {
+      "sha256": "cb09644cebcd4ed0add0d9f4d85c71d41dbcdccacd0043987543504baf200fe6",
+      "path": "bench/sets/sc98/references/08.json"
+    },
+    {
+      "sha256": "cb09644cebcd4ed0add0d9f4d85c71d41dbcdccacd0043987543504baf200fe6",
+      "path": "bench/sets/sc98/references/09.json"
+    },
+    {
+      "sha256": "d6889bdf10ceb59717aa9dc112e85a183885a83b84394c731e6e44a93db4a2f7",
+      "path": "bench/sets/sc98/references/10.json"
+    },
+    {
+      "sha256": "2f54df201d5334561d8afaa33ddd38555294da95426115dfe5458483ed5aed5b",
+      "path": "bench/sets/sc98/references/11.json"
+    },
+    {
+      "sha256": "e958a54cadb4afc8b813343f9c27da926ec10af1689e88428f47d44a87a1d981",
+      "path": "bench/sets/sc98/negatives/01-wrong.json"
+    },
+    {
+      "sha256": "c716c003beabe4f5eb90029daeb6aad71e7fce7fa1672362df266b7248de002d",
+      "path": "bench/sets/sc98/negatives/02-wrong.json"
+    },
+    {
+      "sha256": "866583017489da8c11a56cd72751ae5c807a26b8a03b94e42e0ef7b743c30095",
+      "path": "bench/sets/sc98/negatives/03-wrong.json"
+    },
+    {
+      "sha256": "3e80e4bf2589cc3e809476f00138a95538b7a16639de62774ef1b0378ca8ee4a",
+      "path": "bench/sets/sc98/negatives/04-wrong.json"
+    },
+    {
+      "sha256": "367dcf262ddae23b7e1d3eadb4dbfef71ec86ef591ac046edc1687ceda8be7fb",
+      "path": "bench/sets/sc98/negatives/05-wrong.json"
+    },
+    {
+      "sha256": "cb09644cebcd4ed0add0d9f4d85c71d41dbcdccacd0043987543504baf200fe6",
+      "path": "bench/sets/sc98/negatives/06-wrong.json"
+    },
+    {
+      "sha256": "4b63a1a833832348e744eedb37a849b012403be5d91b0c4585e3ec67bde5d20d",
+      "path": "bench/sets/sc98/negatives/07-wrong.json"
+    },
+    {
+      "sha256": "cb09644cebcd4ed0add0d9f4d85c71d41dbcdccacd0043987543504baf200fe6",
+      "path": "bench/sets/sc98/negatives/08-wrong.json"
+    },
+    {
+      "sha256": "cb09644cebcd4ed0add0d9f4d85c71d41dbcdccacd0043987543504baf200fe6",
+      "path": "bench/sets/sc98/negatives/09-wrong.json"
+    },
+    {
+      "sha256": "9dffeac2e562711ce6aa409bf26179e6ffa08e6d36cadfd500dbef4178723058",
+      "path": "bench/sets/sc98/negatives/10-wrong.json"
+    },
+    {
+      "sha256": "87ac69c355983b6d14f65c77403d48c865fee9459f55dd58d6107236773655f0",
+      "path": "bench/sets/sc98/negatives/11-wrong.json"
+    },
+    {
+      "sha256": "b9cf6a21f0396ee8678c8b27bb93ddaf218c43b93d4dc389fe567114b253779a",
+      "path": "bench/sets/sc98/negatives/tasks.json"
+    }
+  ],
+  "results": [
+    {
+      "id": "01",
+      "mode": "reference",
+      "pass": true,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "02",
+      "mode": "reference",
+      "pass": true,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "03",
+      "mode": "reference",
+      "pass": true,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "04",
+      "mode": "reference",
+      "pass": true,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "05",
+      "mode": "reference",
+      "pass": true,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "06",
+      "mode": "reference",
+      "pass": true,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "07",
+      "mode": "reference",
+      "pass": true,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "08",
+      "mode": "reference",
+      "pass": true,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "09",
+      "mode": "reference",
+      "pass": true,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "10",
+      "mode": "reference",
+      "pass": true,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "11",
+      "mode": "reference",
+      "pass": true,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "01",
+      "mode": "nothing",
+      "pass": false,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "02",
+      "mode": "nothing",
+      "pass": false,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "03",
+      "mode": "nothing",
+      "pass": false,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "04",
+      "mode": "nothing",
+      "pass": false,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "05",
+      "mode": "nothing",
+      "pass": false,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "06",
+      "mode": "nothing",
+      "pass": false,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "07",
+      "mode": "nothing",
+      "pass": false,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "08",
+      "mode": "nothing",
+      "pass": false,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "09",
+      "mode": "nothing",
+      "pass": false,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "10",
+      "mode": "nothing",
+      "pass": false,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "11",
+      "mode": "nothing",
+      "pass": false,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "01-wrong",
+      "mode": "negatives",
+      "pass": false,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "02-wrong",
+      "mode": "negatives",
+      "pass": false,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "03-wrong",
+      "mode": "negatives",
+      "pass": false,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "04-wrong",
+      "mode": "negatives",
+      "pass": false,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "05-wrong",
+      "mode": "negatives",
+      "pass": false,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "06-wrong",
+      "mode": "negatives",
+      "pass": false,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "07-wrong",
+      "mode": "negatives",
+      "pass": false,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "08-wrong",
+      "mode": "negatives",
+      "pass": false,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "09-wrong",
+      "mode": "negatives",
+      "pass": false,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "10-wrong",
+      "mode": "negatives",
+      "pass": false,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    },
+    {
+      "id": "11-wrong",
+      "mode": "negatives",
+      "pass": false,
+      "driver_errors": 0,
+      "stop_reason": "done"
+    }
+  ]
+}

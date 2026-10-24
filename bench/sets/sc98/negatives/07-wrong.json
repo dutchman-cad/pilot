@@ -1,0 +1,10 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "commands": [
+    "doubleclick Sketch1",
+    "key tab",
+    "key tab",
+    "type 1",
+    "key enter"
+  ]
+}

@@ -235,6 +235,20 @@ pub fn run(cfg: Config) -> Result<Value, String> {
 /// The callback must honor its timeout and return a bounded completion (at most 1 MiB).
 pub fn run_with(
     cfg: Config,
+    completion: impl FnMut(&str, &Value, Duration) -> Result<Value, String>,
+) -> Result<Value, String> {
+    let mut session = mcp::Server::new(mcp::Config {
+        endpoint: cfg.endpoint.clone(),
+        log: cfg.log.clone(),
+    })?;
+    run_in_session(cfg, &mut session, completion)
+}
+/// Run against an existing session, preserving its design and consumed command budget.
+/// The session supplies the transport and log; Config supplies driver limits and settings.
+/// The completion callback must honor its timeout and the 1 MiB response cap.
+pub fn run_in_session(
+    cfg: Config,
+    session: &mut mcp::Server,
     mut completion: impl FnMut(&str, &Value, Duration) -> Result<Value, String>,
 ) -> Result<Value, String> {
     if cfg.task.trim().is_empty()
@@ -266,10 +280,6 @@ pub fn run_with(
     }
     let started = Instant::now();
     let deadline = started + cfg.wall;
-    let mut session = mcp::Server::new(mcp::Config {
-        endpoint: cfg.endpoint,
-        log: cfg.log,
-    })?;
     session.driver_options(cfg.plain, cfg.budget, &cfg.model)?;
     let mut system = SYSTEM.to_owned();
     if !cfg.plain {
