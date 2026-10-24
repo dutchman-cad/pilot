@@ -50,6 +50,24 @@ fn help_version_and_flag_errors() {
         .contains("auto, on, or off"));
 }
 
+#[test]
+fn direct_recipe_configuration_errors_from_binary() {
+    for (args, expected) in [
+        (
+            vec!["model", "--direct-recipes", "--no-direct-recipes"],
+            "cannot be used with",
+        ),
+        (
+            vec!["model", "--upstream", "none", "--no-direct-recipes"],
+            "--upstream none cannot be combined with --no-direct-recipes",
+        ),
+    ] {
+        let output = run(&args);
+        assert!(!output.status.success());
+        assert!(String::from_utf8(output.stderr).unwrap().contains(expected));
+    }
+}
+
 #[path = "../examples/support/flags.rs"]
 mod flags;
 

@@ -13,6 +13,12 @@
 
 ### Changed
 
+- Exact-match answers are on by default on the model face, through the same client
+  approval and SolidCraft validation. `--no-direct-recipes` sends everything to the
+  model; `--direct-recipes` remains a no-op alias and conflicts with the opt-out.
+  `--upstream none` no longer needs a flag and rejects the opt-out. SolidCraft 98
+  keeps direct answering disabled; `--planner` remains independent.
+- Benchmark Pilot launches disable direct recipes to preserve earlier comparisons.
 - The centred-hole recipe accepts cubes with one side, boxes and blocks, “draw”,
   “hole through the center”, and an unqualified hole size as its diameter.
 

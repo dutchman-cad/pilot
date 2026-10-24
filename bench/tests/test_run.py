@@ -63,7 +63,7 @@ class RunnerTests(unittest.TestCase):
                 child.return_value.poll.return_value = None
                 with run.endpoint(args, Path(directory)) as url:
                     self.assertEqual(url, 'http://127.0.0.1:12345/v1')
-                self.assertEqual(child.call_args.args[0], ['pilot','model','--listen','127.0.0.1:12345','--upstream','http://example.invalid/v1'])
+                self.assertEqual(child.call_args.args[0], ['pilot','model','--listen','127.0.0.1:12345','--upstream','http://example.invalid/v1','--no-direct-recipes'])
                 child.return_value.terminate.assert_called_once()
 
     def test_report_pairs_and_rejects_duplicate_trials(self):

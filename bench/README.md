@@ -72,8 +72,12 @@ python3 bench/report.py results/v1-direct/results.jsonl results/v1-pilot/results
 ```
 
 Use `--set v2` and distinct output directories for v2. `--through-pilot` starts
-`dutchman-pilot model --listen ... --upstream ...` on an available loopback port
-and stops it on exit. It uses Pilot's default options; record the Pilot version
+`dutchman-pilot model --listen ... --upstream ... --no-direct-recipes` on an available
+loopback port and stops it on exit. Exact matches are now on by default in Pilot;
+the runner disables them to preserve the earlier model measurements. The direct
+endpoint (A) does not launch Pilot. For separate plan-text measurements, also pass
+`--no-direct-recipes` alongside `--planner` when launching Pilot manually.
+Record the Pilot version
 when sharing results. The endpoint must already serve the selected model.
 The output directory must have no existing `results.jsonl`.
 

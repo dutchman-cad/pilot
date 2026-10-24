@@ -56,9 +56,13 @@ hints require comparable before/after states in the result or conversation histo
 Use `--no-how` and `--no-hints` independently for A/B measurements.
 
 Plan-text recipes require `--planner` and are off by default. `--no-plan` (alias
-`--no-planner`) is accepted as a no-op alias for the default. Independent
-`--direct-recipes` enables exact-match calls and measured replies with normal
-SolidCraft approval; it can accompany `--planner`. See [the recipe library](recipes.md) for
+`--no-planner`) is accepted as a no-op alias for the default. Independent direct
+answering enables exact-match calls and measured replies by default with normal
+client approval and SolidCraft validation; it can accompany `--planner`.
+`--no-direct-recipes` sends everything to the model; `--direct-recipes` remains a
+no-op alias and conflicts with the opt-out. `--upstream none` requires direct
+answering and rejects the opt-out. Direct answering stays off for SolidCraft 98.
+See [the recipe library](recipes.md) for
 supported slots, geometry, examples, and limits. It adds catalogue-checked calls
 as a system message and audits rule, typed slots, expected result, and calls.
 In model plan mode, an action pledge parsed as the same recipe and slots can
@@ -181,7 +185,8 @@ suggestions by default; model-face plan-text recipes require `--planner`:
 | --- | --- | --- |
 | `--no-plan` | Accepted no-op alias for the default (`--no-planner` alias). | Disable the local `plan` tool and planner suggestions. |
 | `--planner` | Enable plan-text recipe suggestions, prose conversion, continuations, and completion checks. | Not available. |
-| `--direct-recipes` | Answer exact matches directly with normal approval; accepts `--planner`. | Not available. |
+| `--direct-recipes` | No-op alias for default exact answers with normal approval; accepts `--planner`. | Not available. |
+| `--no-direct-recipes` | Send everything to the model; conflicts with `--direct-recipes` and `--upstream none`. | Not available. |
 | `--no-hints` | Disable appended state hints in tool history. | Disable state hints and their before/after inspect probes. |
 | `--no-how` | Disable local command discovery. | Disable the local `how` tool. |
 | `--log FILE` | JSONL rewrites, keyed by model. | Same format, keyed by `mcp`. |

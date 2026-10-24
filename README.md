@@ -23,8 +23,9 @@ command line. The same commands also come as a standalone download,
   and one measured completion check. These plan-text features are off by default;
   `--no-plan` (alias `--no-planner`) is accepted as a no-op.
 - Text tool mode for models without native tools, with automatic retry and saved profiles.
-- Opt-in `--direct-recipes`: native tool proposals and measured replies without a
-  model, with normal client approval; `--upstream none` supports recipe-only use.
+- Exact matches use native tool proposals and measured replies without a model
+  by default, with normal client approval; `--upstream none` supports recipe-only use.
+  Use `--no-direct-recipes` to send everything to the model.
 - Argument repair, text-call pickup, command lookup, hints, buffered streaming,
   and bounded retries remain enabled by default, with audited rewrites.
 - Local, redacted [bug reports](docs/report.md) from five memory-only turns or offline
@@ -38,8 +39,9 @@ as an MCP server, or attach with `--connect 127.0.0.1:9898` to an application st
 
 See [recipes and their limits](docs/recipes.md).
 
-**Small models:** For 3–8B models, use `--direct-recipes` with your upstream URL.
-Exact matches bypass the model, and their replies are marked **"Exact match (no model):"**.
+**Small models:** For 3–8B models, exact matches are on by default with your upstream URL.
+Use `--no-direct-recipes` to send everything to the model. Exact matches bypass the model,
+and their replies are marked **"Exact match (no model):"**.
 The proposed calls still go through SolidCraft's approval and validation.
 Other requests go to the model. Keep plan-text recipes off unless you want to try
 `--planner`; they reduced reliability in measurements with small models.
