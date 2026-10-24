@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Add `dutchman-pilot report`: bounded memory-only turn capture, a loopback-only
+  `/pilot/turns` endpoint, offline planner replay, centralized redaction and explicit
+  consent for request words. Print a local Markdown file and capped issue URL for
+  user review and submission; `--open` optionally launches the browser.
+  Disable model-face capture with `--no-report-buffer`.
+
 - Restrict plane slots to documented XY / XZ / YZ values and bound name and axis
   extraction; reject arbitrary plane text instead of leaking extrusion prose.
 - Accept plane-first circle extrusion, relative end/corner through-hole layouts,

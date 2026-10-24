@@ -21,6 +21,8 @@ command line. The same commands also come as a standalone download,
 - Opt-in `--direct-recipes`: native tool proposals and measured replies without a
   model, with normal client approval; `--upstream none` supports recipe-only use.
 - Audited rewrites, argument repair, buffered streaming, and bounded retries.
+- Local, redacted [bug reports](docs/report.md) from five memory-only turns or offline
+  planner replay. Request words require `--include-request`; you review and submit.
 
 See [recipes and their limits](docs/recipes.md).
 
