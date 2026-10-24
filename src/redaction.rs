@@ -50,7 +50,7 @@ impl Redactor {
                 format!("{} name", class.to_lowercase()),
             ));
         }
-        mapped.sort_by(|a, b| b.0.len().cmp(&a.0.len()));
+        mapped.sort_by_key(|a| std::cmp::Reverse(a.0.len()));
         Self {
             omitted_words: BTreeSet::new(),
             counts: BTreeMap::new(),
@@ -300,7 +300,7 @@ impl Redactor {
         if self.names.len() < 512 {
             self.names
                 .push((name.into(), replacement.clone(), category));
-            self.names.sort_by(|a, b| b.0.len().cmp(&a.0.len()));
+            self.names.sort_by_key(|a| std::cmp::Reverse(a.0.len()));
         }
         replacement
     }
