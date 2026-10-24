@@ -14,7 +14,10 @@ Usage:
                        [--upstream-timeout SECONDS (default 300, max 3600)]
                        [--fallback-prompt auto|on|off] [--prompt-help] [--log FILE]
                        [--profile-dir DIR] [--model-settings [FILE]] [--seed INTEGER]
+                       [--no-report-buffer]
                        [--no-how] [--no-hints] [--planner | --no-plan (alias --no-planner)]
+  dutchman-pilot report [--listen ADDR] [--turn N] [--include-request] [--out FILE]
+                        [--from-request FILE] [--open]
   dutchman-pilot profile [model] [--profile-dir DIR] [--json]
   dutchman-pilot log-summary <rewrites.jsonl> [--json]
   dutchman-pilot mcp [--solidcraft-cli PATH] [--log FILE]
@@ -29,6 +32,9 @@ Model plan mode uses audited recipes, matching action prose, and one completion 
 --direct-recipes answers exact matches without a model (conflicts with --no-plan).
 Upstream defaults to Ollama; --upstream none (with --direct-recipes) runs without
 a model. Direct replies are marked, audited, and profiled separately.
+report prints a redacted local file and issue URL; it never submits anything.
+--include-request opts in to request words; --open opens the browser for review.
+The model face keeps five diagnostic turns in memory; --no-report-buffer disables it.
 Profiles and the default rewrites.jsonl log live in the user's data dir/dutchman-pilot.
 --prompt-help adds short rules and at most 15 relevant command purposes.
 --model-settings enables Ollama-only temperature 0.1 with tools and num_ctx 8192
@@ -41,7 +47,9 @@ Flags (including aliases):
 
 - `--direct-recipes`
 - `--fallback-prompt`
+- `--from-request`
 - `--help`
+- `--include-request`
 - `--json`
 - `--listen`
 - `--log`
@@ -50,11 +58,15 @@ Flags (including aliases):
 - `--no-how`
 - `--no-plan`
 - `--no-planner`
+- `--no-report-buffer`
+- `--open`
+- `--out`
 - `--planner`
 - `--profile-dir`
 - `--prompt-help`
 - `--seed`
 - `--solidcraft-cli`
+- `--turn`
 - `--upstream`
 - `--upstream-timeout`
 - `--version`

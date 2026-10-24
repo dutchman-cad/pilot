@@ -92,3 +92,25 @@ fn long_system_context_and_offered_tools_are_replayed() {
     request["tools"] = serde_json::json!([]);
     assert!(planner::plan(&request, &c).unwrap().is_none());
 }
+
+#[cfg(feature = "proxy")]
+#[test]
+fn offline_reports_replay_every_recorded_request() {
+    use dutchman_pilot::report;
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/planner-replay");
+    let fixtures: Vec<Fixture> = serde_json::from_value(load(&root.join("cases.json"))).unwrap();
+    for fixture in fixtures {
+        let request = load(&root.join(&fixture.request_file));
+        let turn = report::offline(&request).unwrap();
+        let (_, text) = report::render(&turn, false).unwrap();
+        assert!(!text.contains("Request text (explicitly"));
+        match fixture.expected {
+            Some(expected) => {
+                assert_eq!(turn.shape["intent"], expected.rule);
+                assert_eq!(turn.shape["slots"], expected.slots);
+            }
+            None => assert!(turn.failed),
+        }
+        assert!(text.contains("redacted:"));
+    }
+}

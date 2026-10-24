@@ -16,7 +16,10 @@ Usage:
   {pad}       [--upstream-timeout SECONDS (default 300, max 3600)]
   {pad}       [--fallback-prompt auto|on|off] [--prompt-help] [--log FILE]
   {pad}       [--profile-dir DIR] [--model-settings [FILE]] [--seed INTEGER]
+  {pad}       [--no-report-buffer]
   {pad}       [--no-how] [--no-hints] [--planner | --no-plan (alias --no-planner)]
+  {binary} report [--listen ADDR] [--turn N] [--include-request] [--out FILE]
+  {pad}        [--from-request FILE] [--open]
   {binary} profile [model] [--profile-dir DIR] [--json]
   {binary} log-summary <rewrites.jsonl> [--json]
   {binary} mcp [--solidcraft-cli PATH] [--log FILE]
@@ -31,6 +34,9 @@ Model plan mode uses audited recipes, matching action prose, and one completion 
 --direct-recipes answers exact matches without a model (conflicts with --no-plan).
 Upstream defaults to Ollama; --upstream none (with --direct-recipes) runs without
 a model. Direct replies are marked, audited, and profiled separately.
+report prints a redacted local file and issue URL; it never submits anything.
+--include-request opts in to request words; --open opens the browser for review.
+The model face keeps five diagnostic turns in memory; --no-report-buffer disables it.
 Profiles and the default rewrites.jsonl log live in the user's data dir/{binary}.
 --prompt-help adds short rules and at most 15 relevant command purposes.
 --model-settings enables Ollama-only temperature 0.1 with tools and num_ctx 8192
@@ -86,6 +92,8 @@ enum Action {
         #[arg(long)]
         json: bool,
     },
+    /// Write and print a redacted report for review and manual submission.
+    Report(crate::report::ReportArgs),
     /// Summarize a rewrite log.
     LogSummary {
         path: PathBuf,
@@ -125,6 +133,8 @@ struct ModelArgs {
     planner: bool,
     #[arg(long, alias = "no-planner")]
     no_plan: bool,
+    #[arg(long)]
+    no_report_buffer: bool,
 }
 
 #[derive(Debug, clap::Args)]
@@ -203,6 +213,7 @@ pub fn run_named(cmd: Command, bin: &str) -> Result<i32, Error> {
         None => output(&help_named(bin)),
         Some(Action::Model(args)) => model::serve(model::Config {
             listen: args.listen,
+            no_report_buffer: args.no_report_buffer,
             // No-model operation is explicit: --upstream none.
             upstream: args
                 .upstream
@@ -220,6 +231,7 @@ pub fn run_named(cmd: Command, bin: &str) -> Result<i32, Error> {
             no_hints: args.no_hints,
             planner: !args.no_plan,
         }),
+        Some(Action::Report(args)) => crate::report::run(args),
         Some(Action::Mcp(args)) => mcp::serve(mcp::Config {
             solidcraft_cli: args.solidcraft_cli,
             args: args.args,
@@ -258,6 +270,11 @@ fn validate_bounds(cmd: &Command) -> Result<(), Error> {
             }
             if let Some(dir) = dir {
                 add(dir.as_os_str().len());
+            }
+        }
+        Some(Action::Report(args)) => {
+            for path in args.out.iter().chain(args.from_request.iter()) {
+                add(path.as_os_str().len());
             }
         }
         Some(Action::LogSummary { path, .. }) => add(path.as_os_str().len()),

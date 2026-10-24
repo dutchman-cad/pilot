@@ -36,6 +36,7 @@ pub enum FallbackPrompt {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Config {
     pub listen: SocketAddr,
+    pub no_report_buffer: bool,
     pub upstream: String,
     pub upstream_timeout: Duration,
     pub fallback_prompt: FallbackPrompt,
@@ -202,6 +203,7 @@ struct Proxy {
     settings: BTreeMap<String, ModelSettings>,
     log: File,
     conversations: Vec<Conversation>,
+    turns: crate::capture::Ring,
     #[cfg(test)]
     scripted: Option<std::cell::RefCell<Scripted>>,
 }
@@ -288,6 +290,7 @@ impl Server {
                 settings,
                 log,
                 conversations: Vec::new(),
+                turns: crate::capture::Ring::default(),
                 #[cfg(test)]
                 scripted: None,
             },
@@ -300,7 +303,7 @@ impl Server {
     }
     /// Handle one connection, including malformed-request responses; useful for embedding/tests.
     pub fn serve_one(&mut self) -> Result<(), String> {
-        let (mut socket, _) = self
+        let (mut socket, peer) = self
             .listener
             .accept()
             .map_err(|e| format!("accept failed: {e}"))?;
@@ -308,7 +311,7 @@ impl Server {
             .set_write_timeout(Some(Duration::from_secs(5)))
             .map_err(|e| format!("cannot set timeout: {e}"))?;
         let response = match read_request(&mut socket) {
-            Ok(request) => self.proxy.handle(request),
+            Ok(request) => self.proxy.handle_peer(request, peer),
             Err(message) => Err(message),
         }
         .unwrap_or_else(|message| Reply::error(400, "proxy_error", &message));
@@ -594,9 +597,33 @@ impl Proxy {
             retry_after,
         })
     }
+    fn handle_peer(&mut self, request: Request, peer: SocketAddr) -> Result<Reply, String> {
+        if request.path == "/pilot/turns" && !peer.ip().is_loopback() {
+            return Ok(Reply::error(
+                403,
+                "forbidden",
+                "turn capture is loopback only",
+            ));
+        }
+        self.handle(request)
+    }
     fn handle(&mut self, request: Request) -> Result<Reply, String> {
         // Two shared hand-backs, one parse-error retry, and the capability probe.
         let deadline = Instant::now() + self.cfg.upstream_timeout * 5 + Duration::from_secs(3);
+        if request.path == "/pilot/turns" && request.method == "GET" {
+            let body = serde_json::to_vec(self.turns.turns())
+                .map_err(|e| format!("cannot encode turns: {e}"))?;
+            if body.len() > 8 * 1_048_576 {
+                return Err("turn response exceeds 8 MiB".into());
+            }
+            return Ok(Reply {
+                status: 200,
+                content_type: "application/json".into(),
+                body,
+                rewrites: 0,
+                retry_after: None,
+            });
+        }
         if request.path == "/v1/models" && request.method == "GET" {
             if self.cfg.upstream == "none" {
                 return Ok(Reply {
@@ -643,6 +670,7 @@ impl Proxy {
             ..Profile::default()
         });
         let mut audit = Audit {
+            events: None,
             file: self
                 .log
                 .try_clone()
@@ -655,6 +683,25 @@ impl Proxy {
             model,
             count: 0,
             kinds: BTreeMap::new(),
+        };
+        let mut captured = if self.cfg.no_report_buffer {
+            None
+        } else {
+            audit.events = Some(Vec::new());
+            Some(crate::capture::Turn::from_request(
+                &body,
+                &self.catalog,
+                json!({
+                    "planner":self.cfg.planner,"direct_recipes":self.cfg.direct_recipes,
+                    "fallback_prompt":format!("{:?}",self.cfg.fallback_prompt),"prompt_help":self.cfg.prompt_help,
+                    "no_how":self.cfg.no_how,"no_hints":self.cfg.no_hints,"no_report_buffer":self.cfg.no_report_buffer,
+                    "model_settings_enabled":self.cfg.model_settings_enabled || self.cfg.model_settings.is_some(),
+                    "seed":self.cfg.seed,"upstream_timeout":self.cfg.upstream_timeout.as_secs(),
+                    "upstream":crate::capture::bounded(&self.cfg.upstream),"listen":self.cfg.listen.to_string(),
+                    "log":self.cfg.log.as_ref().map(|p|crate::capture::bounded(&p.to_string_lossy())),
+                    "profile_dir":self.cfg.profile_dir.as_ref().map(|p|crate::capture::bounded(&p.to_string_lossy()))
+                }),
+            )?)
         };
         let text_before = profile.text_written;
         let history = recovery::history(&body)?;
@@ -699,6 +746,20 @@ impl Proxy {
             Err(message) => Reply::error(500, "profile_error", &message),
         };
         reply.rewrites = audit.count;
+        if let Some(turn) = &mut captured {
+            for event in audit.events.take().unwrap_or_default() {
+                turn.event(&event.kind, event.facts);
+            }
+            let response = if reply.content_type.contains("text/event-stream") {
+                collect_sse(&reply.body).unwrap_or(Value::Null)
+            } else {
+                serde_json::from_slice(&reply.body).unwrap_or(Value::Null)
+            };
+            turn.finish(&response, reply.status);
+        }
+        if let Some(turn) = captured {
+            self.turns.push(turn);
+        }
         Ok(reply)
     }
     fn save_profiles(&self) -> Result<(), String> {
@@ -1035,6 +1096,14 @@ impl Proxy {
                     .map_err(|_| "upstream did not return completion JSON")?
             };
             repair::check_value(&response)?;
+            if let Some(choices) = response["choices"].as_array() {
+                for choice in choices.iter().take(8) {
+                    audit.capture(
+                        "upstream finish",
+                        &json!({"finish_reason":choice["finish_reason"]}),
+                    );
+                }
+            }
             let before = response.clone();
             let choices = response["choices"]
                 .as_array_mut()
@@ -2143,6 +2212,7 @@ mod tests {
             Self {
                 proxy: Proxy {
                     cfg: Config {
+                        no_report_buffer: false,
                         listen: "127.0.0.1:0".parse().unwrap(),
                         upstream: "http://localhost:11434/v1".into(),
                         upstream_timeout: DEFAULT_UPSTREAM_TIMEOUT,
@@ -2165,6 +2235,7 @@ mod tests {
                     settings: BTreeMap::new(),
                     log,
                     conversations: Vec::new(),
+                    turns: crate::capture::Ring::default(),
                     scripted: Some(RefCell::new(Scripted {
                         reject_tools: false,
                         replies: replies
@@ -2195,6 +2266,7 @@ mod tests {
         }
         fn audit(&self) -> Audit {
             Audit {
+                events: None,
                 file: self.proxy.log.try_clone().unwrap(),
                 size: 0,
                 model: "unit".into(),
@@ -2206,6 +2278,55 @@ mod tests {
     impl Drop for Fixture {
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.dir);
+        }
+    }
+    #[test]
+    fn report_ring_and_peer_policy_without_sockets() {
+        for disabled in [false, true] {
+            let mut fixture = Fixture::new(Vec::new());
+            fixture.proxy.cfg.upstream = "none".into();
+            fixture.proxy.cfg.direct_recipes = true;
+            fixture.proxy.cfg.no_report_buffer = disabled;
+            for i in 1..=7 {
+                assert_eq!(
+                    fixture
+                        .chat(planner::cases::request(&format!("create a cube {i}mm")))
+                        .status,
+                    200
+                );
+            }
+            for (peer, status) in [
+                ("127.0.0.1:1", 200),
+                ("[::1]:1", 200),
+                ("192.0.2.1:1", 403),
+                ("[2001:db8::1]:1", 403),
+            ] {
+                let reply = fixture
+                    .proxy
+                    .handle_peer(
+                        Request {
+                            method: "GET".into(),
+                            path: "/pilot/turns".into(),
+                            auth: None,
+                            body: Vec::new(),
+                        },
+                        peer.parse().unwrap(),
+                    )
+                    .unwrap();
+                assert_eq!(reply.status, status);
+                if status == 200 {
+                    let turns: Value = serde_json::from_slice(&reply.body).unwrap();
+                    assert_eq!(
+                        turns.as_array().unwrap().len(),
+                        if disabled { 0 } else { 5 }
+                    );
+                    if !disabled {
+                        assert_eq!(turns[0]["id"], 3);
+                        assert_eq!(turns[4]["id"], 7);
+                        assert!(turns[4]["events"].to_string().contains("finish_reason"));
+                    }
+                }
+            }
         }
     }
     fn tools() -> Value {

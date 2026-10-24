@@ -404,6 +404,38 @@ pub fn completion(request: &Value, expected: &Expected) -> Option<String> {
     (!differences.is_empty()).then(|| format!("Recipe completion differs: {}. Inspect with measure:true and finish the remaining work or explain the difference. Do not repeat accepted changes.", differences.join("; ")))
 }
 
+const REPORT_GUARD_WORDS: &[&str] = &[
+    "not",
+    "no",
+    "avoid",
+    "skip",
+    "stop",
+    "neither",
+    "nor",
+    "explanation",
+    "describe",
+    "tutorial",
+    "instructions",
+    "don",
+    "dont",
+    "never",
+    "explain",
+    "would",
+    "what",
+    "how",
+    "why",
+    "whether",
+    "example",
+    "if",
+    "or",
+    "instead",
+    "except",
+    "without",
+    "undo",
+    "cannot",
+    "cant",
+];
+
 pub fn plan(request: &Value, catalog: &Catalog) -> Result<Option<Plan>, String> {
     plan_impl(request, catalog, false)
 }
@@ -592,41 +624,7 @@ fn plan_impl(
             })
         })
     });
-    if acted
-        || [
-            "not",
-            "no",
-            "avoid",
-            "skip",
-            "stop",
-            "neither",
-            "nor",
-            "explanation",
-            "describe",
-            "tutorial",
-            "instructions",
-            "don",
-            "dont",
-            "never",
-            "explain",
-            "would",
-            "what",
-            "how",
-            "why",
-            "whether",
-            "example",
-            "if",
-            "or",
-            "instead",
-            "except",
-            "without",
-            "undo",
-            "cannot",
-            "cant",
-        ]
-        .iter()
-        .any(|w| has(w))
-    {
+    if acted || REPORT_GUARD_WORDS.iter().any(|w| has(w)) {
         return Ok(None);
     }
     if slots::has_question(text) && !polite_question {
@@ -768,6 +766,88 @@ pub fn partial_plan(request: &Value, catalog: &Catalog) -> Result<Option<(Plan, 
         }
     }
     Ok(None)
+}
+
+/// Privacy-safe decline diagnostics derived from the planner's own guards.
+#[cfg(feature = "proxy")]
+pub fn report_decline(text: &str) -> (&'static str, Vec<String>) {
+    if text.len() > MAX_TEXT {
+        return ("request exceeds planner text limit", Vec::new());
+    }
+    let text = slots::normalize(text);
+    let tokens = slots::intent_tokens(&text);
+    let guarded: Vec<String> = tokens
+        .iter()
+        .filter(|w| REPORT_GUARD_WORDS.contains(&w.as_str()))
+        .cloned()
+        .collect();
+    if !guarded.is_empty() {
+        return ("guarded request", guarded);
+    }
+    recipes::report_decline(&text)
+}
+/// Only words in Pilot's fixed planner lists may appear in request diagnostics.
+#[cfg(feature = "proxy")]
+pub fn report_tokens(text: &str) -> Vec<String> {
+    let mut end = text.len().min(MAX_TEXT);
+    while !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    let text = &text[..end];
+    slots::intent_tokens(&slots::normalize(text))
+        .into_iter()
+        .take(256)
+        .map(|word| {
+            if REPORT_GUARD_WORDS.contains(&word.as_str())
+                || recipes::UNSUPPORTED.contains(&word.as_str())
+                || matches!(
+                    word.as_str(),
+                    "make"
+                        | "create"
+                        | "build"
+                        | "add"
+                        | "sketch"
+                        | "fillet"
+                        | "chamfer"
+                        | "move"
+                        | "translate"
+                        | "rename"
+                        | "mirror"
+                        | "shell"
+                        | "revolve"
+                        | "cube"
+                        | "box"
+                        | "plate"
+                        | "sphere"
+                        | "cylinder"
+                        | "rod"
+                        | "disc"
+                        | "tube"
+                        | "volume"
+                        | "count"
+                        | "bodies"
+                        | "and"
+                        | "then"
+                        | "hole"
+                        | "holes"
+                        | "extrude"
+                        | "radius"
+                        | "diameter"
+                        | "height"
+                        | "width"
+                        | "length"
+                        | "mm"
+                        | "cm"
+                        | "inch"
+                        | "inches"
+                )
+            {
+                word
+            } else {
+                "[word]".into()
+            }
+        })
+        .collect()
 }
 
 #[cfg(test)]
