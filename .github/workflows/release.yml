@@ -28,7 +28,7 @@ jobs:
       run:
         shell: bash
     env:
-      DUTCHMAN_LAUNCHER_REV: 5a51057b66e77f7905d93ec3f544701d1c226751
+      DUTCHMAN_LAUNCHER_REV: 17d6b862f11f8611b5a9a64763bf25ea691ca7be
       CARGO_BUILD_JOBS: 2
       CARGO_TARGET_DIR: target
       PLATFORM: ${{ matrix.platform }}
