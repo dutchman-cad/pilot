@@ -28,6 +28,7 @@ jobs:
       run:
         shell: bash
     env:
+      DUTCHMAN_LAUNCHER_REV: 5a51057b66e77f7905d93ec3f544701d1c226751
       CARGO_BUILD_JOBS: 2
       CARGO_TARGET_DIR: target
       PLATFORM: ${{ matrix.platform }}
@@ -49,6 +50,17 @@ jobs:
           rustup target add "$BUILD_TARGET"
       - name: Build
         run: cargo build --locked --release --bins --target "$BUILD_TARGET"
+      - name: Check out shared launcher
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: dutchman-cad/dutchman
+          ref: ${{ env.DUTCHMAN_LAUNCHER_REV }}
+          path: launcher-source
+          persist-credentials: false
+      - name: Build shared launcher
+        working-directory: launcher-source
+        run: |
+          CARGO_TARGET_DIR="$GITHUB_WORKSPACE/launcher-target" cargo build --locked --release -p dutchman-launcher --target "$BUILD_TARGET"
       - name: Assemble
         run: |
           bundle="pilot-$VERSION-$PLATFORM"
@@ -64,8 +76,29 @@ jobs:
               cp "target/$BUILD_TARGET/release/$binary" "stage/$bundle/"
             fi
           done < <(jq -r '.packages[0].targets[] | select(.kind | index("bin")) | .name' metadata.json | tr -d '\r')
+          suffix=
+          if [ "$RUNNER_OS" = Windows ]; then suffix=.exe; fi
+          cp "launcher-target/$BUILD_TARGET/release/dutchman-launcher$suffix" "stage/$bundle/dutchman$suffix"
+          if [ "$RUNNER_OS" = macOS ]; then
+            lipo "stage/$bundle/dutchman" -verify_arch arm64
+            codesign --force --sign - "stage/$bundle/dutchman"
+          fi
+          printf '%s\n' "$DUTCHMAN_LAUNCHER_REV" > "stage/$bundle/LAUNCHER_REV"
+          cp install.sh install.ps1 "stage/$bundle/"
           cp LICENSE NOTICE README.md CHANGELOG.md CONTRIBUTING.md SECURITY.md SPEC.md "stage/$bundle/"
           cp -R docs corpus "stage/$bundle/"
+      - name: Smoke test staged commands
+        run: |
+          bundle="pilot-$VERSION-$PLATFORM"
+          suffix=
+          if [ "$RUNNER_OS" = Windows ]; then suffix=.exe; fi
+          actual=$("stage/$bundle/dutchman$suffix" pilot --version | tr -d '\r')
+          direct=$("stage/$bundle/dutchman-pilot$suffix" --version | tr -d '\r')
+          test "$actual" = "$direct"
+          test "$actual" = "dutchman-pilot $VERSION"
+      - name: Archive and checksum
+        run: |
+          bundle="pilot-$VERSION-$PLATFORM"
           if [ "$RUNNER_OS" = Windows ]; then
             (cd stage && 7z a -tzip "../dist/$bundle.zip" "$bundle")
           else
