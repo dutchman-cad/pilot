@@ -1,0 +1,6100 @@
+{
+ "SPDX-License-Identifier": "Apache-2.0",
+ "solidcraft": "0.20.0",
+ "cases": [
+  {
+   "id": "01-cube-turn-1",
+   "pass": true,
+   "check": {
+    "bodies": 1,
+    "volume": 8000,
+    "bbox_size": [
+     20,
+     20,
+     20
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2400.0,
+      "bbox": {
+       "max": [
+        20.0,
+        20.0,
+        20.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       10.0,
+       10.0,
+       10.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 8000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 3.174845,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "01-cube-final",
+   "pass": true,
+   "check": {
+    "bodies": 1,
+    "volume": 8000,
+    "bbox_size": [
+     20,
+     20,
+     20
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2400.0,
+      "bbox": {
+       "max": [
+        20.0,
+        20.0,
+        20.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       10.0,
+       10.0,
+       10.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 8000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 3.174845,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "02-cylinder-turn-1",
+   "pass": true,
+   "check": {
+    "bodies": 1,
+    "volume": 35342.92,
+    "bbox_size": [
+     30,
+     30,
+     50
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 6125.791424016474,
+      "bbox": {
+       "max": [
+        14.999768343198578,
+        14.999597006109644,
+        50.00000000000002
+       ],
+       "min": [
+        -14.999768343198578,
+        -14.999597006109646,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       7.356365717588056e-16,
+       5.893948183642541e-16,
+       24.999999999999996
+      ],
+      "edges": 2,
+      "face_types": {
+       "cylinder": 1,
+       "plane": 2
+      },
+      "faces": 3,
+      "kernel": {
+       "edges": 6,
+       "faces": 4,
+       "shells": 1,
+       "vertices": 4
+      },
+      "name": "Body1",
+      "vertices": 2,
+      "visible": true,
+      "volume_mm3": 35338.63217746559
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 2.571044,
+      "name": "Cylinder1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "CylinderFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "02-cylinder-final",
+   "pass": true,
+   "check": {
+    "bodies": 1,
+    "volume": 35342.92,
+    "bbox_size": [
+     30,
+     30,
+     50
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 6125.791424016474,
+      "bbox": {
+       "max": [
+        14.999768343198578,
+        14.999597006109644,
+        50.00000000000002
+       ],
+       "min": [
+        -14.999768343198578,
+        -14.999597006109646,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       7.356365717588056e-16,
+       5.893948183642541e-16,
+       24.999999999999996
+      ],
+      "edges": 2,
+      "face_types": {
+       "cylinder": 1,
+       "plane": 2
+      },
+      "faces": 3,
+      "kernel": {
+       "edges": 6,
+       "faces": 4,
+       "shells": 1,
+       "vertices": 4
+      },
+      "name": "Body1",
+      "vertices": 2,
+      "visible": true,
+      "volume_mm3": 35338.63217746559
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 2.571044,
+      "name": "Cylinder1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "CylinderFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "03-block-turn-1",
+   "pass": true,
+   "check": {
+    "bodies": 1,
+    "volume": 24000,
+    "bbox_size": [
+     10,
+     40,
+     60
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 6800.0,
+      "bbox": {
+       "max": [
+        60.0,
+        40.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       30.0,
+       20.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 24000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 1.853075,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "03-block-final",
+   "pass": true,
+   "check": {
+    "bodies": 1,
+    "volume": 24000,
+    "bbox_size": [
+     10,
+     40,
+     60
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 6800.0,
+      "bbox": {
+       "max": [
+        60.0,
+        40.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       30.0,
+       20.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 24000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 1.853075,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "04-sketch-extrude-turn-1",
+   "pass": true,
+   "check": {
+    "bodies": 1,
+    "volume": 22500,
+    "bbox_size": [
+     15,
+     30,
+     50
+    ],
+    "feature_kinds": [
+     "Extrude"
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 5400.0,
+      "bbox": {
+       "max": [
+        50.0,
+        30.0,
+        15.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       25.0,
+       15.0,
+       7.5
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 22500.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 2,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 6,
+    "selection": [],
+    "sketches": [
+     {
+      "constraints": [
+       {
+        "id": "k1",
+        "l": 0,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k2",
+        "l": 2,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k3",
+        "l": 1,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k4",
+        "l": 3,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k5",
+        "name": "Coincident",
+        "p": 0,
+        "q": 1,
+        "type": "coincident"
+       }
+      ],
+      "curves": [
+       {
+        "construction": false,
+        "end": "p2",
+        "end_at": [
+         50.0,
+         0.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l1",
+        "start": "p1",
+        "start_at": [
+         0.0,
+         0.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p3",
+        "end_at": [
+         50.0,
+         30.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l2",
+        "start": "p2",
+        "start_at": [
+         50.0,
+         0.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p4",
+        "end_at": [
+         0.0,
+         30.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l3",
+        "start": "p3",
+        "start_at": [
+         50.0,
+         30.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p1",
+        "end_at": [
+         0.0,
+         0.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l4",
+        "start": "p4",
+        "start_at": [
+         0.0,
+         30.0
+        ],
+        "type": "line"
+       }
+      ],
+      "dof": 2,
+      "failing": [],
+      "fully_constrained": false,
+      "id": 1,
+      "links": [],
+      "name": "Sketch1",
+      "plane": {
+       "origin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "x_dir": [
+        1.0,
+        0.0,
+        0.0
+       ],
+       "y_dir": [
+        0.0,
+        1.0,
+        0.0
+       ]
+      },
+      "points": [
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": true,
+        "fully_constrained": true,
+        "id": "origin",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": false,
+        "fully_constrained": true,
+        "id": "p1",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         50.0,
+         0.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p2",
+        "link": null,
+        "world": [
+         50.0,
+         0.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         50.0,
+         30.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p3",
+        "link": null,
+        "world": [
+         50.0,
+         30.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         0.0,
+         30.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p4",
+        "link": null,
+        "world": [
+         0.0,
+         30.0,
+         0.0
+        ]
+       }
+      ],
+      "profiles": [
+       {
+        "area_mm2": 1500.0,
+        "centroid_sketch": [
+         25.0,
+         15.0
+        ],
+        "curves": [
+         "l1",
+         "l2",
+         "l3",
+         "l4"
+        ],
+        "holes": [],
+        "index": 0
+       }
+      ],
+      "status": "solved",
+      "visible": false,
+      "wires": []
+     }
+    ],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 0.06910999999999999,
+      "name": "Sketch1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 2,
+      "ms": 2.120551,
+      "name": "Extrude1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+     }
+    ],
+    "undo": 3,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "04-sketch-extrude-final",
+   "pass": true,
+   "check": {
+    "bodies": 1,
+    "volume": 22500,
+    "bbox_size": [
+     15,
+     30,
+     50
+    ],
+    "feature_kinds": [
+     "Extrude"
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 5400.0,
+      "bbox": {
+       "max": [
+        50.0,
+        30.0,
+        15.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       25.0,
+       15.0,
+       7.5
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 22500.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 2,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 6,
+    "selection": [],
+    "sketches": [
+     {
+      "constraints": [
+       {
+        "id": "k1",
+        "l": 0,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k2",
+        "l": 2,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k3",
+        "l": 1,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k4",
+        "l": 3,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k5",
+        "name": "Coincident",
+        "p": 0,
+        "q": 1,
+        "type": "coincident"
+       }
+      ],
+      "curves": [
+       {
+        "construction": false,
+        "end": "p2",
+        "end_at": [
+         50.0,
+         0.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l1",
+        "start": "p1",
+        "start_at": [
+         0.0,
+         0.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p3",
+        "end_at": [
+         50.0,
+         30.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l2",
+        "start": "p2",
+        "start_at": [
+         50.0,
+         0.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p4",
+        "end_at": [
+         0.0,
+         30.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l3",
+        "start": "p3",
+        "start_at": [
+         50.0,
+         30.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p1",
+        "end_at": [
+         0.0,
+         0.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l4",
+        "start": "p4",
+        "start_at": [
+         0.0,
+         30.0
+        ],
+        "type": "line"
+       }
+      ],
+      "dof": 2,
+      "failing": [],
+      "fully_constrained": false,
+      "id": 1,
+      "links": [],
+      "name": "Sketch1",
+      "plane": {
+       "origin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "x_dir": [
+        1.0,
+        0.0,
+        0.0
+       ],
+       "y_dir": [
+        0.0,
+        1.0,
+        0.0
+       ]
+      },
+      "points": [
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": true,
+        "fully_constrained": true,
+        "id": "origin",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": false,
+        "fully_constrained": true,
+        "id": "p1",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         50.0,
+         0.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p2",
+        "link": null,
+        "world": [
+         50.0,
+         0.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         50.0,
+         30.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p3",
+        "link": null,
+        "world": [
+         50.0,
+         30.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         0.0,
+         30.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p4",
+        "link": null,
+        "world": [
+         0.0,
+         30.0,
+         0.0
+        ]
+       }
+      ],
+      "profiles": [
+       {
+        "area_mm2": 1500.0,
+        "centroid_sketch": [
+         25.0,
+         15.0
+        ],
+        "curves": [
+         "l1",
+         "l2",
+         "l3",
+         "l4"
+        ],
+        "holes": [],
+        "index": 0
+       }
+      ],
+      "status": "solved",
+      "visible": false,
+      "wires": []
+     }
+    ],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 0.06910999999999999,
+      "name": "Sketch1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 2,
+      "ms": 2.120551,
+      "name": "Extrude1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+     }
+    ],
+    "undo": 3,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "05-plate-hole-turn-1",
+   "pass": true,
+   "check": {
+    "bodies": 1,
+    "volume": 44858.41,
+    "bbox_size": [
+     10,
+     60,
+     80
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 12400.078273411249,
+      "bbox": {
+       "max": [
+        80.0,
+        60.0,
+        10.000000000000005
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       40.0,
+       30.0,
+       5.0
+      ],
+      "edges": 14,
+      "face_types": {
+       "cylinder": 1,
+       "plane": 6
+      },
+      "faces": 7,
+      "kernel": {
+       "edges": 18,
+       "faces": 8,
+       "shells": 1,
+       "vertices": 12
+      },
+      "name": "Body1",
+      "vertices": 10,
+      "visible": true,
+      "volume_mm3": 44858.92917652784
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 2,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 5,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 1.912288,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 2,
+      "ms": 11.492899000000001,
+      "name": "Hole1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "HoleFeature",
+      "warning": null
+     }
+    ],
+    "undo": 2,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "05-plate-hole-final",
+   "pass": true,
+   "check": {
+    "bodies": 1,
+    "volume": 44858.41,
+    "bbox_size": [
+     10,
+     60,
+     80
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 12400.078273411249,
+      "bbox": {
+       "max": [
+        80.0,
+        60.0,
+        10.000000000000005
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       40.0,
+       30.0,
+       5.0
+      ],
+      "edges": 14,
+      "face_types": {
+       "cylinder": 1,
+       "plane": 6
+      },
+      "faces": 7,
+      "kernel": {
+       "edges": 18,
+       "faces": 8,
+       "shells": 1,
+       "vertices": 12
+      },
+      "name": "Body1",
+      "vertices": 10,
+      "visible": true,
+      "volume_mm3": 44858.92917652784
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 2,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 5,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 1.912288,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 2,
+      "ms": 11.492899000000001,
+      "name": "Hole1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "HoleFeature",
+      "warning": null
+     }
+    ],
+    "undo": 2,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "06-fillet-box-turn-1",
+   "pass": true,
+   "check": {
+    "bodies": 1,
+    "volume": 63108.53,
+    "tol": 0.003,
+    "feature_kinds": [
+     "Fillet"
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 8971.649623647418,
+      "bbox": {
+       "max": [
+        40.000000000000014,
+        40.000000000000014,
+        40.000000000000014
+       ],
+       "min": [
+        -5.329070518200753e-15,
+        -3.552713678800501e-15,
+        -3.552713678800501e-15
+       ]
+      },
+      "center_of_mass": [
+       19.999999996565442,
+       20.000000003434558,
+       20.000000003434565
+      ],
+      "edges": 48,
+      "face_types": {
+       "cylinder": 12,
+       "plane": 6,
+       "sphere": 8
+      },
+      "faces": 26,
+      "kernel": {
+       "edges": 48,
+       "faces": 26,
+       "shells": 1,
+       "vertices": 24
+      },
+      "name": "Body1",
+      "vertices": 24,
+      "visible": true,
+      "volume_mm3": 63108.52974999502
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 2,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 5,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 2.9414939999999996,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 2,
+      "ms": 41.410873,
+      "name": "Fillet1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "FilletFeature",
+      "warning": null
+     }
+    ],
+    "undo": 2,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 9600.0,
+      "bbox": {
+       "max": [
+        40.0,
+        40.0,
+        40.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       20.0,
+       20.0,
+       20.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 64000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 2.9414939999999996,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "06-fillet-box-final",
+   "pass": true,
+   "check": {
+    "bodies": 1,
+    "volume": 63108.53,
+    "tol": 0.003,
+    "feature_kinds": [
+     "Fillet"
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 8971.649623647418,
+      "bbox": {
+       "max": [
+        40.000000000000014,
+        40.000000000000014,
+        40.000000000000014
+       ],
+       "min": [
+        -5.329070518200753e-15,
+        -3.552713678800501e-15,
+        -3.552713678800501e-15
+       ]
+      },
+      "center_of_mass": [
+       19.999999996565442,
+       20.000000003434558,
+       20.000000003434565
+      ],
+      "edges": 48,
+      "face_types": {
+       "cylinder": 12,
+       "plane": 6,
+       "sphere": 8
+      },
+      "faces": 26,
+      "kernel": {
+       "edges": 48,
+       "faces": 26,
+       "shells": 1,
+       "vertices": 24
+      },
+      "name": "Body1",
+      "vertices": 24,
+      "visible": true,
+      "volume_mm3": 63108.52974999502
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 2,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 5,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 2.9414939999999996,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 2,
+      "ms": 41.410873,
+      "name": "Fillet1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "FilletFeature",
+      "warning": null
+     }
+    ],
+    "undo": 2,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 9600.0,
+      "bbox": {
+       "max": [
+        40.0,
+        40.0,
+        40.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       20.0,
+       20.0,
+       20.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 64000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 2.9414939999999996,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "07-move-body-turn-1",
+   "pass": true,
+   "check": {
+    "bodies": 1,
+    "volume": 8000,
+    "bbox_min": [
+     50,
+     0,
+     0
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2400.0,
+      "bbox": {
+       "max": [
+        70.0,
+        20.0,
+        20.0
+       ],
+       "min": [
+        50.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       60.0,
+       10.0,
+       10.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 8000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 2,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 5,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 8.408606,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 2,
+      "ms": 0.131409,
+      "name": "Move1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "MoveFeature",
+      "warning": null
+     }
+    ],
+    "undo": 2,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2400.0,
+      "bbox": {
+       "max": [
+        20.0,
+        20.0,
+        20.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       10.0,
+       10.0,
+       10.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 8000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 8.408606,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "07-move-body-final",
+   "pass": true,
+   "check": {
+    "bodies": 1,
+    "volume": 8000,
+    "bbox_min": [
+     50,
+     0,
+     0
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2400.0,
+      "bbox": {
+       "max": [
+        70.0,
+        20.0,
+        20.0
+       ],
+       "min": [
+        50.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       60.0,
+       10.0,
+       10.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 8000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 2,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 5,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 8.408606,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 2,
+      "ms": 0.131409,
+      "name": "Move1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "MoveFeature",
+      "warning": null
+     }
+    ],
+    "undo": 2,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2400.0,
+      "bbox": {
+       "max": [
+        20.0,
+        20.0,
+        20.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       10.0,
+       10.0,
+       10.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 8000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 8.408606,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "08-rename-body-turn-1",
+   "pass": true,
+   "check": {
+    "bodies": 1,
+    "volume": 6000,
+    "body_name": "Bracket"
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        30.0,
+        20.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       15.0,
+       10.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Bracket",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 4,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 6.329743,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 2,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        30.0,
+        20.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       15.0,
+       10.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 6.329743,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "08-rename-body-final",
+   "pass": true,
+   "check": {
+    "bodies": 1,
+    "volume": 6000,
+    "body_name": "Bracket"
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        30.0,
+        20.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       15.0,
+       10.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Bracket",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 4,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 6.329743,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 2,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        30.0,
+        20.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       15.0,
+       10.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 6.329743,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "09-volume-question-turn-1",
+   "pass": true,
+   "check": {
+    "bodies": 1,
+    "volume": 6000,
+    "unchanged": true,
+    "reply_number": "6[ ,.\u202f]?000(?![0-9])|6(\\.0+)? ?cm"
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        30.0,
+        20.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       15.0,
+       10.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 1.880467,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        30.0,
+        20.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       15.0,
+       10.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 1.880467,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "reply": "The volume is 6000 mm\u00b3.",
+   "queries": {}
+  },
+  {
+   "id": "09-volume-question-final",
+   "pass": true,
+   "check": {
+    "bodies": 1,
+    "volume": 6000,
+    "unchanged": true,
+    "reply_number": "6[ ,.\u202f]?000(?![0-9])|6(\\.0+)? ?cm"
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        30.0,
+        20.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       15.0,
+       10.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 1.880467,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        30.0,
+        20.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       15.0,
+       10.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 1.880467,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "reply": "The volume is 6000 mm\u00b3.",
+   "queries": {}
+  },
+  {
+   "id": "10-two-holes-turn-1",
+   "pass": true,
+   "check": {
+    "bodies": 1,
+    "volume": 24214.6,
+    "bbox_size": [
+     5,
+     50,
+     100
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 11500.03913670562,
+      "bbox": {
+       "max": [
+        100.0,
+        50.0,
+        5.000000000000003
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       50.0,
+       25.0,
+       2.4999999999999996
+      ],
+      "edges": 16,
+      "face_types": {
+       "cylinder": 2,
+       "plane": 6
+      },
+      "faces": 8,
+      "kernel": {
+       "edges": 24,
+       "faces": 10,
+       "shells": 1,
+       "vertices": 16
+      },
+      "name": "Body1",
+      "vertices": 12,
+      "visible": true,
+      "volume_mm3": 24214.732294131958
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 3,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 7,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 2.857375,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 2,
+      "ms": 22.133035999999997,
+      "name": "Hole1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "HoleFeature",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 3,
+      "ms": 11.380806999999999,
+      "name": "Hole2",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "HoleFeature",
+      "warning": null
+     }
+    ],
+    "undo": 3,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "10-two-holes-final",
+   "pass": true,
+   "check": {
+    "bodies": 1,
+    "volume": 24214.6,
+    "bbox_size": [
+     5,
+     50,
+     100
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 11500.03913670562,
+      "bbox": {
+       "max": [
+        100.0,
+        50.0,
+        5.000000000000003
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       50.0,
+       25.0,
+       2.4999999999999996
+      ],
+      "edges": 16,
+      "face_types": {
+       "cylinder": 2,
+       "plane": 6
+      },
+      "faces": 8,
+      "kernel": {
+       "edges": 24,
+       "faces": 10,
+       "shells": 1,
+       "vertices": 16
+      },
+      "name": "Body1",
+      "vertices": 12,
+      "visible": true,
+      "volume_mm3": 24214.732294131958
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 3,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 7,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 2.857375,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 2,
+      "ms": 22.133035999999997,
+      "name": "Hole1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "HoleFeature",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 3,
+      "ms": 11.380806999999999,
+      "name": "Hole2",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "HoleFeature",
+      "warning": null
+     }
+    ],
+    "undo": 3,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "11-any-change-turn-1",
+   "pass": true,
+   "check": {
+    "changed": true
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        30.0,
+        20.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       15.0,
+       10.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Changed",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 4,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 4.636419999999999,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 2,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        30.0,
+        20.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       15.0,
+       10.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 4.636419999999999,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "11-any-change-final",
+   "pass": true,
+   "check": {
+    "changed": true
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        30.0,
+        20.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       15.0,
+       10.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Changed",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 4,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 4.636419999999999,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 2,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        30.0,
+        20.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       15.0,
+       10.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 4.636419999999999,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "01-cube-wrong-turn-1",
+   "pass": false,
+   "check": {
+    "bodies": 1,
+    "volume": 8000,
+    "bbox_size": [
+     20,
+     20,
+     20
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 600.0,
+      "bbox": {
+       "max": [
+        10.0,
+        10.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       5.0,
+       5.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 1000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 1.894774,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "01-cube-wrong-final",
+   "pass": false,
+   "check": {
+    "bodies": 1,
+    "volume": 8000,
+    "bbox_size": [
+     20,
+     20,
+     20
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 600.0,
+      "bbox": {
+       "max": [
+        10.0,
+        10.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       5.0,
+       5.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 1000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 1.894774,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "02-cylinder-wrong-turn-1",
+   "pass": false,
+   "check": {
+    "bodies": 1,
+    "volume": 35342.92,
+    "bbox_size": [
+     30,
+     30,
+     50
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 600.0,
+      "bbox": {
+       "max": [
+        10.0,
+        10.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       5.0,
+       5.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 1000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 2.671443,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "02-cylinder-wrong-final",
+   "pass": false,
+   "check": {
+    "bodies": 1,
+    "volume": 35342.92,
+    "bbox_size": [
+     30,
+     30,
+     50
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 600.0,
+      "bbox": {
+       "max": [
+        10.0,
+        10.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       5.0,
+       5.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 1000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 2.671443,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "03-block-wrong-turn-1",
+   "pass": false,
+   "check": {
+    "bodies": 1,
+    "volume": 24000,
+    "bbox_size": [
+     10,
+     40,
+     60
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 600.0,
+      "bbox": {
+       "max": [
+        10.0,
+        10.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       5.0,
+       5.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 1000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 3.252643,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "03-block-wrong-final",
+   "pass": false,
+   "check": {
+    "bodies": 1,
+    "volume": 24000,
+    "bbox_size": [
+     10,
+     40,
+     60
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 600.0,
+      "bbox": {
+       "max": [
+        10.0,
+        10.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       5.0,
+       5.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 1000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 3.252643,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "04-sketch-extrude-wrong-turn-1",
+   "pass": false,
+   "check": {
+    "bodies": 1,
+    "volume": 22500,
+    "bbox_size": [
+     15,
+     30,
+     50
+    ],
+    "feature_kinds": [
+     "Extrude"
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 600.0,
+      "bbox": {
+       "max": [
+        10.0,
+        10.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       5.0,
+       5.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 1000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 5.094867000000001,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "04-sketch-extrude-wrong-final",
+   "pass": false,
+   "check": {
+    "bodies": 1,
+    "volume": 22500,
+    "bbox_size": [
+     15,
+     30,
+     50
+    ],
+    "feature_kinds": [
+     "Extrude"
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 600.0,
+      "bbox": {
+       "max": [
+        10.0,
+        10.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       5.0,
+       5.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 1000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 5.094867000000001,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "05-plate-hole-wrong-turn-1",
+   "pass": false,
+   "check": {
+    "bodies": 1,
+    "volume": 44858.41,
+    "bbox_size": [
+     10,
+     60,
+     80
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 600.0,
+      "bbox": {
+       "max": [
+        10.0,
+        10.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       5.0,
+       5.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 1000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 2.263592,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "05-plate-hole-wrong-final",
+   "pass": false,
+   "check": {
+    "bodies": 1,
+    "volume": 44858.41,
+    "bbox_size": [
+     10,
+     60,
+     80
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 600.0,
+      "bbox": {
+       "max": [
+        10.0,
+        10.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       5.0,
+       5.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 1000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 2.263592,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "06-fillet-box-wrong-turn-1",
+   "pass": false,
+   "check": {
+    "bodies": 1,
+    "volume": 63108.53,
+    "tol": 0.003,
+    "feature_kinds": [
+     "Fillet"
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 9600.0,
+      "bbox": {
+       "max": [
+        40.0,
+        40.0,
+        40.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       20.0,
+       20.0,
+       20.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 64000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 2.0935300000000003,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 9600.0,
+      "bbox": {
+       "max": [
+        40.0,
+        40.0,
+        40.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       20.0,
+       20.0,
+       20.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 64000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 2.0935300000000003,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "06-fillet-box-wrong-final",
+   "pass": false,
+   "check": {
+    "bodies": 1,
+    "volume": 63108.53,
+    "tol": 0.003,
+    "feature_kinds": [
+     "Fillet"
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 9600.0,
+      "bbox": {
+       "max": [
+        40.0,
+        40.0,
+        40.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       20.0,
+       20.0,
+       20.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 64000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 2.0935300000000003,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 9600.0,
+      "bbox": {
+       "max": [
+        40.0,
+        40.0,
+        40.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       20.0,
+       20.0,
+       20.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 64000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 2.0935300000000003,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "07-move-body-wrong-turn-1",
+   "pass": false,
+   "check": {
+    "bodies": 1,
+    "volume": 8000,
+    "bbox_min": [
+     50,
+     0,
+     0
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2400.0,
+      "bbox": {
+       "max": [
+        20.0,
+        20.0,
+        20.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       10.0,
+       10.0,
+       10.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 8000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 4.904828,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2400.0,
+      "bbox": {
+       "max": [
+        20.0,
+        20.0,
+        20.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       10.0,
+       10.0,
+       10.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 8000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 4.904828,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "07-move-body-wrong-final",
+   "pass": false,
+   "check": {
+    "bodies": 1,
+    "volume": 8000,
+    "bbox_min": [
+     50,
+     0,
+     0
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2400.0,
+      "bbox": {
+       "max": [
+        20.0,
+        20.0,
+        20.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       10.0,
+       10.0,
+       10.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 8000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 4.904828,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2400.0,
+      "bbox": {
+       "max": [
+        20.0,
+        20.0,
+        20.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       10.0,
+       10.0,
+       10.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 8000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 4.904828,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "08-rename-body-wrong-turn-1",
+   "pass": false,
+   "check": {
+    "bodies": 1,
+    "volume": 6000,
+    "body_name": "Bracket"
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        30.0,
+        20.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       15.0,
+       10.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 2.393157,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        30.0,
+        20.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       15.0,
+       10.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 2.393157,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "08-rename-body-wrong-final",
+   "pass": false,
+   "check": {
+    "bodies": 1,
+    "volume": 6000,
+    "body_name": "Bracket"
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        30.0,
+        20.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       15.0,
+       10.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 2.393157,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        30.0,
+        20.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       15.0,
+       10.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 2.393157,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "09-volume-question-wrong-turn-1",
+   "pass": false,
+   "check": {
+    "bodies": 1,
+    "volume": 6000,
+    "unchanged": true,
+    "reply_number": "6[ ,.\u202f]?000(?![0-9])|6(\\.0+)? ?cm"
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        30.0,
+        20.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       15.0,
+       10.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 3.4255090000000004,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        30.0,
+        20.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       15.0,
+       10.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 3.4255090000000004,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "reply": "The volume is 42 mm\u00b3.",
+   "queries": {}
+  },
+  {
+   "id": "09-volume-question-wrong-final",
+   "pass": false,
+   "check": {
+    "bodies": 1,
+    "volume": 6000,
+    "unchanged": true,
+    "reply_number": "6[ ,.\u202f]?000(?![0-9])|6(\\.0+)? ?cm"
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        30.0,
+        20.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       15.0,
+       10.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 3.4255090000000004,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        30.0,
+        20.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       15.0,
+       10.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 3.4255090000000004,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "reply": "The volume is 42 mm\u00b3.",
+   "queries": {}
+  },
+  {
+   "id": "10-two-holes-wrong-turn-1",
+   "pass": false,
+   "check": {
+    "bodies": 1,
+    "volume": 24214.6,
+    "bbox_size": [
+     5,
+     50,
+     100
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 600.0,
+      "bbox": {
+       "max": [
+        10.0,
+        10.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       5.0,
+       5.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 1000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 2.3430619999999998,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "10-two-holes-wrong-final",
+   "pass": false,
+   "check": {
+    "bodies": 1,
+    "volume": 24214.6,
+    "bbox_size": [
+     5,
+     50,
+     100
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 600.0,
+      "bbox": {
+       "max": [
+        10.0,
+        10.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       5.0,
+       5.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 1000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 2.3430619999999998,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "11-any-change-wrong-turn-1",
+   "pass": false,
+   "check": {
+    "changed": true
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        30.0,
+        20.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       15.0,
+       10.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 3.908433,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        30.0,
+        20.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       15.0,
+       10.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 3.908433,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "11-any-change-wrong-final",
+   "pass": false,
+   "check": {
+    "changed": true
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        30.0,
+        20.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       15.0,
+       10.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 3.908433,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        30.0,
+        20.0,
+        10.0
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       15.0,
+       10.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 3.908433,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  }
+ ]
+}

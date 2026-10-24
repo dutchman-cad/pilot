@@ -80,6 +80,8 @@ For an MCP client, configure a local stdio server:
 Use absolute paths for the installed binaries and design file. See the
 [MCP guide](docs/mcp.md) for client-specific setup and live connections.
 
+Run the public [SolidCraft Assistant model benchmarks](bench/) directly or through Pilot.
+
 ## Guides
 
 - [Use Pilot with SolidCraft's Assistant](docs/assistant.md): Ollama and LM Studio.
