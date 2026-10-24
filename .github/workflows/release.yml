@@ -56,14 +56,14 @@ jobs:
           while IFS= read -r binary; do
             if [ "$RUNNER_OS" = macOS ]; then
               cp "target/$BUILD_TARGET/release/$binary" "stage/$bundle/"
-              lipo -verify_arch arm64 "stage/$bundle/$binary"
+              lipo "stage/$bundle/$binary" -verify_arch arm64
               codesign --force --sign - "stage/$bundle/$binary"
             elif [ "$RUNNER_OS" = Windows ]; then
               cp "target/$BUILD_TARGET/release/$binary.exe" "stage/$bundle/"
             else
               cp "target/$BUILD_TARGET/release/$binary" "stage/$bundle/"
             fi
-          done < <(jq -r '.packages[0].targets[] | select(.kind | index("bin")) | .name' metadata.json)
+          done < <(jq -r '.packages[0].targets[] | select(.kind | index("bin")) | .name' metadata.json | tr -d '\r')
           cp LICENSE NOTICE README.md CHANGELOG.md CONTRIBUTING.md SECURITY.md SPEC.md "stage/$bundle/"
           cp -R docs corpus "stage/$bundle/"
           if [ "$RUNNER_OS" = Windows ]; then
