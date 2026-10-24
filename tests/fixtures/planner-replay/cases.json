@@ -1,0 +1,25 @@
+[
+  {
+    "request_file": "box.json",
+    "expected": {
+      "rule": "box",
+      "slots": {"Box": {"size": [38.0, 26.0, 3.0]}},
+      "calls": [
+        {"tool": "execute", "arguments": {"command": "solid.box", "params": {"length": 38.0, "width": 26.0, "height": 3.0, "operation": "new"}}},
+        {"tool": "execute", "arguments": {"command": "document.inspect", "params": {"measure": true}}}
+      ]
+    }
+  },
+  {
+    "request_file": "rod.json",
+    "expected": {
+      "rule": "cylinder",
+      "slots": {"Cylinder": {"radius": 4.5, "height": 37.0}},
+      "calls": [
+        {"tool": "execute", "arguments": {"command": "solid.cylinder", "params": {"radius": 4.5, "height": 37.0, "operation": "new"}}},
+        {"tool": "execute", "arguments": {"command": "document.inspect", "params": {"measure": true}}}
+      ]
+    }
+  },
+  {"request_file": "competing.json", "expected": null}
+]

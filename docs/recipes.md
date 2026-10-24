@@ -65,6 +65,17 @@ non-overlapping. Compound plates and shells receive an available `PilotRecipeN`
 body name, and subsequent modifications explicitly target it, including when
 older geometry overlaps the new body.
 
+Planner replays live in `tests/fixtures/planner-replay/`. Each request file is an
+ordinary chat-completions JSON body with its original `messages` and `tools`.
+`cases.json` lists `{"request_file":"example.json","expected":...}` entries.
+An expected plan contains `rule`, the complete typed `slots` object, and the
+complete `calls` array; `null` asserts that no recipe fires. The loader limits
+request size and fixture count, checks JSON bounds, and uses the bundled public
+catalogue. Run `cargo test --test planner_replay` with either feature set.
+The three checked-in bodies are synthetic, independently authored examples with
+a long system prompt and one user message. A further test expands that context
+past 16 KiB and verifies that removing the offered tools suppresses planning.
+
 For example:
 
 ```text

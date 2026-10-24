@@ -8,6 +8,8 @@
   call / name forms; require explicit hole positions and unique body references.
 - Expand independently authored per-recipe positives and conservative refusals;
   retain missing-slot, ambiguous-body, competing-intent and action-history guards.
+- Add bounded chat-completions request-body replay fixtures with exact plan
+  assertions and three synthetic long-system-prompt examples, usable in core builds.
 
 - Add model-face text tool mode for capabilities without tools and explicit HTTP
   400 unsupported-tools rejections; persist the rejection and retry once.
