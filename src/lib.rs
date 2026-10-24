@@ -30,6 +30,8 @@ pub mod profile;
 pub mod prompting;
 #[cfg(feature = "core")]
 pub mod repair;
+#[cfg(feature = "core")]
+pub mod solidcraft98;
 
 #[cfg(feature = "proxy")]
 pub mod capture;

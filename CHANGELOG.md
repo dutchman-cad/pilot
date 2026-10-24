@@ -7,6 +7,12 @@
 - Add Linux, macOS, and Windows installers with custom bin directories, dry runs,
   older-launcher replacement, and preservation of full Dutchman installs.
 - Check installer behavior on all three systems and command dispatch in release archives.
+- SolidCraft 98 v1.1.1 support through its public remote protocol: MCP screen tools,
+  a bounded model driver, offline help, and an isolated headless process option.
+- SolidCraft 98 model dialect with explicit calls and repairs; catalogue recipes
+  remain disabled for this application.
+- Eleven public SolidCraft 98 benchmark tasks with references, state checks,
+  do-nothing expectations, and deliberate negatives under `bench/sets/sc98`.
 
 ## 0.1.0-beta.2 (2026-10-24)
 

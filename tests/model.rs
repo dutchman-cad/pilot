@@ -85,6 +85,51 @@ impl Harness {
         direct: bool,
         planner: bool,
     ) -> Self {
+        Self::configured_dialect(
+            replies,
+            count,
+            fallback,
+            settings,
+            capabilities,
+            how,
+            direct,
+            planner,
+            false,
+        )
+    }
+    fn with_dialect(
+        replies: Vec<(u16, String, String)>,
+        count: usize,
+        fallback: FallbackPrompt,
+        settings: Option<Value>,
+        capabilities: Value,
+        how: bool,
+        solidcraft98: bool,
+    ) -> Self {
+        Self::configured_dialect(
+            replies,
+            count,
+            fallback,
+            settings,
+            capabilities,
+            how,
+            false,
+            true,
+            solidcraft98,
+        )
+    }
+    #[allow(clippy::too_many_arguments)]
+    fn configured_dialect(
+        replies: Vec<(u16, String, String)>,
+        count: usize,
+        fallback: FallbackPrompt,
+        settings: Option<Value>,
+        capabilities: Value,
+        how: bool,
+        direct: bool,
+        planner: bool,
+        solidcraft98: bool,
+    ) -> Self {
         let dir = std::env::temp_dir().join(format!(
             "dutchman-pilot-model-{}-{}",
             std::process::id(),
@@ -141,6 +186,7 @@ impl Harness {
             }
         });
         let mut proxy = Server::bind(Config {
+            solidcraft98,
             direct_recipes: direct,
             no_report_buffer: false,
             listen: "127.0.0.1:0".parse().unwrap(),
@@ -968,6 +1014,7 @@ fn report_capture_endpoint_and_disabled_buffer() {
         ));
         fs::create_dir_all(&dir).unwrap();
         let mut server = Server::bind(Config {
+            solidcraft98: false,
             listen: "127.0.0.1:0".parse().unwrap(),
             upstream: "none".into(),
             upstream_timeout: Duration::from_secs(2),
@@ -1040,6 +1087,7 @@ fn report_endpoint_rejects_non_loopback_peer() {
     let dir = std::env::temp_dir().join(format!("pilot-report-peer-{}", std::process::id()));
     fs::create_dir_all(&dir).unwrap();
     let mut server = Server::bind(Config {
+        solidcraft98: false,
         listen: "0.0.0.0:0".parse().unwrap(),
         upstream: "none".into(),
         upstream_timeout: Duration::from_secs(2),
@@ -1068,4 +1116,33 @@ fn report_endpoint_rejects_non_loopback_peer() {
     assert!(response.starts_with("HTTP/1.1 403 "), "{response}");
     thread.join().unwrap();
     fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn solidcraft98_dialect_has_only_screen_tools_and_no_catalogue_plans() {
+    let message = json!({"choices":[{"message":{"role":"assistant","content":"{tool:'dblclick',args:{name:'Sketch1'}}"},"finish_reason":"stop"}]});
+    let h = Harness::with_dialect(
+        vec![(200, message.to_string(), "application/json".into())],
+        1,
+        FallbackPrompt::Off,
+        None,
+        json!({}),
+        true,
+        true,
+    );
+    let (_,_,body)=h.chat(&json!({"model":"fake","messages":[{"role":"user","content":"Make a 20 mm cube"}],"tools":[{"type":"function","function":{"name":"execute","parameters":{"type":"object"}}}]}));
+    let reply: Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(
+        reply["choices"][0]["message"]["tool_calls"][0]["function"]["name"],
+        "doubleclick"
+    );
+    let chats = h.chats();
+    assert_eq!(chats[0]["tools"].as_array().unwrap().len(), 11);
+    assert!(!chats[0]["tools"].to_string().contains("execute"));
+    assert_eq!(chats[0]["messages"].as_array().unwrap().len(), 1);
+    let log = fs::read_to_string(h.dir.join("audit.jsonl")).unwrap();
+    assert!(log.contains("solidcraft98_tools"));
+    assert!(log.contains("solidcraft98_alias"));
+    assert!(!log.contains("\"kind\":\"plan\""));
+    h.finish();
 }

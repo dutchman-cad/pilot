@@ -1,0 +1,369 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "format": 1,
+  "tasks": [
+    {
+      "check": {
+        "bodies": 1,
+        "holes": [],
+        "origin": [
+          0,
+          0
+        ],
+        "shape": "rectangle",
+        "size": [
+          20,
+          20,
+          20
+        ]
+      },
+      "id": "01",
+      "prompt": "Make a 20 mm cube.",
+      "reference": "references/01.json",
+      "reference_reply": "Done.",
+      "setup": []
+    },
+    {
+      "check": {
+        "bodies": 1,
+        "holes": [],
+        "origin": [
+          0,
+          0
+        ],
+        "shape": "circle",
+        "size": [
+          30,
+          50
+        ]
+      },
+      "id": "02",
+      "prompt": "Make a cylinder 30 mm in diameter and 50 mm tall.",
+      "reference": "references/02.json",
+      "reference_reply": "Done.",
+      "setup": []
+    },
+    {
+      "check": {
+        "bodies": 1,
+        "holes": [],
+        "origin": [
+          0,
+          0
+        ],
+        "shape": "rectangle",
+        "size": [
+          60,
+          40,
+          10
+        ]
+      },
+      "id": "03",
+      "prompt": "Create a block 60 mm long, 40 mm wide, and 10 mm thick.",
+      "reference": "references/03.json",
+      "reference_reply": "Done.",
+      "setup": []
+    },
+    {
+      "check": {
+        "bodies": 1,
+        "holes": [],
+        "origin": [
+          0,
+          0
+        ],
+        "shape": "rectangle",
+        "size": [
+          50,
+          30,
+          15
+        ]
+      },
+      "id": "04",
+      "prompt": "Sketch a 50 by 30 mm rectangle on the XY plane and extrude it 15 mm.",
+      "reference": "references/04.json",
+      "reference_reply": "Done.",
+      "setup": []
+    },
+    {
+      "check": {
+        "bodies": 1,
+        "holes": [
+          [
+            20,
+            0,
+            40,
+            30
+          ]
+        ],
+        "origin": [
+          0,
+          0
+        ],
+        "shape": "rectangle",
+        "size": [
+          80,
+          60,
+          10
+        ]
+      },
+      "id": "05",
+      "prompt": "Make a plate 80 x 60 x 10 mm with a 20 mm diameter hole straight through the middle.",
+      "reference": "references/05.json",
+      "reference_reply": "Done.",
+      "setup": []
+    },
+    {
+      "check": {
+        "alternative_corner_radius": 3,
+        "bodies": 1,
+        "holes": [],
+        "origin": [
+          0,
+          0
+        ],
+        "shape": "rectangle",
+        "size": [
+          40,
+          40,
+          40
+        ],
+        "unsupported": "solid-edge rounding"
+      },
+      "id": "06",
+      "prompt": "Round all the edges of the box with a 3 mm radius.",
+      "reference": "references/06.json",
+      "reference_reply": "Cannot round solid edges in SolidCraft 98; sketch corner rounding is an alternative.",
+      "setup": [
+        "menu Sketch > Rectangle",
+        "type 40",
+        "key tab",
+        "type 40",
+        "key enter",
+        "menu Features > Extrude",
+        "type 40",
+        "key enter"
+      ],
+      "initial_check": {
+        "bodies": 1,
+        "holes": [],
+        "origin": [
+          0,
+          0
+        ],
+        "shape": "rectangle",
+        "size": [
+          40,
+          40,
+          40
+        ]
+      }
+    },
+    {
+      "check": {
+        "bodies": 1,
+        "holes": [],
+        "origin": [
+          50,
+          0
+        ],
+        "shape": "rectangle",
+        "size": [
+          20,
+          20,
+          20
+        ]
+      },
+      "id": "07",
+      "prompt": "Move the box 50 mm along the X axis.",
+      "reference": "references/07.json",
+      "reference_reply": "Done.",
+      "setup": [
+        "menu Sketch > Rectangle",
+        "type 20",
+        "key tab",
+        "type 20",
+        "key enter",
+        "menu Features > Extrude",
+        "type 20",
+        "key enter"
+      ],
+      "initial_check": {
+        "bodies": 1,
+        "holes": [],
+        "origin": [
+          0,
+          0
+        ],
+        "shape": "rectangle",
+        "size": [
+          20,
+          20,
+          20
+        ]
+      }
+    },
+    {
+      "check": {
+        "bodies": 1,
+        "holes": [],
+        "origin": [
+          0,
+          0
+        ],
+        "shape": "rectangle",
+        "size": [
+          30,
+          20,
+          10
+        ],
+        "unsupported": "body renaming"
+      },
+      "id": "08",
+      "prompt": "Rename the body to Bracket.",
+      "reference": "references/08.json",
+      "reference_reply": "Cannot rename bodies in SolidCraft 98.",
+      "setup": [
+        "menu Sketch > Rectangle",
+        "type 30",
+        "key tab",
+        "type 20",
+        "key enter",
+        "menu Features > Extrude",
+        "type 10",
+        "key enter"
+      ],
+      "initial_check": {
+        "bodies": 1,
+        "holes": [],
+        "origin": [
+          0,
+          0
+        ],
+        "shape": "rectangle",
+        "size": [
+          30,
+          20,
+          10
+        ]
+      }
+    },
+    {
+      "check": {
+        "bodies": 1,
+        "calculated_volume_mm3": 6000,
+        "holes": [],
+        "origin": [
+          0,
+          0
+        ],
+        "shape": "rectangle",
+        "size": [
+          30,
+          20,
+          10
+        ]
+      },
+      "id": "09",
+      "prompt": "What is the volume of the part?",
+      "reference": "references/09.json",
+      "reference_reply": "Calculated volume: 30 x 20 x 10 = 6000 mm3.",
+      "setup": [
+        "menu Sketch > Rectangle",
+        "type 30",
+        "key tab",
+        "type 20",
+        "key enter",
+        "menu Features > Extrude",
+        "type 10",
+        "key enter"
+      ],
+      "initial_check": {
+        "bodies": 1,
+        "holes": [],
+        "origin": [
+          0,
+          0
+        ],
+        "shape": "rectangle",
+        "size": [
+          30,
+          20,
+          10
+        ]
+      }
+    },
+    {
+      "check": {
+        "bodies": 1,
+        "holes": [
+          [
+            10,
+            0,
+            15,
+            25
+          ],
+          [
+            10,
+            0,
+            85,
+            25
+          ]
+        ],
+        "origin": [
+          0,
+          0
+        ],
+        "shape": "rectangle",
+        "size": [
+          100,
+          50,
+          5
+        ]
+      },
+      "id": "10",
+      "prompt": "Make a 100 x 50 x 5 mm plate and drill two 10 mm holes through it, each 15 mm in from the short ends and centred across the width.",
+      "reference": "references/10.json",
+      "reference_reply": "Done.",
+      "setup": []
+    },
+    {
+      "check": {
+        "changed_geometry": true,
+        "initial_size": [
+          30,
+          20,
+          10
+        ]
+      },
+      "id": "11",
+      "prompt": "can you use the software to make a change to the current shape, any change at all",
+      "reference": "references/11.json",
+      "reference_reply": "Done.",
+      "setup": [
+        "menu Sketch > Rectangle",
+        "type 30",
+        "key tab",
+        "type 20",
+        "key enter",
+        "menu Features > Extrude",
+        "type 10",
+        "key enter"
+      ],
+      "initial_check": {
+        "shape": "rectangle",
+        "size": [
+          30,
+          20,
+          10
+        ],
+        "origin": [
+          0,
+          0
+        ],
+        "bodies": 1,
+        "holes": []
+      }
+    }
+  ]
+}

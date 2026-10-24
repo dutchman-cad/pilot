@@ -1,0 +1,8 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "commands": [
+    "doubleclick Extrude1",
+    "type 11",
+    "key enter"
+  ]
+}

@@ -219,3 +219,12 @@ Do not include credentials, personal paths or identifying computer names.
 To add a task, contribute its exact prompt, setup, check, command-only reference,
 a deliberate near miss, do-nothing expectation and recorded pass/fail fixtures.
 Keep all contributions Apache-2.0 and derive them from public interfaces.
+
+## SolidCraft 98
+
+The [SolidCraft 98 set](sets/sc98/README.md) adds 11 screen-protocol tasks for
+[SolidCraft 98](https://github.com/raykholo/solidcraft98) v1.1.1 or later.
+It uses the Rust `bench_sc98` example and Pilot's SolidCraft 98 driver, with a
+headless FreeBASIC executable. Run its reference, do-nothing, and negative modes
+as documented in the set page. These tasks use screen commands and parameter
+dialog probes; the SolidCraft catalogue runner above does not execute this set.

@@ -16,7 +16,7 @@ Usage:
   {pad}       [--upstream-timeout SECONDS (default 300, max 3600)]
   {pad}       [--fallback-prompt auto|on|off] [--prompt-help] [--log FILE]
   {pad}       [--profile-dir DIR] [--model-settings [FILE]] [--seed INTEGER]
-  {pad}       [--no-report-buffer]
+  {pad}       [--no-report-buffer] [--dialect solidcraft|solidcraft98]
   {pad}       [--no-how] [--no-hints] [--planner] [--no-plan (alias --no-planner)]
   {binary} report [--listen ADDR] [--turn N] [--include-request] [--out FILE]
   {pad}        [--from-request FILE] [--open]
@@ -24,10 +24,16 @@ Usage:
   {binary} log-summary <rewrites.jsonl> [--json]
   {binary} mcp [--solidcraft-cli PATH] [--log FILE]
   {pad}     [--no-plan] [--no-hints] [--no-how] -- <args for solidcraft-cli mcp>
+  {binary} mcp98 (--connect ADDRESS:9898 | --program PATH [--headless]) [--log FILE]
+  {binary} drive98 (--connect ADDRESS:9898 | --program PATH [--headless])
+  {pad}         --upstream URL --model MODEL [--plain] [--budget 1..200] [--log FILE] "task"
+  {binary} how98 "task"
   {binary} --version (-V)
   {binary} --help (-h)
 
 how uses the bundled public command catalogue and prints explicit JSON example calls.
+model --dialect solidcraft98 selects SolidCraft 98 screen tools; catalogue recipes are disabled.
+mcp98 serves SolidCraft 98 tools; drive98 runs its bounded model loop; how98 looks up screen help.
 model serves /v1/chat/completions and /v1/models; mcp starts the SolidCraft tools proxy.
 --planner enables recipe suggestions, matching action prose, and one completion check.
 These plan-text features are off by default; model --no-plan is a no-op alias for
@@ -85,6 +91,18 @@ enum Action {
     Model(ModelArgs),
     /// Start the MCP tools proxy.
     Mcp(McpArgs),
+    /// Serve the MCP tools face for SolidCraft 98.
+    Mcp98(Mcp98Args),
+    /// Drive SolidCraft 98 through a bounded model/session loop.
+    #[command(
+        long_about = "Drive SolidCraft 98 through the same validated session as mcp98. One explicit COMMAND: line, complete tool JSON object, or native tool call per turn. Plain mode disables Pilot repairs, name matching, suggestions, hints, and offline help. Default limits: 40 model turns, 900 seconds, 131072 total tokens, 512 output tokens per request, eight history turns / 1 MiB. At most two error hand-backs and one empty retry per turn; every request counts against --budget. done reads a final screen and detaches; it never quits the app. JSON summary on stdout; transcript and all rewrites in --log (default data-directory rewrites.jsonl)."
+    )]
+    Drive98(Drive98Args),
+    /// Offline Pilot help for SolidCraft 98.
+    How98 {
+        #[arg(value_parser = task)]
+        task: String,
+    },
     /// Show recorded model profiles.
     Profile {
         model: Option<String>,
@@ -105,6 +123,8 @@ enum Action {
 
 #[derive(Debug, clap::Args)]
 struct ModelArgs {
+    #[arg(long, default_value = "solidcraft", value_parser = ["solidcraft", "solidcraft98"], help = "SolidCraft 98 uses only screen tools and repairs; disables SolidCraft catalogue plans, how, and hints")]
+    dialect: String,
     #[arg(long, default_value = "127.0.0.1:11500")]
     listen: SocketAddr,
     #[arg(long, value_parser = upstream)]
@@ -140,6 +160,44 @@ struct ModelArgs {
     no_report_buffer: bool,
 }
 
+#[derive(Debug, clap::Args)]
+struct Mcp98Args {
+    #[arg(long, required_unless_present = "program", conflicts_with = "program")]
+    connect: Option<SocketAddr>,
+    #[arg(long, required_unless_present = "connect")]
+    program: Option<PathBuf>,
+    #[arg(long, requires = "program", conflicts_with = "connect")]
+    headless: bool,
+    #[arg(long)]
+    log: Option<PathBuf>,
+}
+
+#[derive(Debug, clap::Args)]
+struct Drive98Args {
+    #[command(flatten)]
+    remote: Mcp98Args,
+    #[arg(long, value_parser = upstream)]
+    upstream: String,
+    #[arg(long)]
+    model: String,
+    #[arg(long)]
+    plain: bool,
+    /// Maximum model turns (includes format retries); wall 900s, total tokens 131072.
+    #[arg(long, default_value = "40", value_parser = clap::value_parser!(u16).range(1..=200))]
+    budget: u16,
+    task: String,
+}
+fn endpoint(args: &Mcp98Args) -> Result<crate::solidcraft98::transport::Endpoint, String> {
+    use crate::solidcraft98::transport::Endpoint;
+    match (&args.connect, &args.program) {
+        (Some(a), None) => Ok(Endpoint::Tcp(*a)),
+        (None, Some(path)) => Ok(Endpoint::Program {
+            path: path.clone(),
+            headless: args.headless,
+        }),
+        _ => Err("exactly one SolidCraft 98 transport required".into()),
+    }
+}
 #[derive(Debug, clap::Args)]
 struct McpArgs {
     #[arg(long, default_value = "solidcraft-cli")]
@@ -215,6 +273,7 @@ pub fn run_named(cmd: Command, bin: &str) -> Result<i32, Error> {
     let result = match cmd.action {
         None => output(&help_named(bin)),
         Some(Action::Model(args)) => model::serve(model::Config {
+            solidcraft98: args.dialect == "solidcraft98",
             listen: args.listen,
             no_report_buffer: args.no_report_buffer,
             // No-model operation is explicit: --upstream none.
@@ -234,6 +293,41 @@ pub fn run_named(cmd: Command, bin: &str) -> Result<i32, Error> {
             no_hints: args.no_hints,
             planner: args.planner,
         }),
+        Some(Action::How98 { task }) => {
+            output(&format!("{}\n", crate::solidcraft98::guidance::help(&task)))
+        }
+        Some(Action::Drive98(args)) => {
+            let summary = crate::solidcraft98::drive::run(crate::solidcraft98::drive::Config {
+                endpoint: endpoint(&args.remote)?,
+                upstream: args.upstream,
+                model: args.model,
+                task: args.task,
+                plain: args.plain,
+                log: args.remote.log,
+                budget: usize::from(args.budget),
+                wall: std::time::Duration::from_secs(900),
+                tokens: 131072,
+            })?;
+            output(&format!("{summary}\n"))
+        }
+        Some(Action::Mcp98(args)) => {
+            let endpoint = match (args.connect, args.program) {
+                (Some(address), None) => crate::solidcraft98::transport::Endpoint::Tcp(address),
+                (None, Some(path)) => crate::solidcraft98::transport::Endpoint::Program {
+                    path,
+                    headless: args.headless,
+                },
+                _ => {
+                    return Err(Error(
+                        "exactly one SolidCraft 98 transport is required".into(),
+                    ))
+                }
+            };
+            crate::solidcraft98::mcp::serve(crate::solidcraft98::mcp::Config {
+                endpoint,
+                log: args.log,
+            })
+        }
         Some(Action::Report(args)) => crate::report::run(args),
         Some(Action::Mcp(args)) => mcp::serve(mcp::Config {
             solidcraft_cli: args.solidcraft_cli,
@@ -266,7 +360,18 @@ fn validate_bounds(cmd: &Command) -> Result<(), Error> {
         count = count.saturating_add(1);
     };
     match &cmd.action {
-        Some(Action::How { task }) => add(task.len()),
+        Some(Action::How { task } | Action::How98 { task }) => add(task.len()),
+        Some(Action::Drive98(args)) => {
+            add(args.task.len());
+            add(args.upstream.len());
+            add(args.model.len());
+            if let Some(p) = &args.remote.program {
+                add(p.as_os_str().len());
+            }
+            if let Some(p) = &args.remote.log {
+                add(p.as_os_str().len());
+            }
+        }
         Some(Action::Profile { model, dir, .. }) => {
             if let Some(model) = model {
                 add(model.len());
@@ -299,6 +404,14 @@ fn validate_bounds(cmd: &Command) -> Result<(), Error> {
             }
             for arg in &args.args {
                 add(arg.len());
+            }
+        }
+        Some(Action::Mcp98(args)) => {
+            if let Some(path) = &args.program {
+                add(path.as_os_str().len());
+            }
+            if let Some(path) = &args.log {
+                add(path.as_os_str().len());
             }
         }
         None => {}

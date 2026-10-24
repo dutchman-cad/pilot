@@ -1,0 +1,31 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "commands": [
+    "menu Sketch > Rectangle",
+    "type 100",
+    "key tab",
+    "type 50",
+    "key enter",
+    "menu Features > Extrude",
+    "type 5",
+    "key enter",
+    "menu Features > Hole",
+    "type 9",
+    "key tab",
+    "type 0",
+    "key tab",
+    "type 15",
+    "key tab",
+    "type 25",
+    "key enter",
+    "menu Features > Hole",
+    "type 10",
+    "key tab",
+    "type 0",
+    "key tab",
+    "type 85",
+    "key tab",
+    "type 25",
+    "key enter"
+  ]
+}
