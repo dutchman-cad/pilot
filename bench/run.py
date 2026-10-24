@@ -87,17 +87,38 @@ def setup(root, task, commands):
     return task.get('setup', commands[:count])
 
 
+def start_path(root, task):
+    if not task.get('start'):
+        return None
+    path = (root / task['start']).resolve()
+    if root.resolve() not in path.parents or path.suffix != '.solidcraft':
+        raise ValueError("start must be a .solidcraft file inside its set directory")
+    if not path.is_file() or path.stat().st_size > MAX_BYTES:
+        raise ValueError("start is missing or exceeds 16 MiB")
+    return path
+
+
+def verify_start(binary, prefix, state):
+    with MCP(binary) as baseline:
+        replay(baseline, prefix)
+        check.compare_start(baseline.call('document.inspect', {'measure': True}), state)
+
+
 class MCP:
     """One CLI process and one isolated design per task; bounded stdio JSON RPC."""
-    def __init__(self, binary):
+    def __init__(self, binary, start=None):
         self.binary = binary
+        self.start = start
         self.process = None
         self.messages = queue.Queue(maxsize=256)
         self.sequence = 0
         self.deadline = time.monotonic() + TIMEOUT
 
     def __enter__(self):
-        self.process = subprocess.Popen([self.binary, 'mcp'], stdin=subprocess.PIPE,
+        command = [self.binary, 'mcp']
+        if self.start is not None:
+            command.extend(['--in', str(self.start)])
+        self.process = subprocess.Popen(command, stdin=subprocess.PIPE,
                                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
         threading.Thread(target=self._read, daemon=True).start()
         try:
@@ -332,8 +353,12 @@ def run_one(args, root, task, mode, url):
     started = time.monotonic()
     commands = reference(root, task)
     prefix = setup(root, task, commands)
-    with MCP(args.solidcraft) as app:
-        replay(app, prefix)
+    start = None if getattr(args, 'replay_setup', False) else start_path(root, task)
+    with MCP(args.solidcraft, start) as app:
+        if start is None:
+            replay(app, prefix)
+        elif mode != 'model':
+            verify_start(args.solidcraft, prefix, app.call('document.inspect', {'measure': True}))
         initial = check.inspect_for_task(app, task)
         messages = [{'role': 'system', 'content': app.info.get('instructions', '')}]
         turns = task.get('turns') or [task]
@@ -388,6 +413,7 @@ def main():
     parser.add_argument('--endpoint', default='http://127.0.0.1:11434')
     parser.add_argument('--through-pilot', metavar='PATH')
     parser.add_argument('--solidcraft', required=True, metavar='PATH')
+    parser.add_argument('--replay-setup', action='store_true', help='replay setup commands instead of opening start files')
     modes = parser.add_mutually_exclusive_group()
     modes.add_argument('--verify-reference', action='store_true')
     modes.add_argument('--do-nothing', action='store_true')
@@ -402,6 +428,17 @@ def main():
         parser.error('--model is required for model runs')
     root = HERE/'sets'/args.set
     tasks = task_file(root / ('negatives/tasks.json' if args.negatives else 'tasks.json'))
+    if args.negatives:
+        # Near misses share a public starting design when their setup is identical.
+        starts = {}
+        for public in task_file(root / 'tasks.json'):
+            if public.get('start'):
+                prefix = setup(root, public, reference(root, public))
+                starts[encode(prefix)] = public['start']
+        for task in tasks:
+            prefix = setup(root, task, reference(root, task))
+            if encode(prefix) in starts:
+                task.setdefault('start', starts[encode(prefix)])
     args.out.mkdir(parents=True, exist_ok=True)
     results = args.out/'results.jsonl'
     if results.exists():

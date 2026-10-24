@@ -29,6 +29,43 @@ def body_bbox(b):
     return None
 
 
+def compare_start(expected, actual):
+    """Raise when saving, opening, or migrating changes a starting design."""
+    for state in (expected, actual):
+        if any(f.get('error') for f in state.get('timeline', [])):
+            raise ValueError('start timeline contains a failed feature')
+    # Names identify bodies across serialization; order is not part of the design.
+    was = sorted(expected.get('bodies') or [], key=lambda b: b['name'])
+    now = sorted(actual.get('bodies') or [], key=lambda b: b['name'])
+    if len(was) != len(now):
+        raise ValueError(f'start body count differs: {len(was)} != {len(now)}')
+    for left, right in zip(was, now):
+        if left['name'] != right['name']:
+            raise ValueError('start body names differ')
+        a, b = body_volume(left), body_volume(right)
+        if a is None or b is None or not math.isfinite(a) or not math.isfinite(b) or abs(a - b) > max(abs(a) * 0.001, 1e-9):
+            raise ValueError(f"start volume differs for {left['name']}: {a} != {b}")
+        a, b = body_bbox(left), body_bbox(right)
+        if a is None or b is None or any(len(v) != 3 for v in (*a, *b)) or any(
+                not math.isfinite(x) or not math.isfinite(y) or abs(x - y) > 1e-6
+                for xs, ys in zip(a, b) for x, y in zip(xs, ys)):
+            raise ValueError(f"start bounding box differs for {left['name']}: {a} != {b}")
+    def parameters(state):
+        values = []
+        for p in state.get('params') or []:
+            value = p['value']
+            if p.get('error') or not _num(value) or not math.isfinite(value):
+                raise ValueError(f"start parameter {p['name']} has no finite value")
+            values.append((p['name'], value))
+        return sorted(values)
+    if parameters(expected) != parameters(actual):
+        raise ValueError('start parameter names or values differ')
+    def timeline(state):
+        return [f['type'] for f in state.get('timeline') or []]
+    if timeline(expected) != timeline(actual):
+        raise ValueError('start timeline length or feature types differ')
+
+
 def feature_kinds(state):
     tl = state.get("timeline") or []
     return [str(f.get("type") or "") for f in tl if isinstance(f, dict) and not f.get("suppressed")]
