@@ -338,6 +338,20 @@ impl Proxy {
                 if tools.len() > 4096 {
                     return Err("augmented tools/list exceeds 4096 tools".into());
                 }
+                if !self.cfg.no_hints && crate::prompting::describe_placement(tools) {
+                    if let Err(message) = self.audit.record(
+                        "placement_fact",
+                        &Value::Null,
+                        &json!(crate::prompting::PLACEMENT_FACT),
+                    ) {
+                        eprintln!(
+                            "{}: {message}; passing tools/list through unchanged",
+                            crate::identity::BINARY
+                        );
+                        return write_raw(&mut self.output, &response);
+                    }
+                    modified = true;
+                }
             }
         }
         if method == "tools/call" {

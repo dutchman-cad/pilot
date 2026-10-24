@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add one bounded, audited box placement fact before the model's first call for
+  centred-feature requests, and to MCP action tool descriptions. `--no-hints`
+  disables it; existing conversation facts are not repeated.
+
 ## 0.1.0-beta.4 (2026-10-24)
 
 - Exact matches are answered without the model by default; `--no-direct-recipes` opts out.
