@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Append bounded, audited box extent and centre hints after creation on both proxy faces.
+
 - Match cube and box requests with centred through holes, including “draw” and unqualified hole diameters.
 
 ## 0.1.0-beta.3 (2026-10-24)

@@ -466,3 +466,23 @@ fn unknown_commands_without_upstream_hints_keep_pilot_guidance(
     }
     Ok(())
 }
+
+#[test]
+fn box_placement_hints_on_both_creation_tools_and_opt_out() {
+    let path = fake();
+    let args = json!({"command":"solid.box","params":{"length":20,"width":20,"height":20}});
+    for flags in [vec![], vec!["--no-hints"]] {
+        let mut session = Session::with_flags(&path, &["--test-arg"], &flags);
+        session.initialize();
+        for (name, args) in [
+            ("execute", args.clone()),
+            ("batch", json!({"commands":[args.clone()]})),
+        ] {
+            let reply = texts(&session.call(1, name, args));
+            assert!(reply.contains("created_bodies"));
+            assert_eq!(reply.contains("Body1 spans X 0..20, Y 0..20, Z 0..20 mm; its centre is (10, 10, 10) and its top face centre is (10, 10, 20)."), flags.is_empty(), "{reply}");
+        }
+    }
+    let audit = std::fs::read_to_string(path.parent().unwrap().join("rewrites.jsonl")).unwrap();
+    assert!(audit.contains("next_step_hint"));
+}

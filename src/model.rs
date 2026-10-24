@@ -1438,21 +1438,22 @@ fn append_hints(body: &mut Value, catalog: &Catalog, audit: &mut Audit) -> Resul
         .rposition(|m| m["role"] != "tool")
         .map_or(0, |i| i + 1);
     let mut previous = None;
+    let mut placement_count = 0;
     for i in 0..messages.len() {
         if messages[i]["role"] != "tool" {
             continue;
         }
         let id = messages[i]["tool_call_id"].as_str();
-        let name = id
-            .and_then(|id| {
-                messages[..i]
-                    .iter()
-                    .rev()
-                    .filter_map(|m| m["tool_calls"].as_array())
-                    .flat_map(|calls| calls.iter())
-                    .find(|call| call["id"].as_str() == Some(id))
-                    .and_then(|call| call["function"]["name"].as_str())
-            })
+        let call = id.and_then(|id| {
+            messages[..i]
+                .iter()
+                .rev()
+                .filter_map(|m| m["tool_calls"].as_array())
+                .flat_map(|calls| calls.iter())
+                .find(|call| call["id"].as_str() == Some(id))
+        });
+        let name = call
+            .and_then(|call| call["function"]["name"].as_str())
             .or_else(|| messages[i]["name"].as_str())
             .unwrap_or("");
         let change = matches!(name, "execute" | "batch");
@@ -1464,9 +1465,25 @@ fn append_hints(body: &mut Value, catalog: &Catalog, audit: &mut Audit) -> Resul
         };
         let after = data.get("after").unwrap_or(&data);
         let before = data.get("before").or(previous.as_ref());
-        let hint = (i >= start)
+        let mut hint = (i >= start)
             .then(|| guidance::state_hint(before, after, change, Some(catalog)))
-            .flatten();
+            .flatten()
+            .map(|h| h.split_whitespace().collect::<Vec<_>>().join(" "));
+        if i >= start && placement_count < 4 {
+            if let Some(args) = call.and_then(|call| call["function"].get("arguments")) {
+                let parsed = args
+                    .as_str()
+                    .and_then(|s| serde_json::from_str::<Value>(s).ok());
+                let placements =
+                    guidance::placement_hints(name, parsed.as_ref().unwrap_or(args), &data);
+                for placement in placements.into_iter().take(4 - placement_count) {
+                    placement_count += 1;
+                    hint = Some(
+                        hint.map_or_else(|| placement.clone(), |h| format!("{h}\n{placement}")),
+                    );
+                }
+            }
+        }
         if after.get("bodies").is_some()
             || after.get("sketches").is_some()
             || after.get("active_sketch").is_some()
@@ -1477,7 +1494,10 @@ fn append_hints(body: &mut Value, catalog: &Catalog, audit: &mut Audit) -> Resul
             let line = format!(
                 "{} {}",
                 crate::identity::HINT,
-                hint.split_whitespace().collect::<Vec<_>>().join(" ")
+                hint.lines()
+                    .map(|line| line.split_whitespace().collect::<Vec<_>>().join(" "))
+                    .collect::<Vec<_>>()
+                    .join("\n")
             );
             let content = &mut messages[i]["content"];
             let before = content.clone();
@@ -3337,6 +3357,57 @@ mod tests {
             1
         );
         assert_eq!(f.proxy.profiles.values().next().unwrap().hand_backs, 2);
+    }
+
+    #[test]
+    fn field_report_box_creation_gets_placement_hint_by_default() {
+        let state = json!({"bodies":["Body1"],"changed_bodies":[],"created_bodies":["Body1"],"feature":1,"name":"Box1","removed_bodies":[],"warning":null}).to_string();
+        let mut req = request();
+        req["messages"] = json!([
+            {"role":"user","content":"draw a 20mm cube with a 5mm hole through the center"},
+            call("execute", json!({"command":"solid.box","params":{"length":20,"width":20,"height":20}}))["choices"][0]["message"],
+            {"role":"tool","tool_call_id":"native","content":state}
+        ]);
+        let mut f = Fixture::new(vec![reply("Ready.")]);
+        f.proxy.cfg.planner = false;
+        assert!(!f.proxy.cfg.planner);
+        assert!(!f.proxy.cfg.direct_recipes);
+        assert_eq!(f.chat(req.clone()).status, 200);
+        assert_eq!(load_profiles(Some(&f.dir), None).unwrap()[0].hints_added, 1);
+        let script = f.proxy.scripted.as_ref().unwrap().borrow();
+        assert_eq!(script.requests[0]["messages"][2]["content"], format!("{state}\n[dutchman-pilot hint] Body1 spans X 0..20, Y 0..20, Z 0..20 mm; its centre is (10, 10, 10) and its top face centre is (10, 10, 20)."));
+        drop(script);
+        let mut f = Fixture::new(vec![reply("Ready.")]);
+        f.proxy.cfg.planner = false;
+        f.proxy.cfg.no_hints = true;
+        f.chat(req.clone());
+        assert_eq!(f.proxy.scripted.as_ref().unwrap().borrow().requests[0], req);
+    }
+
+    #[test]
+    fn placement_hints_cap_bodies_across_trailing_tool_results() {
+        let args = json!({"commands":[{"command":"solid.box","params":{"length":20,"width":20,"height":20}}]});
+        let mut calls = Vec::new();
+        let mut messages = vec![json!({"role":"user","content":"make eight boxes"})];
+        for i in 0..8 {
+            calls.push(json!({"id":format!("box{i}"),"type":"function","function":{"name":"batch","arguments":args.to_string()}}));
+        }
+        messages.push(json!({"role":"assistant","tool_calls":calls}));
+        for i in 0..8 {
+            messages.push(json!({"role":"tool","tool_call_id":format!("box{i}"),"content":json!({"ok":true,"results":[{"created_bodies":[format!("Body{i}")]}]}).to_string()}));
+        }
+        let mut req = request();
+        req["messages"] = json!(messages);
+        let mut f = Fixture::new(vec![reply("Ready.")]);
+        f.proxy.cfg.planner = false;
+        assert_eq!(f.chat(req).status, 200);
+        let script = f.proxy.scripted.as_ref().unwrap().borrow();
+        let sent = script.requests[0]["messages"].as_array().unwrap();
+        let hints = sent
+            .iter()
+            .filter(|m| m["role"] == "tool" && m["content"].as_str().unwrap().contains("spans X"))
+            .count();
+        assert_eq!(hints, 4);
     }
 
     #[test]

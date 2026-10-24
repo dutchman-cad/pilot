@@ -349,6 +349,14 @@ impl Proxy {
             if !page.is_empty() {
                 modified |= self.append(&mut reply, &page.join("\n"), true, "paging")?;
             }
+            if !self.cfg.no_hints && change {
+                let hints =
+                    crate::guidance::placement_hints(name, &v["params"]["arguments"], &data);
+                if !hints.is_empty() {
+                    modified |=
+                        self.append(&mut reply, &hints.join("\n"), false, "next_step_hint")?;
+                }
+            }
             if failed(&reply) {
                 let (hint, suggested) = self.correction(v, &reply)?;
                 if let Some(text) = hint {
