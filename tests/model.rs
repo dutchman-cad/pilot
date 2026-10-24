@@ -698,13 +698,16 @@ fn deterministic_planner_adds_one_system_message_and_logs_rule() {
     let calls = text
         .strip_prefix("For this request, run exactly this plan: ")
         .unwrap()
-        .split_once(". Don't change it; then handle anything else the user asked.")
+        .split_once(". Don't change it; then reply using the tool results.")
         .unwrap()
         .0;
     let calls: Value = serde_json::from_str(calls).unwrap();
     assert_eq!(
         calls,
-        json!([{"tool":"execute","arguments":{"command":"solid.box","params":{"length":20.0,"width":20.0,"height":20.0}}}])
+        json!([
+            {"tool":"execute","arguments":{"command":"solid.box","params":{"length":20.0,"width":20.0,"height":20.0,"operation":"new"}}},
+            {"tool":"execute","arguments":{"command":"document.inspect","params":{"measure":true}}}
+        ])
     );
     let log = fs::read_to_string(h.dir.join("audit.jsonl")).unwrap();
     let entries: Vec<Value> = log
@@ -714,5 +717,9 @@ fn deterministic_planner_adds_one_system_message_and_logs_rule() {
     let plans: Vec<_> = entries.iter().filter(|v| v["kind"] == "plan").collect();
     assert_eq!(plans.len(), 1);
     assert_eq!(plans[0]["after"]["rule"], "box");
+    assert_eq!(
+        plans[0]["after"]["slots"]["Box"]["size"],
+        json!([20.0, 20.0, 20.0])
+    );
     h.finish();
 }

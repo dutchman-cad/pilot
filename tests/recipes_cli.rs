@@ -36,8 +36,11 @@ impl Session {
         }
     }
     fn execute(&mut self, command: &str, params: Value) -> Value {
+        self.tool("execute", json!({"command":command,"params":params}))
+    }
+    fn tool(&mut self, command: &str, arguments: Value) -> Value {
         self.id += 1;
-        writeln!(self.input,"{}",json!({"jsonrpc":"2.0","id":self.id,"method":"tools/call","params":{"name":"execute","arguments":{"command":command,"params":params}}})).unwrap();
+        writeln!(self.input,"{}",json!({"jsonrpc":"2.0","id":self.id,"method":"tools/call","params":{"name":command,"arguments":arguments}})).unwrap();
         self.input.flush().unwrap();
         let mut line = String::new();
         self.output.read_line(&mut line).unwrap();
@@ -48,6 +51,15 @@ impl Session {
         serde_json::from_str(response["result"]["content"][0]["text"].as_str().unwrap()).unwrap()
     }
     fn run(&mut self, p: &planner::Plan) {
+        if p.calls.len() > 2 {
+            let commands: Vec<_> = p.calls[..p.calls.len() - 1]
+                .iter()
+                .map(|c| c["arguments"].clone())
+                .collect();
+            self.tool("batch", json!({"commands":commands}));
+            self.execute("document.inspect", json!({"measure":true}));
+            return;
+        }
         for c in &p.calls {
             self.execute(
                 c["arguments"]["command"].as_str().unwrap(),
