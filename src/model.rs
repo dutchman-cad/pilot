@@ -7,6 +7,7 @@ use crate::{
 use prompting::FALLBACK;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+mod direct;
 mod recovery;
 mod text_mode;
 use recovery::Conversation;
@@ -41,6 +42,7 @@ pub struct Config {
     pub no_how: bool,
     pub no_hints: bool,
     pub planner: bool,
+    pub direct_recipes: bool,
     pub log: Option<PathBuf>,
     pub profile_dir: Option<PathBuf>,
     /// JSON object keyed by model name; omitted models keep their own settings.
@@ -77,6 +79,10 @@ pub struct Profile {
     pub upstream: String,
     pub model: String,
     pub turns: u64,
+    pub direct_turns: u64,
+    pub direct_recipe_calls: u64,
+    pub direct_recipe_reply: u64,
+    pub direct_recipe_fallback: u64,
     pub native: u64,
     pub text_written: u64,
     pub prose: u64,
@@ -213,20 +219,22 @@ impl Server {
         {
             return Err("upstream-timeout must be between 1 and 3600 seconds".into());
         }
-        let url = url::Url::parse(&cfg.upstream).map_err(|_| "invalid upstream URL")?;
-        if !matches!(url.scheme(), "http" | "https")
-            || url.host_str().is_none()
-            || !url.username().is_empty()
-            || url.password().is_some()
-            || url.query().is_some()
-            || url.fragment().is_some()
-        {
-            return Err(
-                "upstream must be an HTTP(S) base URL without credentials, query or fragment"
-                    .into(),
-            );
+        if cfg.upstream != "none" {
+            let url = url::Url::parse(&cfg.upstream).map_err(|_| "invalid upstream URL")?;
+            if !matches!(url.scheme(), "http" | "https")
+                || url.host_str().is_none()
+                || !url.username().is_empty()
+                || url.password().is_some()
+                || url.query().is_some()
+                || url.fragment().is_some()
+            {
+                return Err(
+                    "upstream must be an HTTP(S) base URL without credentials, query or fragment"
+                        .into(),
+                );
+            }
+            cfg.upstream = url.as_str().trim_end_matches('/').to_string();
         }
-        cfg.upstream = url.as_str().trim_end_matches('/').to_string();
         let dir = data_dir(cfg.profile_dir.as_deref())?;
         fs::create_dir_all(&dir).map_err(|e| format!("cannot create profile dir: {e}"))?;
         let profile_path = dir.join("profiles.json");
@@ -590,6 +598,17 @@ impl Proxy {
         // Two shared hand-backs, one parse-error retry, and the capability probe.
         let deadline = Instant::now() + self.cfg.upstream_timeout * 5 + Duration::from_secs(3);
         if request.path == "/v1/models" && request.method == "GET" {
+            if self.cfg.upstream == "none" {
+                return Ok(Reply {
+                    status: 200,
+                    content_type: "application/json".into(),
+                    body: json_bytes(
+                        &json!({"object":"list","data":[{"id":"pilot-recipes","object":"model","owned_by":"pilot"}]}),
+                    )?,
+                    rewrites: 0,
+                    retry_after: None,
+                });
+            }
             let response = self.fetch("GET", "/models", request.auth.as_deref(), &[], deadline)?;
             return Ok(Reply {
                 status: response.status,
@@ -637,7 +656,6 @@ impl Proxy {
             count: 0,
             kinds: BTreeMap::new(),
         };
-        profile.turns = profile.turns.saturating_add(1);
         let text_before = profile.text_written;
         let history = recovery::history(&body)?;
         let mut conversation = self
@@ -661,9 +679,16 @@ impl Proxy {
             self.conversations.remove(0);
         }
         self.conversations.push(conversation);
-        profile
-            .recent_text_calls
-            .push(profile.text_written > text_before);
+        if audit.kinds.contains_key("direct_recipe_calls")
+            || audit.kinds.contains_key("direct_recipe_reply")
+        {
+            profile.direct_turns = profile.direct_turns.saturating_add(1);
+        } else if self.cfg.upstream != "none" {
+            profile.turns = profile.turns.saturating_add(1);
+            profile
+                .recent_text_calls
+                .push(profile.text_written > text_before);
+        }
         if profile.recent_text_calls.len() > 5 {
             profile.recent_text_calls.remove(0);
         }
@@ -746,6 +771,8 @@ impl Proxy {
             conversation.recipe = None;
             conversation.completion_checked = false;
             conversation.pending_recipe = None;
+            conversation.direct = None;
+            conversation.direct_failed = false;
         }
         let mut recipe = if self.cfg.planner {
             planner::plan(&body, &self.catalog)?
@@ -758,6 +785,36 @@ impl Proxy {
                 recipe = planner::resume(&body, pending, &self.catalog)?;
                 resumed = recipe.is_some();
             }
+        }
+        if self.cfg.direct_recipes && self.cfg.planner {
+            if let Some(reply) =
+                self.direct_turn(&original, &recipe, user_index, conversation, audit)?
+            {
+                return Ok(reply);
+            }
+        }
+        if conversation.direct_failed {
+            recipe = None;
+        }
+        if let Some(reason) = conversation.direct_handback.take() {
+            body["messages"]
+                .as_array_mut()
+                .ok_or("messages must be an array")?
+                .push(json!({"role":"system","content":reason}));
+            profile.hand_backs = profile.hand_backs.saturating_add(1);
+        }
+        if self.cfg.direct_recipes && recipe.is_none() && !conversation.direct_failed {
+            if let Some((plan, rest)) = planner::partial_plan(&original, &self.catalog)? {
+                let message = format!("The matched part was worked out in code and offered: {}. Handle only the rest of the request: {}. These calls are offered for client approval, not executed or verified.", plan.message(), rest);
+                body["messages"]
+                    .as_array_mut()
+                    .ok_or("messages must be an array")?
+                    .push(json!({"role":"system","content":message}));
+                audit.record("direct_recipe_fallback", &Value::Null, &json!({"reason":"multiple intents","offered":plan,"remaining":rest,"from_model":false}))?;
+            }
+        }
+        if self.cfg.upstream == "none" {
+            return direct::reply(&original, direct::unavailable(), audit.count);
         }
         if let Some(plan) = &recipe {
             conversation.pending_recipe = plan.continuation.as_ref().map(|_| plan.clone());
@@ -2082,6 +2139,7 @@ mod tests {
                         no_how: true,
                         no_hints: false,
                         planner: true,
+                        direct_recipes: false,
                         log: None,
                         profile_dir: Some(dir.clone()),
                         model_settings: None,
@@ -3351,6 +3409,216 @@ mod tests {
             .unwrap()
             .iter()
             .all(|m| m["role"] != "tool"));
+    }
+
+    #[test]
+    fn direct_all_recipe_phrasings_and_nonrecipe_passthrough() {
+        for (_, phrases) in planner::cases::CASES {
+            for phrase in *phrases {
+                let mut f = Fixture::new(vec![]);
+                f.proxy.cfg.direct_recipes = true;
+                let result = f.chat(planner::cases::request(phrase));
+                assert_eq!(
+                    result.status,
+                    200,
+                    "{phrase}: {}",
+                    String::from_utf8_lossy(&result.body)
+                );
+                assert!(
+                    f.proxy
+                        .scripted
+                        .as_ref()
+                        .unwrap()
+                        .borrow()
+                        .requests
+                        .is_empty(),
+                    "{phrase}"
+                );
+            }
+        }
+        let mut f = Fixture::new(vec![reply("Hello.")]);
+        f.proxy.cfg.direct_recipes = true;
+        let mut req = request();
+        req["messages"][0]["content"] = json!("hello");
+        let result = f.chat(req.clone());
+        let value: Value = serde_json::from_slice(&result.body).unwrap();
+        assert_eq!(value["choices"][0]["message"]["content"], "Hello.");
+        assert_eq!(f.proxy.scripted.as_ref().unwrap().borrow().requests[0], req);
+        assert_eq!(f.proxy.profiles.values().next().unwrap().turns, 1);
+    }
+    #[test]
+    fn no_model_models_endpoint_and_missing_results_are_explicit() {
+        let mut f = Fixture::new(vec![]);
+        f.proxy.cfg.direct_recipes = true;
+        f.proxy.cfg.upstream = "none".into();
+        let models = f
+            .proxy
+            .handle(Request {
+                method: "GET".into(),
+                path: "/v1/models".into(),
+                auth: None,
+                body: vec![],
+            })
+            .unwrap();
+        let value: Value = serde_json::from_slice(&models.body).unwrap();
+        assert_eq!(value["data"][0]["id"], "pilot-recipes");
+        let mut req = planner::cases::request("create a cube 1/4 inch");
+        let first: Value = serde_json::from_slice(&f.chat(req.clone()).body).unwrap();
+        req["messages"]
+            .as_array_mut()
+            .unwrap()
+            .push(first["choices"][0]["message"].clone());
+        let result = f.chat(req);
+        assert_eq!(result.status, 200);
+        assert!(String::from_utf8(result.body)
+            .unwrap()
+            .contains("missing or invalid"));
+    }
+
+    fn direct_results(req: &mut Value, message: Value, error: bool, volume: f64) {
+        let calls = message["tool_calls"].as_array().unwrap().clone();
+        req["messages"].as_array_mut().unwrap().push(message);
+        for (i, call) in calls.iter().enumerate() {
+            let content = if error && i == 0 {
+                json!({"isError":true,"error":"tool failed"})
+            } else {
+                json!({"bodies":[{"name":"Blank","volume_mm3":1000},{"name":"New","volume_mm3":volume,"bbox":{"min":[0,0,0],"max":[6.35,6.35,6.35]}}]})
+            };
+            req["messages"].as_array_mut().unwrap().push(
+                json!({"role":"tool","tool_call_id":call["id"],"content":content.to_string()}),
+            );
+        }
+    }
+    #[test]
+    fn direct_calls_and_measured_replies_never_use_upstream() {
+        for stream in [false, true] {
+            let mut f = Fixture::new(vec![]);
+            f.proxy.cfg.direct_recipes = true;
+            let mut req = planner::cases::request("create a cube 1/4 inch");
+            req["stream"] = json!(stream);
+            let first = f.chat(req.clone());
+            assert_eq!(first.status, 200);
+            let value: Value = if stream {
+                collect_sse(&first.body).unwrap()
+            } else {
+                serde_json::from_slice(&first.body).unwrap()
+            };
+            assert_eq!(value["choices"][0]["finish_reason"], "tool_calls");
+            assert_eq!(value["model"], "pilot-recipes");
+            direct_results(
+                &mut req,
+                value["choices"][0]["message"].clone(),
+                false,
+                256.047875,
+            );
+            let second = f.chat(req);
+            assert_eq!(second.status, 200);
+            let value: Value = if stream {
+                collect_sse(&second.body).unwrap()
+            } else {
+                serde_json::from_slice(&second.body).unwrap()
+            };
+            let text = value["choices"][0]["message"]["content"].as_str().unwrap();
+            assert!(text.starts_with("Exact match (no model):"));
+            assert!(text.contains("1256.047875 mm³") && text.contains("6.35 × 6.35 × 6.35 mm"));
+            assert!(f
+                .proxy
+                .scripted
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .requests
+                .is_empty());
+            let p = f.proxy.profiles.values().next().unwrap();
+            assert_eq!((p.direct_turns, p.turns, p.native, p.prose), (2, 0, 0, 0));
+            assert!(!p.capabilities_checked && p.recent_text_calls.is_empty());
+            let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+            assert!(
+                log.contains("direct_recipe_calls")
+                    && log.contains("direct_recipe_reply")
+                    && log.contains("from_model")
+            );
+        }
+    }
+    #[test]
+    fn direct_failures_hand_back_once_and_disable_direct_for_the_turn() {
+        for (error, volume) in [(true, 256.047875), (false, 100.0)] {
+            for no_model in [false, true] {
+                let mut f = Fixture::new(vec![reply("Recovery needed.")]);
+                f.proxy.cfg.direct_recipes = true;
+                if no_model {
+                    f.proxy.cfg.upstream = "none".into();
+                }
+                let mut req = planner::cases::request("create a cube 1/4 inch");
+                let first: Value = serde_json::from_slice(&f.chat(req.clone()).body).unwrap();
+                direct_results(
+                    &mut req,
+                    first["choices"][0]["message"].clone(),
+                    error,
+                    volume,
+                );
+                let second = f.chat(req);
+                assert_eq!(second.status, 200);
+                let script = f.proxy.scripted.as_ref().unwrap().borrow();
+                if no_model {
+                    assert!(script.requests.is_empty());
+                    assert!(String::from_utf8(second.body)
+                        .unwrap()
+                        .contains("No model is configured to recover"));
+                } else {
+                    assert_eq!(script.requests.len(), 1);
+                    assert!(script.requests[0].to_string().contains("Recipe completion"));
+                }
+                assert_eq!(
+                    f.proxy
+                        .profiles
+                        .values()
+                        .next()
+                        .unwrap()
+                        .direct_recipe_fallback,
+                    1
+                );
+            }
+        }
+    }
+    #[test]
+    fn direct_no_model_nonrecipe_batch_and_multiple_intents() {
+        let mut f = Fixture::new(vec![]);
+        f.proxy.cfg.direct_recipes = true;
+        f.proxy.cfg.upstream = "none".into();
+        let result = f.chat(request());
+        let text = String::from_utf8(result.body).unwrap();
+        assert!(text.contains("No model is configured") && text.contains("sketch_extrude"));
+        let mut req = planner::cases::request(
+            "build a plate 72x48x6mm with a centred through hole diameter 8mm",
+        );
+        req["tools"] = tools();
+        let value: Value = serde_json::from_slice(&f.chat(req).body).unwrap();
+        let calls = value["choices"][0]["message"]["tool_calls"]
+            .as_array()
+            .unwrap();
+        assert_eq!(calls[0]["function"]["name"], "batch");
+        assert!(
+            serde_json::from_str::<Value>(calls[0]["function"]["arguments"].as_str().unwrap())
+                .unwrap()["commands"]
+                .is_array()
+        );
+        let mut f = Fixture::new(vec![reply("I'll handle the rest.")]);
+        f.proxy.cfg.direct_recipes = true;
+        assert_eq!(
+            f.chat(planner::cases::request(
+                "make a 20mm cube and explain how to export it"
+            ))
+            .status,
+            200
+        );
+        let script = f.proxy.scripted.as_ref().unwrap().borrow();
+        assert_eq!(script.requests.len(), 1);
+        let sent = script.requests[0].to_string();
+        assert!(
+            sent.contains("worked out in code and offered")
+                && sent.contains("Handle only the rest")
+        );
     }
 
     #[test]

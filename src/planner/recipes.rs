@@ -1324,3 +1324,7 @@ pub(super) fn resume(
         serde_json::to_value(slots).map_err(|e| format!("cannot audit edge slots: {e}"))?;
     Ok(Some(next))
 }
+
+pub(super) fn names() -> impl Iterator<Item = &'static str> {
+    LIBRARY.iter().map(|(name, _)| *name)
+}

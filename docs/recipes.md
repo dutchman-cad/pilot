@@ -5,6 +5,36 @@ prompts, recipe prose conversion, continuations, and completion checks. The mode
 still receives SolidCraft's tool results and writes the final answer. The MCP
 `plan` tool exposes suggestions only and never converts prose into actions.
 
+`--direct-recipes` opts into exact matches without an upstream model request,
+including capability probes. Pilot emits native `tool_calls` using the client's
+advertised `execute` and, for multi-step geometry, `batch` shapes; SolidCraft
+validates and approves them normally. Streaming requests receive valid SSE.
+After the client returns every call's result, Pilot runs the same completion
+check and replies with `Exact match (no model):`, the recipe, measured body count,
+volume and available bounds-derived sizes. Length conversions are stated explicitly.
+A tool error, missing result, unresolved topology or completion mismatch hands
+back the failure to the model once; direct answering stays disabled for that
+turn so the model can recover without replaying accepted changes. With no model,
+Pilot states the failure plainly instead. Two-intent requests use the model:
+when a leading clause matches, Pilot offers that computed plan in context and
+asks the model to handle only the remaining request. Offered calls still need
+client approval and results; they are never described as already executed.
+
+Use `--upstream none`, or omit upstream with `--direct-recipes`, for a no-model
+assistant. `/v1/models` then lists `pilot-recipes`; other requests receive a fixed
+no-model explanation listing supported kinds from the recipe table. Without
+`--direct-recipes`, the upstream default remains Ollama and recipe behavior is
+unchanged. `--direct-recipes` conflicts with `--no-plan`.
+
+Audit kinds are `direct_recipe_calls`, `direct_recipe_reply`, and
+`direct_recipe_fallback`, with `from_model: false` on direct events. Profiles
+count `direct_turns` and those events separately; direct replies do not enter
+model turns, reply statistics, capability evidence or recent text-call history.
+Recovery requests enter normal model statistics.
+
+SolidCraft tracks offering these matches in its own command search and chat input
+in [tangency-labs/solidcraft#5862](https://github.com/tangency-labs/solidcraft/issues/5862).
+
 Recipes are a bounded table in `src/planner/recipes.rs`, with typed slots and a
 shared length parser. Every expanded call checks its command and parameter names
 against the supplied catalogue. SolidCraft remains the authoritative validator.

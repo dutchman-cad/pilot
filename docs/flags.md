@@ -10,7 +10,7 @@ Pilot — a local helper for SolidCraft
 
 Usage:
   dutchman-pilot how "<task>"
-  dutchman-pilot model [--listen 127.0.0.1:11500] [--upstream URL]
+  dutchman-pilot model [--listen 127.0.0.1:11500] [--upstream URL|none] [--direct-recipes]
                        [--upstream-timeout SECONDS (default 300, max 3600)]
                        [--fallback-prompt auto|on|off] [--prompt-help] [--log FILE]
                        [--profile-dir DIR] [--model-settings [FILE]] [--seed INTEGER]
@@ -26,6 +26,9 @@ how uses the bundled public command catalogue and prints explicit JSON example c
 model serves /v1/chat/completions and /v1/models; mcp starts the SolidCraft tools proxy.
 Model plan mode uses audited recipes, matching action prose, and one completion check.
 --no-plan disables these recipe features; the MCP face only suggests plans.
+--direct-recipes answers exact matches without a model (conflicts with --no-plan).
+Upstream defaults to Ollama; --upstream none (with --direct-recipes) runs without
+a model. Direct replies are marked, audited, and profiled separately.
 Profiles and the default rewrites.jsonl log live in the user's data dir/dutchman-pilot.
 --prompt-help adds short rules and at most 15 relevant command purposes.
 --model-settings enables Ollama-only temperature 0.1 with tools and num_ctx 8192
@@ -36,6 +39,7 @@ num_ctx (8192–131072), and json_retry (boolean, decided JSON retries only).
 
 Flags (including aliases):
 
+- `--direct-recipes`
 - `--fallback-prompt`
 - `--help`
 - `--json`

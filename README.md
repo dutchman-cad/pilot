@@ -18,6 +18,8 @@ command line. The same commands also come as a standalone download,
 - Matching prose-to-recipe conversion for models without tool calling, plus one
   measured completion check. Disable together with `--no-plan`.
 - Text tool mode for models without native tools, with automatic retry and saved profiles.
+- Opt-in `--direct-recipes`: native tool proposals and measured replies without a
+  model, with normal client approval; `--upstream none` supports recipe-only use.
 - Audited rewrites, argument repair, buffered streaming, and bounded retries.
 
 See [recipes and their limits](docs/recipes.md).

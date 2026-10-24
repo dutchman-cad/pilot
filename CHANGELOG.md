@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Add opt-in `--direct-recipes` with native calls, SSE, measured no-model replies,
+  ordinary approval, completion recovery, separate audit/profile counters, and
+  `--upstream none`.
+- Offer matched leading clauses of compound requests to the model and leave
+  remaining work to it; direct mode stays off by default.
+
 - Recognise ordinary recipe sentences with case, sentence punctuation, and
   value-first or label-first lengths, preserving decimals, fractions and names.
 - Add round / round off, bevel, drill / bore / cut a hole, shift / slide, and

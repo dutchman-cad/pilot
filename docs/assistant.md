@@ -42,6 +42,27 @@ LM Studio. If you enabled server authentication, put its key in the agent's API
 key field; Pilot forwards the Authorization header in memory. It never saves
 keys. Ollama-specific settings do not apply to LM Studio.
 
+## Exact matches without a model
+
+```sh
+dutchman pilot model --direct-recipes --upstream none --log rewrites.jsonl
+```
+
+Add an API agent at `http://127.0.0.1:11500/v1` with model `pilot-recipes`.
+Omitting upstream with `--direct-recipes` also selects no-model mode. To retain
+model recovery and other chat, provide an explicit upstream URL instead.
+
+Keep SolidCraft's tool permission set to **Ask**. Exact matches appear as normal
+native `execute` / `batch` tool proposals in its approval UI, with the command
+arguments available for review. Pilot does not execute them or bypass approval;
+approve them in SolidCraft to run the tools and return results. A declined or
+failed tool cannot produce a success claim. The measured final answer starts
+`Exact match (no model):` and the response identifies its source as `pilot-recipes`.
+Missing results, tool errors and measurement mismatches go to the configured
+model for recovery, or produce a plain failure message when none is configured.
+Other no-model requests receive a fixed description of supported recipe kinds.
+See [recipes](recipes.md) for required slots, limits and audit counters.
+
 ## Check a turn
 
 Ask for a simple dimensioned part, such as “make a 20 mm cube”. Pilot can suggest

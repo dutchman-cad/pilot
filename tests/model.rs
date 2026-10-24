@@ -43,6 +43,17 @@ impl Harness {
         capabilities: Value,
         how: bool,
     ) -> Self {
+        Self::with_direct(replies, count, fallback, settings, capabilities, how, false)
+    }
+    fn with_direct(
+        replies: Vec<(u16, String, String)>,
+        count: usize,
+        fallback: FallbackPrompt,
+        settings: Option<Value>,
+        capabilities: Value,
+        how: bool,
+        direct: bool,
+    ) -> Self {
         let dir = std::env::temp_dir().join(format!(
             "dutchman-pilot-model-{}-{}",
             std::process::id(),
@@ -63,6 +74,10 @@ impl Harness {
         let upstream_thread = thread::spawn(move || {
             while !quit.load(Ordering::Relaxed) {
                 if let Some(mut req) = upstream.recv_timeout(Duration::from_millis(100)).unwrap() {
+                    assert!(
+                        !direct,
+                        "direct turn called upstream, including capability probe"
+                    );
                     assert_eq!(
                         req.headers()
                             .iter()
@@ -95,6 +110,7 @@ impl Harness {
             }
         });
         let mut proxy = Server::bind(Config {
+            direct_recipes: direct,
             listen: "127.0.0.1:0".parse().unwrap(),
             upstream: upstream_url,
             upstream_timeout: Duration::from_secs(300),
@@ -831,6 +847,51 @@ fn text_mode_refuses_multiple_objects_and_keeps_plain_text() {
         assert_eq!(status, 200);
         let value: Value = serde_json::from_str(&response).unwrap();
         assert_eq!(value["choices"][0]["message"]["content"], text);
+        h.finish();
+    }
+}
+
+#[test]
+fn direct_http_turn_has_no_upstream_requests() {
+    for stream in [false, true] {
+        let h = Harness::with_direct(
+            vec![],
+            2,
+            FallbackPrompt::Auto,
+            None,
+            json!({}),
+            false,
+            true,
+        );
+        let mut req = request("create a cube 1/4 inch");
+        req["stream"] = json!(stream);
+        let (status, _, text) = h.chat(&req);
+        assert_eq!(status, 200, "{text}");
+        let value: Value = if stream {
+            let chunks: Vec<Value> = text
+                .lines()
+                .filter_map(|s| s.strip_prefix("data: "))
+                .filter(|s| *s != "[DONE]")
+                .map(|s| serde_json::from_str(s).unwrap())
+                .collect();
+            assert!(text.ends_with("data: [DONE]\n\n"));
+            json!({"choices":[{"message":{"role":"assistant","content":null,"tool_calls":chunks[1]["choices"][0]["delta"]["tool_calls"]}}]})
+        } else {
+            serde_json::from_str(&text).unwrap()
+        };
+        let mut message = value["choices"][0]["message"].clone();
+        for call in message["tool_calls"].as_array_mut().unwrap() {
+            call.as_object_mut().unwrap().remove("index");
+        }
+        let calls = message["tool_calls"].as_array().unwrap().clone();
+        req["messages"].as_array_mut().unwrap().push(message);
+        for c in calls {
+            req["messages"].as_array_mut().unwrap().push(json!({"role":"tool","tool_call_id":c["id"],"content":json!({"bodies":[{"name":"Cube","volume_mm3":256.047875}]}).to_string()}));
+        }
+        let (status, _, text) = h.chat(&req);
+        assert_eq!(status, 200, "{text}");
+        assert!(text.contains("Exact match (no model):") && text.contains("256.047875"));
+        assert!(h.requests.lock().unwrap().is_empty());
         h.finish();
     }
 }

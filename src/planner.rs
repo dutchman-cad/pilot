@@ -571,6 +571,89 @@ pub fn plan(request: &Value, catalog: &Catalog) -> Result<Option<Plan>, String> 
     }
     recipes::select(text, data.as_ref(), messages, catalog)
 }
+/// Names come from the same bounded table that selects recipes.
+pub fn supported_recipes() -> Vec<&'static str> {
+    recipes::names().chain(["body count", "volume"]).collect()
+}
+/// Report measured facts only after the ordinary completion check succeeds.
+pub fn direct_summary(request: &Value, plan: &Plan) -> String {
+    let mut text = format!(
+        "Exact match (no model): {} completed.",
+        plan.rule.replace('_', " ")
+    );
+    if let Some(data) = request["messages"].as_array().and_then(|m| state(m)) {
+        if let Some(bodies) = data["bodies"].as_array() {
+            text.push_str(&format!(" Measured {} bodies.", bodies.len()));
+            if let Some(total) = volume(&data) {
+                text.push_str(&format!(" Total volume {total:.6} mm³."));
+            }
+            for body in bodies.iter().take(8) {
+                if let (Some(min), Some(max)) = (
+                    body["bbox"]["min"].as_array(),
+                    body["bbox"]["max"].as_array(),
+                ) {
+                    if min.len() == 3 && max.len() == 3 {
+                        let size: Option<Vec<f64>> = (0..3)
+                            .map(|i| Some(max[i].as_f64()? - min[i].as_f64()?))
+                            .collect();
+                        if let Some(size) =
+                            size.filter(|s| s.iter().all(|n| n.is_finite() && *n >= 0.0))
+                        {
+                            text.push_str(&format!(
+                                " Measured size {} × {} × {} mm.",
+                                size[0], size[1], size[2]
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if let Some(facts) = &plan.facts {
+        text.push_str(&format!(" Measured facts: {facts}."));
+    }
+    text.push_str(" Length slots use mm (1 inch = 25.4 mm; 1 cm = 10 mm; 1 m = 1000 mm).");
+    text
+}
+
+/// Offer a fully matched leading clause, leaving compound work to the model.
+pub fn partial_plan(request: &Value, catalog: &Catalog) -> Result<Option<(Plan, String)>, String> {
+    let Some(messages) = request["messages"].as_array() else {
+        return Ok(None);
+    };
+    let Some(index) = messages.iter().rposition(|m| m["role"] == "user") else {
+        return Ok(None);
+    };
+    if index + 1 != messages.len() {
+        return Ok(None);
+    }
+    let Some(text) = messages[index]["content"]
+        .as_str()
+        .filter(|s| s.len() <= MAX_TEXT)
+    else {
+        return Ok(None);
+    };
+    // Quoted destinations are indivisible name data.
+    if text.contains(['"', '\'']) {
+        return Ok(None);
+    }
+    let lower = text.to_ascii_lowercase();
+    for separator in [" and then ", " and also ", " and ", "; ", " then "] {
+        for (at, _) in lower.match_indices(separator).take(32) {
+            let rest = text[at + separator.len()..].trim();
+            if rest.is_empty() {
+                continue;
+            }
+            let mut prefix = request.clone();
+            prefix["messages"][index]["content"] = json!(text[..at].trim());
+            if let Some(plan) = plan(&prefix, catalog)? {
+                return Ok(Some((plan, rest.to_string())));
+            }
+        }
+    }
+    Ok(None)
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {

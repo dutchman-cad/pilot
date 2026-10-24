@@ -9,6 +9,10 @@ pub(super) struct Conversation {
     counts: BTreeMap<String, usize>,
     pub recipe: Option<(usize, planner::Expected)>,
     pub completion_checked: bool,
+    pub direct: Option<(usize, planner::Plan, Value)>,
+    pub direct_failed: bool,
+    pub direct_index: usize,
+    pub direct_handback: Option<String>,
     pub pending_recipe: Option<planner::Plan>,
 }
 impl Conversation {

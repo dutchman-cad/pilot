@@ -12,7 +12,7 @@ const HELP_TEMPLATE: &str = r#"{display} — a local helper for SolidCraft
 
 Usage:
   {binary} how "<task>"
-  {binary} model [--listen 127.0.0.1:11500] [--upstream URL]
+  {binary} model [--listen 127.0.0.1:11500] [--upstream URL|none] [--direct-recipes]
   {pad}       [--upstream-timeout SECONDS (default 300, max 3600)]
   {pad}       [--fallback-prompt auto|on|off] [--prompt-help] [--log FILE]
   {pad}       [--profile-dir DIR] [--model-settings [FILE]] [--seed INTEGER]
@@ -28,6 +28,9 @@ how uses the bundled public command catalogue and prints explicit JSON example c
 model serves /v1/chat/completions and /v1/models; mcp starts the SolidCraft tools proxy.
 Model plan mode uses audited recipes, matching action prose, and one completion check.
 --no-plan disables these recipe features; the MCP face only suggests plans.
+--direct-recipes answers exact matches without a model (conflicts with --no-plan).
+Upstream defaults to Ollama; --upstream none (with --direct-recipes) runs without
+a model. Direct replies are marked, audited, and profiled separately.
 Profiles and the default rewrites.jsonl log live in the user's data dir/{binary}.
 --prompt-help adds short rules and at most 15 relevant command purposes.
 --model-settings enables Ollama-only temperature 0.1 with tools and num_ctx 8192
@@ -95,8 +98,11 @@ enum Action {
 struct ModelArgs {
     #[arg(long, default_value = "127.0.0.1:11500")]
     listen: SocketAddr,
-    #[arg(long, default_value = "http://localhost:11434/v1", value_parser = upstream)]
-    upstream: String,
+    #[arg(long, value_parser = upstream)]
+    upstream: Option<String>,
+    /// Answer exact recipes without a model; omitted upstream means none.
+    #[arg(long, conflicts_with = "no_plan")]
+    direct_recipes: bool,
     #[arg(long, default_value = "300", value_parser = clap::value_parser!(u64).range(1..=3600))]
     upstream_timeout: u64,
     #[arg(long, default_value = "auto", value_parser = fallback)]
@@ -144,6 +150,9 @@ fn task(value: &str) -> Result<String, String> {
     Ok(value.into())
 }
 fn upstream(value: &str) -> Result<String, String> {
+    if value == "none" {
+        return Ok(value.into());
+    }
     let authority = value
         .strip_prefix("http://")
         .or_else(|| value.strip_prefix("https://"))
@@ -194,7 +203,11 @@ pub fn run_named(cmd: Command, bin: &str) -> Result<i32, Error> {
         None => output(&help_named(bin)),
         Some(Action::Model(args)) => model::serve(model::Config {
             listen: args.listen,
-            upstream: args.upstream,
+            // No-model operation is explicit: --upstream none.
+            upstream: args
+                .upstream
+                .unwrap_or_else(|| "http://localhost:11434/v1".into()),
+            direct_recipes: args.direct_recipes,
             upstream_timeout: std::time::Duration::from_secs(args.upstream_timeout),
             fallback_prompt: args.fallback_prompt,
             log: args.log,
@@ -249,7 +262,7 @@ fn validate_bounds(cmd: &Command) -> Result<(), Error> {
         }
         Some(Action::LogSummary { path, .. }) => add(path.as_os_str().len()),
         Some(Action::Model(args)) => {
-            add(args.upstream.len());
+            add(args.upstream.as_ref().map_or(0, String::len));
             for path in args
                 .log
                 .iter()
@@ -299,13 +312,15 @@ mod tests {
             panic!("expected model")
         };
         assert_eq!(args.listen.to_string(), "127.0.0.1:11500");
-        assert_eq!(args.upstream, "http://localhost:11434/v1");
+        assert_eq!(args.upstream, None);
         assert_eq!(
             args.upstream_timeout,
             model::DEFAULT_UPSTREAM_TIMEOUT.as_secs()
         );
         assert_eq!(args.fallback_prompt, model::FallbackPrompt::Auto);
-        assert!(!args.no_plan);
+        assert!(!args.no_plan && !args.direct_recipes);
+        assert!(parse(&["model", "--direct-recipes", "--upstream", "none"]).is_ok());
+        assert!(parse(&["model", "--direct-recipes", "--no-plan"]).is_err());
         assert!(parse(&[
             "model",
             "--listen",
