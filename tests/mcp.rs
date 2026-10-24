@@ -150,7 +150,7 @@ fn fake_child_end_to_end() {
     .unwrap();
     assert_eq!(
         plan["calls"],
-        json!([{"tool":"execute","arguments":{"command":"solid.box","params":{"length":20.0,"width":20.0,"height":20.0}}}])
+        json!([{"tool":"execute","arguments":{"command":"solid.box","params":{"length":20.0,"width":20.0,"height":20.0,"operation":"new"}}}])
     );
     let failure = session.call(
         21,

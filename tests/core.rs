@@ -7,7 +7,7 @@ use serde_json::json;
 #[test]
 fn caller_supplied_catalogue_supports_lookup_plan_and_repair() {
     let catalog = Catalog::from_json(
-        r#"[{"id":"solid.box","label":"Box","params":"length: expr; width: expr; height: expr"}]"#,
+        r#"[{"id":"solid.box","label":"Box","params":"length: expr; width: expr; height: expr; operation?: new"}]"#,
     )
     .unwrap();
     let how = serde_json::to_value(catalog.how("make a cube").unwrap()).unwrap();

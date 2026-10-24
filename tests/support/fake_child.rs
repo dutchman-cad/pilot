@@ -1,7 +1,7 @@
 //! Test-only MCP binary; compiled by the integration test, never part of the product.
 use serde_json::{json, Value};
 use std::io::{self, BufRead, Write};
-const CATALOG: &str = r#"[{"id":"solid.box","label":"Box","params":"length, width, height: number"},{"id":"solid.fillet","label":"Fillet","params":"edges: [[x,y,z]]; radius: number"},{"id":"sketch.finish","label":"Finish sketch","params":""}]"#;
+const CATALOG: &str = r#"[{"id":"solid.box","label":"Box","params":"length, width, height: number; operation?: new"},{"id":"solid.fillet","label":"Fillet","params":"edges: [[x,y,z]]; radius: number"},{"id":"sketch.finish","label":"Finish sketch","params":""}]"#;
 fn main() {
     if std::env::args().nth(1).as_deref() == Some("commands") {
         println!("{CATALOG}"); return;
