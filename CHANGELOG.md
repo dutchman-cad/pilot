@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add the public field-report benchmark set with a cube-centre-hole volume check and corner-cut negative.
+
 - Append bounded, audited box extent and centre hints after creation on both proxy faces.
 
 - Match cube and box requests with centred through holes, including “draw” and unqualified hole diameters.
