@@ -1,4 +1,4 @@
-# SolidCraft-Pilot
+# Pilot
 
 Pilot is a local helper that lets small language models drive
 SolidCraft through its public interfaces. It repairs explicit tool calls,
