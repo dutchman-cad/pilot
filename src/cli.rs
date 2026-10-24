@@ -16,7 +16,7 @@ Usage:
   {pad}       [--upstream-timeout SECONDS (default 300, max 3600)]
   {pad}       [--fallback-prompt auto|on|off] [--prompt-help] [--log FILE]
   {pad}       [--profile-dir DIR] [--model-settings [FILE]] [--seed INTEGER]
-  {pad}       [--no-report-buffer]
+  {pad}       [--no-report-buffer] [--dialect solidcraft|solidcraft98]
   {pad}       [--no-how] [--no-hints] [--planner] [--no-plan (alias --no-planner)]
   {binary} report [--listen ADDR] [--turn N] [--include-request] [--out FILE]
   {pad}        [--from-request FILE] [--open]
@@ -24,10 +24,16 @@ Usage:
   {binary} log-summary <rewrites.jsonl> [--json]
   {binary} mcp [--solidcraft-cli PATH] [--log FILE]
   {pad}     [--no-plan] [--no-hints] [--no-how] -- <args for solidcraft-cli mcp>
+  {binary} mcp98 (--connect ADDRESS:9898 | --program PATH [--headless]) [--log FILE]
+  {binary} drive98 (--connect ADDRESS:9898 | --program PATH [--headless])
+  {pad}         --upstream URL --model MODEL [--plain] [--budget 1..200] [--log FILE] "task"
+  {binary} how98 "task"
   {binary} --version (-V)
   {binary} --help (-h)
 
 how uses the bundled public command catalogue and prints explicit JSON example calls.
+model --dialect solidcraft98 selects SolidCraft 98 screen tools; catalogue recipes are disabled.
+mcp98 serves SolidCraft 98 tools; drive98 runs its bounded model loop; how98 looks up screen help.
 model serves /v1/chat/completions and /v1/models; mcp starts the SolidCraft tools proxy.
 --planner enables recipe suggestions, matching action prose, and one completion check.
 These plan-text features are off by default; model --no-plan is a no-op alias for
@@ -117,7 +123,7 @@ enum Action {
 
 #[derive(Debug, clap::Args)]
 struct ModelArgs {
-    #[arg(long, default_value = "solidcraft", value_parser = ["solidcraft", "solidcraft98"], help = "SolidCraft 98 uses only screen tools and repairs; disables SolidCraft catalogue plans, how and hints")]
+    #[arg(long, default_value = "solidcraft", value_parser = ["solidcraft", "solidcraft98"], help = "SolidCraft 98 uses only screen tools and repairs; disables SolidCraft catalogue plans, how, and hints")]
     dialect: String,
     #[arg(long, default_value = "127.0.0.1:11500")]
     listen: SocketAddr,

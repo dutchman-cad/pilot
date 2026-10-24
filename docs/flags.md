@@ -14,7 +14,7 @@ Usage:
                        [--upstream-timeout SECONDS (default 300, max 3600)]
                        [--fallback-prompt auto|on|off] [--prompt-help] [--log FILE]
                        [--profile-dir DIR] [--model-settings [FILE]] [--seed INTEGER]
-                       [--no-report-buffer]
+                       [--no-report-buffer] [--dialect solidcraft|solidcraft98]
                        [--no-how] [--no-hints] [--planner] [--no-plan (alias --no-planner)]
   dutchman-pilot report [--listen ADDR] [--turn N] [--include-request] [--out FILE]
                         [--from-request FILE] [--open]
@@ -22,10 +22,16 @@ Usage:
   dutchman-pilot log-summary <rewrites.jsonl> [--json]
   dutchman-pilot mcp [--solidcraft-cli PATH] [--log FILE]
                      [--no-plan] [--no-hints] [--no-how] -- <args for solidcraft-cli mcp>
+  dutchman-pilot mcp98 (--connect ADDRESS:9898 | --program PATH [--headless]) [--log FILE]
+  dutchman-pilot drive98 (--connect ADDRESS:9898 | --program PATH [--headless])
+                         --upstream URL --model MODEL [--plain] [--budget 1..200] [--log FILE] "task"
+  dutchman-pilot how98 "task"
   dutchman-pilot --version (-V)
   dutchman-pilot --help (-h)
 
 how uses the bundled public command catalogue and prints explicit JSON example calls.
+model --dialect solidcraft98 selects SolidCraft 98 screen tools; catalogue recipes are disabled.
+mcp98 serves SolidCraft 98 tools; drive98 runs its bounded model loop; how98 looks up screen help.
 model serves /v1/chat/completions and /v1/models; mcp starts the SolidCraft tools proxy.
 --planner enables recipe suggestions, matching action prose, and one completion check.
 These plan-text features are off by default; model --no-plan is a no-op alias for
@@ -46,14 +52,19 @@ num_ctx (8192–131072), and json_retry (boolean, decided JSON retries only).
 
 Flags (including aliases):
 
+- `--budget`
+- `--connect`
+- `--dialect`
 - `--direct-recipes`
 - `--fallback-prompt`
 - `--from-request`
+- `--headless`
 - `--help`
 - `--include-request`
 - `--json`
 - `--listen`
 - `--log`
+- `--model`
 - `--model-settings`
 - `--no-hints`
 - `--no-how`
@@ -62,8 +73,10 @@ Flags (including aliases):
 - `--no-report-buffer`
 - `--open`
 - `--out`
+- `--plain`
 - `--planner`
 - `--profile-dir`
+- `--program`
 - `--prompt-help`
 - `--seed`
 - `--solidcraft-cli`
