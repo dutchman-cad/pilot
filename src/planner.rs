@@ -918,7 +918,11 @@ pub fn report_decline(text: &str) -> (&'static str, Vec<String>) {
     if text.len() > MAX_TEXT {
         return ("request exceeds planner text limit", Vec::new());
     }
-    let text = slots::normalize(text);
+    let text = report_input_tokens(text)
+        .into_iter()
+        .filter(|token| !token.starts_with('['))
+        .collect::<Vec<_>>()
+        .join(" ");
     let tokens = slots::intent_tokens(&text);
     let guarded: Vec<String> = tokens
         .iter()
@@ -933,16 +937,11 @@ pub fn report_decline(text: &str) -> (&'static str, Vec<String>) {
 /// Only words in Pilot's fixed planner lists may appear in request diagnostics.
 #[cfg(feature = "proxy")]
 pub fn report_tokens(text: &str) -> Vec<String> {
-    let mut end = text.len().min(MAX_TEXT);
-    while !text.is_char_boundary(end) {
-        end -= 1;
-    }
-    let text = &text[..end];
-    slots::intent_tokens(&slots::normalize(text))
+    report_input_tokens(text)
         .into_iter()
-        .take(256)
         .map(|word| {
-            if REPORT_GUARD_WORDS.contains(&word.as_str())
+            if word.starts_with('[')
+                || REPORT_GUARD_WORDS.contains(&word.as_str())
                 || recipes::UNSUPPORTED.contains(&word.as_str())
                 || matches!(
                     word.as_str(),
@@ -992,6 +991,56 @@ pub fn report_tokens(text: &str) -> Vec<String> {
             }
         })
         .collect()
+}
+
+/// Redaction placeholders are single opaque tokens, including multiword labels.
+#[cfg(feature = "proxy")]
+fn report_input_tokens(text: &str) -> Vec<String> {
+    let mut end = text.len().min(MAX_TEXT);
+    while !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    let mut rest = &text[..end];
+    let mut tokens = Vec::new();
+    while !rest.is_empty() && tokens.len() < 256 {
+        let start = rest.find('[').unwrap_or(rest.len());
+        tokens.extend(
+            slots::intent_tokens(&slots::normalize(&rest[..start]))
+                .into_iter()
+                .take(256 - tokens.len()),
+        );
+        rest = &rest[start..];
+        if rest.is_empty() || tokens.len() == 256 {
+            break;
+        }
+        if let Some(end) = rest.find(']') {
+            let placeholder = &rest[..=end];
+            // Only redactor-owned labels may pass through verbatim.
+            tokens.push(
+                if matches!(
+                    placeholder,
+                    "[email]"
+                        | "[path]"
+                        | "[token]"
+                        | "[URL]"
+                        | "[IP address]"
+                        | "[hostname]"
+                        | "[environment name]"
+                        | "[word]"
+                ) {
+                    placeholder.into()
+                } else {
+                    "[word]".into()
+                },
+            );
+            rest = &rest[end + 1..];
+        } else {
+            // An incomplete placeholder (for example at the capture limit) is opaque.
+            tokens.push("[word]".into());
+            break;
+        }
+    }
+    tokens
 }
 
 #[cfg(test)]

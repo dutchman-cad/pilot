@@ -73,14 +73,14 @@ impl Turn {
         };
         let mut names = Vec::new();
         collect_names(body, "", &mut names, 0);
-        let (decline_reason, decline_tokens) = planner::report_decline(request);
+        let (decline_reason, _) = planner::report_decline(request);
         let mut shape = match &plan {
             Some(p) => {
                 collect_names(&p.slots, "", &mut names, 0);
                 json!({"intent":p.rule,"slots":p.slots,"length_bytes":request.len()})
             }
             None => {
-                json!({"intent":"unmatched","slots":{},"length_bytes":request.len(),"decline_tokens":decline_tokens,"token_shape":planner::report_tokens(request)})
+                json!({"intent":"unmatched","slots":{},"length_bytes":request.len()})
             }
         };
         if plan.is_none() && flags["planner"] != false {
@@ -465,6 +465,36 @@ fn small_facts(value: Value) -> Value {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    #[test]
+    fn capture_respects_default_planner_and_independent_direct_recipes() {
+        let catalog = Catalog::bundled().unwrap();
+        let body = json!({"messages":[{"role":"user","content":"create a cube 20mm"}],"tools":[{"function":{"name":"execute"}}]});
+        for (planner, direct) in [(false, false), (false, true), (true, false), (true, true)] {
+            let turn = Turn::from_request(
+                &body,
+                &catalog,
+                json!({"planner":planner,"direct_recipes":direct}),
+            )
+            .unwrap();
+            assert!(!turn.failed);
+            assert_eq!(
+                turn.shape["intent"],
+                if planner || direct {
+                    "box"
+                } else {
+                    "unmatched"
+                }
+            );
+            assert_eq!(
+                turn.events[0].kind,
+                if planner || direct {
+                    "Recipe matched"
+                } else {
+                    "Planner disabled"
+                }
+            );
+        }
+    }
     #[test]
     fn ring_bounds_and_selection() {
         let body = json!({"model":"test","messages":[{"role":"user","content":"create a cube 20mm"}],"tools":[{"function":{"name":"execute"}}]});

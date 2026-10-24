@@ -53,6 +53,8 @@
 
 ### Fixed
 
+- Report request shapes use redacted text and treat replacement labels as opaque
+  tokens, keeping private vocabulary out of decline and token diagnostics.
 - Report redaction classifies file paths before applying token entropy checks,
   including Windows and home-relative paths.
 - Direct volume and body-count answers use complete measured results, including

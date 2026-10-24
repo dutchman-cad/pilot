@@ -63,8 +63,10 @@ By default, request words are omitted. Reports contain the detected intent, extr
 slots and values, original request length, and decline diagnostics. Decline tokens come
 from Pilot's actual guard/unsupported-modifier lists and shared multiple-intent checks.
 The additional token-shape view allows only fixed planner vocabulary; all other words
-appear as `[word]`. Other request words echoed in diagnostics are also masked without
-consent. Unknown or ambiguous slots remain unknown, rather than being guessed.
+appear as `[word]`. Both views are computed from redacted request text. Replacement
+labels such as `[email]` remain single opaque tokens; their contents never contribute
+vocabulary to decline diagnostics. Other request words echoed in diagnostics are also
+masked without consent. Unknown or ambiguous slots remain unknown, rather than being guessed.
 `--include-request` explicitly includes the redacted captured text under
 **Request text (explicitly included; redacted)**. Dimensions and units remain useful.
 
@@ -86,7 +88,7 @@ It replaces:
 Replacement occurrences are counted, not just distinct strings. The report starts with
 `redacted: 2 paths, 1 body name` (as applicable) and repeats the summary near the footer.
 The same name has the same replacement everywhere in one report. Numeric values,
-fractions, mm values, quoted dimensions, catalogue command ids and Pilot's fixed text
+fractions, mm values, quoted dimensions, catalogue command ids, and Pilot's fixed text
 stay readable. Names and secrets outside recognizable contexts may need manual editing;
 always review the printed report before submitting it.
 

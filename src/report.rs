@@ -184,7 +184,15 @@ pub fn render(turn: &Turn, include_request: bool) -> Result<(String, String), St
     let model = r.text(&turn.model);
     let flags = r.value(&turn.flags).to_string();
     let version = r.text(&turn.version);
-    let shape = r.value(&turn.shape).to_string();
+    // Derive vocabulary only after redaction: a domain or filename may contain
+    // otherwise public planner words. Replace old captured diagnostics as well.
+    let request = r.prose(&turn.request);
+    let mut shape = r.value(&turn.shape);
+    if shape["intent"] == "unmatched" {
+        shape["decline_tokens"] = json!(crate::planner::report_decline(&request).1);
+        shape["token_shape"] = json!(crate::planner::report_tokens(&request));
+    }
+    let shape = shape.to_string();
     let transitions = turn
         .events
         .iter()
@@ -197,7 +205,7 @@ pub fn render(turn: &Turn, include_request: bool) -> Result<(String, String), St
     if include_request {
         content.push_str(&format!(
             "\n## Request text (explicitly included; redacted)\n\n{}\n",
-            r.prose(&turn.request)
+            request
                 .lines()
                 .map(|l| format!("> {l}"))
                 .collect::<Vec<_>>()
@@ -339,6 +347,71 @@ mod tests {
 #[allow(clippy::unwrap_used)]
 mod privacy_tests {
     use super::*;
+    #[test]
+    fn request_shape_cannot_recover_redacted_values_or_their_words() {
+        // Each sensitive value contains public recipe vocabulary. Neither the
+        // value nor its meaningful constituent words may survive anywhere.
+        for (value, fragments, placeholder) in [
+            (
+                "jane.doe@example.com",
+                vec!["jane", "jane.doe", "example", "example.com"],
+                "[email]",
+            ),
+            (
+                "/hiddenvault/fillet/cylinder.solidcraft",
+                vec!["hiddenvault", "fillet", "cylinder", "solidcraft"],
+                "[path]",
+            ),
+            (
+                r"C:\privatevault\chamfer\sphere.solidcraft",
+                vec!["privatevault", "chamfer", "sphere", "solidcraft"],
+                "[path]",
+            ),
+            (
+                "~/privatevault/mirror/revolve.solidcraft",
+                vec!["privatevault", "mirror", "revolve", "solidcraft"],
+                "[path]",
+            ),
+            (
+                "https://privatevault.example/fillet",
+                vec!["privatevault", "example", "fillet"],
+                "[URL]",
+            ),
+            (
+                "sk-privatevault-extrude-cylinder",
+                vec!["privatevault", "extrude", "cylinder"],
+                "[token]",
+            ),
+        ] {
+            let mut turn = offline(
+                &json!({"messages":[{"role":"user","content":format!("please use {value}")}]}),
+            )
+            .unwrap();
+            // Rendering must also repair shape data captured by older versions.
+            turn.shape["decline_tokens"] = json!(fragments);
+            turn.shape["token_shape"] = json!(fragments);
+            for consent in [false, true] {
+                let (title, report) = render(&turn, consent).unwrap();
+                for text in [title, report] {
+                    assert!(!text.contains(value), "{text}");
+                    for fragment in &fragments {
+                        assert!(
+                            !text.to_ascii_lowercase().contains(fragment),
+                            "leaked {fragment}: {text}"
+                        );
+                    }
+                }
+            }
+            let redacted = Redactor::new(&[], &Catalog::bundled().unwrap()).prose(value);
+            assert_eq!(redacted, placeholder);
+            assert_eq!(crate::planner::report_tokens(&redacted), vec![placeholder]);
+            assert!(crate::planner::report_decline(&redacted).1.is_empty());
+        }
+        assert_eq!(
+            crate::planner::report_tokens("cube [IP address] [email] [example cube]"),
+            vec!["cube", "[IP address]", "[email]", "[word]"]
+        );
+    }
     #[test]
     fn consent_names_and_decline_vocabulary() {
         let body = json!({"model":"test-model","messages":[{"role":"user","content":"create a cube 20mm for SecretProject then move 7mm"}],"tools":[{"function":{"name":"execute"}}]});
