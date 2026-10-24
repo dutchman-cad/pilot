@@ -590,6 +590,7 @@ pub fn serve(cfg: Config) -> Result<(), String> {
         .map_err(|e| format!("cannot inspect rewrite log: {e}"))?
         .len();
     let audit = Audit {
+        events: None,
         file,
         size,
         model: "mcp".into(),

@@ -30,3 +30,10 @@ pub mod profile;
 pub mod prompting;
 #[cfg(feature = "core")]
 pub mod repair;
+
+#[cfg(feature = "proxy")]
+pub mod capture;
+#[cfg(feature = "proxy")]
+pub mod redaction;
+#[cfg(feature = "proxy")]
+pub mod report;

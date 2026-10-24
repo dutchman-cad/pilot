@@ -23,6 +23,8 @@ command line. The same commands also come as a standalone download,
   model, with normal client approval; `--upstream none` supports recipe-only use.
 - Argument repair, text-call pickup, command lookup, hints, buffered streaming,
   and bounded retries remain enabled by default, with audited rewrites.
+- Local, redacted [bug reports](docs/report.md) from five memory-only turns or offline
+  planner replay. Request words require `--include-request`; you review and submit.
 
 See [recipes and their limits](docs/recipes.md).
 

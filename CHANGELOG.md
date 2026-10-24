@@ -6,12 +6,16 @@
 
 - Direct exact-match answers with `--direct-recipes`, through SolidCraft's approval.
 - Recipe matching for ordinary wording, shape synonyms, and metric or inch lengths.
-- Text tool mode for models without native tool support.
-- Plan-text recipes now require `--planner` and are off by default.
+- Text tool mode for models without native tools; plan-text recipes require `--planner`.
 - Benchmark start files for repeatable comparisons.
+- Local, redacted bug reports from captured turns or recorded requests.
 
 ### Added
 
+- `dutchman-pilot report` writes a redacted local report and issue URL for review
+  and submission. Includes five memory-only diagnostic turns, offline recipe replay,
+  and optional request text with `--include-request`. `--open` opens the browser;
+  `--no-report-buffer` disables capture on the model face.
 - Typed recipes for primitives, tubes, centred and positioned holes, rectangular
   and circular hole patterns, sketch extrusions, edge finishes, move, rename,
   mirror, shell, revolve, uniform scale, and measured queries.

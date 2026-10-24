@@ -142,6 +142,7 @@ impl Harness {
         });
         let mut proxy = Server::bind(Config {
             direct_recipes: direct,
+            no_report_buffer: false,
             listen: "127.0.0.1:0".parse().unwrap(),
             upstream: upstream_url,
             upstream_timeout: Duration::from_secs(300),
@@ -956,4 +957,115 @@ fn direct_http_turn_has_no_upstream_requests() {
         assert!(h.requests.lock().unwrap().is_empty());
         h.finish();
     }
+}
+
+#[test]
+fn report_capture_endpoint_and_disabled_buffer() {
+    for disabled in [false, true] {
+        let dir = std::env::temp_dir().join(format!(
+            "pilot-report-capture-{}-{disabled}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        let mut server = Server::bind(Config {
+            listen: "127.0.0.1:0".parse().unwrap(),
+            upstream: "none".into(),
+            upstream_timeout: Duration::from_secs(2),
+            fallback_prompt: FallbackPrompt::Off,
+            no_report_buffer: disabled,
+            no_how: true,
+            no_hints: true,
+            planner: true,
+            direct_recipes: true,
+            log: Some(dir.join("audit.jsonl")),
+            profile_dir: Some(dir.clone()),
+            model_settings: None,
+            model_settings_enabled: false,
+            seed: None,
+            prompt_help: false,
+        })
+        .unwrap();
+        let address = server.local_addr().unwrap();
+        let thread = thread::spawn(move || {
+            for _ in 0..9 {
+                server.serve_one().unwrap();
+            }
+        });
+        for i in 0..7 {
+            let body = json!({"model":"unit","messages":[{"role":"user","content":format!("create a cube {}mm",i+1)}],"tools":[{"type":"function","function":{"name":"execute","parameters":{"type":"object"}}}]});
+            ureq::post(&format!("http://{address}/v1/chat/completions"))
+                .send_string(&body.to_string())
+                .unwrap();
+        }
+        let mut response = String::new();
+        let mut socket = TcpStream::connect(address).unwrap();
+        socket
+            .write_all(b"GET /pilot/turns HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            .unwrap();
+        socket.read_to_string(&mut response).unwrap();
+        assert!(response.starts_with("HTTP/1.1 200 "));
+        let turns: Value =
+            serde_json::from_str(response.split_once("\r\n\r\n").unwrap().1).unwrap();
+        assert_eq!(
+            turns.as_array().unwrap().len(),
+            if disabled { 0 } else { 5 }
+        );
+        if !disabled {
+            assert_eq!(turns[0]["id"], 3);
+            assert_eq!(turns[4]["id"], 7);
+            assert!(turns[4]["events"].to_string().contains("finish_reason"));
+            assert!(!turns.to_string().contains("parameters"));
+        }
+        let models: Value = serde_json::from_str(
+            &ureq::get(&format!("http://{address}/v1/models"))
+                .call()
+                .unwrap()
+                .into_string()
+                .unwrap(),
+        )
+        .unwrap();
+        assert!(!models.to_string().contains("turns"));
+        thread.join().unwrap();
+        fs::remove_dir_all(dir).unwrap();
+    }
+}
+
+#[test]
+fn report_endpoint_rejects_non_loopback_peer() {
+    // Discover the host's local interface without sending a UDP packet.
+    let route = std::net::UdpSocket::bind("0.0.0.0:0").unwrap();
+    route.connect("192.0.2.1:9").unwrap();
+    let ip = route.local_addr().unwrap().ip();
+    assert!(!ip.is_loopback());
+    let dir = std::env::temp_dir().join(format!("pilot-report-peer-{}", std::process::id()));
+    fs::create_dir_all(&dir).unwrap();
+    let mut server = Server::bind(Config {
+        listen: "0.0.0.0:0".parse().unwrap(),
+        upstream: "none".into(),
+        upstream_timeout: Duration::from_secs(2),
+        fallback_prompt: FallbackPrompt::Off,
+        no_report_buffer: false,
+        no_how: true,
+        no_hints: true,
+        planner: true,
+        direct_recipes: true,
+        log: Some(dir.join("audit.jsonl")),
+        profile_dir: Some(dir.clone()),
+        model_settings: None,
+        model_settings_enabled: false,
+        seed: None,
+        prompt_help: false,
+    })
+    .unwrap();
+    let address = std::net::SocketAddr::new(ip, server.local_addr().unwrap().port());
+    let thread = thread::spawn(move || server.serve_one().unwrap());
+    let mut socket = TcpStream::connect(address).unwrap();
+    socket
+        .write_all(b"GET /pilot/turns HTTP/1.1\r\nHost: localhost\r\n\r\n")
+        .unwrap();
+    let mut response = String::new();
+    socket.read_to_string(&mut response).unwrap();
+    assert!(response.starts_with("HTTP/1.1 403 "), "{response}");
+    thread.join().unwrap();
+    fs::remove_dir_all(dir).unwrap();
 }

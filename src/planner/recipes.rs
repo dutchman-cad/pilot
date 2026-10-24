@@ -195,56 +195,57 @@ fn principal_plane(t: &[String]) -> Option<String> {
 fn positive(d: &[slots::Dimension]) -> bool {
     d.iter().all(|d| d.value > 0.0)
 }
+pub(super) const UNSUPPORTED: &[&str] = &[
+    "rotate",
+    "rotation",
+    "taper",
+    "tapered",
+    "rounded",
+    "thread",
+    "threaded",
+    "counterbore",
+    "countersink",
+    "blind",
+    "offset",
+    "angled",
+    "angle",
+    "hollowed",
+    "combine",
+    "join",
+    "union",
+    "subtract",
+    "intersect",
+    "delete",
+    "duplicate",
+    "copy",
+    "copies",
+    "twice",
+    "oval",
+    "ellipse",
+    "cone",
+    "torus",
+    "flat",
+    "vertical",
+    "curved",
+    "triangle",
+    "triangular",
+    "polygon",
+    "sweep",
+    "loft",
+    "text",
+    "engrave",
+    "color",
+    "colour",
+    "material",
+    "unless",
+    "maybe",
+    "possibly",
+    "either",
+    "but",
+];
 fn vocabulary(kind: Kind, input: &Input<'_>) -> bool {
     // Unknown conversational words are fine. Known unsupported geometry is not.
-    if input.any(&[
-        "rotate",
-        "rotation",
-        "taper",
-        "tapered",
-        "rounded",
-        "thread",
-        "threaded",
-        "counterbore",
-        "countersink",
-        "blind",
-        "offset",
-        "angled",
-        "angle",
-        "hollowed",
-        "combine",
-        "join",
-        "union",
-        "subtract",
-        "intersect",
-        "delete",
-        "duplicate",
-        "copy",
-        "copies",
-        "twice",
-        "oval",
-        "ellipse",
-        "cone",
-        "torus",
-        "flat",
-        "vertical",
-        "curved",
-        "triangle",
-        "triangular",
-        "polygon",
-        "sweep",
-        "loft",
-        "text",
-        "engrave",
-        "color",
-        "colour",
-        "material",
-        "unless",
-        "maybe",
-        "possibly",
-        "either",
-        "but",
-    ]) {
+    if input.any(UNSUPPORTED) {
         return false;
     }
     if input.has("discard") && !matches!(kind, Kind::Mirror) {
@@ -1302,45 +1303,29 @@ fn expand(slots: &Slots, catalog: &Catalog) -> Result<Expansion, String> {
     }
     Ok((calls, v, creates, name))
 }
-pub(super) fn select(
-    text: &str,
-    data: Option<&Value>,
-    messages: &[Value],
-    catalog: &Catalog,
-) -> Result<Option<Plan>, String> {
-    let input = Input {
-        text,
-        t: intent_tokens(text),
-        data,
-        messages,
-    };
-    // Measurement verbs are separate work; dimension participles (`measuring`,
-    // `that measures`) and `solid` describe the primitive instead.
-    if input.any(&["measure", "count", "report"]) {
-        return Ok(None);
-    }
+const ACTION_FAMILIES: &[&[&str]] = &[
+    &["move", "translate", "shift", "slide"],
+    &["rename", "call", "name"],
+    &["mirror"],
+    &["scale", "double", "half"],
+    &["fillet", "round"],
+    &["chamfer", "bevel"],
+    &["shell"],
+    &["revolve"],
+    &["extrude"],
+    &["drill", "bore", "cut"],
+];
+fn intent_decline(input: &Input<'_>) -> Option<&'static str> {
     // Reject multiple action families before parsing; sketch + extrude is one recipe.
-    let actions = [
-        &["move", "translate", "shift", "slide"][..],
-        &["rename", "call", "name"][..],
-        &["mirror"][..],
-        &["scale", "double", "half"][..],
-        &["fillet", "round"][..],
-        &["chamfer", "bevel"][..],
-        &["shell"][..],
-        &["revolve"][..],
-        &["extrude"][..],
-        &["drill", "bore", "cut"][..],
-    ];
-    if actions
+    if ACTION_FAMILIES
         .iter()
         .filter(|a| input.any(a) && !(a.contains(&"round") && input.has("disc")))
         .count()
         > 1
     {
-        return Ok(None);
+        return Some("multiple intents");
     }
-    if actions
+    if ACTION_FAMILIES
         .iter()
         .any(|a| input.t.iter().filter(|w| a.contains(&w.as_str())).count() > 1)
         || input
@@ -1350,12 +1335,12 @@ pub(super) fn select(
             .count()
             > 1
     {
-        return Ok(None);
+        return Some("multiple intents");
     }
     if let Some(edit) = input
         .t
         .iter()
-        .position(|w| actions.iter().any(|a| a.contains(&w.as_str())))
+        .position(|w| ACTION_FAMILIES.iter().any(|a| a.contains(&w.as_str())))
     {
         // An explicit new primitive followed by an edit is two intents, even
         // when the creation lacks dimensions and the edit alone would parse.
@@ -1377,7 +1362,7 @@ pub(super) fn select(
                 || i.checked_sub(1)
                     .is_some_and(|i| input.t[i] == "a" || input.t[i] == "an"))
         }) {
-            return Ok(None);
+            return Some("multiple intents");
         }
     }
     let shape_families = [
@@ -1387,6 +1372,78 @@ pub(super) fn select(
         &["tube"][..],
     ];
     if shape_families.iter().filter(|f| input.any(f)).count() > 1 {
+        return Some("multiple intents");
+    }
+    None
+}
+
+#[cfg(feature = "proxy")]
+pub(super) fn report_decline(text: &str) -> (&'static str, Vec<String>) {
+    let input = Input {
+        text,
+        t: intent_tokens(text),
+        data: None,
+        messages: &[],
+    };
+    if let Some(reason) = intent_decline(&input) {
+        return (
+            reason,
+            input
+                .t
+                .into_iter()
+                .filter(|w| {
+                    matches!(
+                        w.as_str(),
+                        "and"
+                            | "then"
+                            | "make"
+                            | "create"
+                            | "move"
+                            | "rename"
+                            | "mirror"
+                            | "scale"
+                            | "fillet"
+                            | "chamfer"
+                            | "extrude"
+                            | "cube"
+                            | "box"
+                            | "sphere"
+                            | "cylinder"
+                    )
+                })
+                .collect(),
+        );
+    }
+    let tokens: Vec<String> = input
+        .t
+        .into_iter()
+        .filter(|w| UNSUPPORTED.contains(&w.as_str()))
+        .collect();
+    if !tokens.is_empty() {
+        ("unsupported modifier", tokens)
+    } else {
+        (
+            "missing or ambiguous slots, state, or tool offer",
+            Vec::new(),
+        )
+    }
+}
+
+pub(super) fn select(
+    text: &str,
+    data: Option<&Value>,
+    messages: &[Value],
+    catalog: &Catalog,
+) -> Result<Option<Plan>, String> {
+    let input = Input {
+        text,
+        t: intent_tokens(text),
+        data,
+        messages,
+    };
+    // Measurement verbs are separate work; dimension participles (`measuring`,
+    // `that measures`) and `solid` describe the primitive instead.
+    if input.any(&["measure", "count", "report"]) || intent_decline(&input).is_some() {
         return Ok(None);
     }
     let create = input.any(&[
@@ -1427,7 +1484,7 @@ pub(super) fn select(
         if matches!(
             kind,
             Kind::Box | Kind::Cylinder | Kind::Sphere | Kind::Tube | Kind::Holes
-        ) && actions
+        ) && ACTION_FAMILIES
             .iter()
             .any(|a| input.any(a) && !(a.contains(&"round") && input.has("disc")))
         {
