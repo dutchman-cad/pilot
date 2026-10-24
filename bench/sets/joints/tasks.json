@@ -10,6 +10,7 @@
       "prompt": "Connect Base and Link at their box centres with one revolute joint, aligned Z axes. Set its motion limits, in the listed value order, to [[-30, 60]] (angles in degrees, distances in mm). Leave Spare unconnected. Keep all three components and bodies.",
       "reference": "references/joints-revolute-limits.json",
       "setup_steps": 9,
+      "start": "start/joints-revolute-limits.solidcraft",
       "check": {
         "bodies": 3,
         "volume": 3000,
@@ -51,6 +52,7 @@
       "prompt": "Connect Base and Link at their box centres with one slider joint, aligned Z axes. Set its motion limits, in the listed value order, to [[0, 25]] (angles in degrees, distances in mm). Leave Spare unconnected. Keep all three components and bodies.",
       "reference": "references/joints-slider-limits.json",
       "setup_steps": 9,
+      "start": "start/joints-slider-limits.solidcraft",
       "check": {
         "bodies": 3,
         "volume": 3000,
@@ -92,6 +94,7 @@
       "prompt": "Connect Base and Link at their box centres with one cylindrical joint, aligned Z axes. Set its motion limits, in the listed value order, to [[-45, 45], [0, 20]] (angles in degrees, distances in mm). Leave Spare unconnected. Keep all three components and bodies.",
       "reference": "references/joints-cylindrical-limits.json",
       "setup_steps": 9,
+      "start": "start/joints-cylindrical-limits.solidcraft",
       "check": {
         "bodies": 3,
         "volume": 3000,
@@ -137,6 +140,7 @@
       "prompt": "Connect Base and Link at their box centres with one pin_slot joint, aligned Z axes. Set its motion limits, in the listed value order, to [[-20, 40], [0, 30]] (angles in degrees, distances in mm). Leave Spare unconnected. Keep all three components and bodies.",
       "reference": "references/joints-pin_slot-limits.json",
       "setup_steps": 9,
+      "start": "start/joints-pin_slot-limits.solidcraft",
       "check": {
         "bodies": 3,
         "volume": 3000,
@@ -182,6 +186,7 @@
       "prompt": "Connect Base and Link at their box centres with one ball joint, aligned Z axes. Set its motion limits, in the listed value order, to [[-15, 15], [-20, 20], [-30, 30]] (angles in degrees, distances in mm). Leave Spare unconnected. Keep all three components and bodies.",
       "reference": "references/joints-ball-limits.json",
       "setup_steps": 9,
+      "start": "start/joints-ball-limits.solidcraft",
       "check": {
         "bodies": 3,
         "volume": 3000,
