@@ -1,5 +1,9 @@
 # Pilot changelog
 
+## Unreleased
+
+- Add 48 SolidCraft 0.19 starting designs, reproducible rebuilds, and migration checks to the public benchmark.
+
 ## 0.1.0-beta.1
 
 First public early beta. Results are still being measured; expect rough edges.

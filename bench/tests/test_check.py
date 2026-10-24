@@ -13,6 +13,41 @@ import run
 
 
 class RecordedChecks(unittest.TestCase):
+    def test_start_comparison_rejects_changes_and_missing_measurements(self):
+        original = {
+            'bodies': [{'name': 'Part', 'volume_mm3': 1000,
+                        'bbox': {'min': [0, 0, 0], 'max': [10, 10, 10]}}],
+            'params': [{'name': 'width', 'value': 10}],
+            'timeline': [{'type': 'BoxFeature'}],
+        }
+        check.compare_start(original, copy.deepcopy(original))
+        within_tolerance = copy.deepcopy(original)
+        within_tolerance['bodies'][0]['volume_mm3'] = 1000.9
+        check.compare_start(original, within_tolerance)
+        for field, replacement in [
+            ('bodies', []),
+            ('bodies', [{'name': 'Part', 'volume_mm3': 1002,
+                         'bbox': {'min': [0, 0, 0], 'max': [10, 10, 10]}}]),
+            ('bodies', [{'name': 'Part', 'volume_mm3': 1000,
+                         'bbox': {'min': [1, 0, 0], 'max': [11, 10, 10]}}]),
+            ('bodies', [{'name': 'Part', 'volume_mm3': 1000}]),
+            ('bodies', [{'name': 'Part', 'volume_mm3': float('nan'),
+                         'bbox': {'min': [0, 0, 0], 'max': [10, 10, 10]}}]),
+            ('bodies', [{'name': 'Part', 'volume_mm3': 1000,
+                         'bbox': {'min': [0], 'max': [10]}}]),
+            ('params', [{'name': 'width', 'value': 11}]),
+            ('params', [{'name': 'length', 'value': 10}]),
+            ('params', [{'name': 'width', 'value': float('nan')}]),
+            ('timeline', []),
+            ('timeline', [{'type': 'ExtrudeFeature'}]),
+            ('timeline', [{'type': 'BoxFeature', 'error': 'failed'}]),
+        ]:
+            with self.subTest(field=field, replacement=replacement):
+                changed = copy.deepcopy(original)
+                changed[field] = replacement
+                with self.assertRaises(ValueError):
+                    check.compare_start(original, changed)
+
     def test_pass_and_fail_recordings_for_every_set(self):
         for directory in sorted((BENCH / 'sets').iterdir()):
             with self.subTest(set=directory.name):

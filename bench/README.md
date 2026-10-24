@@ -3,9 +3,37 @@
 
 Public, reproducible CAD tasks for comparing a model directly with the same model
 through Pilot. Python 3.9+ and its standard library are sufficient. Install
-SolidCraft 0.20+ separately; pass its `solidcraft-cli` executable directly. No
+SolidCraft 0.19+ separately; pass its `solidcraft-cli` executable directly. No
 container, desktop, GPU, or model is needed for reference and checker validation.
 The Pilot executable is needed only for paired model runs.
+
+## Run a task by hand
+
+Find the task in `sets/<set>/tasks.json`, open its `start/<id>.solidcraft`
+file from that set directory in SolidCraft, and paste the task's `prompt` into
+the Assistant. Tasks without a start file begin from an empty design. For
+multi-turn tasks, paste each successive turn's prompt after completing the
+previous turn.
+
+All 48 starting files were saved with SolidCraft 0.19.0 and open in SolidCraft
+0.19 and later; newer versions migrate them on open. No task requires a newer
+minimum version. Each set's `start/VERSION` records the version used to save it.
+
+Rebuild with the oldest supported release, SolidCraft 0.19.0:
+
+```sh
+python3 bench/make_starts.py --solidcraft /path/to/0.19.0/solidcraft-cli
+python3 bench/make_starts.py --solidcraft /path/to/0.19.0/solidcraft-cli \
+  --check --open-with /path/to/0.21.0/solidcraft-cli
+```
+
+Use `--set v1` to select one set. `--solidcraft PATH` is required; the builder
+prints its version and never selects another binary. `--check` writes nothing.
+Repeat `--open-with PATH` to test additional releases. Every build and check
+compares the saved design with replayed setup: body count, each body's volume
+(0.1% tolerance) and bounding box (0.000001 mm tolerance), parameter names and
+values, and timeline length and feature types. Additional releases are compared
+with the original replay, so migration differences identify the affected task.
 
 | Set | Tasks | Measures |
 | --- | ---: | --- |
@@ -76,8 +104,12 @@ done
 
 Repeat the three validation commands with each set name. References must pass;
 negatives must fail their checks; do-nothing checks must match `do-nothing.json`.
-`--do-nothing` replays only setup and supplies an empty reply; question and
-refusal tasks therefore also fail their reply predicates. An execution error,
+Validation opens each task's start file and checks it against replayed setup
+before scoring. Negative cases with identical setup share the corresponding
+start file; other negative cases replay their own setup. Use `--replay-setup`
+in any runner mode to force replay instead of opening files.
+`--do-nothing` opens only the starting design and supplies an empty reply;
+question and refusal tasks therefore also fail their reply predicates. An execution error,
 missing measurement or timeout fails validation. Exit status
 is 0 only if every expected outcome matches, 1 for an unexpected outcome and 2
 for a configuration/startup error. In model mode, a failed task yields status 1
@@ -106,7 +138,8 @@ ends there; its design is scored as it stands and the record says
 `setup` optionally supplies starting commands explicitly; otherwise the first
 `setup_steps` commands of the reference build the start. The reference contains
 `commands: [{"command": "solid.box", "params": {...}}, ...]` and a license
-identifier, with no saved design files. Setup commands are included in the
+identifier. `start` optionally names a saved starting design relative to the set
+directory, next to `setup_steps`; those setup commands remain in the
 reference. `reference_reply` supplies the answer for reference-only measurement
 or refusal checks. It is never sent to a model. `title`, `kind` and `tier` are
 optional descriptive fields. Negative task objects use the same format, with
@@ -139,8 +172,9 @@ check predicates, not additional task-format extensions.
 
 ## Scoring and recordings
 
-Each task starts a fresh CLI process, design and conversation. Setup is performed
-before the exact prompt is sent once. Model settings are temperature 0, seed 1,
+Each task starts a fresh CLI process, design, and conversation. Its start file
+is opened through `mcp --in` when present; otherwise setup is replayed before
+the exact prompt is sent once. Model settings are temperature 0, seed 1,
 and a maximum of 4096 output tokens per request; endpoint implementations may
 interpret these differently. A user turn allows at most 24 model requests, 128
 tool calls and 600 seconds. There are no harness retries or follow-up nudges.

@@ -88,6 +88,7 @@
       "prompt": "Put a through hole at the centre of the top face. Ask one question if a required dimension is missing before changing the design.",
       "reference": "references/units-missing-hole-size.json",
       "setup_steps": 4,
+      "start": "start/units-missing-hole-size.solidcraft",
       "check": {
         "ask_first": "\\b(diameter|size)\\b"
       },
@@ -101,6 +102,7 @@
       "prompt": "Round the four vertical corners. Ask one question if a required dimension is missing before changing the design.",
       "reference": "references/units-missing-fillet-radius.json",
       "setup_steps": 4,
+      "start": "start/units-missing-fillet-radius.solidcraft",
       "check": {
         "ask_first": "\\b(radius|radii|size)\\b"
       },

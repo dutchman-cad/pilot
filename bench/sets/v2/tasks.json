@@ -95,6 +95,7 @@
       "prompt": "This plate is driven by parameters. Make it 120 mm long and change both holes to 12 mm diameter. The holes have to stay 15 mm in from each end. Edit the existing design, don't rebuild it.",
       "reference": "references/04-edit-parameters.json",
       "setup_steps": 7,
+      "start": "start/04-edit-parameters.solidcraft",
       "check": {
         "bodies": 1,
         "volume": 55790.74,
@@ -206,6 +207,7 @@
       "prompt": "Mirror the boss and its hole to the other end of the plate, across the YZ plane, so the part is symmetric.",
       "reference": "references/06-mirror.json",
       "setup_steps": 3,
+      "start": "start/06-mirror.solidcraft",
       "check": {
         "bodies": 1,
         "volume": 44617.9,
@@ -256,6 +258,7 @@
       "prompt": "Chamfer the four top edges of the block by 3 mm. Leave the vertical edges and the bottom edges sharp.",
       "reference": "references/07-chamfer-top.json",
       "setup_steps": 1,
+      "start": "start/07-chamfer-top.solidcraft",
       "check": {
         "bodies": 1,
         "volume": 47136.0,
@@ -309,6 +312,7 @@
       "prompt": "The base and the arm are separate components, and the arm's hole sits over the pin on the base. Connect them with a revolute joint so the arm pivots on the pin, then swing the arm round 45 degrees. The base must not move, and the arm should stay sitting flat on top of the base.",
       "reference": "references/09-revolute-joint.json",
       "setup_steps": 8,
+      "start": "start/09-revolute-joint.solidcraft",
       "check": {
         "bodies": 2,
         "volume": 42909.44,
@@ -341,6 +345,7 @@
       "prompt": "Rename the box to Housing, the cylinder to Shaft and the ball to Knob. Then put Shaft and Knob together in a new component called Handle. Housing stays where it is.",
       "reference": "references/10-rename-organize.json",
       "setup_steps": 3,
+      "start": "start/10-rename-organize.solidcraft",
       "check": {
         "bodies": 3,
         "volume": 40900.1,
@@ -387,6 +392,7 @@
       "prompt": "How far apart are the two holes, centre to centre? And how much solid material is left between their edges?",
       "reference": "references/12-measure-holes.json",
       "setup_steps": 3,
+      "start": "start/12-measure-holes.solidcraft",
       "reference_reply": "64.50 mm centre to centre, 54.50 mm of material between them",
       "check": {
         "bodies": 1,

@@ -10,6 +10,7 @@
       "prompt": "Now change the existing block extrude to 12 mm high. Keep all other dimensions and edit the existing feature.",
       "reference": "references/multiturn-height.json",
       "setup_steps": 4,
+      "start": "start/multiturn-height.solidcraft",
       "check": {
         "bodies": 1,
         "keep_features": true,
@@ -109,6 +110,7 @@
       "prompt": "Now change the existing corner fillet to R3 mm. Keep all other dimensions and edit the existing feature.",
       "reference": "references/multiturn-fillet.json",
       "setup_steps": 5,
+      "start": "start/multiturn-fillet.solidcraft",
       "check": {
         "bodies": 1,
         "keep_features": true,
@@ -256,6 +258,7 @@
       "prompt": "Now set the existing single top-edge chamfer distance to 1.5 mm. Keep all other dimensions and edit the existing feature.",
       "reference": "references/multiturn-chamfer.json",
       "setup_steps": 5,
+      "start": "start/multiturn-chamfer.solidcraft",
       "check": {
         "bodies": 1,
         "keep_features": true,
@@ -359,6 +362,7 @@
       "prompt": "Now set the open-top inward shell thickness to 2 mm. Keep all other dimensions and edit the existing feature.",
       "reference": "references/multiturn-shell.json",
       "setup_steps": 5,
+      "start": "start/multiturn-shell.solidcraft",
       "check": {
         "bodies": 1,
         "keep_features": true,
@@ -458,6 +462,7 @@
       "prompt": "Now set the rectangular hole pattern to 4 columns along X; keep two rows and 10 mm spacing. Keep all other dimensions and edit the existing feature.",
       "reference": "references/multiturn-grid.json",
       "setup_steps": 3,
+      "start": "start/multiturn-grid.solidcraft",
       "check": {
         "bodies": 1,
         "keep_features": true,

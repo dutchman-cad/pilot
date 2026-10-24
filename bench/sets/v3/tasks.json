@@ -567,6 +567,7 @@
       "prompt": "Make the block 12 mm tall instead of 10, by editing its extrude.",
       "reference": "references/edit-P01.json",
       "setup_steps": 4,
+      "start": "start/edit-P01.solidcraft",
       "check": {
         "bodies": 1,
         "volume": 7200,
@@ -595,6 +596,7 @@
       "prompt": "Add the vertical edge at x = -10, y = +15 to the existing fillet, so both +Y vertical edges are rounded R2 by the same feature.",
       "reference": "references/edit-P04c.json",
       "setup_steps": 5,
+      "start": "start/edit-P04c.solidcraft",
       "check": {
         "bodies": 1,
         "volume": 5982.83,
@@ -629,6 +631,7 @@
       "prompt": "Make the chamfer 1.5 mm instead of 1 mm.",
       "reference": "references/edit-P05.json",
       "setup_steps": 5,
+      "start": "start/edit-P05.solidcraft",
       "check": {
         "bodies": 1,
         "volume": 5977.5,
@@ -657,6 +660,7 @@
       "prompt": "Change the shell thickness to 2 mm.",
       "reference": "references/edit-P06.json",
       "setup_steps": 5,
+      "start": "start/edit-P06.solidcraft",
       "check": {
         "bodies": 1,
         "volume": 2672,
@@ -685,6 +689,7 @@
       "prompt": "Change the hole pattern to 4 along X (still 2 along Y, 10 mm apart).",
       "reference": "references/edit-P07.json",
       "setup_steps": 3,
+      "start": "start/edit-P07.solidcraft",
       "check": {
         "bodies": 1,
         "volume": 11497.35,
@@ -719,6 +724,7 @@
       "prompt": "Change the circular pattern to 8 holes.",
       "reference": "references/edit-P08.json",
       "setup_steps": 3,
+      "start": "start/edit-P08.solidcraft",
       "check": {
         "bodies": 1,
         "volume": 13006.19,
@@ -753,6 +759,7 @@
       "prompt": "Make the swept circle 5 mm in diameter instead of 4.",
       "reference": "references/edit-P10.json",
       "setup_steps": 8,
+      "start": "start/edit-P10.solidcraft",
       "check": {
         "bodies": 1,
         "volume": 1290.17,
@@ -769,6 +776,7 @@
       "prompt": "Move the construction plane up to 20 mm above XY, so the disc sits 5 mm higher.",
       "reference": "references/edit-P13.json",
       "setup_steps": 5,
+      "start": "start/edit-P13.solidcraft",
       "check": {
         "bodies": 1,
         "volume": 392.7,
@@ -797,6 +805,7 @@
       "prompt": "Edit the extrude to take all three regions of the sketch.",
       "reference": "references/edit-X03c.json",
       "setup_steps": 5,
+      "start": "start/edit-X03c.solidcraft",
       "check": {
         "bodies": 1,
         "volume": 5500,
@@ -825,6 +834,7 @@
       "prompt": "Change the second extrude to 15 mm.",
       "reference": "references/edit-X05.json",
       "setup_steps": 6,
+      "start": "start/edit-X05.solidcraft",
       "check": {
         "bodies": 2,
         "volume": 8000,
@@ -853,6 +863,7 @@
       "prompt": "Change the extrude to two sides: 10 mm up and 4 mm down.",
       "reference": "references/edit-E01c.json",
       "setup_steps": 6,
+      "start": "start/edit-E01c.solidcraft",
       "check": {
         "bodies": 1,
         "volume": 8400,
@@ -881,6 +892,7 @@
       "prompt": "Change the cylinder's extrude from a new body to a cut into the block.",
       "reference": "references/edit-E02c.json",
       "setup_steps": 8,
+      "start": "start/edit-E02c.solidcraft",
       "check": {
         "bodies": 1,
         "volume": 3989.38,
@@ -909,6 +921,7 @@
       "prompt": "Change the hole from through all to a blind hole 6 mm deep with a flat bottom.",
       "reference": "references/edit-F04c.json",
       "setup_steps": 5,
+      "start": "start/edit-F04c.solidcraft",
       "check": {
         "bodies": 1,
         "volume": 5882.19,
@@ -937,6 +950,7 @@
       "prompt": "Shorten the thread so it covers only the bottom 10 mm.",
       "reference": "references/edit-F17c.json",
       "setup_steps": 5,
+      "start": "start/edit-F17c.solidcraft",
       "check": {
         "bodies": 1,
         "volume": 1570.8,
@@ -973,6 +987,7 @@
       "prompt": "Move the second body so the centre of its bottom face sits on the centre of the block's top face (it ends up at x -5 to 5, y -5 to 5, z 10 to 20).",
       "reference": "references/edit-F22b.json",
       "setup_steps": 8,
+      "start": "start/edit-F22b.solidcraft",
       "check": {
         "bodies": 2,
         "volume": 7000,
@@ -1001,6 +1016,7 @@
       "prompt": "Make this thread left-handed.",
       "reference": "references/honest-F17d.json",
       "setup_steps": 5,
+      "start": "start/honest-F17d.solidcraft",
       "reference_reply": "SolidCraft can't make a left-hand thread yet: the thread command has no hand option, so I left the design as it is.",
       "check": {
         "honest": true,
@@ -1015,6 +1031,7 @@
       "prompt": "Give this flange a round bend relief, 3 mm wide.",
       "reference": "references/honest-S06a.json",
       "setup_steps": 6,
+      "start": "start/honest-S06a.solidcraft",
       "reference_reply": "SolidCraft can't make a round bend relief: a bend relief is always a straight slot (only its width and depth can be set), so I changed nothing.",
       "check": {
         "honest": true,
@@ -1029,6 +1046,7 @@
       "prompt": "Join these two sheet metal faces with a bend, from the first face's edge at y = 60 to the second face's bottom edge.",
       "reference": "references/honest-S10a.json",
       "setup_steps": 10,
+      "start": "start/honest-S10a.solidcraft",
       "reference_reply": "SolidCraft has no command that joins two existing sheet metal faces with a bend, so I left the design unchanged.",
       "check": {
         "honest": true,
@@ -1089,6 +1107,7 @@
       "prompt": "Make the flange 25 mm high instead of 20.",
       "reference": "references/edit-S02.json",
       "setup_steps": 6,
+      "start": "start/edit-S02.solidcraft",
       "check": {
         "bodies": 1,
         "volume": 16428.32,
@@ -1117,6 +1136,7 @@
       "prompt": "Add two more holes like the first so there is a row of three along X, 15 mm apart (x = 10, 25 and 40).",
       "reference": "references/edit-S13b.json",
       "setup_steps": 6,
+      "start": "start/edit-S13b.solidcraft",
       "check": {
         "bodies": 1,
         "volume": 11830.35,
