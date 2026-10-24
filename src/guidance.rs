@@ -305,6 +305,7 @@ pub(crate) fn placement_hints(name: &str, args: &Value, result: &Value) -> Vec<S
 }
 
 #[cfg(all(test, feature = "proxy"))]
+#[allow(clippy::unwrap_used)]
 mod placement_tests {
     use super::*;
 
