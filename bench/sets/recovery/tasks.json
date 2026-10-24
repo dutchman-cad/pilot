@@ -1,0 +1,152 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "format": 1,
+  "tasks": [
+    {
+      "id": "recovery-wrong-height",
+      "kind": "recovery",
+      "tier": "medium",
+      "title": "wrong height",
+      "prompt": "The block was accidentally shortened to 6 mm. Restore the intended 12 mm height by repairing its existing extrude.",
+      "reference": "references/recovery-wrong-height.json",
+      "setup_steps": 5,
+      "check": {
+        "bodies": 1,
+        "volume": 7200,
+        "bbox": [
+          [
+            -10,
+            -15,
+            0
+          ],
+          [
+            10,
+            15,
+            12
+          ]
+        ],
+        "tol": 0.005,
+        "keep_features": true,
+        "new_features_max": 0
+      }
+    },
+    {
+      "id": "recovery-wrong-fillet",
+      "kind": "recovery",
+      "tier": "medium",
+      "title": "wrong fillet",
+      "prompt": "The corner fillet was accidentally reduced to R1. Repair it to R3 using the existing fillet.",
+      "reference": "references/recovery-wrong-fillet.json",
+      "setup_steps": 6,
+      "check": {
+        "bodies": 1,
+        "volume": 5980.69,
+        "bbox": [
+          [
+            -10,
+            -15,
+            0
+          ],
+          [
+            10,
+            15,
+            10
+          ]
+        ],
+        "tol": 0.0006,
+        "keep_features": true,
+        "round": [
+          {
+            "d": 6,
+            "count": 1
+          }
+        ],
+        "new_features_max": 0
+      }
+    },
+    {
+      "id": "recovery-wrong-chamfer",
+      "kind": "recovery",
+      "tier": "medium",
+      "title": "wrong chamfer",
+      "prompt": "The single top-edge chamfer is incorrectly 0.5 mm. Repair its existing feature to 1.5 mm.",
+      "reference": "references/recovery-wrong-chamfer.json",
+      "setup_steps": 6,
+      "check": {
+        "bodies": 1,
+        "volume": 5977.5,
+        "bbox": [
+          [
+            -10,
+            -15,
+            0
+          ],
+          [
+            10,
+            15,
+            10
+          ]
+        ],
+        "tol": 0.0007,
+        "keep_features": true,
+        "new_features_max": 0
+      }
+    },
+    {
+      "id": "recovery-wrong-shell",
+      "kind": "recovery",
+      "tier": "medium",
+      "title": "wrong shell",
+      "prompt": "The open-top shell was accidentally made 0.5 mm thick. Repair the existing shell to 2 mm inward thickness.",
+      "reference": "references/recovery-wrong-shell.json",
+      "setup_steps": 6,
+      "check": {
+        "bodies": 1,
+        "volume": 2672,
+        "bbox": [
+          [
+            -10,
+            -15,
+            0
+          ],
+          [
+            10,
+            15,
+            10
+          ]
+        ],
+        "tol": 0.005,
+        "keep_features": true,
+        "new_features_max": 0
+      }
+    },
+    {
+      "id": "recovery-wrong-cut",
+      "kind": "recovery",
+      "tier": "medium",
+      "title": "wrong cut",
+      "prompt": "The circular extrude was wrongly joined instead of cutting. Repair it to cut a 16 mm hole through the block; retain the existing sketches and features.",
+      "reference": "references/recovery-wrong-cut.json",
+      "setup_steps": 9,
+      "check": {
+        "bodies": 1,
+        "volume": 3989.38,
+        "bbox": [
+          [
+            -10,
+            -15,
+            0
+          ],
+          [
+            10,
+            15,
+            10
+          ]
+        ],
+        "tol": 0.005,
+        "keep_features": true,
+        "new_features_max": 0
+      }
+    }
+  ]
+}

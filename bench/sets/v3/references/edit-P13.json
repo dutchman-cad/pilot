@@ -1,0 +1,47 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "commands": [
+    {
+      "command": "construct.plane.offset",
+      "params": {
+        "base": "XY",
+        "offset": 15
+      }
+    },
+    {
+      "command": "sketch.create",
+      "params": {
+        "plane": "Plane1"
+      }
+    },
+    {
+      "command": "sketch.circle.center",
+      "params": {
+        "center": [
+          0,
+          0
+        ],
+        "diameter": 10
+      }
+    },
+    {
+      "command": "sketch.finish",
+      "params": {}
+    },
+    {
+      "command": "solid.extrude",
+      "params": {
+        "distance": 5
+      }
+    },
+    {
+      "command": "timeline.edit",
+      "params": {
+        "feature": "Plane1",
+        "set": {
+          "plane.distance": "20"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "format": 1,
+  "expectations": [
+    {
+      "id": "constraints-L-1",
+      "pass": false
+    },
+    {
+      "id": "constraints-L-2",
+      "pass": false
+    },
+    {
+      "id": "constraints-L-3",
+      "pass": false
+    },
+    {
+      "id": "constraints-L-4",
+      "pass": false
+    },
+    {
+      "id": "constraints-L-5",
+      "pass": false
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "commands": [
+    {
+      "command": "sketch.create",
+      "params": {
+        "plane": "XY"
+      }
+    },
+    {
+      "command": "sketch.line",
+      "params": {
+        "points": [
+          [
+            0,
+            0
+          ],
+          [
+            40,
+            0
+          ],
+          [
+            40,
+            30
+          ]
+        ]
+      }
+    },
+    {
+      "command": "sketch.fillet",
+      "params": {
+        "point": "l1.end",
+        "radius": 10
+      }
+    },
+    {
+      "command": "sketch.finish",
+      "params": {}
+    },
+    {
+      "command": "sketch.create",
+      "params": {
+        "plane": "YZ"
+      }
+    },
+    {
+      "command": "sketch.circle.center",
+      "params": {
+        "center": [
+          0,
+          0
+        ],
+        "diameter": 4
+      }
+    },
+    {
+      "command": "sketch.finish",
+      "params": {}
+    },
+    {
+      "command": "solid.sweep",
+      "params": {
+        "sketch": "Sketch2",
+        "path_sketch": "Sketch1",
+        "path": [
+          "l1",
+          "a1",
+          "l2"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "format": 1,
+  "expectations": [
+    {
+      "id": "units-fraction-plate",
+      "pass": false
+    },
+    {
+      "id": "units-mixed-fraction",
+      "pass": false
+    },
+    {
+      "id": "units-small-fraction",
+      "pass": false
+    },
+    {
+      "id": "units-missing-hole-size",
+      "pass": false
+    },
+    {
+      "id": "units-missing-fillet-radius",
+      "pass": false
+    }
+  ]
+}

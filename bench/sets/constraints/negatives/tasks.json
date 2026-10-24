@@ -1,0 +1,35 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "format": 1,
+  "tasks": [
+    {
+      "id": "constraints-L-1-missing-leg-dimensions",
+      "kind": "constraints",
+      "tier": "medium",
+      "title": "L 1",
+      "prompt": "On XZ, sketch an L with its outside corner at the origin, 50 mm wide, 40 mm tall, both legs 8 mm thick. Fully constrain it with four driving dimensions (width, height, both leg thicknesses), then extrude 30 mm.",
+      "reference": "negatives/constraints-L-1-missing-leg-dimensions.json",
+      "setup_steps": 0,
+      "check": {
+        "bodies": 1,
+        "volume": 19680,
+        "tol": 0.0001,
+        "bbox_size": [
+          50,
+          40,
+          30
+        ],
+        "sketch_defined": {
+          "min_dimensions": 4,
+          "values": [
+            50,
+            40,
+            8,
+            8
+          ]
+        }
+      },
+      "why_wrong": "missing leg dimensions"
+    }
+  ]
+}

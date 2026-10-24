@@ -1,0 +1,82 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "commands": [
+    {
+      "command": "sketch.create",
+      "params": {
+        "plane": "XY"
+      }
+    },
+    {
+      "command": "sketch.rectangle.two_point",
+      "params": {
+        "p0": [
+          0,
+          0
+        ],
+        "p1": [
+          20,
+          20
+        ]
+      }
+    },
+    {
+      "command": "sketch.rectangle.two_point",
+      "params": {
+        "p0": [
+          30,
+          0
+        ],
+        "p1": [
+          50,
+          20
+        ]
+      }
+    },
+    {
+      "command": "sketch.finish",
+      "params": {}
+    },
+    {
+      "command": "solid.extrude",
+      "params": {
+        "sketch": "Sketch1",
+        "distance": 5,
+        "profiles": [
+          {
+            "point": [
+              10,
+              10
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "command": "solid.extrude",
+      "params": {
+        "sketch": "Sketch1",
+        "distance": 10,
+        "profiles": [
+          {
+            "point": [
+              40,
+              10
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "command": "timeline.edit",
+      "params": {
+        "feature": "Extrude2",
+        "set": {
+          "extent": {
+            "distance": "15"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,110 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "format": 1,
+  "tasks": [
+    {
+      "id": "units-fraction-plate",
+      "kind": "units",
+      "tier": "medium",
+      "title": "fraction plate",
+      "prompt": "Make a rectangular plate 2 inches along X, 1 inch along Y, and 1/8 inch thick, with its minimum corner at the origin, thickness along +Z. Use those exact dimensions.",
+      "reference": "references/units-fraction-plate.json",
+      "setup_steps": 0,
+      "check": {
+        "bodies": 1,
+        "volume": 4096.766,
+        "tol": 0.0001,
+        "bbox": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            50.8,
+            25.4,
+            3.175
+          ]
+        ]
+      }
+    },
+    {
+      "id": "units-mixed-fraction",
+      "kind": "units",
+      "tier": "medium",
+      "title": "mixed fraction",
+      "prompt": "Make a rectangular plate 1 1/2 inches along X, 3/4 inch along Y, and 1/4 inch thick, with its minimum corner at the origin, thickness along +Z. Use those exact dimensions.",
+      "reference": "references/units-mixed-fraction.json",
+      "setup_steps": 0,
+      "check": {
+        "bodies": 1,
+        "volume": 4608.86175,
+        "tol": 0.0001,
+        "bbox": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            38.1,
+            19.05,
+            6.35
+          ]
+        ]
+      }
+    },
+    {
+      "id": "units-small-fraction",
+      "kind": "units",
+      "tier": "medium",
+      "title": "small fraction",
+      "prompt": "Make a rectangular plate 5/8 inch along X, 1/2 inch along Y, and 1/16 inch thick, with its minimum corner at the origin, thickness along +Z. Use those exact dimensions.",
+      "reference": "references/units-small-fraction.json",
+      "setup_steps": 0,
+      "check": {
+        "bodies": 1,
+        "volume": 320.05984374999997,
+        "tol": 0.0001,
+        "bbox": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            15.875,
+            12.7,
+            1.5875
+          ]
+        ]
+      }
+    },
+    {
+      "id": "units-missing-hole-size",
+      "kind": "units",
+      "tier": "medium",
+      "title": "missing hole size",
+      "prompt": "Put a through hole at the centre of the top face. Ask one question if a required dimension is missing before changing the design.",
+      "reference": "references/units-missing-hole-size.json",
+      "setup_steps": 4,
+      "check": {
+        "ask_first": "\\b(diameter|size)\\b"
+      },
+      "reference_reply": "What diameter should the hole be?"
+    },
+    {
+      "id": "units-missing-fillet-radius",
+      "kind": "units",
+      "tier": "medium",
+      "title": "missing fillet radius",
+      "prompt": "Round the four vertical corners. Ask one question if a required dimension is missing before changing the design.",
+      "reference": "references/units-missing-fillet-radius.json",
+      "setup_steps": 4,
+      "check": {
+        "ask_first": "\\b(radius|radii|size)\\b"
+      },
+      "reference_reply": "What fillet radius should I use?"
+    }
+  ]
+}

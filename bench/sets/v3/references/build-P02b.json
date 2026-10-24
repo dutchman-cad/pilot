@@ -1,0 +1,36 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "commands": [
+    {
+      "command": "sketch.create",
+      "params": {
+        "plane": "XZ",
+        "flip": true
+      }
+    },
+    {
+      "command": "sketch.rectangle.two_point",
+      "params": {
+        "p0": [
+          20,
+          0
+        ],
+        "p1": [
+          30,
+          40
+        ]
+      }
+    },
+    {
+      "command": "sketch.finish",
+      "params": {}
+    },
+    {
+      "command": "solid.revolve",
+      "params": {
+        "axis": "Z",
+        "angle": "270 deg"
+      }
+    }
+  ]
+}
