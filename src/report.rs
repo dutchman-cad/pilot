@@ -139,11 +139,21 @@ fn diagnostic_text(value: &Value, depth: usize) -> Option<&str> {
     }
 }
 pub fn render(turn: &Turn, include_request: bool) -> Result<(String, String), String> {
+    render_note(turn, include_request, None)
+}
+fn render_note(
+    turn: &Turn,
+    include_request: bool,
+    note: Option<&str>,
+) -> Result<(String, String), String> {
     let catalog = Catalog::bundled()?;
     let mut r = Redactor::new(&turn.names, &catalog);
     // Discover labelled names before rendering so the same name is masked even
     // when its first occurrence is unlabelled (for example in an error title).
     let _ = r.prose(&turn.request);
+    if let Some(note) = note {
+        let _ = r.prose(note);
+    }
     for event in turn.events.iter().take(crate::capture::MAX_EVENTS) {
         let _ = r.value(&event.facts);
     }
@@ -226,12 +236,104 @@ pub fn render(turn: &Turn, include_request: bool) -> Result<(String, String), St
         let facts = r.value(&event.facts).to_string();
         content.push_str(&format!("| {} | {} |\n", cell(&kind), cell(&facts)));
     }
+    if let Some(note) = note.filter(|s| !s.is_empty()) {
+        let note = r.prose(note);
+        content.push_str("\n## Tester note (redacted)\n\n");
+        for line in note.lines() {
+            content.push_str(&format!("> {line}\n"));
+        }
+    }
     let summary = r.summary();
     let report=format!("# {title}\n\n{summary}\n\n{content}\nRedaction summary: {summary}\n\n---\nBy submitting this report, I confirm that I reviewed it before sending. Pilot does not send reports.\n");
     if report.len() > MAX_FETCH {
         return Err("rendered report exceeds 8 MiB".into());
     }
     Ok((title, report))
+}
+/// Deliberately narrow commands: ordinary CAD requests containing “report” pass through.
+pub(crate) fn chat_command(text: &str) -> Option<&str> {
+    let text = text.trim();
+    if ["/report", "report this", "report that"]
+        .iter()
+        .any(|command| text.eq_ignore_ascii_case(command))
+    {
+        return Some("");
+    }
+    let (command, note) = text.split_once(char::is_whitespace)?;
+    let note = note.trim();
+    (command.eq_ignore_ascii_case("/report") && note.chars().count() <= 200).then_some(note)
+}
+
+fn save_default(report: &str, data_dir: Option<&std::path::Path>) -> Result<PathBuf, String> {
+    let dir = crate::model::data_dir(data_dir)?.join("reports");
+    fs::create_dir_all(&dir).map_err(|e| format!("cannot create reports directory: {e}"))?;
+    for suffix in 0..100 {
+        let path = dir.join(format!(
+            "report-{}-{}-{suffix}.md",
+            crate::audit::now(),
+            std::process::id()
+        ));
+        match fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+        {
+            Ok(mut file) => {
+                file.write_all(report.as_bytes())
+                    .map_err(|e| format!("cannot write report: {e}"))?;
+                return Ok(path);
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(e) => return Err(format!("cannot create report: {e}")),
+        }
+    }
+    Err("cannot create report after 100 filename collisions".into())
+}
+
+pub(crate) fn chat_reply(
+    turns: &std::collections::VecDeque<Turn>,
+    disabled: bool,
+    note: &str,
+    data_dir: Option<&std::path::Path>,
+) -> Result<String, String> {
+    let eligible: Vec<_> = turns
+        .iter()
+        .filter(|t| chat_command(&t.request).is_none())
+        .cloned()
+        .collect();
+    if disabled || eligible.is_empty() {
+        return Ok(format!("Pilot report: The capture ring is {}; try `dutchman-pilot report --from-request recorded-request.json` in the CLI.", if disabled { "disabled (--no-report-buffer)" } else { "empty" }));
+    }
+    let turn = select(&eligible, None)?;
+    let (title, report) = render_note(turn, false, Some(note))?;
+    let path = save_default(&report, data_dir)?;
+    let (url, paste) = issue_url(&title, &report);
+    let mut lines = Vec::new();
+    for prefix in [
+        "Pilot version:",
+        "Model:",
+        "Request shape:",
+        "What happened:",
+    ] {
+        if let Some(line) = report.lines().find(|line| line.starts_with(prefix)) {
+            let line = line.replace("What happened:", "Outcome:").replace('`', "'");
+            lines.push(
+                line.chars()
+                    .filter(|c| !c.is_control())
+                    .take(1200)
+                    .collect::<String>(),
+            );
+        }
+    }
+    lines.push(
+        if paste {
+            "Issue link: title only; review and paste the report file."
+        } else {
+            "Issue link: prefilled above; review before submitting."
+        }
+        .into(),
+    );
+    Ok(format!("Pilot report: Saved a redacted report to {}.\n\n{url}\n\nFor Dutchman CAD Discord #pilot-help:\n```text\n{}\n```\n\nNothing was sent. Open the link to review and submit.", path.display(), lines.join("\n")))
 }
 pub fn issue_url(title: &str, body: &str) -> (String, bool) {
     let mut url = url::Url::parse("https://github.com/dutchman-cad/pilot/issues/new").ok();
@@ -268,19 +370,12 @@ pub fn run(args: ReportArgs) -> Result<(), String> {
     let turn = select(&turns, args.turn)?;
     let (title, report) = render(turn, args.include_request)?;
     let path = match args.out {
-        Some(path) => path,
-        None => {
-            let dir = crate::model::data_dir(None)?.join("reports");
-            fs::create_dir_all(&dir)
-                .map_err(|e| format!("cannot create reports directory: {e}"))?;
-            dir.join(format!(
-                "report-{}-{}.md",
-                crate::audit::now(),
-                std::process::id()
-            ))
+        Some(path) => {
+            fs::write(&path, &report).map_err(|e| format!("cannot write report: {e}"))?;
+            path
         }
+        None => save_default(&report, None)?,
     };
-    fs::write(&path, &report).map_err(|e| format!("cannot write report: {e}"))?;
     let (url, paste) = issue_url(&title, &report);
     let mut stdout = std::io::stdout().lock();
     write!(
@@ -323,6 +418,37 @@ fn open_browser(url: &str) -> Result<(), String> {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    #[test]
+    fn chat_command_exact_forms_and_note_limit() {
+        for text in [
+            "/report",
+            "  /RePoRt \n",
+            "report this",
+            " REPORT THAT ",
+            "/report a short note",
+            "/report\tmy note",
+        ] {
+            assert!(chat_command(text).is_some(), "{text}");
+        }
+        assert_eq!(
+            chat_command(&format!("/report {}", "α".repeat(200)))
+                .unwrap()
+                .chars()
+                .count(),
+            200
+        );
+        for text in [
+            "/reporting",
+            "please report the volume",
+            "report the body count",
+            "report this please",
+            "report that!",
+            "/report-note",
+            &format!("/report {}", "α".repeat(201)),
+        ] {
+            assert!(chat_command(text).is_none(), "{text}");
+        }
+    }
     #[test]
     fn url_cap() {
         let (url, paste) = issue_url("Recipe declined: α", &"private & text\n".repeat(10000));

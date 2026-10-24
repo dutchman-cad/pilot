@@ -4,6 +4,8 @@
 
 ### Added
 
+- Type `/report` in the Assistant to save a local redacted report, with a prefilled
+  issue link and a paste-ready Discord #pilot-help summary, without calling a model.
 - A public field-report benchmark set, starting with a cube with a centred hole,
   checked by volume, with a corner-hole negative.
 - After a box is created, both faces add one audited hint with its extent, centre,

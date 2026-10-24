@@ -28,7 +28,8 @@ command line. The same commands also come as a standalone download,
 - Argument repair, text-call pickup, command lookup, hints, buffered streaming,
   and bounded retries remain enabled by default, with audited rewrites.
 - Local, redacted [bug reports](docs/report.md) from five memory-only turns or offline
-  planner replay. Request words require `--include-request`; you review and submit.
+  planner replay: type `/report` in the Assistant. Chat reports omit request words;
+  the CLI can include them with `--include-request`. You review and submit.
 
 For SolidCraft 98, start `dutchman pilot mcp98 --program /path/to/sc98 --headless`
 as an MCP server, or attach with `--connect 127.0.0.1:9898` to an application started with `/REMOTE`

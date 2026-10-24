@@ -6,6 +6,34 @@ Pilot does not call GitHub, use a token, submit an issue, or send a report to a 
 `--open` explicitly asks your operating system to open the URL in your browser; the
 browser then visits GitHub. Omit that flag to keep the whole operation local.
 
+## From the Assistant chat
+
+Type `/report` in SolidCraft's Assistant while it is connected to Pilot's model
+face. `report this`, `report that`, and `/report <note>` also work (case-insensitive,
+with surrounding whitespace allowed). Notes are limited to 200 characters.
+Only these forms trigger a report; ordinary requests such as “report the body count”
+continue to the model.
+
+Pilot replies with a **Pilot report:** prefix, the local saved file path, a prefilled
+GitHub issue link, and a fenced, paste-ready summary for the Dutchman CAD Discord
+**#pilot-help** channel. The summary has at most 12 lines. If the URL would exceed
+the length limit, the link contains only the title and the summary tells you to
+review and paste the file. Nothing is sent; open the link to review and submit.
+
+Chat reports use the latest failed captured turn, otherwise the latest turn, and
+always omit request words and file contents. The optional note is included only
+after the same redaction as the report. Reports go to the default reports directory
+(under `--profile-dir` if configured). The report command itself is never captured
+or counted in model profiles; its Pilot-authored reply is recorded in the rewrite log.
+It makes no upstream call and works with `--upstream none`, streaming responses,
+and `--dialect solidcraft98`, whose model face also has capture.
+
+If the ring is empty or disabled with `--no-report-buffer`, Pilot explains that
+in one line and suggests the CLI's offline `--from-request` option. Restarting
+Pilot clears the ring; an offline report requires a separately recorded request file.
+
+## From the command line
+
 ```sh
 dutchman-pilot report
 dutchman-pilot report --listen 127.0.0.1:11500 --turn 12 --out report.md
@@ -20,7 +48,8 @@ An explicitly chosen existing output file is replaced.
 
 ## Capture and selection
 
-The model face retains the last **five completion requests** in a memory-only ring.
+The model face retains the last **five completion requests**, excluding chat report
+commands, in a memory-only ring.
 Each has a stable increasing turn id. `--turn N` selects that id; expired ids fail
 clearly. Without it, report chooses the most recent failed/declined/fallback turn,
 otherwise the latest turn. Restarting the model face clears the ring.

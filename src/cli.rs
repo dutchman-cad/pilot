@@ -42,6 +42,7 @@ the default. The MCP face only suggests plans.
 Upstream defaults to Ollama; --upstream none (with --direct-recipes) runs without
 a model. Direct replies are marked, audited, and profiled separately.
 report prints a redacted local file and issue URL; it never submits anything.
+Type /report in the Assistant for a local report and Discord #pilot-help summary.
 --include-request opts in to request words; --open opens the browser for review.
 The model face keeps five diagnostic turns in memory; --no-report-buffer disables it.
 Profiles and the default rewrites.jsonl log live in the user's data dir/{binary}.

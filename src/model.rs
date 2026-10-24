@@ -674,14 +674,6 @@ impl Proxy {
             .to_string();
         let key = serde_json::to_string(&(&self.cfg.upstream, &model))
             .map_err(|_| "cannot encode profile key")?;
-        if !self.profiles.contains_key(&key) && self.profiles.len() >= MAX_PROFILES {
-            return Err("profile limit of 256 models reached".into());
-        }
-        let mut profile = self.profiles.remove(&key).unwrap_or_else(|| Profile {
-            upstream: self.cfg.upstream.clone(),
-            model: model.clone(),
-            ..Profile::default()
-        });
         let mut audit = Audit {
             events: None,
             file: self
@@ -697,6 +689,31 @@ impl Proxy {
             count: 0,
             kinds: BTreeMap::new(),
         };
+        if let Some(note) = crate::report::chat_command(last_user(&body)) {
+            let text = match crate::report::chat_reply(
+                self.turns.turns(),
+                self.cfg.no_report_buffer,
+                note,
+                self.cfg.profile_dir.as_deref(),
+            ) {
+                Ok(text) => text,
+                Err(error) => format!("Pilot report: Could not save a report: {error}. Try `dutchman-pilot report` in the CLI."),
+            };
+            audit.record(
+                "pilot_report_reply",
+                &Value::Null,
+                &json!({"from_model":false,"text":text}),
+            )?;
+            return direct::reply(&body, text, audit.count);
+        }
+        if !self.profiles.contains_key(&key) && self.profiles.len() >= MAX_PROFILES {
+            return Err("profile limit of 256 models reached".into());
+        }
+        let mut profile = self.profiles.remove(&key).unwrap_or_else(|| Profile {
+            upstream: self.cfg.upstream.clone(),
+            model: audit.model.clone(),
+            ..Profile::default()
+        });
         let mut captured = if self.cfg.no_report_buffer {
             None
         } else {
@@ -2358,6 +2375,141 @@ mod tests {
     impl Drop for Fixture {
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.dir);
+        }
+    }
+    #[test]
+    fn chat_reports_are_local_redacted_and_never_captured_or_profiled() {
+        for dialect98 in [false, true] {
+            for stream in [false, true] {
+                let mut f = Fixture::new(vec![]);
+                f.proxy.cfg.solidcraft98 = dialect98;
+                if stream {
+                    f.proxy.cfg.upstream = "none".into();
+                }
+                let mut failed = crate::report::offline(&json!({"model":"test-model", "messages":[{"role":"user","content":"PrivateRequestWord"}]})).unwrap();
+                failed.failed = true;
+                failed.names.push(("Hidden Gear".into(), "Body".into()));
+                failed.event(
+                    "provider_error",
+                    json!({"error":"failed Hidden Gear /private/design.step PrivateRequestWord"}),
+                );
+                f.proxy.turns.push(failed.clone());
+                let mut good = failed;
+                good.failed = false;
+                good.model = "other-model".into();
+                f.proxy.turns.push(good);
+                // Also exclude report requests retained by an older capture producer.
+                let old = crate::report::offline(
+                    &json!({"messages":[{"role":"user","content":"/report"}]}),
+                )
+                .unwrap();
+                f.proxy.turns.push(old);
+                let note = "/REPORT failed Hidden Gear /private/note.step jane@example.com https://private.example 192.0.2.4 sk-private-secret-token";
+                let response = f.chat(json!({"stream":stream,"stream_options":{"include_usage":true},"messages":[{"role":"user","content":note}]}));
+                assert_eq!(response.status, 200);
+                assert_eq!(response.rewrites, 1);
+                let value = if stream {
+                    assert_eq!(response.content_type, "text/event-stream");
+                    assert!(response.body.ends_with(b"data: [DONE]\n\n"));
+                    collect_sse(&response.body).unwrap()
+                } else {
+                    assert_eq!(response.content_type, "application/json");
+                    serde_json::from_slice(&response.body).unwrap()
+                };
+                assert_eq!(value["choices"][0]["message"]["role"], "assistant");
+                assert_eq!(value["choices"][0]["finish_reason"], "stop");
+                assert!(value["choices"][0]["message"].get("tool_calls").is_none());
+                let text = value["choices"][0]["message"]["content"].as_str().unwrap();
+                assert!(text.starts_with("Pilot report: Saved a redacted report to "));
+                assert!(text.ends_with("Nothing was sent. Open the link to review and submit."));
+                let block = text
+                    .split("```text\n")
+                    .nth(1)
+                    .unwrap()
+                    .split("\n```")
+                    .next()
+                    .unwrap();
+                assert_eq!(block.lines().count(), 5);
+                for prefix in [
+                    "Pilot version:",
+                    "Model: test-model",
+                    "Request shape:",
+                    "Outcome:",
+                    "Issue link:",
+                ] {
+                    assert!(block.contains(prefix), "{block}");
+                }
+                let files: Vec<_> = fs::read_dir(f.dir.join("reports")).unwrap().collect();
+                assert_eq!(files.len(), 1);
+                let report = fs::read_to_string(files[0].as_ref().unwrap().path()).unwrap();
+                assert!(report.contains("Turn: 1"));
+                assert!(report.contains("Tester note (redacted)"));
+                assert!(report.contains("Body1"));
+                assert!(report.contains("[path]"));
+                for private in [
+                    "Hidden Gear",
+                    "/private/",
+                    "jane@example.com",
+                    "private.example",
+                    "192.0.2.4",
+                    "sk-private-secret-token",
+                    "PrivateRequestWord",
+                ] {
+                    assert!(!report.contains(private), "leaked {private}: {report}");
+                    assert!(!block.contains(private));
+                }
+                assert!(!report.contains("Request text (explicitly included"));
+                assert_eq!(f.proxy.turns.turns().len(), 3);
+                assert!(f.proxy.profiles.is_empty());
+                assert!(f.proxy.conversations.is_empty());
+                assert!(f
+                    .proxy
+                    .scripted
+                    .as_ref()
+                    .unwrap()
+                    .borrow()
+                    .requests
+                    .is_empty());
+                assert!(fs::read_to_string(f.dir.join("log.jsonl"))
+                    .unwrap()
+                    .contains("pilot_report_reply"));
+            }
+        }
+    }
+    #[test]
+    fn chat_report_empty_disabled_and_real_requests() {
+        for disabled in [false, true] {
+            let mut f = Fixture::new(vec![]);
+            f.proxy.cfg.no_report_buffer = disabled;
+            let response = f.chat(json!({"messages":[{"role":"user","content":"report this"}]}));
+            let value: Value = serde_json::from_slice(&response.body).unwrap();
+            let text = value["choices"][0]["message"]["content"].as_str().unwrap();
+            assert_eq!(text.lines().count(), 1);
+            assert!(text.contains(if disabled { "disabled" } else { "empty" }));
+            assert!(text.contains("dutchman-pilot report"));
+            assert!(f
+                .proxy
+                .scripted
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .requests
+                .is_empty());
+            assert!(f.proxy.turns.turns().is_empty());
+        }
+        for request in [
+            "/reporting",
+            "please report the volume",
+            "report the body count",
+        ] {
+            let mut f = Fixture::new(vec![reply("ordinary model answer")]);
+            f.proxy.cfg.planner = false;
+            let response = f.chat(json!({"messages":[{"role":"user","content":"/report"},{"role":"user","content":request}]}));
+            assert_eq!(response.status, 200);
+            assert_eq!(
+                f.proxy.scripted.as_ref().unwrap().borrow().requests.len(),
+                1
+            );
         }
     }
     #[test]
