@@ -1,0 +1,232 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "format": 1,
+  "tasks": [
+    {
+      "id": "joints-revolute-limits",
+      "kind": "joints",
+      "tier": "medium",
+      "title": "revolute limits",
+      "prompt": "Connect Base and Link at their box centres with one revolute joint, aligned Z axes. Set its motion limits, in the listed value order, to [[-30, 60]] (angles in degrees, distances in mm). Leave Spare unconnected. Keep all three components and bodies.",
+      "reference": "references/joints-revolute-limits.json",
+      "setup_steps": 9,
+      "start": "start/joints-revolute-limits.solidcraft",
+      "check": {
+        "bodies": 3,
+        "volume": 3000,
+        "tol": 0.0001,
+        "components": {
+          "Base": [
+            "Base"
+          ],
+          "Link": [
+            "Link"
+          ],
+          "Spare": [
+            "Spare"
+          ]
+        },
+        "joints_count": 1,
+        "joints": [
+          {
+            "type": "revolute",
+            "occurrences": [
+              "Base:1",
+              "Link:1"
+            ],
+            "limits": [
+              [
+                -30,
+                60
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "joints-slider-limits",
+      "kind": "joints",
+      "tier": "medium",
+      "title": "slider limits",
+      "prompt": "Connect Base and Link at their box centres with one slider joint, aligned Z axes. Set its motion limits, in the listed value order, to [[0, 25]] (angles in degrees, distances in mm). Leave Spare unconnected. Keep all three components and bodies.",
+      "reference": "references/joints-slider-limits.json",
+      "setup_steps": 9,
+      "start": "start/joints-slider-limits.solidcraft",
+      "check": {
+        "bodies": 3,
+        "volume": 3000,
+        "tol": 0.0001,
+        "components": {
+          "Base": [
+            "Base"
+          ],
+          "Link": [
+            "Link"
+          ],
+          "Spare": [
+            "Spare"
+          ]
+        },
+        "joints_count": 1,
+        "joints": [
+          {
+            "type": "slider",
+            "occurrences": [
+              "Base:1",
+              "Link:1"
+            ],
+            "limits": [
+              [
+                0,
+                25
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "joints-cylindrical-limits",
+      "kind": "joints",
+      "tier": "medium",
+      "title": "cylindrical limits",
+      "prompt": "Connect Base and Link at their box centres with one cylindrical joint, aligned Z axes. Set its motion limits, in the listed value order, to [[-45, 45], [0, 20]] (angles in degrees, distances in mm). Leave Spare unconnected. Keep all three components and bodies.",
+      "reference": "references/joints-cylindrical-limits.json",
+      "setup_steps": 9,
+      "start": "start/joints-cylindrical-limits.solidcraft",
+      "check": {
+        "bodies": 3,
+        "volume": 3000,
+        "tol": 0.0001,
+        "components": {
+          "Base": [
+            "Base"
+          ],
+          "Link": [
+            "Link"
+          ],
+          "Spare": [
+            "Spare"
+          ]
+        },
+        "joints_count": 1,
+        "joints": [
+          {
+            "type": "cylindrical",
+            "occurrences": [
+              "Base:1",
+              "Link:1"
+            ],
+            "limits": [
+              [
+                -45,
+                45
+              ],
+              [
+                0,
+                20
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "joints-pin_slot-limits",
+      "kind": "joints",
+      "tier": "medium",
+      "title": "pin_slot limits",
+      "prompt": "Connect Base and Link at their box centres with one pin_slot joint, aligned Z axes. Set its motion limits, in the listed value order, to [[-20, 40], [0, 30]] (angles in degrees, distances in mm). Leave Spare unconnected. Keep all three components and bodies.",
+      "reference": "references/joints-pin_slot-limits.json",
+      "setup_steps": 9,
+      "start": "start/joints-pin_slot-limits.solidcraft",
+      "check": {
+        "bodies": 3,
+        "volume": 3000,
+        "tol": 0.0001,
+        "components": {
+          "Base": [
+            "Base"
+          ],
+          "Link": [
+            "Link"
+          ],
+          "Spare": [
+            "Spare"
+          ]
+        },
+        "joints_count": 1,
+        "joints": [
+          {
+            "type": "pin_slot",
+            "occurrences": [
+              "Base:1",
+              "Link:1"
+            ],
+            "limits": [
+              [
+                -20,
+                40
+              ],
+              [
+                0,
+                30
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "joints-ball-limits",
+      "kind": "joints",
+      "tier": "medium",
+      "title": "ball limits",
+      "prompt": "Connect Base and Link at their box centres with one ball joint, aligned Z axes. Set its motion limits, in the listed value order, to [[-15, 15], [-20, 20], [-30, 30]] (angles in degrees, distances in mm). Leave Spare unconnected. Keep all three components and bodies.",
+      "reference": "references/joints-ball-limits.json",
+      "setup_steps": 9,
+      "start": "start/joints-ball-limits.solidcraft",
+      "check": {
+        "bodies": 3,
+        "volume": 3000,
+        "tol": 0.0001,
+        "components": {
+          "Base": [
+            "Base"
+          ],
+          "Link": [
+            "Link"
+          ],
+          "Spare": [
+            "Spare"
+          ]
+        },
+        "joints_count": 1,
+        "joints": [
+          {
+            "type": "ball",
+            "occurrences": [
+              "Base:1",
+              "Link:1"
+            ],
+            "limits": [
+              [
+                -15,
+                15
+              ],
+              [
+                -20,
+                20
+              ],
+              [
+                -30,
+                30
+              ]
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

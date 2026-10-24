@@ -1,0 +1,146 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "format": 1,
+  "tasks": [
+    {
+      "id": "constraints-L-1",
+      "kind": "constraints",
+      "tier": "medium",
+      "title": "L 1",
+      "prompt": "On XZ, sketch an L with its outside corner at the origin, 50 mm wide, 40 mm tall, both legs 8 mm thick. Fully constrain it with four driving dimensions (width, height, both leg thicknesses), then extrude 30 mm.",
+      "reference": "references/constraints-L-1.json",
+      "setup_steps": 0,
+      "check": {
+        "bodies": 1,
+        "volume": 19680,
+        "tol": 0.0001,
+        "bbox_size": [
+          50,
+          40,
+          30
+        ],
+        "sketch_defined": {
+          "min_dimensions": 4,
+          "values": [
+            50,
+            40,
+            8,
+            8
+          ]
+        }
+      }
+    },
+    {
+      "id": "constraints-L-2",
+      "kind": "constraints",
+      "tier": "medium",
+      "title": "L 2",
+      "prompt": "On XY, sketch an L with its outside corner at the origin, 60 mm wide, 45 mm tall, both legs 6 mm thick. Fully constrain it with four driving dimensions (width, height, both leg thicknesses), then extrude 15 mm.",
+      "reference": "references/constraints-L-2.json",
+      "setup_steps": 0,
+      "check": {
+        "bodies": 1,
+        "volume": 8910,
+        "tol": 0.0001,
+        "bbox_size": [
+          60,
+          45,
+          15
+        ],
+        "sketch_defined": {
+          "min_dimensions": 4,
+          "values": [
+            60,
+            45,
+            6,
+            6
+          ]
+        }
+      }
+    },
+    {
+      "id": "constraints-L-3",
+      "kind": "constraints",
+      "tier": "medium",
+      "title": "L 3",
+      "prompt": "On YZ, sketch an L with its outside corner at the origin, 35 mm wide, 55 mm tall, both legs 5 mm thick. Fully constrain it with four driving dimensions (width, height, both leg thicknesses), then extrude 12 mm.",
+      "reference": "references/constraints-L-3.json",
+      "setup_steps": 0,
+      "check": {
+        "bodies": 1,
+        "volume": 5100,
+        "tol": 0.0001,
+        "bbox_size": [
+          35,
+          55,
+          12
+        ],
+        "sketch_defined": {
+          "min_dimensions": 4,
+          "values": [
+            35,
+            55,
+            5,
+            5
+          ]
+        }
+      }
+    },
+    {
+      "id": "constraints-L-4",
+      "kind": "constraints",
+      "tier": "medium",
+      "title": "L 4",
+      "prompt": "On XZ, sketch an L with its outside corner at the origin, 70 mm wide, 30 mm tall, both legs 4 mm thick. Fully constrain it with four driving dimensions (width, height, both leg thicknesses), then extrude 20 mm.",
+      "reference": "references/constraints-L-4.json",
+      "setup_steps": 0,
+      "check": {
+        "bodies": 1,
+        "volume": 7680,
+        "tol": 0.0001,
+        "bbox_size": [
+          70,
+          30,
+          20
+        ],
+        "sketch_defined": {
+          "min_dimensions": 4,
+          "values": [
+            70,
+            30,
+            4,
+            4
+          ]
+        }
+      }
+    },
+    {
+      "id": "constraints-L-5",
+      "kind": "constraints",
+      "tier": "medium",
+      "title": "L 5",
+      "prompt": "On XY, sketch an L with its outside corner at the origin, 42 mm wide, 36 mm tall, both legs 7 mm thick. Fully constrain it with four driving dimensions (width, height, both leg thicknesses), then extrude 10 mm.",
+      "reference": "references/constraints-L-5.json",
+      "setup_steps": 0,
+      "check": {
+        "bodies": 1,
+        "volume": 4970,
+        "tol": 0.0001,
+        "bbox_size": [
+          42,
+          36,
+          10
+        ],
+        "sketch_defined": {
+          "min_dimensions": 4,
+          "values": [
+            42,
+            36,
+            7,
+            7
+          ]
+        }
+      }
+    }
+  ]
+}

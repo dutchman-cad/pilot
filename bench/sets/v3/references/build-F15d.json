@@ -1,0 +1,58 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "commands": [
+    {
+      "command": "sketch.create",
+      "params": {
+        "plane": "XZ",
+        "flip": true
+      }
+    },
+    {
+      "command": "sketch.rectangle.two_point",
+      "params": {
+        "p0": [
+          20,
+          0
+        ],
+        "p1": [
+          30,
+          40
+        ]
+      }
+    },
+    {
+      "command": "sketch.line",
+      "params": {
+        "points": [
+          [
+            40,
+            0
+          ],
+          [
+            40,
+            40
+          ]
+        ]
+      }
+    },
+    {
+      "command": "sketch.finish",
+      "params": {}
+    },
+    {
+      "command": "solid.revolve",
+      "params": {
+        "axis": "l5",
+        "profiles": [
+          {
+            "point": [
+              25,
+              20
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

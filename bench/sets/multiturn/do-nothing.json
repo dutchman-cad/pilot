@@ -1,0 +1,26 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "format": 1,
+  "expectations": [
+    {
+      "id": "multiturn-height",
+      "pass": false
+    },
+    {
+      "id": "multiturn-fillet",
+      "pass": false
+    },
+    {
+      "id": "multiturn-chamfer",
+      "pass": false
+    },
+    {
+      "id": "multiturn-shell",
+      "pass": false
+    },
+    {
+      "id": "multiturn-grid",
+      "pass": false
+    }
+  ]
+}

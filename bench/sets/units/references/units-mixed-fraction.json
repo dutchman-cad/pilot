@@ -1,0 +1,18 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "commands": [
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 38.1,
+        "width": 19.05,
+        "height": 6.35,
+        "corner": [
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  ]
+}
