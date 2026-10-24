@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Bundle the shared `dutchman` launcher so a Pilot-only install supports
+  `dutchman pilot` alongside `dutchman-pilot`, with the launcher source revision recorded.
+- Add Linux, macOS, and Windows installers with custom bin directories, dry runs,
+  older-launcher replacement, and preservation of full Dutchman installs.
+- Check installer behavior on all three systems and command dispatch in release archives.
+
 ## 0.1.0-beta.2 (2026-10-24)
 
 - Direct exact-match answers with `--direct-recipes`, through SolidCraft's approval.
