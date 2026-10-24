@@ -692,7 +692,11 @@ fn parse(kind: Kind, input: &Input<'_>) -> Option<Slots> {
                 radius: radial(t, d[0])?,
             })
         }
-        Kind::Holes if has("plate") && input.any(&["hole", "holes"]) => holes(input),
+        Kind::Holes
+            if input.any(&["plate", "box", "block", "cube"]) && input.any(&["hole", "holes"]) =>
+        {
+            holes(input)
+        }
         Kind::Shell if has("shell") && has("box") => {
             // Explicit new box, inward wall, top removed. Other shell profiles defer.
             if !has("top")
@@ -873,8 +877,14 @@ fn holes(input: &Input<'_>) -> Option<Slots> {
     }
     let split = input.t.iter().position(|s| s == "with")?;
     let base = &input.t[..split];
-    let size = box_size(base, &dimensions(base)?, false)?;
+    let size = box_size(base, &dimensions(base)?, base.iter().any(|s| s == "cube"))?;
     let mut rest = input.t[split + 1..].to_vec();
+    if rest
+        .iter()
+        .any(|s| matches!(s.as_str(), "deep" | "depth" | "blind" | "countersunk"))
+    {
+        return None;
+    }
     let relative = rest
         .iter()
         .any(|s| matches!(s.as_str(), "end" | "ends" | "corner" | "corners"));
@@ -1331,7 +1341,7 @@ fn intent_decline(input: &Input<'_>) -> Option<&'static str> {
         || input
             .t
             .iter()
-            .filter(|w| matches!(w.as_str(), "make" | "create" | "build" | "add"))
+            .filter(|w| matches!(w.as_str(), "make" | "draw" | "create" | "build" | "add"))
             .count()
             > 1
     {
@@ -1358,7 +1368,7 @@ fn intent_decline(input: &Input<'_>) -> Option<&'static str> {
                     | "tube"
             ) && (input.t[..i]
                 .iter()
-                .any(|v| matches!(v.as_str(), "make" | "create" | "build" | "add"))
+                .any(|v| matches!(v.as_str(), "make" | "draw" | "create" | "build" | "add"))
                 || i.checked_sub(1)
                     .is_some_and(|i| input.t[i] == "a" || input.t[i] == "an"))
         }) {
@@ -1397,6 +1407,7 @@ pub(super) fn report_decline(text: &str) -> (&'static str, Vec<String>) {
                         "and"
                             | "then"
                             | "make"
+                            | "draw"
                             | "create"
                             | "move"
                             | "rename"
@@ -1450,6 +1461,7 @@ pub(super) fn select(
         "box", "block", "plate", "cube", "cylinder", "rod", "disc", "sphere", "tube",
     ]) || input.any(&[
         "make",
+        "draw",
         "create",
         "build",
         "add",

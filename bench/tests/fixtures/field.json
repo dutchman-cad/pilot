@@ -1,0 +1,355 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "solidcraft": "0.20.0",
+  "cases": [
+    {
+      "id": "cube-centre-hole",
+      "pass": true,
+      "check": {
+        "bodies": 1,
+        "volume": 7607.3,
+        "tol": 6.572634180326791e-05,
+        "bbox_size": [
+          20,
+          20,
+          20
+        ]
+      },
+      "document": {
+        "active_sketch": null,
+        "bodies": [
+          {
+            "area_mm2": 2674.8828337588193,
+            "bbox": {
+              "max": [
+                20.0,
+                20.0,
+                20.000000000000014
+              ],
+              "min": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "center_of_mass": [
+              10.0,
+              10.0,
+              10.000000000000002
+            ],
+            "edges": 14,
+            "face_types": {
+              "cylinder": 1,
+              "plane": 6
+            },
+            "faces": 7,
+            "kernel": {
+              "edges": 18,
+              "faces": 8,
+              "shells": 1,
+              "vertices": 12
+            },
+            "name": "Body1",
+            "vertices": 10,
+            "visible": true,
+            "volume_mm3": 7607.366147066433
+          }
+        ],
+        "dirty": true,
+        "hidden_origin": [],
+        "marker": 2,
+        "metadata": {},
+        "name": "Untitled",
+        "params": [],
+        "path": null,
+        "redo": 0,
+        "revision": 5,
+        "selection": [],
+        "sketches": [],
+        "timeline": [
+          {
+            "boolean_diagnostics": {
+              "events": [],
+              "truncated": false
+            },
+            "error": null,
+            "id": 1,
+            "ms": 2.3428020000000003,
+            "name": "Box1",
+            "rolled_back": false,
+            "suppressed": false,
+            "type": "BoxFeature",
+            "warning": null
+          },
+          {
+            "boolean_diagnostics": {
+              "events": [],
+              "truncated": false
+            },
+            "error": null,
+            "id": 2,
+            "ms": 11.142589,
+            "name": "Hole1",
+            "rolled_back": false,
+            "suppressed": false,
+            "type": "HoleFeature",
+            "warning": null
+          }
+        ],
+        "undo": 2,
+        "units": "mm"
+      },
+      "before": {
+        "active_sketch": null,
+        "bodies": [],
+        "dirty": false,
+        "hidden_origin": [],
+        "marker": 0,
+        "metadata": {},
+        "name": "Untitled",
+        "params": [],
+        "path": null,
+        "redo": 0,
+        "revision": 1,
+        "selection": [],
+        "sketches": [],
+        "timeline": [],
+        "undo": 0,
+        "units": "mm"
+      },
+      "reply": "",
+      "queries": {}
+    },
+    {
+      "id": "cube-corner-hole",
+      "pass": false,
+      "check": {
+        "bodies": 1,
+        "volume": 7607.3,
+        "tol": 6.572634180326791e-05,
+        "bbox_size": [
+          20,
+          20,
+          20
+        ]
+      },
+      "document": {
+        "active_sketch": null,
+        "bodies": [
+          {
+            "area_mm2": 2368.720578207463,
+            "bbox": {
+              "max": [
+                20.0,
+                20.0,
+                20.000000000000007
+              ],
+              "min": [
+                -6.896375503161139e-17,
+                0.0,
+                0.0
+              ]
+            },
+            "center_of_mass": [
+              10.11104140423795,
+              10.11104140423795,
+              10.0
+            ],
+            "edges": 15,
+            "face_types": {
+              "cylinder": 1,
+              "plane": 6
+            },
+            "faces": 7,
+            "kernel": {
+              "edges": 15,
+              "faces": 7,
+              "shells": 1,
+              "vertices": 10
+            },
+            "name": "Body1",
+            "vertices": 10,
+            "visible": true,
+            "volume_mm3": 7901.842815046029
+          }
+        ],
+        "dirty": true,
+        "hidden_origin": [],
+        "marker": 3,
+        "metadata": {},
+        "name": "Untitled",
+        "params": [],
+        "path": null,
+        "redo": 0,
+        "revision": 8,
+        "selection": [],
+        "sketches": [
+          {
+            "constraints": [
+              {
+                "id": "k1",
+                "name": "Coincident",
+                "p": 0,
+                "q": 1,
+                "type": "coincident"
+              }
+            ],
+            "curves": [
+              {
+                "center": "c1.center",
+                "center_at": [
+                  0.0,
+                  0.0
+                ],
+                "construction": false,
+                "fixed": false,
+                "fully_constrained": false,
+                "id": "c1",
+                "radius": 2.5,
+                "type": "circle"
+              }
+            ],
+            "dof": 1,
+            "failing": [],
+            "fully_constrained": false,
+            "id": 2,
+            "links": [],
+            "name": "Sketch1",
+            "plane": {
+              "origin": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "x_dir": [
+                1.0,
+                0.0,
+                0.0
+              ],
+              "y_dir": [
+                0.0,
+                1.0,
+                0.0
+              ]
+            },
+            "points": [
+              {
+                "at": [
+                  0.0,
+                  0.0
+                ],
+                "fixed": true,
+                "fully_constrained": true,
+                "id": "origin",
+                "link": null,
+                "world": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              },
+              {
+                "at": [
+                  0.0,
+                  0.0
+                ],
+                "fixed": false,
+                "fully_constrained": true,
+                "id": "c1.center",
+                "link": null,
+                "world": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              }
+            ],
+            "profiles": [
+              {
+                "area_mm2": 19.634954084936208,
+                "centroid_sketch": [
+                  -2.4514907723089187e-17,
+                  1.8562970992243012e-16
+                ],
+                "curves": [
+                  "c1"
+                ],
+                "holes": [],
+                "index": 0
+              }
+            ],
+            "status": "solved",
+            "visible": false,
+            "wires": []
+          }
+        ],
+        "timeline": [
+          {
+            "boolean_diagnostics": {
+              "events": [],
+              "truncated": false
+            },
+            "error": null,
+            "id": 1,
+            "ms": 2.814604,
+            "name": "Box1",
+            "rolled_back": false,
+            "suppressed": false,
+            "type": "BoxFeature",
+            "warning": null
+          },
+          {
+            "boolean_diagnostics": {
+              "events": [],
+              "truncated": false
+            },
+            "error": null,
+            "id": 2,
+            "ms": 0.074811,
+            "name": "Sketch1",
+            "rolled_back": false,
+            "suppressed": false,
+            "type": "Sketch",
+            "warning": null
+          },
+          {
+            "boolean_diagnostics": {
+              "events": [],
+              "truncated": false
+            },
+            "error": null,
+            "id": 3,
+            "ms": 19.046269000000002,
+            "name": "Extrude1",
+            "rolled_back": false,
+            "suppressed": false,
+            "type": "ExtrudeFeature",
+            "warning": null
+          }
+        ],
+        "undo": 4,
+        "units": "mm"
+      },
+      "before": {
+        "active_sketch": null,
+        "bodies": [],
+        "dirty": false,
+        "hidden_origin": [],
+        "marker": 0,
+        "metadata": {},
+        "name": "Untitled",
+        "params": [],
+        "path": null,
+        "redo": 0,
+        "revision": 1,
+        "selection": [],
+        "sketches": [],
+        "timeline": [],
+        "undo": 0,
+        "units": "mm"
+      },
+      "reply": "",
+      "queries": {}
+    }
+  ]
+}

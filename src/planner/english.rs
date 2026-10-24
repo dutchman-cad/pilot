@@ -27,6 +27,11 @@ const FORMS: &[(&str, &[&str])] = &[
         "Please build a sphere [radius] 6.5mm.", "Add a sphere 13mm diameter.",
     ]),
     ("plate_hole", &[
+        "Draw a 20 mm cube with a centered 5mm through hole.",
+        "Draw a cube 20mm with a 5mm through hole in the centre.",
+        "Make a 20mm cube with a 5mm through hole in the center.",
+        "Draw a plate 20x20x20mm with a centred through hole diameter 5mm.",
+        "Draw a block 20 by 30 by 10mm with a 5mm hole through the middle.",
         "Make a plate 66x44x4mm with a centred through hole 6mm in diameter.",
         "BUILD a plate 66mm long, 44mm wide and 4mm thick with a middle through hole radius 3mm!",
         "Add a plate 6.6×4.4×0.4cm with a centered through hole 0.6cm across.",

@@ -12,7 +12,7 @@ const HELP_TEMPLATE: &str = r#"{display} — a local helper for SolidCraft
 
 Usage:
   {binary} how "<task>"
-  {binary} model [--listen 127.0.0.1:11500] [--upstream URL|none] [--direct-recipes]
+  {binary} model [--listen 127.0.0.1:11500] [--upstream URL|none] [--no-direct-recipes]
   {pad}       [--upstream-timeout SECONDS (default 300, max 3600)]
   {pad}       [--fallback-prompt auto|on|off] [--prompt-help] [--log FILE]
   {pad}       [--profile-dir DIR] [--model-settings [FILE]] [--seed INTEGER]
@@ -38,10 +38,13 @@ model serves /v1/chat/completions and /v1/models; mcp starts the SolidCraft tool
 --planner enables recipe suggestions, matching action prose, and one completion check.
 These plan-text features are off by default; model --no-plan is a no-op alias for
 the default. The MCP face only suggests plans.
---direct-recipes answers exact matches without a model; it can accompany --planner.
-Upstream defaults to Ollama; --upstream none (with --direct-recipes) runs without
-a model. Direct replies are marked, audited, and profiled separately.
+Exact matches are answered without a model by default; --no-direct-recipes sends
+everything to the model. --direct-recipes is a no-op alias for the default;
+it conflicts with --no-direct-recipes. Direct answering can accompany --planner.
+Upstream defaults to Ollama; --upstream none runs without a model and requires
+direct answering. Direct replies are marked, audited, and profiled separately.
 report prints a redacted local file and issue URL; it never submits anything.
+Type /report in the Assistant for a local report and Discord #pilot-help summary.
 --include-request opts in to request words; --open opens the browser for review.
 The model face keeps five diagnostic turns in memory; --no-report-buffer disables it.
 Profiles and the default rewrites.jsonl log live in the user's data dir/{binary}.
@@ -129,9 +132,12 @@ struct ModelArgs {
     listen: SocketAddr,
     #[arg(long, value_parser = upstream)]
     upstream: Option<String>,
-    /// Answer exact recipes without a model, with normal SolidCraft approval.
-    #[arg(long)]
+    /// Accepted no-op alias for default exact answers with normal approval and validation.
+    #[arg(long, conflicts_with = "no_direct_recipes")]
     direct_recipes: bool,
+    /// Send everything to the model instead of answering exact recipes directly.
+    #[arg(long)]
+    no_direct_recipes: bool,
     #[arg(long, default_value = "300", value_parser = clap::value_parser!(u64).range(1..=3600))]
     upstream_timeout: u64,
     #[arg(long, default_value = "auto", value_parser = fallback)]
@@ -158,6 +164,21 @@ struct ModelArgs {
     no_plan: bool,
     #[arg(long)]
     no_report_buffer: bool,
+}
+
+impl ModelArgs {
+    fn direct_recipes_enabled(&self) -> Result<bool, String> {
+        let enabled = !self.no_direct_recipes && self.dialect != "solidcraft98";
+        if self.upstream.as_deref() == Some("none") && !enabled {
+            return Err(if self.no_direct_recipes {
+                "--upstream none cannot be combined with --no-direct-recipes; enable direct answering or provide an upstream URL"
+            } else {
+                "--upstream none requires direct answering, which is disabled for --dialect solidcraft98"
+            }
+            .into());
+        }
+        Ok(enabled)
+    }
 }
 
 #[derive(Debug, clap::Args)]
@@ -272,27 +293,30 @@ pub fn run_named(cmd: Command, bin: &str) -> Result<i32, Error> {
     validate_bounds(&cmd)?;
     let result = match cmd.action {
         None => output(&help_named(bin)),
-        Some(Action::Model(args)) => model::serve(model::Config {
-            solidcraft98: args.dialect == "solidcraft98",
-            listen: args.listen,
-            no_report_buffer: args.no_report_buffer,
-            // No-model operation is explicit: --upstream none.
-            upstream: args
-                .upstream
-                .unwrap_or_else(|| "http://localhost:11434/v1".into()),
-            direct_recipes: args.direct_recipes,
-            upstream_timeout: std::time::Duration::from_secs(args.upstream_timeout),
-            fallback_prompt: args.fallback_prompt,
-            log: args.log,
-            profile_dir: args.profile_dir,
-            model_settings_enabled: matches!(args.model_settings, Some(None)),
-            model_settings: args.model_settings.flatten(),
-            seed: args.seed,
-            prompt_help: args.prompt_help,
-            no_how: args.no_how,
-            no_hints: args.no_hints,
-            planner: args.planner,
-        }),
+        Some(Action::Model(args)) => {
+            let direct_recipes = args.direct_recipes_enabled()?;
+            model::serve(model::Config {
+                solidcraft98: args.dialect == "solidcraft98",
+                listen: args.listen,
+                no_report_buffer: args.no_report_buffer,
+                // No-model operation is explicit: --upstream none.
+                upstream: args
+                    .upstream
+                    .unwrap_or_else(|| "http://localhost:11434/v1".into()),
+                direct_recipes,
+                upstream_timeout: std::time::Duration::from_secs(args.upstream_timeout),
+                fallback_prompt: args.fallback_prompt,
+                log: args.log,
+                profile_dir: args.profile_dir,
+                model_settings_enabled: matches!(args.model_settings, Some(None)),
+                model_settings: args.model_settings.flatten(),
+                seed: args.seed,
+                prompt_help: args.prompt_help,
+                no_how: args.no_how,
+                no_hints: args.no_hints,
+                planner: args.planner,
+            })
+        }
         Some(Action::How98 { task }) => {
             output(&format!("{}\n", crate::solidcraft98::guidance::help(&task)))
         }
@@ -451,7 +475,8 @@ mod tests {
             model::DEFAULT_UPSTREAM_TIMEOUT.as_secs()
         );
         assert_eq!(args.fallback_prompt, model::FallbackPrompt::Auto);
-        assert!(!args.planner && !args.no_plan && !args.direct_recipes);
+        assert!(!args.planner && !args.no_plan && !args.no_direct_recipes);
+        assert!(args.direct_recipes_enabled().unwrap());
         assert!(parse(&["model", "--direct-recipes", "--upstream", "none"]).is_ok());
         assert!(parse(&["model", "--direct-recipes", "--no-plan"]).is_ok());
         assert!(parse(&["model", "--direct-recipes", "--planner"]).is_ok());
@@ -506,7 +531,7 @@ mod tests {
     }
 
     #[test]
-    fn no_plan_alias_preserves_recipe_opt_ins() {
+    fn no_plan_alias_preserves_recipe_options() {
         for alias in ["--no-plan", "--no-planner"] {
             for enabled in [false, true] {
                 let mut flags = vec!["model", "--direct-recipes", alias];
@@ -521,6 +546,56 @@ mod tests {
                 assert!(!args.no_how && !args.no_hints);
                 assert_eq!(args.fallback_prompt, model::FallbackPrompt::Auto);
             }
+        }
+    }
+
+    #[test]
+    fn direct_recipe_defaults_opt_out_alias_and_dialect() {
+        for (flags, expected) in [
+            (vec![], true),
+            (vec!["--no-direct-recipes"], false),
+            (vec!["--direct-recipes"], true),
+            (vec!["--planner"], true),
+            (vec!["--planner", "--no-direct-recipes"], false),
+            (vec!["--dialect", "solidcraft98"], false),
+            (vec!["--dialect", "solidcraft98", "--direct-recipes"], false),
+            (
+                vec!["--dialect", "solidcraft98", "--no-direct-recipes"],
+                false,
+            ),
+            (vec!["--upstream", "none"], true),
+            (vec!["--upstream", "none", "--direct-recipes"], true),
+        ] {
+            let mut command = vec!["model"];
+            command.extend(flags);
+            let Some(Action::Model(args)) = parse(&command).unwrap().action else {
+                panic!("expected model")
+            };
+            assert_eq!(
+                args.direct_recipes_enabled().unwrap(),
+                expected,
+                "{command:?}"
+            );
+        }
+        for flags in [
+            vec!["model", "--upstream", "none", "--no-direct-recipes"],
+            vec!["model", "--upstream", "none", "--dialect", "solidcraft98"],
+        ] {
+            let Some(Action::Model(args)) = parse(&flags).unwrap().action else {
+                panic!("expected model")
+            };
+            assert!(args
+                .direct_recipes_enabled()
+                .unwrap_err()
+                .contains("--upstream none"));
+        }
+        for flags in [
+            ["model", "--direct-recipes", "--no-direct-recipes"],
+            ["model", "--no-direct-recipes", "--direct-recipes"],
+        ] {
+            let error = parse(&flags).unwrap_err().to_string();
+            assert!(error.contains("--direct-recipes") && error.contains("--no-direct-recipes"));
+            assert!(error.contains("cannot be used with"));
         }
     }
 

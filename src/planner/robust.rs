@@ -1,10 +1,24 @@
-//! Independently written language cases. No held-out requests are read by these tests.
+//! Language cases, including the public cube-centre-hole field regression.
 #![allow(clippy::unwrap_used, clippy::panic)]
 use super::*;
 
 // Every row asserts the complete typed slots, not merely a non-empty plan.
 fn groups() -> Vec<(&'static str, Value, Vec<&'static str>)> {
     vec![
+        ("plate_hole", json!({"Holes":{"size":[20.0,20.0,20.0],"diameter":5.0,"centers":[[10.0,10.0]]}}), vec![
+            "draw a 20mm cube with a 5mm hole through the center",
+            "make a 20mm cube with a 5mm hole through the center",
+            "draw a cube 20mm with a 5mm hole through the centre",
+            "make a 20 mm cube with a 5mm hole through the middle",
+            "draw a box 20x20x20mm with a 5mm through hole in the center",
+            "draw a block 20x20x20mm with a centred 5mm through hole",
+            "create a 20mm cube with a 5mm hole through the middle",
+            "build a cube 20 mm with one centred 5mm through hole",
+            "add a 20mm cube with a 5mm through hole in the centre",
+            "draw a plate 20 by 20 by 20 mm with a centered 5mm through hole",
+            "please draw a 2cm cube with a 0.5cm hole through the center",
+            "make a cube 20mm with a centred through hole radius 2.5mm",
+        ]),
         ("box", json!({"Box":{"size":[84.0,36.0,9.0]}}), vec![
             "ok so I need a solid brick 84x36x9mm thanks",
             "Length: 8.4cm, width: 3.6cm, height: 0.9cm. I want a block.",
@@ -234,6 +248,15 @@ fn independent_exact_slots() {
 fn unsupported_requests_stay_with_model() {
     let c = Catalog::bundled().unwrap();
     let negatives = [
+        "draw a 20mm cube with a 5mm hole",
+        "draw a 20mm cube with a 5mm deep hole through the center",
+        "draw a 20mm cube with a blind 5mm hole through the center",
+        "draw a 20mm cube with a countersunk 5mm hole through the center",
+        "draw a 20mm cube with two 5mm holes through the center",
+        "draw a 20mm cube with a 5mm through hole in the corner",
+        "how do I draw a 20mm cube with a 5mm hole through the center",
+        "do not draw a 20mm cube with a 5mm hole through the center",
+        "draw a 20mm cube and make a sphere radius 5mm",
         "make a cube and fillet all edges of it 2mm",
         "add a box then mirror it across XY",
         "a cube then move it 2mm along X",
@@ -496,5 +519,22 @@ fn normalization_preserves_names_and_removes_trailing_politeness() {
     assert_eq!(
         plan(&req, &c).unwrap().unwrap().slots["Move"]["body"],
         "RaisedPart"
+    );
+}
+
+#[test]
+fn field_cube_hole_expansion_remains_targeted_at_top_centre() {
+    let c = Catalog::bundled().unwrap();
+    let p = plan(
+        &cases::request("draw a 20mm cube with a 5mm hole through the center"),
+        &c,
+    )
+    .unwrap()
+    .unwrap();
+    assert_eq!(p.calls[0]["arguments"]["command"], "solid.box");
+    assert_eq!(p.calls[0]["arguments"]["params"]["length"], 20.0);
+    assert_eq!(
+        p.calls[1]["arguments"],
+        json!({"command":"solid.hole","params":{"position":[10.0,10.0,20.0],"diameter":5.0,"targets":["PilotRecipe1"]}})
     );
 }

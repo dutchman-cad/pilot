@@ -10,7 +10,7 @@ Pilot — a local helper for SolidCraft
 
 Usage:
   dutchman-pilot how "<task>"
-  dutchman-pilot model [--listen 127.0.0.1:11500] [--upstream URL|none] [--direct-recipes]
+  dutchman-pilot model [--listen 127.0.0.1:11500] [--upstream URL|none] [--no-direct-recipes]
                        [--upstream-timeout SECONDS (default 300, max 3600)]
                        [--fallback-prompt auto|on|off] [--prompt-help] [--log FILE]
                        [--profile-dir DIR] [--model-settings [FILE]] [--seed INTEGER]
@@ -36,10 +36,13 @@ model serves /v1/chat/completions and /v1/models; mcp starts the SolidCraft tool
 --planner enables recipe suggestions, matching action prose, and one completion check.
 These plan-text features are off by default; model --no-plan is a no-op alias for
 the default. The MCP face only suggests plans.
---direct-recipes answers exact matches without a model; it can accompany --planner.
-Upstream defaults to Ollama; --upstream none (with --direct-recipes) runs without
-a model. Direct replies are marked, audited, and profiled separately.
+Exact matches are answered without a model by default; --no-direct-recipes sends
+everything to the model. --direct-recipes is a no-op alias for the default;
+it conflicts with --no-direct-recipes. Direct answering can accompany --planner.
+Upstream defaults to Ollama; --upstream none runs without a model and requires
+direct answering. Direct replies are marked, audited, and profiled separately.
 report prints a redacted local file and issue URL; it never submits anything.
+Type /report in the Assistant for a local report and Discord #pilot-help summary.
 --include-request opts in to request words; --open opens the browser for review.
 The model face keeps five diagnostic turns in memory; --no-report-buffer disables it.
 Profiles and the default rewrites.jsonl log live in the user's data dir/dutchman-pilot.
@@ -66,6 +69,7 @@ Flags (including aliases):
 - `--log`
 - `--model`
 - `--model-settings`
+- `--no-direct-recipes`
 - `--no-hints`
 - `--no-how`
 - `--no-plan`

@@ -8,7 +8,7 @@ tool mode remain enabled. In plan mode, the model receives SolidCraft's tool
 results and writes the final answer. The MCP `plan` tool exposes suggestions only
 and never converts prose into actions.
 
-`--direct-recipes` opts into exact matches without an upstream model request,
+Exact matches are answered directly by default without an upstream model request,
 including capability probes. Pilot emits native `tool_calls` using the client's
 advertised `execute` and, for multi-step geometry, `batch` shapes; SolidCraft
 validates and approves them normally. Streaming requests receive valid SSE.
@@ -23,11 +23,14 @@ with `--planner`, when a leading clause matches, Pilot offers that computed plan
 in context and asks the model to submit calls for the whole request. Offered calls still need
 client approval and results; they are never described as already executed.
 
-Use `--upstream none` with `--direct-recipes` for a no-model assistant.
+Use `--upstream none` for a no-model assistant; it rejects `--no-direct-recipes`.
 `/v1/models` then lists `pilot-recipes`; other requests receive a fixed
-no-model explanation listing supported kinds from the recipe table. Without
-`--direct-recipes`, the upstream default remains Ollama. `--direct-recipes` works
-independently of `--planner` and accepts `--no-plan`. Both opt-ins may be combined:
+no-model explanation listing supported kinds from the recipe table. Otherwise,
+the upstream default remains Ollama. `--no-direct-recipes` sends everything to the
+model; `--direct-recipes` is a no-op alias for the default and conflicts with that
+opt-out. Direct answering stays disabled for `--dialect solidcraft98`, even with
+`--direct-recipes`. Direct answering works independently of `--planner` and accepts
+`--no-plan`. It can accompany `--planner`:
 exact matches take the direct path, while plan-text suggestions are available
 on the model path. Direct mode retains its own continuations and measured checks.
 
@@ -53,7 +56,7 @@ intents are left to the model. There is no benchmark wording or task-id matching
 | Cylinder / rod / disc / disk / puck / coin | Explicit radius or diameter (also `Ø`, “across”, or “wide”), and height / tall / high / thick / deep / length / long. “Round disc” also works. |
 | Sphere / ball | Explicit radius or diameter / `Ø` / across / wide. |
 | Hollow tube | Outer and inner diameter (`OD` / `ID`), or outer diameter and wall thickness, plus length / height. Inner diameter must be positive and smaller than outer diameter. A new named cylinder and targeted axial through hole leave existing bodies untouched. |
-| Plate with centred hole | Plate dimensions, hole radius or diameter, centred / middle, and through. “One centred 6mm through hole” uses 6mm as its diameter. |
+| Plate with centred hole | Box/block/plate dimensions or one cube side, hole size, centre/center/middle or centred/centered, and through (including “hole through the center”). An unqualified “5mm hole” means diameter 5mm, as does “one centred 6mm through hole”. “Draw” works wherever “make” does. |
 | Plate with positioned holes | Plate dimensions, integer count, common hole radius or diameter, through, and exactly that many `(x,y)` positions after `at`. Also two holes at a specified inset from each short end, halfway across the width (or each end on the centre line of a nonsquare plate); four holes at a specified common inset from both adjacent edges at each corner. Positions use the plate's origin corner, with Z supplied from its thickness. |
 | Plate with rectangular hole pattern | Plate dimensions, hole size, through, centred rectangular pattern, rows, columns, and X × Y pitch. An optional total count must agree. |
 | Plate with circular hole pattern | Plate dimensions, hole size, through, centred circular pattern radius or diameter, count, equally spaced, and explicit `starting at +X`. |
@@ -152,7 +155,7 @@ build a plate 80x60x6mm with 2 through holes diameter 4mm at (12mm,15mm), (65mm,
 shell a box 70x50x30mm wall 2mm open top
 ```
 
-In `--direct-recipes` mode only, an edit whose geometry slots already parse but
+With direct answering enabled, an edit whose geometry slots already parse but
 whose current body is unknown can first emit one read-only `execute` call to
 `document.inspect` with `measure:true` (the public catalogue's inspect equivalent).
 No mutation uses a provisional body name. The continuation validates every

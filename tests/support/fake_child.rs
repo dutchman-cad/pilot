@@ -71,6 +71,14 @@ fn main() {
                     result = json!({"isError":true,"content":[{"type":"text","text":"unknown parameter Height; missing required height"}]});
                     Value::Null
                 }
+                "execute" if args["command"] == "solid.box" && args["params"]["length"].is_number() => {
+                    changes += 1;
+                    json!({"created_bodies":["Body1"]})
+                }
+                "batch" if args["commands"][0]["params"]["length"].is_number() => {
+                    changes += 1;
+                    json!({"ok":true,"results":[{"created_bodies":["Body1"]}]})
+                }
                 "execute" | "batch" => { changes += 1; json!({"changed":false}) }
                 "count" => json!({"executions":changes,"inspections":inspections}),
                 _ => json!({"ok":true}),

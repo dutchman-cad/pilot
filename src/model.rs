@@ -674,14 +674,6 @@ impl Proxy {
             .to_string();
         let key = serde_json::to_string(&(&self.cfg.upstream, &model))
             .map_err(|_| "cannot encode profile key")?;
-        if !self.profiles.contains_key(&key) && self.profiles.len() >= MAX_PROFILES {
-            return Err("profile limit of 256 models reached".into());
-        }
-        let mut profile = self.profiles.remove(&key).unwrap_or_else(|| Profile {
-            upstream: self.cfg.upstream.clone(),
-            model: model.clone(),
-            ..Profile::default()
-        });
         let mut audit = Audit {
             events: None,
             file: self
@@ -697,6 +689,31 @@ impl Proxy {
             count: 0,
             kinds: BTreeMap::new(),
         };
+        if let Some(note) = crate::report::chat_command(last_user(&body)) {
+            let text = match crate::report::chat_reply(
+                self.turns.turns(),
+                self.cfg.no_report_buffer,
+                note,
+                self.cfg.profile_dir.as_deref(),
+            ) {
+                Ok(text) => text,
+                Err(error) => format!("Pilot report: Could not save a report: {error}. Try `dutchman-pilot report` in the CLI."),
+            };
+            audit.record(
+                "pilot_report_reply",
+                &Value::Null,
+                &json!({"from_model":false,"text":text}),
+            )?;
+            return direct::reply(&body, text, audit.count);
+        }
+        if !self.profiles.contains_key(&key) && self.profiles.len() >= MAX_PROFILES {
+            return Err("profile limit of 256 models reached".into());
+        }
+        let mut profile = self.profiles.remove(&key).unwrap_or_else(|| Profile {
+            upstream: self.cfg.upstream.clone(),
+            model: audit.model.clone(),
+            ..Profile::default()
+        });
         let mut captured = if self.cfg.no_report_buffer {
             None
         } else {
@@ -1438,21 +1455,22 @@ fn append_hints(body: &mut Value, catalog: &Catalog, audit: &mut Audit) -> Resul
         .rposition(|m| m["role"] != "tool")
         .map_or(0, |i| i + 1);
     let mut previous = None;
+    let mut placement_count = 0;
     for i in 0..messages.len() {
         if messages[i]["role"] != "tool" {
             continue;
         }
         let id = messages[i]["tool_call_id"].as_str();
-        let name = id
-            .and_then(|id| {
-                messages[..i]
-                    .iter()
-                    .rev()
-                    .filter_map(|m| m["tool_calls"].as_array())
-                    .flat_map(|calls| calls.iter())
-                    .find(|call| call["id"].as_str() == Some(id))
-                    .and_then(|call| call["function"]["name"].as_str())
-            })
+        let call = id.and_then(|id| {
+            messages[..i]
+                .iter()
+                .rev()
+                .filter_map(|m| m["tool_calls"].as_array())
+                .flat_map(|calls| calls.iter())
+                .find(|call| call["id"].as_str() == Some(id))
+        });
+        let name = call
+            .and_then(|call| call["function"]["name"].as_str())
             .or_else(|| messages[i]["name"].as_str())
             .unwrap_or("");
         let change = matches!(name, "execute" | "batch");
@@ -1464,9 +1482,25 @@ fn append_hints(body: &mut Value, catalog: &Catalog, audit: &mut Audit) -> Resul
         };
         let after = data.get("after").unwrap_or(&data);
         let before = data.get("before").or(previous.as_ref());
-        let hint = (i >= start)
+        let mut hint = (i >= start)
             .then(|| guidance::state_hint(before, after, change, Some(catalog)))
-            .flatten();
+            .flatten()
+            .map(|h| h.split_whitespace().collect::<Vec<_>>().join(" "));
+        if i >= start && placement_count < 4 {
+            if let Some(args) = call.and_then(|call| call["function"].get("arguments")) {
+                let parsed = args
+                    .as_str()
+                    .and_then(|s| serde_json::from_str::<Value>(s).ok());
+                let placements =
+                    guidance::placement_hints(name, parsed.as_ref().unwrap_or(args), &data);
+                for placement in placements.into_iter().take(4 - placement_count) {
+                    placement_count += 1;
+                    hint = Some(
+                        hint.map_or_else(|| placement.clone(), |h| format!("{h}\n{placement}")),
+                    );
+                }
+            }
+        }
         if after.get("bodies").is_some()
             || after.get("sketches").is_some()
             || after.get("active_sketch").is_some()
@@ -1477,7 +1511,10 @@ fn append_hints(body: &mut Value, catalog: &Catalog, audit: &mut Audit) -> Resul
             let line = format!(
                 "{} {}",
                 crate::identity::HINT,
-                hint.split_whitespace().collect::<Vec<_>>().join(" ")
+                hint.lines()
+                    .map(|line| line.split_whitespace().collect::<Vec<_>>().join(" "))
+                    .collect::<Vec<_>>()
+                    .join("\n")
             );
             let content = &mut messages[i]["content"];
             let before = content.clone();
@@ -2338,6 +2375,141 @@ mod tests {
     impl Drop for Fixture {
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.dir);
+        }
+    }
+    #[test]
+    fn chat_reports_are_local_redacted_and_never_captured_or_profiled() {
+        for dialect98 in [false, true] {
+            for stream in [false, true] {
+                let mut f = Fixture::new(vec![]);
+                f.proxy.cfg.solidcraft98 = dialect98;
+                if stream {
+                    f.proxy.cfg.upstream = "none".into();
+                }
+                let mut failed = crate::report::offline(&json!({"model":"test-model", "messages":[{"role":"user","content":"PrivateRequestWord"}]})).unwrap();
+                failed.failed = true;
+                failed.names.push(("Hidden Gear".into(), "Body".into()));
+                failed.event(
+                    "provider_error",
+                    json!({"error":"failed Hidden Gear /private/design.step PrivateRequestWord"}),
+                );
+                f.proxy.turns.push(failed.clone());
+                let mut good = failed;
+                good.failed = false;
+                good.model = "other-model".into();
+                f.proxy.turns.push(good);
+                // Also exclude report requests retained by an older capture producer.
+                let old = crate::report::offline(
+                    &json!({"messages":[{"role":"user","content":"/report"}]}),
+                )
+                .unwrap();
+                f.proxy.turns.push(old);
+                let note = "/REPORT failed Hidden Gear /private/note.step jane@example.com https://private.example 192.0.2.4 sk-private-secret-token";
+                let response = f.chat(json!({"stream":stream,"stream_options":{"include_usage":true},"messages":[{"role":"user","content":note}]}));
+                assert_eq!(response.status, 200);
+                assert_eq!(response.rewrites, 1);
+                let value = if stream {
+                    assert_eq!(response.content_type, "text/event-stream");
+                    assert!(response.body.ends_with(b"data: [DONE]\n\n"));
+                    collect_sse(&response.body).unwrap()
+                } else {
+                    assert_eq!(response.content_type, "application/json");
+                    serde_json::from_slice(&response.body).unwrap()
+                };
+                assert_eq!(value["choices"][0]["message"]["role"], "assistant");
+                assert_eq!(value["choices"][0]["finish_reason"], "stop");
+                assert!(value["choices"][0]["message"].get("tool_calls").is_none());
+                let text = value["choices"][0]["message"]["content"].as_str().unwrap();
+                assert!(text.starts_with("Pilot report: Saved a redacted report to "));
+                assert!(text.ends_with("Nothing was sent. Open the link to review and submit."));
+                let block = text
+                    .split("```text\n")
+                    .nth(1)
+                    .unwrap()
+                    .split("\n```")
+                    .next()
+                    .unwrap();
+                assert_eq!(block.lines().count(), 5);
+                for prefix in [
+                    "Pilot version:",
+                    "Model: test-model",
+                    "Request shape:",
+                    "Outcome:",
+                    "Issue link:",
+                ] {
+                    assert!(block.contains(prefix), "{block}");
+                }
+                let files: Vec<_> = fs::read_dir(f.dir.join("reports")).unwrap().collect();
+                assert_eq!(files.len(), 1);
+                let report = fs::read_to_string(files[0].as_ref().unwrap().path()).unwrap();
+                assert!(report.contains("Turn: 1"));
+                assert!(report.contains("Tester note (redacted)"));
+                assert!(report.contains("Body1"));
+                assert!(report.contains("[path]"));
+                for private in [
+                    "Hidden Gear",
+                    "/private/",
+                    "jane@example.com",
+                    "private.example",
+                    "192.0.2.4",
+                    "sk-private-secret-token",
+                    "PrivateRequestWord",
+                ] {
+                    assert!(!report.contains(private), "leaked {private}: {report}");
+                    assert!(!block.contains(private));
+                }
+                assert!(!report.contains("Request text (explicitly included"));
+                assert_eq!(f.proxy.turns.turns().len(), 3);
+                assert!(f.proxy.profiles.is_empty());
+                assert!(f.proxy.conversations.is_empty());
+                assert!(f
+                    .proxy
+                    .scripted
+                    .as_ref()
+                    .unwrap()
+                    .borrow()
+                    .requests
+                    .is_empty());
+                assert!(fs::read_to_string(f.dir.join("log.jsonl"))
+                    .unwrap()
+                    .contains("pilot_report_reply"));
+            }
+        }
+    }
+    #[test]
+    fn chat_report_empty_disabled_and_real_requests() {
+        for disabled in [false, true] {
+            let mut f = Fixture::new(vec![]);
+            f.proxy.cfg.no_report_buffer = disabled;
+            let response = f.chat(json!({"messages":[{"role":"user","content":"report this"}]}));
+            let value: Value = serde_json::from_slice(&response.body).unwrap();
+            let text = value["choices"][0]["message"]["content"].as_str().unwrap();
+            assert_eq!(text.lines().count(), 1);
+            assert!(text.contains(if disabled { "disabled" } else { "empty" }));
+            assert!(text.contains("dutchman-pilot report"));
+            assert!(f
+                .proxy
+                .scripted
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .requests
+                .is_empty());
+            assert!(f.proxy.turns.turns().is_empty());
+        }
+        for request in [
+            "/reporting",
+            "please report the volume",
+            "report the body count",
+        ] {
+            let mut f = Fixture::new(vec![reply("ordinary model answer")]);
+            f.proxy.cfg.planner = false;
+            let response = f.chat(json!({"messages":[{"role":"user","content":"/report"},{"role":"user","content":request}]}));
+            assert_eq!(response.status, 200);
+            assert_eq!(
+                f.proxy.scripted.as_ref().unwrap().borrow().requests.len(),
+                1
+            );
         }
     }
     #[test]
@@ -3337,6 +3509,57 @@ mod tests {
             1
         );
         assert_eq!(f.proxy.profiles.values().next().unwrap().hand_backs, 2);
+    }
+
+    #[test]
+    fn field_report_box_creation_gets_placement_hint_by_default() {
+        let state = json!({"bodies":["Body1"],"changed_bodies":[],"created_bodies":["Body1"],"feature":1,"name":"Box1","removed_bodies":[],"warning":null}).to_string();
+        let mut req = request();
+        req["messages"] = json!([
+            {"role":"user","content":"draw a 20mm cube with a 5mm hole through the center"},
+            call("execute", json!({"command":"solid.box","params":{"length":20,"width":20,"height":20}}))["choices"][0]["message"],
+            {"role":"tool","tool_call_id":"native","content":state}
+        ]);
+        let mut f = Fixture::new(vec![reply("Ready.")]);
+        f.proxy.cfg.planner = false;
+        assert!(!f.proxy.cfg.planner);
+        assert!(!f.proxy.cfg.direct_recipes);
+        assert_eq!(f.chat(req.clone()).status, 200);
+        assert_eq!(load_profiles(Some(&f.dir), None).unwrap()[0].hints_added, 1);
+        let script = f.proxy.scripted.as_ref().unwrap().borrow();
+        assert_eq!(script.requests[0]["messages"][2]["content"], format!("{state}\n[dutchman-pilot hint] Body1 spans X 0..20, Y 0..20, Z 0..20 mm; its centre is (10, 10, 10) and its top face centre is (10, 10, 20)."));
+        drop(script);
+        let mut f = Fixture::new(vec![reply("Ready.")]);
+        f.proxy.cfg.planner = false;
+        f.proxy.cfg.no_hints = true;
+        f.chat(req.clone());
+        assert_eq!(f.proxy.scripted.as_ref().unwrap().borrow().requests[0], req);
+    }
+
+    #[test]
+    fn placement_hints_cap_bodies_across_trailing_tool_results() {
+        let args = json!({"commands":[{"command":"solid.box","params":{"length":20,"width":20,"height":20}}]});
+        let mut calls = Vec::new();
+        let mut messages = vec![json!({"role":"user","content":"make eight boxes"})];
+        for i in 0..8 {
+            calls.push(json!({"id":format!("box{i}"),"type":"function","function":{"name":"batch","arguments":args.to_string()}}));
+        }
+        messages.push(json!({"role":"assistant","tool_calls":calls}));
+        for i in 0..8 {
+            messages.push(json!({"role":"tool","tool_call_id":format!("box{i}"),"content":json!({"ok":true,"results":[{"created_bodies":[format!("Body{i}")]}]}).to_string()}));
+        }
+        let mut req = request();
+        req["messages"] = json!(messages);
+        let mut f = Fixture::new(vec![reply("Ready.")]);
+        f.proxy.cfg.planner = false;
+        assert_eq!(f.chat(req).status, 200);
+        let script = f.proxy.scripted.as_ref().unwrap().borrow();
+        let sent = script.requests[0]["messages"].as_array().unwrap();
+        let hints = sent
+            .iter()
+            .filter(|m| m["role"] == "tool" && m["content"].as_str().unwrap().contains("spans X"))
+            .count();
+        assert_eq!(hints, 4);
     }
 
     #[test]

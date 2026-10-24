@@ -214,3 +214,179 @@ fn near(a: &str, b: &str) -> bool {
         && a[differences[0]] == b[differences[1]]
         && a[differences[1]] == b[differences[0]]
 }
+
+/// Placement facts use only numeric call parameters and explicitly created bodies.
+/// SolidCraft 0.20's public binary confirms the default box corner is the origin.
+#[cfg(feature = "proxy")]
+pub(crate) fn placement_hints(name: &str, args: &Value, result: &Value) -> Vec<String> {
+    fn number(v: &Value) -> Option<f64> {
+        let n = v
+            .as_f64()
+            .or_else(|| v.as_str().filter(|s| s.len() <= 64)?.parse().ok())?;
+        (n.is_finite() && n.abs() <= 1_000_000.0).then_some(n)
+    }
+    fn point(v: &Value) -> Option<[f64; 3]> {
+        let a = v.as_array()?;
+        if a.len() != 3 {
+            return None;
+        }
+        Some([number(&a[0])?, number(&a[1])?, number(&a[2])?])
+    }
+    fn box_hint(call: &Value, result: &Value) -> Option<(Vec<String>, String)> {
+        if call["command"] != "solid.box"
+            || result["isError"] == true
+            || result["ok"] == false
+            || result.get("error").is_some_and(|v| !v.is_null())
+        {
+            return None;
+        }
+        let p = &call["params"];
+        let size = [
+            number(&p["length"])?,
+            number(&p["width"])?,
+            number(&p["height"])?,
+        ];
+        if size.iter().any(|n| *n <= 0.0)
+            || (p.get("corner").is_some() && p.get("center").is_some())
+        {
+            return None;
+        }
+        let lo = if let Some(v) = p.get("center") {
+            let c = point(v)?;
+            std::array::from_fn(|i| c[i] - size[i] / 2.0)
+        } else if let Some(v) = p.get("corner") {
+            point(v)?
+        } else {
+            [0.0; 3]
+        };
+        let hi: [f64; 3] = std::array::from_fn(|i| lo[i] + size[i]);
+        let c: [f64; 3] = std::array::from_fn(|i| lo[i] + size[i] / 2.0);
+        let names = result["created_bodies"]
+            .as_array()?
+            .iter()
+            .take(4)
+            .filter_map(Value::as_str)
+            .filter(|s| !s.is_empty() && s.len() <= 128 && !s.chars().any(char::is_control))
+            .map(str::to_owned)
+            .collect();
+        Some((names, format!("spans X {}..{}, Y {}..{}, Z {}..{} mm; its centre is ({}, {}, {}) and its top face centre is ({}, {}, {}).", lo[0], hi[0], lo[1], hi[1], lo[2], hi[2], c[0], c[1], c[2], c[0], c[1], hi[2])))
+    }
+    if result["isError"] == true
+        || result["ok"] == false
+        || result.get("error").is_some_and(|v| !v.is_null())
+    {
+        return Vec::new();
+    }
+    let mut hints = Vec::new();
+    let mut seen = Vec::new();
+    let pairs: Vec<(&Value, &Value)> = match name {
+        "execute" => vec![(args, result)],
+        "batch" => args["commands"]
+            .as_array()
+            .zip(result["results"].as_array())
+            .map(|(calls, results)| calls.iter().zip(results).take(128).collect())
+            .unwrap_or_default(),
+        _ => Vec::new(),
+    };
+    for (call, result) in pairs {
+        if let Some((names, facts)) = box_hint(call, result) {
+            for name in names {
+                if hints.len() < 4 && !seen.contains(&name) {
+                    let line = format!("{name} {facts}");
+                    if line.len() <= 1024 {
+                        hints.push(line);
+                        seen.push(name);
+                    }
+                }
+            }
+        }
+    }
+    hints
+}
+
+#[cfg(all(test, feature = "proxy"))]
+#[allow(clippy::unwrap_used)]
+mod placement_tests {
+    use super::*;
+
+    fn call(params: Value) -> Value {
+        json!({"command":"solid.box", "params":params})
+    }
+    fn created(name: &str) -> Value {
+        json!({"created_bodies":[name]})
+    }
+
+    #[test]
+    fn numeric_box_placements_and_expressions() {
+        let p = json!({"length":20,"width":20,"height":20});
+        let hints = placement_hints("execute", &call(p.clone()), &created("Body1"));
+        assert_eq!(hints, ["Body1 spans X 0..20, Y 0..20, Z 0..20 mm; its centre is (10, 10, 10) and its top face centre is (10, 10, 20)."]);
+        let mut p = p;
+        p["corner"] = json!([-10, 2, 3]);
+        assert!(
+            placement_hints("execute", &call(p.clone()), &created("Body1"))[0]
+                .contains("X -10..10, Y 2..22, Z 3..23")
+        );
+        p.as_object_mut().unwrap().remove("corner");
+        p["center"] = json!([0, 0, 0]);
+        assert!(
+            placement_hints("execute", &call(p.clone()), &created("Body1"))[0]
+                .contains("centre is (0, 0, 0) and its top face centre is (0, 0, 10)")
+        );
+        p["length"] = json!("20");
+        assert_eq!(
+            placement_hints("execute", &call(p.clone()), &created("Body1")).len(),
+            1
+        );
+        for bad in [
+            json!("W / 2"),
+            json!(0),
+            json!(-1),
+            json!(1e20),
+            json!(null),
+        ] {
+            p["length"] = bad;
+            assert!(placement_hints("execute", &call(p.clone()), &created("Body1")).is_empty());
+        }
+    }
+
+    #[test]
+    fn success_evidence_and_bounded_batches() {
+        let c = call(json!({"length":20,"width":20,"height":20}));
+        for result in [
+            json!({}),
+            json!({"bodies":["Body1"]}),
+            json!({"created_bodies":["Body1"],"error":"failed"}),
+            json!({"created_bodies":["Body1"],"isError":true}),
+        ] {
+            assert!(placement_hints("execute", &c, &result).is_empty());
+        }
+        let calls = vec![c; 8];
+        let results: Vec<Value> = (0..8).map(|i| created(&format!("Body{i}"))).collect();
+        assert_eq!(
+            placement_hints(
+                "batch",
+                &json!({"commands":calls}),
+                &json!({"results":results})
+            )
+            .len(),
+            4
+        );
+        let c = call(json!({"length":20,"width":20,"height":20}));
+        assert_eq!(
+            placement_hints(
+                "batch",
+                &json!({"commands":[{"command":"sketch.create"},c]}),
+                &json!({"results":[{},created("Body2")]})
+            )
+            .len(),
+            1
+        );
+        assert!(placement_hints(
+            "execute",
+            &json!({"command":"solid.sphere","params":{"radius":5}}),
+            &created("Body1")
+        )
+        .is_empty());
+    }
+}

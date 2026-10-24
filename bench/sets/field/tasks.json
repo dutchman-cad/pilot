@@ -1,0 +1,22 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "format": 1,
+  "tasks": [
+    {
+      "id": "cube-centre-hole",
+      "prompt": "draw a 20mm cube with a 5mm hole through the center",
+      "check": {
+        "bodies": 1,
+        "volume": 7607.3,
+        "tol": 6.572634180326791e-05,
+        "bbox_size": [
+          20,
+          20,
+          20
+        ]
+      },
+      "reference": "references/cube-centre-hole.json",
+      "setup_steps": 0
+    }
+  ]
+}

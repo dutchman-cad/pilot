@@ -267,7 +267,7 @@ def endpoint(args, out):
         port = sock.getsockname()[1]
     with (out / 'pilot.log').open('wb') as log:
         child = subprocess.Popen([args.through_pilot, 'model', '--listen', f'127.0.0.1:{port}',
-                                  '--upstream', upstream], stdout=log, stderr=log)
+                                  '--upstream', upstream, '--no-direct-recipes'], stdout=log, stderr=log)
         try:
             for _ in range(100):
                 if child.poll() is not None:

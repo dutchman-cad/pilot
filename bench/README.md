@@ -37,6 +37,7 @@ with the original replay, so migration differences identify the affected task.
 
 | Set | Tasks | Measures |
 | --- | ---: | --- |
+| field | 1 | Verbatim user field reports; centred cube hole placement |
 | v1 | 11 | Primitives, sketch/extrude, holes, fillets, moving, naming, measurement and making a change |
 | v2 | 12 | More involved geometry, parameter edits, patterns, selected edges, threads, assemblies, constrained sketches and measurement |
 | v3 | 40 | Solid builds/edits, sheet metal and honest refusals; a selected subset, with no claimed difficulty calibration |
@@ -71,8 +72,12 @@ python3 bench/report.py results/v1-direct/results.jsonl results/v1-pilot/results
 ```
 
 Use `--set v2` and distinct output directories for v2. `--through-pilot` starts
-`dutchman-pilot model --listen ... --upstream ...` on an available loopback port
-and stops it on exit. It uses Pilot's default options; record the Pilot version
+`dutchman-pilot model --listen ... --upstream ... --no-direct-recipes` on an available
+loopback port and stops it on exit. Exact matches are now on by default in Pilot;
+the runner disables them to preserve the earlier model measurements. The direct
+endpoint (A) does not launch Pilot. For separate plan-text measurements, also pass
+`--no-direct-recipes` alongside `--planner` when launching Pilot manually.
+Record the Pilot version
 when sharing results. The endpoint must already serve the selected model.
 The output directory must have no existing `results.jsonl`.
 
@@ -88,11 +93,11 @@ python3 bench/run.py --set v1 --solidcraft /path/to/solidcraft-cli \
 python3 -m unittest discover -s bench/tests -v
 ```
 
-All eight set names work with every runner mode. For each additional set, run
+All nine catalogue set names work with every runner mode. For each additional set, run
 both paths with the same model and repetition count:
 
 ```sh
-for SET in v2 v3 multiturn recovery constraints joints units; do
+for SET in v2 v3 multiturn recovery constraints joints units field; do
   python3 bench/run.py --set "$SET" --model MODEL --endpoint http://127.0.0.1:11434 \
     --solidcraft /path/to/solidcraft-cli --reps 3 --out "results/$SET-direct"
   python3 bench/run.py --set "$SET" --model MODEL --endpoint http://127.0.0.1:11434 \

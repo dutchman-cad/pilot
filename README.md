@@ -23,12 +23,14 @@ command line. The same commands also come as a standalone download,
   and one measured completion check. These plan-text features are off by default;
   `--no-plan` (alias `--no-planner`) is accepted as a no-op.
 - Text tool mode for models without native tools, with automatic retry and saved profiles.
-- Opt-in `--direct-recipes`: native tool proposals and measured replies without a
-  model, with normal client approval; `--upstream none` supports recipe-only use.
+- Exact matches use native tool proposals and measured replies without a model
+  by default, with normal client approval; `--upstream none` supports recipe-only use.
+  Use `--no-direct-recipes` to send everything to the model.
 - Argument repair, text-call pickup, command lookup, hints, buffered streaming,
   and bounded retries remain enabled by default, with audited rewrites.
 - Local, redacted [bug reports](docs/report.md) from five memory-only turns or offline
-  planner replay. Request words require `--include-request`; you review and submit.
+  planner replay: type `/report` in the Assistant. Chat reports omit request words;
+  the CLI can include them with `--include-request`. You review and submit.
 
 For SolidCraft 98, start `dutchman pilot mcp98 --program /path/to/sc98 --headless`
 as an MCP server, or attach with `--connect 127.0.0.1:9898` to an application started with `/REMOTE`
@@ -37,8 +39,9 @@ as an MCP server, or attach with `--connect 127.0.0.1:9898` to an application st
 
 See [recipes and their limits](docs/recipes.md).
 
-**Small models:** For 3–8B models, use `--direct-recipes` with your upstream URL.
-Exact matches bypass the model, and their replies are marked **"Exact match (no model):"**.
+**Small models:** For 3–8B models, exact matches are on by default with your upstream URL.
+Use `--no-direct-recipes` to send everything to the model. Exact matches bypass the model,
+and their replies are marked **"Exact match (no model):"**.
 The proposed calls still go through SolidCraft's approval and validation.
 Other requests go to the model. Keep plan-text recipes off unless you want to try
 `--planner`; they reduced reliability in measurements with small models.
@@ -176,8 +179,9 @@ Run the public [SolidCraft Assistant model benchmarks](bench/) directly or throu
 ## Help and community
 
 - Questions and discussion: the [Dutchman CAD Discord](https://discord.gg/yTcseBEdeu).
-- Bugs: open an [issue](https://github.com/dutchman-cad/pilot/issues). `dutchman pilot report`
-  writes a redacted report you can review and paste there.
+- Bugs: type `/report` in SolidCraft's Assistant, or run `dutchman pilot report`. Either
+  writes a redacted report and a prefilled [issue](https://github.com/dutchman-cad/pilot/issues)
+  link you review before submitting.
 - Results with your own model: add them to [#1](https://github.com/dutchman-cad/pilot/issues/1).
 
 Licensed under [Apache-2.0](LICENSE). See [NOTICE](NOTICE).

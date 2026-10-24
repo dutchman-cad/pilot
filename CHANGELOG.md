@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+## 0.1.0-beta.4 (2026-10-24)
+
+- Exact matches are answered without the model by default; `--no-direct-recipes` opts out.
+- Centred holes in cubes and boxes, from a user report, with box placement hints.
+- Type `/report` in the Assistant for a local redacted report and issue link.
+- A public field-report benchmark set.
+
+### Added
+
+- Type `/report` in the Assistant to save a local redacted report, with a prefilled
+  issue link and a paste-ready Discord #pilot-help summary, without calling a model.
+- A public field-report benchmark set, starting with a cube with a centred hole,
+  checked by volume, with a corner-hole negative.
+- After a box is created, both faces add one audited hint with its extent, centre,
+  and top face centre, computed from the call's numeric parameters.
+
+### Changed
+
+- Exact-match answers are on by default on the model face, through the same client
+  approval and SolidCraft validation. `--no-direct-recipes` sends everything to the
+  model; `--direct-recipes` remains a no-op alias and conflicts with the opt-out.
+  `--upstream none` no longer needs a flag and rejects the opt-out. SolidCraft 98
+  keeps direct answering disabled; `--planner` remains independent.
+- Benchmark Pilot launches disable direct recipes to preserve earlier comparisons.
+- The centred-hole recipe accepts cubes with one side, boxes and blocks, “draw”,
+  “hole through the center”, and an unqualified hole size as its diameter.
+
 ## 0.1.0-beta.3 (2026-10-24)
 
 - SolidCraft 98 support through its public remote protocol.
