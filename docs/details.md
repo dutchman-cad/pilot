@@ -25,6 +25,25 @@ rewrite is needed. Guards return at most two nudges to the model per turn; empty
 replies get one retry. Provider failures retain HTTP status and return a human
 message plus `error.code`. It never executes a command itself.
 
+Argument reconciliation preserves meaning: only equivalent spellings (case or
+separators) may be renamed. A matching type never justifies
+moving a value to another parameter: radius is never diameter, and width is never
+height. Catalogue alternatives such as `radius | diameter: number` declare both
+names and require either, rather than requiring the last name. Unknown fields
+remain for SolidCraft's validation unless the advertised schema forbids them.
+Stringified containers must parse completely as the schema's declared container,
+including the supported JSON5 subset or fences; nested values are never repaired
+by inserting or dropping brackets. Coordinates and units are preserved.
+
+When the catalogue declares `sketch.line`'s `points`, exactly two parameters
+`p0` and `p1`, each a 2D point, can be reshaped to `points: [p0, p1]`.
+Other endpoint shapes receive the expected-shape hand-back; 3D coordinates are
+never flattened. Invalid enum values, including extrude operation `create`, get
+the allowed catalogue values instead of a guessed replacement. These rewrites
+use the existing audit log and retry limits, and SolidCraft validates every call.
+The MCP face likewise suggests only equivalent parameter spellings, never a
+same-type semantic substitution, and never re-runs suggestions automatically.
+
 The model face advertises `how` using the same schema and command discovery as
 the tools face. Pilot answers it locally and re-asks the model; SolidCraft receives
 only the final reply. Up to three local answers share a three-hand-back budget
@@ -148,9 +167,14 @@ cargo run -- --help
 ```
 
 `how` searches the bundled snapshot of `solidcraft-cli 0.20 commands` in
-`tests/fixtures/commands.json`. It leads with one explicit JSON call and trims the trailing parameter
-docs to 400 characters; it never executes them. Geometry selectors in examples must match the
-current design. The catalogue loader also accepts live CLI JSON and MCP
+`tests/fixtures/commands.json`. It leads with a concrete example when available
+(otherwise `null`), followed by a separately labelled, non-executable typed
+template, and trims trailing parameter docs to 400 characters. Placeholders such
+as `<number mm>` and `<body id from model.bodies>` belong only to templates.
+Examples with unresolved references or enum choices are omitted; an enum choice
+is shown only when the task explicitly names it (for example, revolute).
+Geometry selectors in examples must match the current design; SolidCraft still
+validates the filled call. The catalogue loader also accepts live CLI JSON and MCP
 `list_commands` results. Unsupported tasks return a no-command message and up to
 three nearest alternatives.
 

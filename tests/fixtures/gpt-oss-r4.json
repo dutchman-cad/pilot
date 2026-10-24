@@ -1,0 +1,175 @@
+{
+  "commands": [
+    {
+      "command": "sketch.create",
+      "params": {
+        "plane": "XY"
+      }
+    },
+    {
+      "command": "sketch.rectangle.two_point",
+      "params": {
+        "p0": [
+          -60,
+          -40
+        ],
+        "p1": [
+          60,
+          40
+        ]
+      }
+    },
+    {
+      "command": "sketch.finish",
+      "params": {}
+    },
+    {
+      "command": "solid.extrude",
+      "params": {
+        "distance": 10,
+        "operation": "add"
+      }
+    },
+    {
+      "command": "sketch.create",
+      "params": {
+        "plane": "XY"
+      }
+    },
+    {
+      "command": "sketch.circle.center",
+      "params": {
+        "center": [
+          -37.5,
+          -25
+        ],
+        "radius": 4
+      }
+    },
+    {
+      "command": "sketch.circle.center",
+      "params": {
+        "center": [
+          -37.5,
+          0
+        ],
+        "radius": 4
+      }
+    },
+    {
+      "command": "sketch.circle.center",
+      "params": {
+        "center": [
+          -37.5,
+          25
+        ],
+        "radius": 4
+      }
+    },
+    {
+      "command": "sketch.circle.center",
+      "params": {
+        "center": [
+          -12.5,
+          -25
+        ],
+        "radius": 4
+      }
+    },
+    {
+      "command": "sketch.circle.center",
+      "params": {
+        "center": [
+          -12.5,
+          0
+        ],
+        "radius": 4
+      }
+    },
+    {
+      "command": "sketch.circle.center",
+      "params": {
+        "center": [
+          -12.5,
+          25
+        ],
+        "radius": 4
+      }
+    },
+    {
+      "command": "sketch.circle.center",
+      "params": {
+        "center": [
+          12.5,
+          -25
+        ],
+        "radius": 4
+      }
+    },
+    {
+      "command": "sketch.circle.center",
+      "params": {
+        "center": [
+          12.5,
+          0
+        ],
+        "radius": 4
+      }
+    },
+    {
+      "command": "sketch.circle.center",
+      "params": {
+        "center": [
+          12.5,
+          25
+        ],
+        "radius": 4
+      }
+    },
+    {
+      "command": "sketch.circle.center",
+      "params": {
+        "center": [
+          37.5,
+          -25
+        ],
+        "radius": 4
+      }
+    },
+    {
+      "command": "sketch.circle.center",
+      "params": {
+        "center": [
+          37.5,
+          0
+        ],
+        "radius": 4
+      }
+    },
+    {
+      "command": "sketch.circle.center",
+      "params": {
+        "center": [
+          37.5,
+          25
+        ],
+        "radius": 4
+      }
+    },
+    {
+      "command": "sketch.finish",
+      "params": {}
+    },
+    {
+      "command": "solid.extrude",
+      "params": {
+        "distance": 10,
+        "operation": "cut"
+      }
+    }
+  ],
+  "profile": false,
+  "rollback": true,
+  "timings": false,
+  "verbose": false
+}

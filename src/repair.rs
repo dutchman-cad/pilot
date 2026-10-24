@@ -390,7 +390,15 @@ fn repair_node(
     let kind = schema.get("type").and_then(Value::as_str);
     if matches!(kind, Some("object" | "array")) {
         if let Some(text) = value.as_str() {
-            if let Ok(parsed) = parse_json(text) {
+            size(text)?;
+            let text = strip_fence(text);
+            // Parameter containers must parse completely, without balancing.
+            let parsed = serde_json::from_str::<Value>(text).or_else(|_| {
+                relaxed(text)
+                    .map_err(serde::de::Error::custom)
+                    .and_then(|s| serde_json::from_str(&s))
+            });
+            if let Ok(parsed) = parsed {
                 if (kind == Some("object") && parsed.is_object())
                     || (kind == Some("array") && parsed.is_array())
                 {
@@ -525,6 +533,28 @@ mod tests {
     }
 
     #[test]
+    fn containers_must_parse_exactly_and_preserve_dimensions_and_units() {
+        let schema = json!({"type":"object","properties":{
+            "point":{"type":"array"}, "options":{"type":"object"}, "distance":{"type":"string"}
+        }});
+        for text in ["[15,25", "[15,25]]", "[15,25] trailing", "{x:15}"] {
+            let mut args = json!({"point":text});
+            let before = args.clone();
+            assert!(repair_arguments("execute", &mut args, &schema)
+                .unwrap()
+                .is_empty());
+            assert_eq!(args, before);
+        }
+        let mut args = json!({"point":"[15,25,0]", "options":"{unit:'in',}", "distance":"2 in"});
+        let changes = repair_arguments("execute", &mut args, &schema).unwrap();
+        assert_eq!(
+            args,
+            json!({"point":[15,25,0],"options":{"unit":"in"},"distance":"2 in"})
+        );
+        assert_eq!(changes.len(), 2);
+    }
+
+    #[test]
     fn schema_directed_repairs_and_logging() {
         let schema = json!({"type":"object","properties":{
             "objects":{"type":"array","items":{"type":"object","properties":{"nested":{"type":"object"}}}},
@@ -534,9 +564,9 @@ mod tests {
         let changes = repair_arguments("execute", &mut args, &schema).unwrap();
         assert_eq!(
             args,
-            json!({"objects":[{"nested":{"key":1}}],"object":{"a":[1,2]},"scalar":"[1]","number":"3","unknown":"{}"})
+            json!({"objects":[{"nested":{"key":1}}],"object":"{a:[1,2","scalar":"[1]","number":"3","unknown":"{}"})
         );
-        assert_eq!(changes.len(), 3);
+        assert_eq!(changes.len(), 2);
         assert!(changes.iter().any(|c| c.path == "$.objects[0].nested"));
         assert!(changes
             .iter()

@@ -820,7 +820,8 @@ fn reconcile(
         .keys()
         .filter(|k| !properties.contains_key(*k))
         .collect();
-    // Exactly one unclaimed value and one uniquely identified target; never invent values.
+    // Exactly one unknown spelling and one equivalent target; types alone
+    // cannot identify the intended parameter.
     if unknown.len() != 1 {
         return None;
     }
@@ -833,21 +834,15 @@ fn reconcile(
         .filter_map(Value::as_str)
         .filter(|k| !params.contains_key(*k))
         .collect();
-    let mut candidates: Vec<_> = properties
+    let candidates: Vec<_> = properties
         .iter()
         .filter(|(k, s)| {
             !params.contains_key(*k)
                 && type_matches(&params[source], s, schema, 0)
-                && (norm(source) == norm(k) || same_words(source, k))
+                && norm(source) == norm(k)
         })
         .map(|(k, _)| k.as_str())
         .collect();
-    if candidates.is_empty() && missing.len() == 1 {
-        let key = missing[0];
-        if type_matches(&params[source], properties.get(key)?, schema, 0) {
-            candidates.push(key);
-        }
-    }
     if candidates.len() != 1 {
         return None;
     }
@@ -858,15 +853,6 @@ fn reconcile(
     let value = fixed.remove(source)?;
     fixed.insert(candidates[0].into(), value);
     Some(fixed)
-}
-fn same_words(a: &str, b: &str) -> bool {
-    fn words(s: &str) -> BTreeSet<String> {
-        s.split(|c: char| !c.is_ascii_alphanumeric())
-            .filter(|s| !s.is_empty())
-            .map(str::to_ascii_lowercase)
-            .collect()
-    }
-    words(a) == words(b)
 }
 
 // Freeform docs are a fallback only. Infer types solely from explicit type words,
@@ -980,6 +966,17 @@ mod tests {
     }
     #[test]
     fn corrections_are_unique_and_never_invent_values() {
+        for (source, target) in [
+            ("radius", "diameter"),
+            ("diameter", "radius"),
+            ("distance", "radius"),
+            ("width", "height"),
+            ("start_end", "end_start"),
+        ] {
+            let description =
+                json!({"input":{"properties":{target:{"type":"number"}},"required":[target]}});
+            assert!(reconcile(json!({source:5}).as_object().unwrap(), &description).is_none());
+        }
         let catalog = Catalog::from_json(r#"[{"id":"solid.box","label":"Box","params":""},{"id":"solid.bow","label":"Bow","params":""}]"#).unwrap();
         assert!(unique_close(&catalog, "solid.boz").unwrap().is_none());
         assert_eq!(

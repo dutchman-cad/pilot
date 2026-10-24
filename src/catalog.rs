@@ -27,8 +27,10 @@ pub struct Catalog {
 #[derive(Debug, Serialize)]
 pub struct Match {
     pub command: Command,
-    /// An explicit tool call; selectors refer to the current design.
+    /// A concrete example call, or null when references or choices are unresolved.
     pub example: Value,
+    /// Non-executable typed placeholders, separate from concrete examples.
+    pub template: Value,
 }
 
 #[derive(Debug, Serialize)]
@@ -242,12 +244,12 @@ impl Catalog {
         let call = serde_json::to_string(&found.example)
             .map_err(|e| format!("cannot format example: {e}"))?;
         let params = found
-            .example
+            .template
             .pointer("/arguments/params")
             .and_then(Value::as_object)
             .map(|p| p.keys().cloned().collect::<Vec<_>>().join(", "))
             .unwrap_or_default();
-        let mut text = format!("{call}\n{} — {}. Key parameters: {}.\nExample values are placeholders; replace dimensions/names and pick edge/face coordinates from your current design (mm).", found.command.id, found.command.label, if params.is_empty() { "none" } else { &params });
+        let mut text = format!("{call}\n{} — {}. Key parameters: {}.\nTyped placeholders (template only; never execute): {}\nConcrete examples require dimensions and geometry selectors from your current design (mm).", found.command.id, found.command.label, if params.is_empty() { "none" } else { &params }, found.template);
         if let Some(reason) = &found.command.disabled_reason {
             text.push_str(&format!("\nCurrent catalogue state: {reason}"));
         }
@@ -280,9 +282,10 @@ impl Catalog {
             matches.push(Match {
                 command: command.clone(),
                 example: example(command, task)?,
+                template: template(command),
             });
         }
-        Ok(How { message: "Example calls use the parameter docs; geometry selectors must refer to your current design.".into(), matches, nearest: Vec::new() })
+        Ok(How { message: "Templates contain typed placeholders and must not be executed. A null example means current design values or a choice are needed; concrete examples still require SolidCraft validation.".into(), matches, nearest: Vec::new() })
     }
 }
 
@@ -385,11 +388,69 @@ fn distance(a: &str, b: &str) -> usize {
 pub(crate) fn parameter_schema(doc: &str) -> Value {
     let mut properties = Map::new();
     let mut required = Vec::new();
+    let mut groups = Vec::new();
     for section in top_level_parts(doc, ';').unwrap_or_default() {
         let mut certain = true;
         let mut pending = Vec::new();
         for part in top_level_parts(section, ',').unwrap_or_default() {
             let alternatives = top_level_parts(part, '|').unwrap_or_default();
+            // Shared declarations require a choice, never the last name alone.
+            if alternatives.len() > 1 {
+                if let Some((_, desc)) = alternatives.last().and_then(|s| s.split_once(':')) {
+                    let names: Vec<_> = alternatives
+                        .iter()
+                        .map(|s| s.split_once(':').map_or(*s, |(name, _)| name).trim())
+                        .collect();
+                    if names
+                        .iter()
+                        .all(|name| parameter_name(name.trim_end_matches('?')))
+                    {
+                        let mut choices = Vec::new();
+                        let optional = names.iter().any(|name| name.ends_with('?'));
+                        for (name, alternative) in names.into_iter().zip(&alternatives) {
+                            let key = name.trim_end_matches('?');
+                            let own_desc = alternative.split_once(':').map_or(desc, |(_, d)| d);
+                            let declaration = format!("{key}:{own_desc}");
+                            let schema = parameter_schema(&declaration);
+                            properties.insert(key.into(), schema["properties"][key].clone());
+                            choices.push(json!({"required":[key]}));
+                        }
+                        if !optional {
+                            groups.push(json!({"anyOf":choices}));
+                        }
+                        continue;
+                    }
+                }
+            }
+            let enum_values: Vec<_> = alternatives
+                .iter()
+                .enumerate()
+                .map(|(i, s)| {
+                    let s = if i == 0 {
+                        s.split_once(':').map_or(*s, |(_, d)| d)
+                    } else {
+                        s
+                    };
+                    s.split_whitespace().next().unwrap_or("")
+                })
+                .collect();
+            let is_enum = alternatives.len() > 1
+                && !section.contains(", or ")
+                && alternatives.iter().enumerate().all(|(i, s)| {
+                    let desc = if i == 0 {
+                        s.split_once(':').map_or(*s, |(_, d)| d)
+                    } else {
+                        s
+                    };
+                    let desc = desc.trim();
+                    let head = desc.split_whitespace().next().unwrap_or("");
+                    let suffix = desc.get(head.len()..).unwrap_or("").trim();
+                    suffix.is_empty() || suffix.starts_with('(')
+                })
+                && enum_values.iter().all(|s| {
+                    parameter_name(s)
+                        && !matches!(*s, "id" | "name" | "expr" | "number" | "string" | "bool")
+                });
             // Distinguish enum values from alternative declarations. A choice of
             // declarations cannot justify requiring any single name.
             let choice = alternatives
@@ -401,7 +462,7 @@ pub(crate) fn parameter_schema(doc: &str) -> Value {
                 .count()
                 > 1;
             let has_pipe = alternatives.len() > 1;
-            for alternative in alternatives {
+            for alternative in &alternatives {
                 let Some((raw, desc)) = alternative.trim().split_once(':') else {
                     let bare = alternative.trim().trim_end_matches('?');
                     if parameter_name(bare) && !has_pipe {
@@ -419,7 +480,7 @@ pub(crate) fn parameter_schema(doc: &str) -> Value {
                 }
                 let desc = desc.trim();
                 let head = desc.split_whitespace().next().unwrap_or("");
-                let schema = match head {
+                let mut schema = match head {
                     "expr" => json!({"type":["number","string"]}),
                     "number" | "float" => json!({"type":"number"}),
                     "integer" => json!({"type":"integer"}),
@@ -430,6 +491,16 @@ pub(crate) fn parameter_schema(doc: &str) -> Value {
                     _ if desc.starts_with('{') => json!({"type":"object"}),
                     _ => json!({}),
                 };
+                if is_enum {
+                    schema = json!({"type":"string", "enum":enum_values});
+                }
+                if (desc.starts_with("[x,y]") || desc.starts_with("[x,y,z]"))
+                    && !desc.contains(" or ")
+                {
+                    let count = if desc.starts_with("[x,y,z]") { 3 } else { 2 };
+                    schema = json!({"type":"array", "minItems":count, "maxItems":count,
+                        "items":{"type":["number","string"]}});
+                }
                 // Strip no prose into a contract. For example, `fixed:true explicitly`
                 // and `thin?: true (...) with curves?: ...` are not typed declarations.
                 let explicit_type = schema.get("type").is_some();
@@ -460,7 +531,7 @@ pub(crate) fn parameter_schema(doc: &str) -> Value {
                 .or_insert_with(|| json!({}));
         }
     }
-    json!({"type":"object", "properties":properties, "required":required})
+    json!({"type":"object", "properties":properties, "required":required, "allOf":groups})
 }
 
 fn parameter_name(name: &str) -> bool {
@@ -550,6 +621,47 @@ fn clauses(doc: &str) -> Vec<&str> {
     parts
 }
 
+fn template(command: &Command) -> Value {
+    let schema = parameter_schema(&command.params);
+    let mut params = Map::new();
+    if let Some(properties) = schema["properties"].as_object() {
+        for (name, shape) in properties {
+            let placeholder = if shape.get("enum").is_some() {
+                format!("<choose from {}>", shape["enum"])
+            } else if name == "body" || name == "target" {
+                "<body id from model.bodies>".into()
+            } else if name == "sketch" {
+                "<sketch id returned by sketch.create>".into()
+            } else if shape["type"] == "array" {
+                "<array matching parameter docs>".into()
+            } else if matches!(
+                name.as_str(),
+                "radius"
+                    | "diameter"
+                    | "length"
+                    | "width"
+                    | "height"
+                    | "depth"
+                    | "distance"
+                    | "thickness"
+                    | "offset"
+            ) {
+                "<number mm>".into()
+            } else if matches!(name.as_str(), "angle" | "angle2" | "taper") {
+                "<number deg>".into()
+            } else if shape["type"] == "integer" {
+                "<integer>".into()
+            } else if shape["type"] == "number" || shape["type"].is_array() {
+                "<number or expression; units from parameter docs>".into()
+            } else {
+                format!("<{name} from parameter docs or current model>")
+            };
+            params.insert(name.clone(), json!(placeholder));
+        }
+    }
+    json!({"tool":"execute", "arguments":{"command":command.id, "params":params}})
+}
+
 fn example(command: &Command, task: &str) -> Result<Value, String> {
     let mut params = Map::new();
     let mut pending = Vec::new();
@@ -561,10 +673,16 @@ fn example(command: &Command, task: &str) -> Result<Value, String> {
     for clause in clauses(&command.params) {
         let (name, desc) = clause.split_once(':').unwrap_or((clause, ""));
         let name = name.trim();
-        if name.contains('?') {
-            pending.clear();
-            continue;
+        if name.ends_with('?') {
+            let requested_enum = desc.split_whitespace().next().is_some_and(|head| {
+                head.contains('|') && head.split('|').any(|option| words(task).contains(option))
+            });
+            if !requested_enum {
+                pending.clear();
+                continue;
+            }
         }
+        let name = name.trim_end_matches('?');
         if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
             pending.clear();
             continue;
@@ -601,15 +719,29 @@ fn example(command: &Command, task: &str) -> Result<Value, String> {
             } else if desc.starts_with("object") || desc.starts_with('{') {
                 json!({})
             } else if desc.contains('|') {
-                json!(desc.split('|').next().unwrap_or("XY").trim())
+                let options: Vec<_> = desc
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or("")
+                    .split('|')
+                    .collect();
+                let requested: Vec<_> = options
+                    .iter()
+                    .filter(|option| words(task).contains(**option))
+                    .collect();
+                if let [choice] = requested.as_slice() {
+                    json!(choice)
+                } else {
+                    return Ok(Value::Null);
+                }
             } else {
-                json!(name)
+                return Ok(Value::Null);
             };
             params.insert(name.to_string(), value);
         }
     }
-    for name in pending {
-        params.insert(name.to_string(), json!(name));
+    if !pending.is_empty() {
+        return Ok(Value::Null);
     }
     Ok(json!({"tool":"execute", "arguments":{"command":command.id, "params":params}}))
 }
@@ -618,6 +750,88 @@ fn example(command: &Command, task: &str) -> Result<Value, String> {
 #[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn shared_alternatives_and_enum_contracts() {
+        let schema = parameter_schema("radius | diameter: number");
+        assert_eq!(schema["required"], json!([]));
+        for name in ["radius", "diameter"] {
+            assert_eq!(schema["properties"][name]["type"], "number");
+        }
+        assert_eq!(
+            schema["allOf"],
+            json!([{"anyOf":[{"required":["radius"]},{"required":["diameter"]}]}])
+        );
+        assert_eq!(
+            parameter_schema("corner? | center?: [x,y,z]")["allOf"],
+            json!([])
+        );
+        let schema = Catalog::bundled()
+            .unwrap()
+            .parameter_schema("solid.extrude");
+        assert_eq!(
+            schema["properties"]["operation"]["enum"],
+            json!(["new", "join", "cut", "intersect", "auto"])
+        );
+        assert!(parameter_schema("sketch?: id|name")["properties"]["sketch"]
+            .get("enum")
+            .is_none());
+        for doc in [
+            "plane: XY|XZ|YZ|plane name",
+            "type: open shape|closed shape",
+            "type: rigid|revolute, or a relation: parallel|angle",
+        ] {
+            assert!(
+                parameter_schema(doc)["properties"]
+                    .as_object()
+                    .unwrap()
+                    .values()
+                    .all(|shape| shape.get("enum").is_none()),
+                "{doc}"
+            );
+        }
+    }
+
+    #[test]
+    fn typed_templates_are_separate_and_enum_examples_follow_task() {
+        let catalog = Catalog::from_json(
+            &json!([
+                {"id":"joint.create","label":"Joint","params":"type: rigid|revolute; body: name"},
+                {"id":"test.type","label":"Test","params":"type: rigid|revolute"},
+                {"id":"test.extrude","label":"Extrude","params":"distance: number; operation?: new|join|cut"},
+                {"id":"test.radius","label":"Radius","params":"radius: number"}
+            ])
+            .to_string(),
+        )
+        .unwrap();
+        let command = catalog.get("test.type").unwrap();
+        assert_eq!(
+            example(command, "make revolute").unwrap()["arguments"]["params"]["type"],
+            "revolute"
+        );
+        assert!(example(command, "make a joint").unwrap().is_null());
+        assert_eq!(
+            example(catalog.get("test.extrude").unwrap(), "cut 10 mm").unwrap()["arguments"]
+                ["params"]["operation"],
+            "cut"
+        );
+        let command = catalog.get("joint.create").unwrap();
+        assert!(example(command, "revolute").unwrap().is_null());
+        assert_eq!(
+            template(command)["arguments"]["params"]["body"],
+            "<body id from model.bodies>"
+        );
+        assert_eq!(
+            template(catalog.get("test.radius").unwrap())["arguments"]["params"]["radius"],
+            "<number mm>"
+        );
+        let text = Catalog::bundled()
+            .unwrap()
+            .how_text("create a revolute joint")
+            .unwrap();
+        assert!(text.contains("template only; never execute"));
+        assert!(!text.contains("\"type\":\"rigid\""));
+    }
 
     #[test]
     fn every_required_name_is_an_explicit_top_level_declaration() {

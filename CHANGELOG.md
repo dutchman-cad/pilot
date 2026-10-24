@@ -4,6 +4,10 @@
 
 First public early beta. Results are still being measured; expect rough edges.
 
+- Preserve parameter alternatives and supplied radii; forbid semantic argument
+  renames, require exact container parsing, reshape only unambiguous line endpoints,
+  hand back invalid enum values, and separate typed templates from concrete examples.
+
 - Public clap-derived `cli::Command` and synchronous `cli::run` for embedding
   Pilot subcommands with the same flags and explicit exit codes.
 - `cli::with_bin_name` and `cli::run_named` so an embedding program's help names
