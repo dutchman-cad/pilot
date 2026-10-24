@@ -66,8 +66,9 @@ Both install `dutchman-pilot` and `dutchman-pilot-eval`, and follow each new rel
 Or download the archive for your platform from
 [GitHub Releases](https://github.com/dutchman-cad/pilot/releases):
 `x86_64-linux`, `aarch64-linux`, `aarch64-macos`, or `x86_64-windows`.
-Archive names start with `pilot-VERSION-`. Each contains the standalone
-`dutchman-pilot` and `dutchman-pilot-eval` binaries, docs, corpus, and license notices.
+Archive names start with `pilot-VERSION-`. Each contains `dutchman-pilot`,
+`dutchman-pilot-eval`, the shared `dutchman` launcher, installers, docs, corpus,
+license notices, and a `LAUNCHER_REV` file identifying the launcher source commit.
 Compare its SHA-256 digest with the adjacent `.sha256` file before extracting:
 
 ```sh
@@ -76,9 +77,41 @@ sha256sum -c <archive>.sha256
 ```
 
 On Windows, run `Get-FileHash <archive>.zip -Algorithm SHA256` in PowerShell
-and compare the digest with the checksum file. Extract the archive and put its
-binaries in a directory on PATH. macOS binaries are ad-hoc signed, without
-notarization; use your system's approval controls for a trusted download.
+and compare the digest with the checksum file. Extract the archive, enter its
+directory, and run the installer:
+
+```sh
+# Linux and macOS: installs into ~/.local/bin
+sh install.sh
+# Or choose a bin directory; preview with --dry-run
+sh install.sh --prefix "$HOME/bin" --dry-run
+```
+
+```powershell
+# Windows: installs into %LOCALAPPDATA%\Programs\dutchman-cad\bin
+.\install.ps1
+# Or choose a bin directory; preview with -DryRun
+.\install.ps1 -Prefix "$HOME\bin" -DryRun
+# Optionally add the directory to your user PATH, then open a new terminal
+.\install.ps1 -AddToPath
+```
+
+The installers copy `dutchman-pilot` and `dutchman` into the chosen bin directory.
+Add that directory to PATH as the installer suggests. They require no administrator
+access. Only Windows `-AddToPath` (also `--add-to-path`) changes your saved user PATH.
+You can rerun either installer to update an older launcher. A full Dutchman install
+at the destination or on PATH is kept; it also runs `dutchman pilot`.
+`dutchman-pilot-eval` remains in the archive for optional manual installation.
+
+Both command forms now work:
+
+```sh
+dutchman pilot --version
+dutchman-pilot --version
+```
+
+macOS binaries are ad-hoc signed, without notarization; use your system's approval
+controls for a trusted download.
 Linux archives are built on Ubuntu 24.04 with glibc; build from source for older
 systems or other C libraries.
 
