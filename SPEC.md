@@ -158,7 +158,13 @@ Items marked (M) are in the model face, (T) in the tools face.
    learn from replies). Keep a per-model record (local JSON) of which path each turn took
    (native, text-written call, prose), empty replies, repairs, and hand-backs. Use it to turn on
    the conditional fallback block only for models that need it, and to report per-model stats
-   (`dutchman pilot profile [model]`). Never stop sending native tools because of it.
+   (`dutchman pilot profile [model]`). Text-call frequency alone never disables native
+   tools. Explicit capabilities lacking tools or an HTTP 400 containing "does not
+   support tools" (case-insensitive) select model-face text tool mode: omit native
+   tool fields, describe offered tools and JSON reply format in a bounded system
+   block, and flatten tool history on the upstream wire. Persist explicit provider
+   rejections and retry that turn once; recipes and repairs still apply. Audit all
+   transformations. MCP clients continue calling tools themselves.
 3. **The text-written call fallback, repair, and command-id rewrites (M).** As in Face 1, plus
    params packed into the id (`solid.cube {side: 20}`): split at the first space or `{`/`(`,
    look up the id, and repair the rest into `params`.

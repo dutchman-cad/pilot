@@ -17,6 +17,7 @@ command line. The same commands also come as a standalone download,
 - Millimetres, metric and inch units, fractions, and deterministic expansions.
 - Matching prose-to-recipe conversion for models without tool calling, plus one
   measured completion check. Disable together with `--no-plan`.
+- Text tool mode for models without native tools, with automatic retry and saved profiles.
 - Audited rewrites, argument repair, buffered streaming, and bounded retries.
 
 See [recipes and their limits](docs/recipes.md).

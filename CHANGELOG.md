@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add model-face text tool mode for capabilities without tools and explicit HTTP
+  400 unsupported-tools rejections; persist the rejection and retry once.
+- Describe offered tools in a bounded prompt, flatten tool history on the wire,
+  and audit conversion to native calls while preserving recipes and guardrails.
+
 - Prepare 0.1.0-beta.2 with a typed recipe library for primitives, centred and
   positioned holes, rectangular / circular hole patterns, sketch extrusion,
   fillet / chamfer, move, rename, mirror, shell, revolve, and existing queries.

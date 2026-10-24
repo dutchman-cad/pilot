@@ -88,9 +88,37 @@ events and 4096 distinct kinds. JSON output uses `total`, `by_kind`, and `by_mod
 `native_percent`, `text_written_percent`, and `prose_percent`.
 
 Auto fallback uses Ollama capabilities lacking tools, or text-written calls in at least two of
-the last five client turns, and keeps sending native tools. Each client turn
+the last five client turns. Text-call frequency alone keeps native tools enabled. Each client turn
 counts once in that window, including its retries; old profiles start with an empty
 window. The fallback log entry names the rule that fired.
+The model face enters text tool mode when probed capabilities lack `tools`, or a
+profile remembers an explicit rejection. It also recognises HTTP 400 containing
+`does not support tools` (case-insensitive); this is the complete, deliberately
+small pattern list. Other provider failures retain their existing error handling.
+On that rejection Pilot persists `text_tool_mode: true` and retries the same turn
+once. This retry is separate from existing hand-back and parse-retry budgets.
+Capability-based selection works even with `--fallback-prompt off`: that flag
+controls the conditional prompt, while text mode makes the chat template usable.
+
+In text mode the upstream receives no `tools`, `tool_choice`, or
+`parallel_tool_calls`. A system block lists only the offered tools (including
+`how` when enabled), their short purposes and parameter names/types; it does not
+expand the command catalogue into fictional tools. The block is capped at 32 KiB
+(an oversized block returns a clear error), with 160-byte purposes and schemas
+at most three levels deep and 64 properties per level. The model is asked for
+exactly one object `{"tool": NAME, "args": {...}}`, or plain text when no action
+is needed. Fences and a leading sentence are accepted; several objects remain
+text. Converted calls use the existing argument repairs and validation paths.
+Recipes and prose guardrails still use the original tools and history.
+
+Only the upstream wire copy flattens assistant tool calls into assistant text and
+tool results into user text (`Tool NAME returned: ...`), preserving call-id/name
+associations. Each rewritten message is capped at 16 KiB plus a truncation marker.
+This also applies to Pilot's local `how` results on retries. Audit kinds are
+`text_tool_mode`, `tools_stripped`, `tool_history_flattened`, and
+`text_call_converted` (alongside the existing `text_tool_call` repair event).
+Native-tool models keep their request format. The MCP face is unchanged.
+
 Every rewrite is recorded in `--log FILE`, or `rewrites.jsonl` beside profiles;
 responses include `x-dutchman-pilot: rewrites=N`. Archive the log when it reaches 64 MiB.
 

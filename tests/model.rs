@@ -584,6 +584,7 @@ fn opt_in_settings_capability_fallback_and_json_only_on_decided_retry() {
             .iter()
             .filter(|m| m["role"] == "system")
             .count(),
+        // Text tool mode joins Pilot's system block instead of adding another.
         1
     );
     h.chat(&request("what can you do?"));
@@ -722,4 +723,114 @@ fn deterministic_planner_adds_one_system_message_and_logs_rule() {
         json!([20.0, 20.0, 20.0])
     );
     h.finish();
+}
+
+#[test]
+fn unsupported_tools_retry_persists_and_flattens_client_history() {
+    let h = Harness::new(
+        vec![
+            (
+                400,
+                json!({"error":"gemma3 DOES NOT SUPPORT TOOLS"}).to_string(),
+                "application/json".into(),
+            ),
+            ok(prose(
+                "Here is the call:\n```json\n{\"tool\":\"inspect\",\"args\":{}}\n```",
+            )),
+            ok(prose("{\"tool\":\"inspect\",\"args\":{}}")),
+        ],
+        2,
+        FallbackPrompt::Off,
+        None,
+        json!({}),
+    );
+    let mut req = request("check status");
+    req["tool_choice"] = json!("auto");
+    req["parallel_tool_calls"] = json!(true);
+    assert_eq!(h.chat(&req).0, 200);
+    req["messages"] = json!([
+        {"role":"user","content":"check status"},
+        {"role":"assistant","content":null,"tool_calls":[{"id":"i1","type":"function","function":{"name":"inspect","arguments":"{}"}}]},
+        {"role":"tool","tool_call_id":"i1","content":"volume = 123"},
+        {"role":"user","content":"check again"}
+    ]);
+    let (status, _, response) = h.chat(&req);
+    assert_eq!(status, 200);
+    assert_eq!(args(&response), json!({}));
+    let chats = h.chats();
+    assert!(chats[0].get("tools").is_some());
+    for chat in &chats[1..] {
+        for key in ["tools", "tool_choice", "parallel_tool_calls"] {
+            assert!(chat.get(key).is_none());
+        }
+        assert!(chat["messages"][0]["content"]
+            .as_str()
+            .unwrap()
+            .contains("command:string"));
+    }
+    let history = chats[2]["messages"].as_array().unwrap();
+    assert!(history
+        .iter()
+        .all(|m| m["role"] != "tool" && m.get("tool_calls").is_none()));
+    assert!(history.iter().any(|m| m["content"]
+        .as_str()
+        .is_some_and(|s| s.contains("Tool inspect returned: volume = 123"))));
+    let profile = dutchman_pilot::model::profiles(Some(&h.dir), None).unwrap();
+    assert!(profile.contains("\"text_tool_mode\": true"));
+    let log = fs::read_to_string(h.dir.join("audit.jsonl")).unwrap();
+    for kind in [
+        "text_tool_mode",
+        "tools_stripped",
+        "tool_history_flattened",
+        "text_call_converted",
+    ] {
+        assert!(log.contains(&format!("\"kind\":\"{kind}\"")), "{kind}");
+    }
+    h.finish();
+}
+
+#[test]
+fn capabilities_select_text_mode_and_recipes_still_fire() {
+    let h = Harness::with_how(
+        vec![ok(prose("I will make a 20 mm cube"))],
+        1,
+        FallbackPrompt::Off,
+        None,
+        json!({"capabilities":["completion"]}),
+        true,
+    );
+    let (status, _, response) = h.chat(&request("make a 20 mm cube"));
+    assert_eq!(status, 200, "{response}");
+    assert_eq!(args(&response)["command"], "solid.box");
+    assert!(h.chats()[0].get("tools").is_none());
+    let prompt = h.chats()[0]["messages"][0]["content"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    assert!(prompt.contains("how:") && !prompt.contains("solid.box:"));
+    assert!(fs::read_to_string(h.dir.join("audit.jsonl"))
+        .unwrap()
+        .contains("recipe_prose"));
+    h.finish();
+}
+
+#[test]
+fn text_mode_refuses_multiple_objects_and_keeps_plain_text() {
+    for text in [
+        "Hello.",
+        "{\"tool\":\"inspect\",\"args\":{}} {\"tool\":\"inspect\",\"args\":{}}",
+    ] {
+        let h = Harness::new(
+            vec![ok(prose(text))],
+            1,
+            FallbackPrompt::Auto,
+            None,
+            json!({"capabilities":["completion"]}),
+        );
+        let (status, _, response) = h.chat(&request("hello"));
+        assert_eq!(status, 200);
+        let value: Value = serde_json::from_str(&response).unwrap();
+        assert_eq!(value["choices"][0]["message"]["content"], text);
+        h.finish();
+    }
 }

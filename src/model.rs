@@ -8,6 +8,7 @@ use prompting::FALLBACK;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 mod recovery;
+mod text_mode;
 use recovery::Conversation;
 use std::{
     collections::BTreeMap,
@@ -90,6 +91,8 @@ pub struct Profile {
     pub hints_added: u64,
     pub capabilities_checked: bool,
     pub native_support: Option<bool>,
+    /// Explicit provider rejection; independent of prose/text-call profiling.
+    pub text_tool_mode: bool,
     pub ollama: bool,
     /// One entry per client turn, oldest first. Old profiles start with no evidence.
     pub recent_text_calls: Vec<bool>,
@@ -199,6 +202,7 @@ struct Proxy {
 #[cfg(test)]
 #[derive(Default)]
 struct Scripted {
+    reject_tools: bool,
     replies: std::collections::VecDeque<Upstream>,
     requests: Vec<Value>,
 }
@@ -524,6 +528,19 @@ impl Proxy {
             script
                 .requests
                 .push(serde_json::from_slice(body).unwrap_or(Value::Null));
+            if script.reject_tools
+                && script
+                    .requests
+                    .last()
+                    .is_some_and(|r| r.get("tools").is_some())
+            {
+                return Ok(Upstream {
+                    status: 400,
+                    body: br#"{"error":"model DOES NOT SUPPORT TOOLS"}"#.to_vec(),
+                    content_type: "application/json".into(),
+                    retry_after: None,
+                });
+            }
             return script
                 .replies
                 .pop_front()
@@ -571,7 +588,7 @@ impl Proxy {
     }
     fn handle(&mut self, request: Request) -> Result<Reply, String> {
         // Two shared hand-backs, one parse-error retry, and the capability probe.
-        let deadline = Instant::now() + self.cfg.upstream_timeout * 4 + Duration::from_secs(3);
+        let deadline = Instant::now() + self.cfg.upstream_timeout * 5 + Duration::from_secs(3);
         if request.path == "/v1/models" && request.method == "GET" {
             let response = self.fetch("GET", "/models", request.auth.as_deref(), &[], deadline)?;
             return Ok(Reply {
@@ -784,9 +801,7 @@ impl Proxy {
             .settings
             .get(&profile.model)
             .or_else(|| self.cfg.model_settings_enabled.then_some(&defaults));
-        if (!tools.is_empty() && self.cfg.fallback_prompt == FallbackPrompt::Auto)
-            || settings.is_some()
-        {
+        if !tools.is_empty() || settings.is_some() {
             self.probe(profile, request.auth.as_deref(), deadline);
         }
         let settings = settings.filter(|_| profile.ollama);
@@ -862,14 +877,25 @@ impl Proxy {
         if !self.cfg.no_hints {
             append_hints(&mut body, &self.catalog, audit)?;
         }
+        let mut text_mode = profile.text_tool_mode || profile.native_support == Some(false);
+        if text_mode {
+            text_mode::activate(&mut body, &tools, "profile_or_capabilities", audit)?;
+        }
         let mut empty_retried = false;
         let mut parse_retried = false;
         let mut hand_backs = 0;
         let mut guard_backs = 0;
         let mut how_answers = 0;
         let mut last_reason = String::new();
-        for attempt in 0..=3 {
-            let wire = if attempt == 0 && body == original {
+        let mut mode_retry = 0;
+        for wire_attempt in 0..=4 {
+            let attempt = wire_attempt - mode_retry;
+            if attempt > 3 {
+                break;
+            }
+            let wire = if text_mode {
+                json_bytes(&text_mode::wire(&body, audit)?)?
+            } else if attempt == 0 && body == original {
                 request.body.clone()
             } else {
                 json_bytes(&body)?
@@ -893,6 +919,17 @@ impl Proxy {
                     return Ok(reply);
                 }
             };
+            if !text_mode
+                && !tools.is_empty()
+                && text_mode::rejected(upstream.status, &upstream.body)
+            {
+                profile.text_tool_mode = true;
+                profile.native_support = Some(false);
+                text_mode = true;
+                mode_retry = 1;
+                text_mode::activate(&mut body, &tools, "provider_400_unsupported_tools", audit)?;
+                continue;
+            }
             let mut recovered = false;
             if let Some(raw) = recovery::ollama_raw(&upstream) {
                 if let Some(response) =
@@ -942,6 +979,7 @@ impl Proxy {
                     .get_mut("message")
                     .filter(|m| m.is_object())
                     .ok_or("upstream choice is missing an assistant message")?;
+                let raw_message = message.clone();
                 let had_native = message["tool_calls"]
                     .as_array()
                     .is_some_and(|c| !c.is_empty());
@@ -949,7 +987,13 @@ impl Proxy {
                     if had_native {
                         profile.native = profile.native.saturating_add(1);
                         profile.native_support = Some(true);
-                    } else if convert_text(message, &tools, &self.catalog, audit)? {
+                    } else if (!text_mode
+                        || repair::single_call_text(message["content"].as_str().unwrap_or("")))
+                        && convert_text(message, &tools, &self.catalog, audit)?
+                    {
+                        if text_mode {
+                            audit.record("text_call_converted", &raw_message, message)?;
+                        }
                         profile.text_written = profile.text_written.saturating_add(1);
                     } else if is_empty(message) {
                         profile.empty = profile.empty.saturating_add(1);
@@ -2053,6 +2097,7 @@ mod tests {
                     log,
                     conversations: Vec::new(),
                     scripted: Some(RefCell::new(Scripted {
+                        reject_tools: false,
                         replies: replies
                             .into_iter()
                             .map(|v| Upstream {
@@ -3164,7 +3209,11 @@ mod tests {
             assert_eq!(f.chat(request()).status, 200);
             let script = f.proxy.scripted.as_ref().unwrap().borrow();
             assert_eq!(
-                script.requests[0]["messages"][0]["content"] == FALLBACK,
+                script.requests[0]["messages"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|m| m["content"].as_str().is_some_and(|c| c.contains(FALLBACK))),
                 ollama
             );
             let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
@@ -3175,6 +3224,135 @@ mod tests {
         let old: Profile = serde_json::from_value(json!({"text_written":100})).unwrap();
         assert!(old.recent_text_calls.is_empty());
     }
+    #[test]
+    fn text_mode_bounds_and_narrow_rejection_patterns() {
+        assert!(text_mode::rejected(400, b"model DOES NOT SUPPORT TOOLS"));
+        for (status, body) in [
+            (500, "does not support tools"),
+            (400, "invalid tools schema"),
+            (404, "missing model"),
+        ] {
+            assert!(!text_mode::rejected(status, body.as_bytes()));
+        }
+        let f = Fixture::new(vec![]);
+        let mut body = request();
+        body["messages"] = json!([
+            {"role":"assistant","content":[{"type":"text","text":"context"}],"tool_calls":[]},
+            {"role":"tool","name":"inspect","content":"é".repeat(20000)}
+        ]);
+        let wire = text_mode::wire(&body, &mut f.audit()).unwrap();
+        assert!(wire["messages"][0]["content"]
+            .as_str()
+            .unwrap()
+            .contains("context"));
+        let text = wire["messages"][1]["content"].as_str().unwrap();
+        assert!(text.len() < 16410 && text.ends_with("[truncated]"));
+        let tools: Vec<_> = (0..128).map(|i| json!({"function":{"name":format!("tool{i}"), "description":"purpose ".repeat(1000), "parameters":{"type":"object","properties":{"command":{"type":"string"}}}}})).collect();
+        let mut body = request();
+        text_mode::activate(&mut body, &tools, "test", &mut f.audit()).unwrap();
+        assert!(body["messages"][0]["content"].as_str().unwrap().len() <= 32768);
+        let tools = vec![
+            json!({"function":{"name":"tool", "parameters":{"properties":(0..64).map(|i| (format!("{i}{}", "x".repeat(128)), json!({"type":"string"}))).collect::<serde_json::Map<_, _>>()}}});
+            128
+        ];
+        assert!(text_mode::activate(&mut body, &tools, "test", &mut f.audit()).is_err());
+    }
+
+    #[test]
+    fn text_mode_rejection_reload_history_and_repairs() {
+        let mut f = Fixture::new(vec![
+            reply("Here is the call:\n```json\n{\"tool\":\"inspect\",\"args\":{}}\n```"),
+            reply("{\"tool\":\"inspect\",\"args\":{}}"),
+        ]);
+        f.proxy.scripted.as_ref().unwrap().borrow_mut().reject_tools = true;
+        let mut req = request();
+        req["tool_choice"] = json!("auto");
+        req["parallel_tool_calls"] = json!(true);
+        let result = f.chat(req.clone());
+        assert_eq!(result.status, 200);
+        assert_eq!(args(&result), json!({}));
+        let restored: Profiles = read_json(&f.dir.join("profiles.json")).unwrap();
+        assert!(restored.values().next().unwrap().text_tool_mode);
+        f.proxy.profiles = restored;
+        req["messages"] = json!([
+            {"role":"user","content":"hello"},
+            {"role":"assistant","tool_calls":[{"id":"a","function":{"name":"inspect","arguments":"{}"}}]},
+            {"role":"tool","tool_call_id":"a","content":"volume = 42"}
+        ]);
+        assert_eq!(f.chat(req).status, 200);
+        let script = f.proxy.scripted.as_ref().unwrap().borrow();
+        assert_eq!(script.requests.len(), 3);
+        for wire in &script.requests[1..] {
+            for key in ["tools", "tool_choice", "parallel_tool_calls"] {
+                assert!(wire.get(key).is_none());
+            }
+            assert!(wire["messages"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|m| m["role"] != "tool" && m.get("tool_calls").is_none()));
+        }
+        assert!(script.requests[2]
+            .to_string()
+            .contains("Tool inspect returned: volume = 42"));
+        let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+        for kind in [
+            "text_tool_mode",
+            "tools_stripped",
+            "tool_history_flattened",
+            "text_call_converted",
+        ] {
+            assert!(log.contains(kind));
+        }
+    }
+
+    #[test]
+    fn text_mode_preserves_recipes_guards_how_and_refusals() {
+        for text in [
+            "Hello.",
+            "{\"tool\":\"inspect\",\"args\":{}} {\"tool\":\"inspect\",\"args\":{}}",
+        ] {
+            let mut f = Fixture::new(vec![reply(text)]);
+            f.proxy.scripted.as_ref().unwrap().borrow_mut().reject_tools = true;
+            let result = f.chat(request());
+            assert_eq!(result.status, 200);
+            let value: Value = serde_json::from_slice(&result.body).unwrap();
+            assert_eq!(value["choices"][0]["message"]["content"], text);
+        }
+        let mut f = Fixture::new(vec![reply("I will make a 20 mm cube")]);
+        f.proxy.scripted.as_ref().unwrap().borrow_mut().reject_tools = true;
+        let mut req = request();
+        req["messages"][0]["content"] = json!("make a 20 mm cube");
+        assert_eq!(args(&f.chat(req))["command"], "solid.box");
+        let mut f = Fixture::new(vec![
+            reply("I'll use solid.box."),
+            reply("{\"tool\":\"inspect\",\"args\":{}}"),
+        ]);
+        f.proxy.scripted.as_ref().unwrap().borrow_mut().reject_tools = true;
+        let mut req = request();
+        req["messages"][0]["content"] = json!("make a box");
+        assert_eq!(f.chat(req).status, 200);
+        assert!(fs::read_to_string(f.dir.join("log.jsonl"))
+            .unwrap()
+            .contains("hand_back"));
+        let mut f = Fixture::new(vec![
+            reply("{\"tool\":\"how\",\"args\":{\"task\":\"make a box\"}}"),
+            reply("Ready."),
+        ]);
+        f.proxy.cfg.no_how = false;
+        f.proxy.scripted.as_ref().unwrap().borrow_mut().reject_tools = true;
+        assert_eq!(f.chat(request()).status, 200);
+        let script = f.proxy.scripted.as_ref().unwrap().borrow();
+        assert!(script.requests[2]
+            .to_string()
+            .contains("Tool how returned:"));
+        assert!(script.requests[2]["messages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|m| m["role"] != "tool"));
+    }
+
     #[test]
     fn provider_failures_are_counted_and_persisted() {
         let mut f = Fixture::new(vec![]);
