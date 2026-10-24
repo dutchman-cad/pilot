@@ -8,6 +8,7 @@ enum Kind {
     Cylinder,
     Sphere,
     Holes,
+    Hole,
     Sketch,
     Fillet,
     Chamfer,
@@ -22,6 +23,7 @@ const LIBRARY: &[(&str, Kind)] = &[
     ("cylinder", Kind::Cylinder),
     ("sphere", Kind::Sphere),
     ("plate_holes", Kind::Holes),
+    ("hole", Kind::Hole),
     ("sketch_extrude", Kind::Sketch),
     ("fillet", Kind::Fillet),
     ("chamfer", Kind::Chamfer),
@@ -47,6 +49,11 @@ enum Slots {
         size: [f64; 3],
         diameter: f64,
         centers: Vec<[f64; 2]>,
+    },
+    Hole {
+        body: String,
+        diameter: f64,
+        position: [f64; 3],
     },
     Sketch {
         plane: String,
@@ -145,7 +152,7 @@ fn vocabulary(kind: Kind, input: &Input<'_>) -> bool {
     let mut text = input.text.to_ascii_lowercase();
     if matches!(
         kind,
-        Kind::Move | Kind::Mirror | Kind::Fillet | Kind::Chamfer
+        Kind::Move | Kind::Mirror | Kind::Fillet | Kind::Chamfer | Kind::Hole
     ) {
         let Some(stripped) = input.without_body() else {
             return false;
@@ -224,13 +231,21 @@ fn vocabulary(kind: Kind, input: &Input<'_>) -> bool {
             "spaced",
             "starting",
         ],
+        Kind::Hole => &[
+            "drill", "bore", "cut", "hole", "through", "at", "it", "body", "box", "part", "current",
+        ],
         Kind::Sketch => &["sketch", "rectangle", "circle", "on", "then", "extrude"],
         Kind::Fillet | Kind::Chamfer => &[
-            "fillet", "chamfer", "all", "top", "edges", "it", "body", "current", "distance",
+            "fillet", "round", "off", "chamfer", "bevel", "all", "top", "edges", "it", "body",
+            "box", "part", "current", "distance",
         ],
         Kind::Move => &[
             "move",
             "translate",
+            "shift",
+            "slide",
+            "box",
+            "part",
             "it",
             "body",
             "current",
@@ -242,7 +257,8 @@ fn vocabulary(kind: Kind, input: &Input<'_>) -> bool {
             "negative",
         ],
         Kind::Mirror => &[
-            "mirror", "it", "body", "current", "about", "across", "plane", "xy", "xz", "yz",
+            "mirror", "it", "body", "box", "part", "current", "about", "across", "plane", "xy",
+            "xz", "yz",
         ],
         Kind::Shell => &["shell", "box", "wall", "open", "remove", "top"],
         Kind::Revolve => &[
@@ -343,24 +359,107 @@ fn radial(t: &[String], d: slots::Dimension) -> Option<f64> {
         _ => None,
     }
 }
+fn rename_separator(text: &str) -> Option<usize> {
+    let mut quote = None;
+    for (i, c) in text.char_indices() {
+        if matches!(c, '\'' | '"' | '`') {
+            if quote == Some(c) {
+                quote = None;
+            } else if quote.is_none() {
+                quote = Some(c);
+            }
+        }
+        if quote.is_none() && text[i..].starts_with(" to ") {
+            return Some(i);
+        }
+    }
+    None
+}
 fn parse(kind: Kind, input: &Input<'_>) -> Option<Slots> {
     let has = |w| input.has(w);
     let t = &input.t;
     match kind {
-        Kind::Rename if has("rename") => {
-            let lower = input.text.to_ascii_lowercase();
-            let (source, _) = lower.rsplit_once(" to ")?;
-            let new = input
+        Kind::Hole if input.any(&["drill", "bore", "cut"]) && has("hole") && has("through") => {
+            // No inferred hole location or direction: the public command uses Z,
+            // and the request must supply all three position coordinates.
+            let lower = input.without_body()?;
+            let (sizing, position) = lower.split_once(" at ")?;
+            let d = dimensions(&tokens(sizing))?;
+            if d.len() != 1 || !positive(&d) {
+                return None;
+            }
+            let diameter = radial(&tokens(sizing), d[0])? * 2.0;
+            let position = position.trim().trim_end_matches(['.', '!', '?']).trim();
+            let position = position.strip_prefix('(')?.strip_suffix(')')?;
+            let coordinates: Vec<_> = position.split(',').collect();
+            if coordinates.len() != 3 {
+                return None;
+            }
+            let mut p = [0.0; 3];
+            for (i, coordinate) in coordinates.iter().enumerate() {
+                let t = tokens(coordinate);
+                let d = dimensions(&t)?;
+                if d.len() != 1 || d[0].index != 0 || t.len() > 2 {
+                    return None;
+                }
+                p[i] = d[0].value;
+            }
+            let raw = input.text.to_ascii_lowercase();
+            let (raw_sizing, _) = raw.split_once(" at ")?;
+            let (_, target) = raw_sizing.split_once(" through ")?;
+            let target = format!("move {}", target.trim());
+            Some(Slots::Hole {
+                body: body(&target, input.data)?,
+                diameter,
+                position: p,
+            })
+        }
+        Kind::Rename if input.any(&["rename", "call", "name"]) => {
+            let text = input
                 .text
-                .get(source.len() + 4..)?
                 .trim()
-                .trim_end_matches(['.', '?'])
-                .trim_matches(['`', '\'', '"']);
-            let raw = input
-                .text
-                .get(source.len() + 4..)?
-                .trim()
-                .trim_end_matches(['.', '?']);
+                .trim_end_matches(['.', ',', ';', ':', '!', '?'])
+                .trim();
+            let lower = text.to_ascii_lowercase();
+            let (source, raw) = if let Some(i) = rename_separator(&lower) {
+                (&text[..i], text.get(i + 4..)?)
+            } else {
+                let verb = ["call ", "name "]
+                    .iter()
+                    .find_map(|v| lower.find(v).map(|i| i + v.len()))?;
+                let rest = &lower[verb..];
+                let mut sources = vec!["the current body", "the body", "the box", "the part", "it"];
+                let names: Vec<_> = input.data?["bodies"]
+                    .as_array()?
+                    .iter()
+                    .filter_map(|b| b["name"].as_str())
+                    .map(str::to_ascii_lowercase)
+                    .collect();
+                sources.extend(names.iter().map(String::as_str));
+                let source = sources
+                    .iter()
+                    .filter(|s| {
+                        rest.starts_with(**s)
+                            && rest.get(s.len()..).is_some_and(|s| s.starts_with(' '))
+                    })
+                    .max_by_key(|s| s.len())?;
+                let end = verb + source.len();
+                (&text[..end], text.get(end..)?)
+            };
+            let raw = raw.trim();
+            let new =
+                if let Some(quote) = raw.chars().next().filter(|c| matches!(c, '`' | '\'' | '"')) {
+                    let inner = raw.strip_prefix(quote)?.strip_suffix(quote)?;
+                    if inner.contains(quote) {
+                        return None;
+                    }
+                    inner
+                } else {
+                    if raw.contains(['`', '\'', '"']) {
+                        return None;
+                    }
+                    raw
+                };
             if new.split_whitespace().count() > 1
                 && !(['`', '\'', '"']
                     .iter()
@@ -376,7 +475,7 @@ fn parse(kind: Kind, input: &Input<'_>) -> Option<Slots> {
                 name: new.into(),
             })
         }
-        Kind::Move if input.any(&["move", "translate"]) => {
+        Kind::Move if input.any(&["move", "translate", "shift", "slide"]) => {
             let d = input.dims()?;
             if d.len() != 1 || d[0].value == 0.0 {
                 return None;
@@ -411,8 +510,8 @@ fn parse(kind: Kind, input: &Input<'_>) -> Option<Slots> {
             })
         }
         Kind::Fillet | Kind::Chamfer
-            if (matches!(kind, Kind::Fillet) && has("fillet"))
-                || (matches!(kind, Kind::Chamfer) && has("chamfer")) =>
+            if (matches!(kind, Kind::Fillet) && input.any(&["fillet", "round"]))
+                || (matches!(kind, Kind::Chamfer) && input.any(&["chamfer", "bevel"])) =>
         {
             let fillet = matches!(kind, Kind::Fillet);
             if !has("edges") || !(has("all") || has("top")) || (fillet && has("top")) {
@@ -514,7 +613,9 @@ fn parse(kind: Kind, input: &Input<'_>) -> Option<Slots> {
                 .text
                 .get(profile.len() + 4..profile.len() + 4 + plane.len())?
                 .trim()
-                .trim_matches(['`', '\'', '"']);
+                .trim_matches([
+                    '`', '\'', '"', '[', ']', '(', ')', ',', ';', ':', '.', '!', '?',
+                ]);
             if plane.is_empty()
                 || plane.len() > 128
                 || plane.contains([',', '\n', '\r'])
@@ -683,7 +784,8 @@ fn holes(input: &Input<'_>) -> Option<Slots> {
     let diameter = radial(hole_tokens, d[0])? * 2.0;
     let mut centers = Vec::new();
     if boundary.is_some_and(|i| rest[i] == "at") {
-        let (_, positions) = input.text.split_once(" at ")?;
+        let lower = input.text.to_ascii_lowercase();
+        let (_, positions) = lower.split_once(" at ")?;
         let mut tail = positions;
         while let Some((prefix, after)) = tail.split_once('(') {
             if !matches!(prefix.trim(), "" | "," | "and" | ", and") {
@@ -715,7 +817,9 @@ fn holes(input: &Input<'_>) -> Option<Slots> {
         }
         if centers.len() != n?
             || !tail
-                .trim_matches(|c: char| c.is_whitespace() || c == '.')
+                .trim_matches(|c: char| {
+                    c.is_whitespace() || matches!(c, '.' | ',' | ';' | ':' | '!' | '?')
+                })
                 .is_empty()
         {
             return None;
@@ -844,6 +948,16 @@ fn expand(slots: &Slots, catalog: &Catalog) -> Result<Expansion, String> {
             );
             creates = true;
         }
+        Slots::Hole {
+            body,
+            diameter,
+            position,
+        } => {
+            add(
+                "solid.hole",
+                json!({"targets":[body],"diameter":diameter,"position":position}),
+            )?;
+        }
         Slots::Sketch {
             plane,
             size,
@@ -953,20 +1067,21 @@ pub(super) fn select(
 ) -> Result<Option<Plan>, String> {
     let input = Input {
         text,
-        t: tokens(text),
+        t: intent_tokens(text),
         data,
         messages,
     };
     // Reject multiple action families before parsing; sketch + extrude is one recipe.
     let actions = [
-        &["move", "translate"][..],
-        &["rename"][..],
+        &["move", "translate", "shift", "slide"][..],
+        &["rename", "call", "name"][..],
         &["mirror"][..],
-        &["fillet"][..],
-        &["chamfer"][..],
+        &["fillet", "round"][..],
+        &["chamfer", "bevel"][..],
         &["shell"][..],
         &["revolve"][..],
         &["extrude"][..],
+        &["drill", "bore", "cut"][..],
     ];
     if actions.iter().filter(|a| input.any(a)).count() > 1 {
         return Ok(None);

@@ -89,6 +89,7 @@ fn public_binary_recipe_geometry() {
         ("move Blank 7mm along X",true), ("rename Blank to Spacer",true),
         ("mirror Blank about XY",true), ("fillet all edges of Blank radius 2mm",true),
         ("chamfer top edges of Blank distance 2mm",true), ("chamfer all edges of Blank distance 2mm",true),
+        ("Drill a hole 3mm in diameter through the body at (5,5,10).",true),
     ] {
         let mut s=Session::new(&path);
         if edit {s.execute("solid.box",json!({"length":10,"width":10,"height":10,"body_name":"Blank","operation":"new"}));}
@@ -102,6 +103,11 @@ fn public_binary_recipe_geometry() {
             s.run(&continued);
         } else {s.run(&p);}
         let after=s.execute("document.inspect",json!({"measure":true}));
+        if p.rule == "hole" {
+            let actual=after["bodies"][0]["volume_mm3"].as_f64().unwrap();
+            let expected=1000.0-std::f64::consts::PI*1.5_f64.powi(2)*10.0;
+            assert!((actual-expected).abs()<(expected*0.001).max(0.01),"{text}: {after}");
+        }
         req["messages"].as_array_mut().unwrap().push(json!({"role":"tool","content":after.to_string()}));
         assert_eq!(planner::completion(&req,p.expected.as_ref().unwrap()),None,"{text}: {after}");
     }

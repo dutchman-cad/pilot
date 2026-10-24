@@ -1,11 +1,13 @@
 //! Bounded recipe plans derived from user instructions and public tool results.
 #[cfg(test)]
 pub(crate) mod cases;
+#[cfg(test)]
+mod english;
 mod recipes;
 mod slots;
 use crate::{catalog::Catalog, guidance, repair};
 use serde_json::{json, Value};
-use slots::{dimensions, labelled, tokens};
+use slots::{dimensions, intent_tokens, labelled, tokens};
 
 const MAX_TEXT: usize = 4096;
 const MAX_BODIES: usize = 256;
@@ -157,7 +159,19 @@ fn body(text: &str, data: Option<&Value>) -> Option<String> {
         .iter()
         .filter(|n| {
             let name = n.to_ascii_lowercase();
+            if matches!(name.as_str(), "it" | "the body" | "the box" | "the part") {
+                return false;
+            }
             lower.match_indices(&name).any(|(i, _)| {
+                if matches!(name.as_str(), "body" | "box" | "part") {
+                    let prefix = tokens(&lower[..i]);
+                    if prefix
+                        .last()
+                        .is_some_and(|s| matches!(s.as_str(), "the" | "current"))
+                    {
+                        return false;
+                    }
+                }
                 lower[..i]
                     .chars()
                     .next_back()
@@ -173,7 +187,7 @@ fn body(text: &str, data: Option<&Value>) -> Option<String> {
         return Some(found[0].to_string());
     }
     // Pronouns only; never silently substitute an unknown explicit name.
-    let t = tokens(text);
+    let t = intent_tokens(text);
     if found.is_empty()
         && t.iter().position(|s| s == "of").is_some_and(|i| {
             t.get(i + 1)
@@ -185,7 +199,21 @@ fn body(text: &str, data: Option<&Value>) -> Option<String> {
     let verb = t.iter().position(|s| {
         matches!(
             s.as_str(),
-            "move" | "translate" | "rename" | "mirror" | "fillet" | "chamfer"
+            "move"
+                | "translate"
+                | "shift"
+                | "slide"
+                | "rename"
+                | "call"
+                | "name"
+                | "mirror"
+                | "fillet"
+                | "round"
+                | "chamfer"
+                | "bevel"
+                | "drill"
+                | "bore"
+                | "cut"
         )
     });
     if found.is_empty()
@@ -193,27 +221,34 @@ fn body(text: &str, data: Option<&Value>) -> Option<String> {
         && names.len() == 1
         && verb.is_some_and(|i| {
             let rest = &t[i + 1..];
+            let rest = if t[i] == "round" && rest.first().is_some_and(|s| s == "off") {
+                &rest[1..]
+            } else {
+                rest
+            };
             let rest = &rest[rest
                 .iter()
                 .take_while(|s| matches!(s.as_str(), "the" | "current"))
                 .count()..];
-            rest.first()
-                .is_some_and(|s| s == "it" || s == "body" || s == "all" || s == "top")
-                && !rest.windows(2).any(|w| {
-                    w[0] == "body"
-                        && !matches!(
-                            w[1].as_str(),
-                            "to" | "by"
-                                | "about"
-                                | "across"
-                                | "along"
-                                | "on"
-                                | "with"
-                                | "all"
-                                | "top"
-                        )
-                        && !w[1].starts_with(|c: char| c.is_ascii_digit() || c == '-' || c == '.')
-                })
+            rest.first().is_some_and(|s| {
+                matches!(s.as_str(), "it" | "body" | "box" | "part" | "all" | "top")
+            }) && !rest.windows(2).any(|w| {
+                matches!(w[0].as_str(), "body" | "box" | "part")
+                    && !matches!(
+                        w[1].as_str(),
+                        "to" | "by"
+                            | "about"
+                            | "across"
+                            | "along"
+                            | "on"
+                            | "with"
+                            | "all"
+                            | "top"
+                            | "radius"
+                            | "distance"
+                    )
+                    && !w[1].starts_with(|c: char| c.is_ascii_digit() || c == '-' || c == '.')
+            })
         })
     {
         return Some(names[0].to_string());
@@ -377,13 +412,19 @@ pub fn plan(request: &Value, catalog: &Catalog) -> Result<Option<Plan>, String> 
     {
         return Ok(None);
     }
-    let t = tokens(text);
+    let t = intent_tokens(text);
     let has = |w: &str| t.iter().any(|s| s == w);
     let data = state(messages);
     let lower = text.to_ascii_lowercase();
-    let count = lower.contains("how many bodies")
-        || lower.contains("count the bodies")
-        || lower.contains("count bodies");
+    let query_text = t
+        .iter()
+        .filter(|s| s.as_str() != "and")
+        .map(String::as_str)
+        .collect::<Vec<_>>()
+        .join(" ");
+    let count = query_text.contains("how many bodies")
+        || query_text.contains("count the bodies")
+        || query_text.contains("count bodies");
     let query = has("volume")
         && ["what", "tell", "measure", "report", "give"]
             .iter()
@@ -407,6 +448,15 @@ pub fn plan(request: &Value, catalog: &Catalog) -> Result<Option<Plan>, String> 
             "shell",
             "revolve",
             "extrude",
+            "round",
+            "bevel",
+            "drill",
+            "bore",
+            "cut",
+            "shift",
+            "slide",
+            "call",
+            "name",
             "not",
             "don",
             "explain",
@@ -477,7 +527,10 @@ pub fn plan(request: &Value, catalog: &Catalog) -> Result<Option<Plan>, String> 
     {
         return Ok(None);
     }
-    if text.contains('?') && !lower.starts_with("can you ") && !lower.starts_with("could you ") {
+    if slots::has_question(text)
+        && !lower.starts_with("can you ")
+        && !lower.starts_with("could you ")
+    {
         return Ok(None);
     }
     let mut words = t.as_slice();
@@ -503,6 +556,15 @@ pub fn plan(request: &Value, catalog: &Catalog) -> Result<Option<Plan>, String> 
                 | "mirror"
                 | "shell"
                 | "revolve"
+                | "round"
+                | "bevel"
+                | "drill"
+                | "bore"
+                | "cut"
+                | "shift"
+                | "slide"
+                | "call"
+                | "name"
         )
     }) {
         return Ok(None);

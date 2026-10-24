@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Recognise ordinary recipe sentences with case, sentence punctuation, and
+  value-first or label-first lengths, preserving decimals, fractions and names.
+- Add round / round off, bevel, drill / bore / cut a hole, shift / slide, and
+  call / name forms; require explicit hole positions and unique body references.
+- Expand independently authored per-recipe positives and conservative refusals;
+  retain missing-slot, ambiguous-body, competing-intent and action-history guards.
+
 - Add model-face text tool mode for capabilities without tools and explicit HTTP
   400 unsupported-tools rejections; persist the rejection and retry once.
 - Describe offered tools in a bounded prompt, flatten tool history on the wire,

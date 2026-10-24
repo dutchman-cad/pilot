@@ -21,12 +21,13 @@ intents are left to the model. There is no benchmark wording or task-id matching
 | Plate with positioned holes | Plate dimensions, integer count, common hole radius or diameter, through, and exactly that many `(x,y)` positions after `at`. Positions use the plate's origin corner, with Z supplied from its thickness. |
 | Plate with rectangular hole pattern | Plate dimensions, hole size, through, centred rectangular pattern, rows, columns, and X × Y pitch. An optional total count must agree. |
 | Plate with circular hole pattern | Plate dimensions, hole size, through, centred circular pattern radius or diameter, count, equally spaced, and explicit `starting at +X`. |
+| Drill / bore / cut a hole | Uniquely resolved existing body, explicit hole radius or diameter, `through BODY at (x,y,z)`. All three coordinates are required; uses the public hole command's Z direction. |
 | Sketch rectangle then extrude | Rectangle width × height, `on PLANE then extrude DISTANCE`. |
 | Sketch circle then extrude | Circle radius or diameter, `on PLANE then extrude DISTANCE`. |
-| Fillet all edges | Uniquely resolved current body, all edges, and radius. |
-| Chamfer all / top edges | Uniquely resolved current body, all or top edges, and distance. |
-| Move / translate | Uniquely resolved body, one signed distance, and exactly one X / Y / Z axis. “negative X” also works; conflicting signs defer. |
-| Rename | Uniquely resolved source body and `to NAME`; quote names containing spaces. |
+| Fillet / round / round off all edges | Uniquely resolved current body, all edges, and radius. |
+| Chamfer / bevel all / top edges | Uniquely resolved current body, all or top edges, and distance. |
+| Move / translate / shift / slide | Uniquely resolved body, one signed distance, and exactly one X / Y / Z axis. “negative X” also works; conflicting signs defer. |
+| Rename / call / name | Uniquely resolved source body and `to NAME`, or `call it NAME` / `name the body NAME`; quote names containing spaces. |
 | Mirror | Uniquely resolved body and one principal plane XY / XZ / YZ. Creates a separate mirrored body. |
 | Shell box | New box dimensions, wall thickness, and explicitly open / remove top. Shelling inward leaves the bottom and four walls. |
 | Revolve rectangle | Rectangle radial `radius` and height, explicitly `from axis on XZ about Z full turn`. Other profiles, axes, offsets and partial turns defer. |
@@ -40,6 +41,21 @@ A trailing tuple unit applies to its unqualified members. Independently labelled
 lengths have independent units. Plans explicitly say that slots have been
 converted to mm and display their numeric values. Radius and diameter retain
 their mathematical meaning.
+
+Matching ignores case, sentence punctuation (`. , ; : ! ?`), and quotes or
+brackets around words. A question mark still invokes the question guard: action
+questions defer, except the existing polite `can you` / `could you` requests.
+Decimal points, fractions, `x` / `×`, and inch marks keep their numeric meaning.
+Quoted rename destinations preserve their original case and punctuation; words
+inside a complete quoted destination are name data rather than competing actions.
+
+Labelled lengths accept both orders: `length 31mm, width 22mm, thickness 4mm`
+or `31mm long, 22mm wide and 4mm thick`. Height also accepts `high`, `tall`,
+`deep`, and `thick`. Radial forms include `14mm in diameter`, `14mm across`,
+`a radius of 7mm`, and `with an 8mm radius`. Separate labelled lengths with
+`and` or commas; each retains its own unit. Labels must identify every required
+slot uniquely. `the box`, `the part`, `the body`, and `it` refer to the current
+body only when exactly one body exists, including when a body is named `Box`.
 
 New primitives use `operation: new` and SolidCraft's documented origin / Z-axis
 defaults. Rectangle sketches start at the sketch origin; circles are centred
