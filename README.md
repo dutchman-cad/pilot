@@ -46,7 +46,24 @@ use Ollama, LM Studio, or another chat-completions endpoint for the model face.
 
 ## Install
 
-Download the archive for your platform from
+Homebrew (Linux, and macOS on Apple silicon):
+
+```sh
+brew install dutchman-cad/tap/dutchman-pilot
+```
+
+A Homebrew install needs no first-run Gatekeeper approval on macOS.
+
+Scoop (Windows):
+
+```powershell
+scoop bucket add dutchman-cad https://github.com/dutchman-cad/scoop-bucket
+scoop install dutchman-cad/dutchman-pilot
+```
+
+Both install `dutchman-pilot` and `dutchman-pilot-eval`, and follow each new release.
+
+Or download the archive for your platform from
 [GitHub Releases](https://github.com/dutchman-cad/pilot/releases):
 `x86_64-linux`, `aarch64-linux`, `aarch64-macos`, or `x86_64-windows`.
 Archive names start with `pilot-VERSION-`. Each contains the standalone
