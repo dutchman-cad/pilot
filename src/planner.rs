@@ -18,6 +18,7 @@ pub struct Expected {
     pub name: Option<String>,
     pub created_volume_mm3: Option<f64>,
     pub placement: Option<Placement>,
+    pub feature: Option<(String, usize)>,
 }
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Placement {
@@ -326,6 +327,27 @@ pub fn completion(request: &Value, expected: &Expected) -> Option<String> {
                 p.min,
                 p.max,
                 found.map_or(&Value::Null, |b| &b["bbox"])
+            ));
+        }
+    }
+    if let Some((kind, want)) = &expected.feature {
+        let actual = data["timeline"]
+            .as_array()
+            .filter(|t| t.len() <= 4096)
+            .map(|t| {
+                t.iter()
+                    .filter(|f| {
+                        f["type"] == *kind
+                            && f["error"].is_null()
+                            && f["rolled_back"] != true
+                            && f["suppressed"] != true
+                    })
+                    .count()
+            });
+        if actual != Some(*want) {
+            differences.push(format!(
+                "expected {want} successful {kind} features, observed {}",
+                actual.map_or_else(|| "unverified".into(), |n| n.to_string())
             ));
         }
     }

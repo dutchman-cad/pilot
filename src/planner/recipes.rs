@@ -1104,6 +1104,31 @@ pub(super) fn select(
     };
     // Without a baseline, verification requests a measurement but cannot claim a total.
     let expected = Expected {
+        feature: if let Slots::Edges { fillet, .. } = &slots {
+            let kind = if *fillet {
+                "FilletFeature"
+            } else {
+                "ChamferFeature"
+            };
+            data.and_then(|d| d["timeline"].as_array())
+                .filter(|t| t.len() <= 4096)
+                .map(|t| {
+                    (
+                        kind.into(),
+                        1 + t
+                            .iter()
+                            .filter(|f| {
+                                f["type"] == kind
+                                    && f["error"].is_null()
+                                    && f["rolled_back"] != true
+                                    && f["suppressed"] != true
+                            })
+                            .count(),
+                    )
+                })
+        } else {
+            None
+        },
         placement,
         bodies: count,
         volume_mm3: if creates {

@@ -238,3 +238,28 @@ fn repeated_action_or_shape_is_not_a_single_recipe() {
         assert!(plan(&request(text), &c).unwrap().is_none(), "{text}");
     }
 }
+#[test]
+fn lookup_success_is_not_edge_feature_completion() {
+    let c = Catalog::bundled().unwrap();
+    let mut req = request("fillet all edges of Blank radius 2mm");
+    let mut before = design();
+    before["timeline"] = json!([]);
+    req["messages"][0]["content"] = json!(before.to_string());
+    let p = plan(&req, &c).unwrap().unwrap();
+    assert!(completion(&req, p.expected.as_ref().unwrap())
+        .unwrap()
+        .contains("successful FilletFeature"));
+    before["timeline"] =
+        json!([{"type":"FilletFeature","error":null,"rolled_back":false,"suppressed":false}]);
+    req["messages"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"role":"tool","content":before.to_string()}));
+    assert!(completion(&req, p.expected.as_ref().unwrap()).is_none());
+    before["timeline"][0]["error"] = json!("kernel refused the requested radius");
+    req["messages"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"role":"tool","content":before.to_string()}));
+    assert!(completion(&req, p.expected.as_ref().unwrap()).is_some());
+}

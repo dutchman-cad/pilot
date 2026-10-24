@@ -1081,7 +1081,12 @@ impl Proxy {
                     .is_none_or(|c| c.is_empty())
             {
                 if let Some((_, expected)) = &conversation.recipe {
-                    if let Some(reason) = planner::completion(&original, expected) {
+                    let difference = if conversation.pending_recipe.is_some() {
+                        Some("Recipe completion is unverified: the edge topology lookup has not completed. Run the planned lookup, finish the edge operation, and verify; do not repeat accepted changes.".into())
+                    } else {
+                        planner::completion(&original, expected)
+                    };
+                    if let Some(reason) = difference {
                         nudge = Some((reason, false));
                         completion_nudge = true;
                     }
