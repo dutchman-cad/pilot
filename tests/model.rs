@@ -113,7 +113,7 @@ impl Harness {
             settings,
             capabilities,
             how,
-            true,
+            false,
             true,
             solidcraft98,
         )
