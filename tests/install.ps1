@@ -48,7 +48,7 @@ try {
     Assert-Same (Join-Path $root 'old.exe') (Join-Path $root 'old\dutchman.exe')
     Remove-Item -LiteralPath (Join-Path $root 'path\dutchman.exe')
     $userPathBefore = [Environment]::GetEnvironmentVariable('Path', 'User')
-    & (Join-Path $root 'archive\install.ps1') -Prefix (Join-Path $root 'dry run') --dry-run --add-to-path
+    & (Join-Path $root 'archive\install.ps1') -Prefix (Join-Path $root 'dry run') -DryRun -AddToPath
     if ([Environment]::GetEnvironmentVariable('Path', 'User') -cne $userPathBefore) { throw 'Dry run changed user PATH' }
     if (Test-Path -LiteralPath (Join-Path $root 'dry run')) { throw 'Dry run wrote files' }
     Invoke-Install 'with spaces'

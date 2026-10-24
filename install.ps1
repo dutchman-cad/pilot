@@ -1,9 +1,9 @@
-# Install the two commands from an extracted Pilot archive.
+# Install Pilot's commands from an extracted Pilot archive.
 [CmdletBinding()]
 param(
     [string]$Prefix = (Join-Path $env:LOCALAPPDATA 'Programs\dutchman-cad\bin'),
-    [Alias('dry-run', '-dry-run')][switch]$DryRun,
-    [Alias('add-to-path', '-add-to-path')][switch]$AddToPath
+    [switch]$DryRun,
+    [switch]$AddToPath
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest

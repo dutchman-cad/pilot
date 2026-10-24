@@ -98,7 +98,7 @@ sh install.sh --prefix "$HOME/bin" --dry-run
 
 The installers copy `dutchman-pilot`, `dutchman-pilot-eval`, and `dutchman` into the chosen bin directory.
 Add that directory to PATH as the installer suggests. They require no administrator
-access. Only Windows `-AddToPath` (also `--add-to-path`) changes your saved user PATH.
+access. Only Windows `-AddToPath` changes your saved user PATH.
 You can rerun either installer to update an older launcher. A full Dutchman install
 at the destination or on PATH is kept; it also runs `dutchman pilot`.
 
