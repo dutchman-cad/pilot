@@ -1,7 +1,7 @@
 # SolidCraft 98 benchmark set
 
 Eleven tasks for [SolidCraft 98](https://github.com/raykholo/solidcraft98), requiring
-v1.1.1 or later and its remote protocol. The prompts cover a cube, cylinder,
+1.2 or later and its remote protocol. The prompts cover a cube, cylinder,
 block, rectangle extrusion, centred through hole, edge rounding, moving, body
 renaming, calculated volume, two through holes, and an arbitrary shape change.
 

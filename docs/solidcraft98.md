@@ -1,7 +1,7 @@
 # SolidCraft 98
 
 Pilot supports [SolidCraft 98](https://github.com/raykholo/solidcraft98), a separate
-application from SolidCraft. **SolidCraft 98 v1.1.1 or later is required** for the
+application from SolidCraft. **SolidCraft 98 1.2 or later is required** for the
 remote protocol used here. Install the application separately. Pilot uses its
 public screen commands; it does not embed a CAD engine.
 
@@ -15,6 +15,11 @@ dutchman-pilot mcp98 --connect 127.0.0.1:9898
 ```
 
 Start the Visual Basic application with `/REMOTE` to enable remote control.
+Plain `/REMOTE` accepts connections from the same computer only. When Pilot runs
+on another machine, or on the host of a virtual machine running SolidCraft 98,
+start it with `/REMOTE:ANY` and connect to that machine's address.
+`/REMOTE:port` and `/REMOTE:port:ANY` choose another port. The Delphi Edition
+does not include remote control yet.
 The TCP address must be numeric, including the port; IPv6 addresses use brackets.
 Keep the unauthenticated remote listener on a trusted network.
 
