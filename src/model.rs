@@ -3682,6 +3682,149 @@ mod tests {
         assert!(prose_guard(&req, &json!({"content":"20"}), &catalog).is_none());
     }
     #[test]
+    fn direct_natural_first_turn_edits_with_recorded_inspection() {
+        let inspect: Value = serde_json::from_str(include_str!(
+            "../tests/fixtures/inspect-single-body-0.20.json"
+        ))
+        .unwrap();
+        let topology: Value = serde_json::from_str(include_str!(
+            "../tests/fixtures/edges-single-body-0.20.json"
+        ))
+        .unwrap();
+        let edges: Vec<Value> = (0..12)
+            .map(|index| json!({"body":"Body1","index":index}))
+            .collect();
+        for (text, expected, needs_edges) in [
+            (
+                "Fillet all edges with a radius of 1 mm.",
+                json!({"command":"solid.fillet","params":{"body":"Body1","edges":edges,"radius":1.0}}),
+                true,
+            ),
+            (
+                "Chamfer all edges by 1 mm.",
+                json!({"command":"solid.chamfer","params":{"body":"Body1","edges":edges,"distance":1.0}}),
+                true,
+            ),
+            (
+                "Move this body 9 mm along -Y.",
+                json!({"command":"solid.move","params":{"bodies":["Body1"],"translate":[0.0,-9.0,0.0]}}),
+                false,
+            ),
+            (
+                "Call this body Mount.",
+                json!({"command":"body.rename","params":{"body":"Body1","name":"Mount"}}),
+                false,
+            ),
+            (
+                "Mirror this body across the X-Z plane keeping the original.",
+                json!({"command":"solid.mirror","params":{"bodies":["Body1"],"plane":"XZ"}}),
+                false,
+            ),
+            (
+                "Double the size with the origin as the centre.",
+                json!({"command":"solid.scale","params":{"bodies":["Body1"],"factor":2.0,"origin":[0,0,0]}}),
+                false,
+            ),
+        ] {
+            for ambiguous in [false, true] {
+                let mut f = Fixture::new(vec![reply("Which body should I edit?")]);
+                f.proxy.cfg.direct_recipes = true;
+                let mut req = planner::cases::request(text);
+                req["messages"] = json!([{"role":"system","content":"Use the offered tools for CAD edits."},{"role":"user","content":text}]);
+                let first: Value = serde_json::from_slice(&f.chat(req.clone()).body).unwrap();
+                let message = first["choices"][0]["message"].clone();
+                let calls = message["tool_calls"]
+                    .as_array()
+                    .unwrap_or_else(|| panic!("{text}: {first}"));
+                assert_eq!(calls.len(), 1);
+                assert_eq!(calls[0]["function"]["name"], "execute");
+                let args: Value =
+                    serde_json::from_str(calls[0]["function"]["arguments"].as_str().unwrap())
+                        .unwrap();
+                assert_eq!(
+                    args,
+                    json!({"command":"document.inspect","params":{"measure":true}})
+                );
+                assert!(f
+                    .proxy
+                    .scripted
+                    .as_ref()
+                    .unwrap()
+                    .borrow()
+                    .requests
+                    .is_empty());
+                let mut result = inspect.clone();
+                if ambiguous {
+                    let mut data: Value =
+                        serde_json::from_str(result["content"][0]["text"].as_str().unwrap())
+                            .unwrap();
+                    let mut second = data["bodies"][0].clone();
+                    second["name"] = json!("Body2");
+                    data["bodies"].as_array_mut().unwrap().push(second);
+                    result["content"][0]["text"] = json!(data.to_string());
+                }
+                req["messages"].as_array_mut().unwrap().extend([
+                    message.clone(),
+                    json!({"role":"tool","tool_call_id":calls[0]["id"],"content":result.to_string()}),
+                ]);
+                let mut next: Value = serde_json::from_slice(&f.chat(req.clone()).body).unwrap();
+                if ambiguous {
+                    assert_eq!(
+                        next["choices"][0]["message"]["content"], "Which body should I edit?",
+                        "{text}: {next}"
+                    );
+                    assert!(next["choices"][0]["message"]["tool_calls"].is_null());
+                    let scripted = f.proxy.scripted.as_ref().unwrap().borrow();
+                    assert_eq!(scripted.requests.len(), 1, "{text}");
+                    assert!(scripted.requests[0]
+                        .to_string()
+                        .contains("Recipe target is unresolved"));
+                    continue;
+                }
+                if needs_edges {
+                    let message = next["choices"][0]["message"].clone();
+                    let calls = message["tool_calls"].as_array().unwrap();
+                    assert_eq!(calls.len(), 1);
+                    let args: Value =
+                        serde_json::from_str(calls[0]["function"]["arguments"].as_str().unwrap())
+                            .unwrap();
+                    assert_eq!(
+                        args,
+                        json!({"command":"model.edges","params":{"body":"Body1"}})
+                    );
+                    req["messages"].as_array_mut().unwrap().extend([
+                        message.clone(),
+                        json!({"role":"tool","tool_call_id":calls[0]["id"],"content":topology.to_string()}),
+                    ]);
+                    next = serde_json::from_slice(&f.chat(req).body).unwrap();
+                }
+                let calls = next["choices"][0]["message"]["tool_calls"]
+                    .as_array()
+                    .unwrap_or_else(|| panic!("{text}: {next}"));
+                assert_eq!(calls.len(), 2, "{text}: {next}");
+                for (call, expected) in calls.iter().zip([
+                    expected.clone(),
+                    json!({"command":"document.inspect","params":{"measure":true}}),
+                ]) {
+                    assert_eq!(call["function"]["name"], "execute");
+                    let args: Value =
+                        serde_json::from_str(call["function"]["arguments"].as_str().unwrap())
+                            .unwrap();
+                    assert_eq!(args, expected, "{text}");
+                }
+                assert!(f
+                    .proxy
+                    .scripted
+                    .as_ref()
+                    .unwrap()
+                    .borrow()
+                    .requests
+                    .is_empty());
+            }
+        }
+    }
+
+    #[test]
     fn direct_first_turn_body_lookup_then_edit_and_verification() {
         for text in [
             "move this box 8mm along X",

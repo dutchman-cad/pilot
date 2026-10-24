@@ -1,25 +1,316 @@
 [
   {
-    "request_file": "box.json",
     "expected": {
-      "rule": "box",
-      "slots": {"Box": {"size": [38.0, 26.0, 3.0]}},
       "calls": [
-        {"tool": "execute", "arguments": {"command": "solid.box", "params": {"length": 38.0, "width": 26.0, "height": 3.0, "operation": "new"}}},
-        {"tool": "execute", "arguments": {"command": "document.inspect", "params": {"measure": true}}}
-      ]
-    }
+        {
+          "arguments": {
+            "command": "solid.box",
+            "params": {
+              "height": 3.0,
+              "length": 38.0,
+              "operation": "new",
+              "width": 26.0
+            }
+          },
+          "tool": "execute"
+        },
+        {
+          "arguments": {
+            "command": "document.inspect",
+            "params": {
+              "measure": true
+            }
+          },
+          "tool": "execute"
+        }
+      ],
+      "rule": "box",
+      "slots": {
+        "Box": {
+          "size": [
+            38.0,
+            26.0,
+            3.0
+          ]
+        }
+      }
+    },
+    "request_file": "box.json"
   },
   {
-    "request_file": "rod.json",
     "expected": {
-      "rule": "cylinder",
-      "slots": {"Cylinder": {"radius": 4.5, "height": 37.0}},
       "calls": [
-        {"tool": "execute", "arguments": {"command": "solid.cylinder", "params": {"radius": 4.5, "height": 37.0, "operation": "new"}}},
-        {"tool": "execute", "arguments": {"command": "document.inspect", "params": {"measure": true}}}
-      ]
-    }
+        {
+          "arguments": {
+            "command": "solid.cylinder",
+            "params": {
+              "height": 37.0,
+              "operation": "new",
+              "radius": 4.5
+            }
+          },
+          "tool": "execute"
+        },
+        {
+          "arguments": {
+            "command": "document.inspect",
+            "params": {
+              "measure": true
+            }
+          },
+          "tool": "execute"
+        }
+      ],
+      "rule": "cylinder",
+      "slots": {
+        "Cylinder": {
+          "height": 37.0,
+          "radius": 4.5
+        }
+      }
+    },
+    "request_file": "rod.json"
   },
-  {"request_file": "competing.json", "expected": null}
+  {
+    "expected": null,
+    "request_file": "competing.json"
+  },
+  {
+    "expected": {
+      "calls": [
+        {
+          "arguments": {
+            "command": "sketch.create",
+            "params": {
+              "plane": "XY"
+            }
+          },
+          "tool": "execute"
+        },
+        {
+          "arguments": {
+            "command": "sketch.rectangle.two_point",
+            "params": {
+              "p0": [
+                0,
+                0
+              ],
+              "p1": [
+                46.0,
+                28.0
+              ]
+            }
+          },
+          "tool": "execute"
+        },
+        {
+          "arguments": {
+            "command": "sketch.finish",
+            "params": {}
+          },
+          "tool": "execute"
+        },
+        {
+          "arguments": {
+            "command": "solid.extrude",
+            "params": {
+              "distance": 13.0,
+              "operation": "new"
+            }
+          },
+          "tool": "execute"
+        },
+        {
+          "arguments": {
+            "command": "document.inspect",
+            "params": {
+              "measure": true
+            }
+          },
+          "tool": "execute"
+        }
+      ],
+      "rule": "sketch_extrude",
+      "slots": {
+        "Sketch": {
+          "distance": 13.0,
+          "plane": "XY",
+          "size": [
+            46.0,
+            28.0
+          ]
+        }
+      }
+    },
+    "request_file": "rectangle-plane.json"
+  },
+  {
+    "expected": {
+      "calls": [
+        {
+          "arguments": {
+            "command": "sketch.create",
+            "params": {
+              "plane": "YZ"
+            }
+          },
+          "tool": "execute"
+        },
+        {
+          "arguments": {
+            "command": "sketch.circle.center",
+            "params": {
+              "center": [
+                0,
+                0
+              ],
+              "radius": 9.0
+            }
+          },
+          "tool": "execute"
+        },
+        {
+          "arguments": {
+            "command": "sketch.finish",
+            "params": {}
+          },
+          "tool": "execute"
+        },
+        {
+          "arguments": {
+            "command": "solid.extrude",
+            "params": {
+              "distance": 7.0,
+              "operation": "new"
+            }
+          },
+          "tool": "execute"
+        },
+        {
+          "arguments": {
+            "command": "document.inspect",
+            "params": {
+              "measure": true
+            }
+          },
+          "tool": "execute"
+        }
+      ],
+      "rule": "sketch_extrude",
+      "slots": {
+        "Sketch": {
+          "distance": 7.0,
+          "plane": "YZ",
+          "size": [
+            9.0
+          ]
+        }
+      }
+    },
+    "request_file": "circle-order.json"
+  },
+  {
+    "expected": {
+      "calls": [
+        {
+          "arguments": {
+            "command": "solid.box",
+            "params": {
+              "body_name": "PilotRecipe1",
+              "height": 6.0,
+              "length": 90.0,
+              "operation": "new",
+              "width": 40.0
+            }
+          },
+          "tool": "execute"
+        },
+        {
+          "arguments": {
+            "command": "solid.hole",
+            "params": {
+              "diameter": 6.0,
+              "position": [
+                12.0,
+                20.0,
+                6.0
+              ],
+              "targets": [
+                "PilotRecipe1"
+              ]
+            }
+          },
+          "tool": "execute"
+        },
+        {
+          "arguments": {
+            "command": "solid.hole",
+            "params": {
+              "diameter": 6.0,
+              "position": [
+                78.0,
+                20.0,
+                6.0
+              ],
+              "targets": [
+                "PilotRecipe1"
+              ]
+            }
+          },
+          "tool": "execute"
+        },
+        {
+          "arguments": {
+            "command": "document.inspect",
+            "params": {
+              "measure": true
+            }
+          },
+          "tool": "execute"
+        }
+      ],
+      "rule": "plate_holes",
+      "slots": {
+        "Holes": {
+          "centers": [
+            [
+              12.0,
+              20.0
+            ],
+            [
+              78.0,
+              20.0
+            ]
+          ],
+          "diameter": 6.0,
+          "size": [
+            90.0,
+            40.0,
+            6.0
+          ]
+        }
+      }
+    },
+    "request_file": "relative-holes.json"
+  },
+  {
+    "expected": {
+      "calls": [
+        {
+          "arguments": {
+            "command": "document.inspect",
+            "params": {
+              "measure": true
+            }
+          },
+          "tool": "execute"
+        }
+      ],
+      "rule": "body_count",
+      "slots": {
+        "query": "body_count"
+      }
+    },
+    "request_file": "body-count.json"
+  }
 ]

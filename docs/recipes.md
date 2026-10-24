@@ -49,12 +49,12 @@ intents are left to the model. There is no benchmark wording or task-id matching
 | Sphere / ball | Explicit radius or diameter / `Ø` / across / wide. |
 | Hollow tube | Outer and inner diameter (`OD` / `ID`), or outer diameter and wall thickness, plus length / height. Inner diameter must be positive and smaller than outer diameter. A new named cylinder and targeted axial through hole leave existing bodies untouched. |
 | Plate with centred hole | Plate dimensions, hole radius or diameter, centred / middle, and through. “One centred 6mm through hole” uses 6mm as its diameter. |
-| Plate with positioned holes | Plate dimensions, integer count, common hole radius or diameter, through, and exactly that many `(x,y)` positions after `at`. Positions use the plate's origin corner, with Z supplied from its thickness. |
+| Plate with positioned holes | Plate dimensions, integer count, common hole radius or diameter, through, and exactly that many `(x,y)` positions after `at`. Also two holes at a specified inset from each short end, halfway across the width (or each end on the centre line of a nonsquare plate); four holes at a specified common inset from both adjacent edges at each corner. Positions use the plate's origin corner, with Z supplied from its thickness. |
 | Plate with rectangular hole pattern | Plate dimensions, hole size, through, centred rectangular pattern, rows, columns, and X × Y pitch. An optional total count must agree. |
 | Plate with circular hole pattern | Plate dimensions, hole size, through, centred circular pattern radius or diameter, count, equally spaced, and explicit `starting at +X`. |
 | Drill / bore / cut a hole | Uniquely resolved existing body, explicit hole radius or diameter, `through BODY at (x,y,z)`. All three coordinates are required; uses the public hole command's Z direction. |
-| Sketch rectangle then extrude | Rectangle width × height, `on PLANE then extrude DISTANCE`; “raise”, “pull it up”, and “extrude by” also work. |
-| Sketch circle then extrude | Circle radius or diameter, `on PLANE then extrude DISTANCE`; “raise”, “pull it up”, and “extrude by” also work. |
+| Sketch rectangle then extrude | Rectangle width × height and a principal plane, then / and extrude a distance, including “extrude it”. “Raise”, “pull it up”, and “extrude by” also work. |
+| Sketch circle then extrude | Circle radius or diameter, principal plane before or after the profile, then / and extrude a distance, including “extrude the sketch”. An unqualified “18 mm circle” means diameter 18 mm. |
 | Fillet / round / round off all edges | Uniquely resolved current body, all edges (also “every edge” / “all the edges”), and radius, including “a 2mm round”. |
 | Chamfer / bevel all / top edges | Uniquely resolved current body, all or top edges, and distance. |
 | Move / translate / shift / slide | Uniquely resolved body, one signed distance, and exactly one X / Y / Z axis. “negative X”, “in the negative Y direction”, “along -Y”, and “down Y” also work; conflicting signs defer. |
@@ -64,7 +64,7 @@ intents are left to the model. There is no benchmark wording or task-id matching
 | Shell box | New box dimensions, wall thickness, and explicitly open / remove top. Shelling inward leaves the bottom and four walls. |
 | Revolve rectangle | Rectangle radial `radius` and height, explicitly `from axis on XZ about Z full turn`. Other profiles, axes, offsets and partial turns defer. |
 | Volume query | “What’s the volume”, requests mentioning volume with any unit wording, or “how many cubic millimetres”. A complete measured snapshot, optionally one uniquely named body; otherwise one inspect request. Results retain the existing mm³ reporting. |
-| Body count query | “How many bodies / solids are there”, or count bodies. A complete snapshot; otherwise one inspect request. |
+| Body count query | “How many bodies / solid bodies / parts / solids are here / in the design”, or count bodies. A complete snapshot; otherwise one inspect request. “How do I count” defers. |
 
 Lengths default to mm. `mm`, `cm`, `m`, `in`, `inch`, `inches`, and `"` are
 accepted, including simple fractions such as `1/4 inch`. Mixed fractions such as
@@ -116,8 +116,12 @@ body only when exactly one body exists, including when a body is named `Box`.
 
 New primitives use `operation: new` and SolidCraft's documented origin / Z-axis
 defaults. Rectangle sketches start at the sketch origin; circles are centred
-there. Sketch planes may be XY / XZ / YZ or an explicitly named construction
-plane, which SolidCraft validates. Through holes must be fully enclosed and
+there. Sketch and mirror plane slots are restricted to XY / XZ / YZ, case
+insensitive, including “the X-Y plane” and “XY plane”. Named construction planes,
+unknown plane text, and the undocumented “top plane” alias defer. Axis slots
+produce a typed vector or documented constant; names preserve exactly the quoted
+destination or single unquoted token before terminal punctuation. Additional
+unquoted sentence text defers. Through holes must be fully enclosed and
 non-overlapping. Compound plates and shells receive an available `PilotRecipeN`
 body name, and subsequent modifications explicitly target it, including when
 older geometry overlaps the new body.
@@ -129,7 +133,7 @@ An expected plan contains `rule`, the complete typed `slots` object, and the
 complete `calls` array; `null` asserts that no recipe fires. The loader limits
 request size and fixture count, checks JSON bounds, and uses the bundled public
 catalogue. Run `cargo test --test planner_replay` with either feature set.
-The three checked-in bodies are synthetic, independently authored examples with
+The checked-in request bodies are synthetic, independently authored examples with
 a long system prompt and one user message. A further test expands that context
 past 16 KiB and verifies that removing the offered tools suppresses planning.
 
@@ -151,6 +155,13 @@ returned tool result, resolves the actual body, and only then emits edit calls.
 Zero bodies, multiple bodies, partial snapshots, failed or missing results defer;
 the lookup never repeats. Plan-text mode retains its original acted/body guards.
 These prerequisites use the existing direct audit events with rule `resolve_body`.
+The six first-turn edit lifecycle cases use recorded public `solidcraft-cli 0.20`
+responses in `tests/fixtures/inspect-single-body-0.20.json` and
+`edges-single-body-0.20.json`: a new 20 × 12 × 8 mm box (`Body1`), measured with
+`document.inspect {measure:true}`, and its `model.edges {body:"Body1"}` result.
+Inspect reports the edge count rather than references, so fillet and chamfer
+first request that read-only topology lookup before emitting the exact edit.
+Each edit also checks that two bodies hand back to the model without a mutation.
 
 A fresh request fires at most one recipe. The existing `acted` check suppresses
 new recipes after an `execute` or `batch` call in that request's history, even if
@@ -203,7 +214,7 @@ An optional clean-room geometry smoke test uses only the public MCP binary:
 PILOT_SOLIDCRAFT_CLI=/path/to/solidcraft-cli cargo test --test recipes_cli
 ```
 
-This test covers 25 geometry cases and checks measured expected results. It is
+This test covers 31 geometry cases and checks measured expected results. It is
 not a weak-model benchmark and establishes no live-model pass-rate improvement.
 
 `src/planner/robust.rs` adds 228 independently authored exact-slot phrasings

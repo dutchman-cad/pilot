@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Restrict plane slots to documented XY / XZ / YZ values and bound name and axis
+  extraction; reject arbitrary plane text instead of leaking extrusion prose.
+- Accept plane-first circle extrusion, relative end/corner through-hole layouts,
+  solid-body and part count questions, and origin-centred size doubling.
+- Replay all six first-turn edits against recorded public 0.20 inspection and
+  topology results, including exact edit calls and ambiguous-body model fallback.
+  Add long-system-prompt request fixtures for planes, circles, layouts and counts.
+
 - Generalize recipes through bounded normalization and tolerant labelled/positional
   slots: filler, noun-first requests, glued units, reordered labels, value-first
   thickness, ordinary shape synonyms, signed axes, and measurement questions.

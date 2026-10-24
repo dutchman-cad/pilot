@@ -60,6 +60,24 @@ fn recorded_chat_completion_bodies() {
 }
 
 #[test]
+fn first_turn_regressions_have_long_context_and_one_user() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/planner-replay");
+    for file in [
+        "rectangle-plane.json",
+        "circle-order.json",
+        "relative-holes.json",
+        "body-count.json",
+    ] {
+        let request = load(&root.join(file));
+        let messages = request["messages"].as_array().unwrap();
+        assert_eq!(messages.len(), 2, "{file}");
+        assert_eq!(messages[0]["role"], "system");
+        assert!(messages[0]["content"].as_str().unwrap().len() > 16_384);
+        assert_eq!(messages[1]["role"], "user");
+    }
+}
+
+#[test]
 fn long_system_context_and_offered_tools_are_replayed() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/planner-replay");
     let mut request = load(&root.join("box.json"));
