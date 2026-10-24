@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Complete direct volume and body-count queries from public 0.20 measure and
+  inspect results, including singular current-solid references. Report concise
+  measured answers with explicit cubic-unit conversions; hand back incomplete,
+  conflicting, partial or ambiguous facts. Add recorded inspection results and
+  a public-binary measure fixture, with streaming and core regression tests.
+
 - Accept polite “would you” creation requests and descriptive dimension wording
   without treating adjectives or participles as extra intents. Compound-request
   hand-backs explicitly require calls for the whole request and state that

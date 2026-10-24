@@ -1,0 +1,69 @@
+{
+  "active_sketch": null,
+  "bodies": [
+    {
+      "area_mm2": 2859.2799999999997,
+      "bbox": {
+        "max": [
+          31.25,
+          22.4,
+          13.6
+        ],
+        "min": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "center_of_mass": [
+        15.625,
+        11.2,
+        6.8
+      ],
+      "edges": 12,
+      "face_types": {
+        "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+        "edges": 12,
+        "faces": 6,
+        "shells": 1,
+        "vertices": 8
+      },
+      "name": "Block",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 9520.0
+    }
+  ],
+  "dirty": true,
+  "hidden_origin": [],
+  "marker": 1,
+  "metadata": {},
+  "name": "Untitled",
+  "params": [],
+  "path": null,
+  "redo": 0,
+  "revision": 4,
+  "selection": [],
+  "sketches": [],
+  "timeline": [
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 0.69238,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+    }
+  ],
+  "undo": 1,
+  "units": "mm"
+}

@@ -149,7 +149,15 @@ fn tool_payload(message: &Value) -> Option<Value> {
 fn state(messages: &[Value]) -> Option<Value> {
     let data = tool_payload(messages.iter().rev().find(|m| m["role"] == "tool")?)?;
     let bodies = data.get("bodies")?.as_array()?;
-    (bodies.len() <= MAX_BODIES).then_some(data)
+    if bodies.len() > MAX_BODIES
+        || bodies.iter().any(|b| !b.is_object())
+        || data
+            .get("body_count")
+            .is_some_and(|n| n.as_u64() != Some(bodies.len() as u64))
+    {
+        return None;
+    }
+    Some(data)
 }
 fn body(text: &str, data: Option<&Value>) -> Option<String> {
     let bodies = data?.get("bodies")?.as_array()?;
@@ -300,6 +308,17 @@ fn volume(data: &Value) -> Option<f64> {
             return None;
         }
         total += n;
+    }
+    if data
+        .get("total")
+        .and_then(|t| t.get("volume_mm3"))
+        .is_some_and(|v| {
+            v.as_f64().is_none_or(|v| {
+                !v.is_finite() || (v - total).abs() > 0.01_f64.max(total.abs() * 1e-9)
+            })
+        })
+    {
+        return None;
     }
     total.is_finite().then_some(total)
 }
@@ -551,15 +570,36 @@ fn plan_impl(
                 facts = Some(json!({"body_count":bodies.len()}));
             } else {
                 let named = body(text, Some(data));
-                if named.is_none() && (has("of") || has("for")) && !has("design") && !has("all") {
-                    return Ok(None);
+                if (has("of") || has("for")) && !has("design") && !has("all") {
+                    let reference = t
+                        .iter()
+                        .position(|s| matches!(s.as_str(), "of" | "for"))
+                        .map(|i| &t[i + 1..])
+                        .unwrap_or(&[]);
+                    let qualifiers = reference
+                        .iter()
+                        .take_while(|s| matches!(s.as_str(), "the" | "current" | "existing"))
+                        .count();
+                    let reference = &reference[qualifiers..];
+                    let generic = reference
+                        .first()
+                        .is_some_and(|s| matches!(s.as_str(), "body" | "solid" | "part" | "it"))
+                        && reference.get(1).is_none_or(|s| {
+                            matches!(s.as_str(), "in" | "leaving" | "unchanged" | "as")
+                        });
+                    if (named.is_none() && (!generic || bodies.len() != 1))
+                        || (generic && qualifiers > 0 && bodies.len() != 1)
+                    {
+                        return Ok(None);
+                    }
                 }
                 let selected: Vec<_> = bodies
                     .iter()
                     .filter(|b| named.as_ref().is_none_or(|n| b["name"] == *n))
                     .cloned()
                     .collect();
-                if let Some(total) = volume(&json!({"bodies":selected})) {
+                if let Some(total) = volume(data).and_then(|_| volume(&json!({"bodies":selected})))
+                {
                     facts = Some(
                         json!({"volume_mm3":total,"body_count":bodies.len(),"bodies":selected.iter().filter_map(|b| b["name"].as_str()).collect::<Vec<_>>()}),
                     );
@@ -567,6 +607,9 @@ fn plan_impl(
             }
         }
         let mut calls = Vec::new();
+        if !count && volume_unit(text).is_none() {
+            return Ok(None);
+        }
         if facts.is_none() {
             if messages[user_index + 1..]
                 .iter()
@@ -694,6 +737,31 @@ pub fn supported_recipes() -> Vec<&'static str> {
 }
 /// Report measured facts only after the ordinary completion check succeeds.
 pub fn direct_summary(request: &Value, plan: &Plan) -> String {
+    if let Some(facts) = &plan.facts {
+        if plan.rule == "body_count" {
+            return format!("Exact match (no model): {} bodies", facts["body_count"]);
+        }
+        if plan.rule == "volume" {
+            let text = request["messages"]
+                .as_array()
+                .and_then(|m| m.iter().rev().find(|m| m["role"] == "user"))
+                .and_then(|m| m["content"].as_str())
+                .unwrap_or("");
+            if let (Some(value), Some((unit, divisor))) =
+                (facts["volume_mm3"].as_f64(), volume_unit(text))
+            {
+                let conversion = if divisor == 1.0 {
+                    String::new()
+                } else {
+                    format!(" (converted from {value} mm³; 1 {unit} = {divisor} mm³)")
+                };
+                return format!(
+                    "Exact match (no model): volume {} {unit}{conversion}",
+                    value / divisor
+                );
+            }
+        }
+    }
     let mut text = format!(
         "Exact match (no model): {} completed.",
         plan.rule.replace('_', " ")
@@ -731,6 +799,81 @@ pub fn direct_summary(request: &Value, plan: &Plan) -> String {
     }
     text.push_str(" Length slots use mm (1 inch = 25.4 mm; 1 cm = 10 mm; 1 m = 1000 mm).");
     text
+}
+
+/// Cubic units are explicit and bounded by the request size. Conflicting units defer.
+fn volume_unit(text: &str) -> Option<(&'static str, f64)> {
+    let lower = text.to_ascii_lowercase().replace('³', "3").replace('^', "");
+    let mut found = None;
+    for (unit, divisor, aliases) in [
+        (
+            "mm³",
+            1.0,
+            &[
+                "mm3",
+                "cubic millimetres",
+                "cubic millimeters",
+                "cubic millimetre",
+                "cubic millimeter",
+            ][..],
+        ),
+        (
+            "cm³",
+            1000.0,
+            &[
+                "cm3",
+                "cubic centimetres",
+                "cubic centimeters",
+                "cubic centimetre",
+                "cubic centimeter",
+            ][..],
+        ),
+        (
+            "m³",
+            1_000_000_000.0,
+            &[
+                "m3",
+                "cubic metres",
+                "cubic meters",
+                "cubic metre",
+                "cubic meter",
+            ][..],
+        ),
+        (
+            "in³",
+            16_387.064,
+            &["in3", "cubic inches", "cubic inch"][..],
+        ),
+        (
+            "ft³",
+            28_316_846.592,
+            &["ft3", "cubic feet", "cubic foot"][..],
+        ),
+    ] {
+        if aliases.iter().any(|alias| {
+            lower.match_indices(*alias).any(|(at, _)| {
+                lower[..at]
+                    .chars()
+                    .next_back()
+                    .is_none_or(|c| !c.is_ascii_alphabetic())
+                    && lower[at + alias.len()..]
+                        .chars()
+                        .next()
+                        .is_none_or(|c| !c.is_ascii_alphabetic())
+            })
+        }) {
+            if found.is_some() {
+                return None;
+            }
+            found = Some((unit, divisor));
+        }
+    }
+    if found.is_none()
+        && (lower.contains("cubic") || lower.contains("cubed") || text.contains(['³', '^']))
+    {
+        return None;
+    }
+    Some(found.unwrap_or(("mm³", 1.0)))
 }
 
 /// Offer a fully matched leading clause, leaving compound work to the model.

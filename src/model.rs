@@ -3501,6 +3501,144 @@ mod tests {
         }
     }
     #[test]
+    fn direct_polite_creation_questions_skip_upstream() {
+        for (text, command) in [
+            (
+                "Would you make a solid sphere measuring 26 mm in diameter?",
+                "solid.sphere",
+            ),
+            (
+                "Could you build a box that measures 36 by 24 by 8 mm?",
+                "solid.box",
+            ),
+            (
+                "Can you create a solid cylinder with a size of diameter 12 and height 25 mm?",
+                "solid.cylinder",
+            ),
+            (
+                "Would you make a solid plate sized 48x26x5 mm?",
+                "solid.box",
+            ),
+        ] {
+            let mut f = Fixture::new(vec![]);
+            f.proxy.cfg.direct_recipes = true;
+            let first = f.chat(planner::cases::request(text));
+            assert_eq!(first.status, 200, "{text}");
+            let value: Value = serde_json::from_slice(&first.body).unwrap();
+            let call = &value["choices"][0]["message"]["tool_calls"][0];
+            assert_eq!(call["function"]["name"], "execute", "{text}: {value}");
+            let args: Value =
+                serde_json::from_str(call["function"]["arguments"].as_str().unwrap()).unwrap();
+            assert_eq!(args["command"], command);
+            assert!(f
+                .proxy
+                .scripted
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .requests
+                .is_empty());
+        }
+    }
+
+    #[test]
+    fn direct_query_recorded_results_and_units() {
+        let fixtures: Vec<Value> = [
+            include_str!("../tests/fixtures/inspect-volume-granite-0.20.json"),
+            include_str!("../tests/fixtures/inspect-volume-qwen-0.20.json"),
+            include_str!("../tests/fixtures/measure-volume-0.20.json"),
+        ]
+        .iter()
+        .map(|s| serde_json::from_str(s).unwrap())
+        .collect();
+        for payload in fixtures {
+            for stream in [false, true] {
+                for (question, expected) in [
+                    ("Report the volume of the current solid in cubic millimeters; leave it unchanged.", "Exact match (no model): volume 9520 mm³"),
+                    ("What volume does this design have in cm³?", "Exact match (no model): volume 9.52 cm³ (converted from 9520 mm³; 1 cm³ = 1000 mm³)"),
+                    ("Tell me the volume in cubic inches", "1 in³ = 16387.064 mm³"),
+                    ("How many bodies are in this document?", "Exact match (no model): 1 bodies"),
+                ] {
+                    let mut f = Fixture::new(vec![]);
+                    f.proxy.cfg.direct_recipes = true;
+                    let mut req = planner::cases::request(question);
+                    // Query starts without a measured baseline.
+                    req["messages"].as_array_mut().unwrap().remove(0);
+                    req["stream"] = json!(stream);
+                    let decode = |reply: Reply| -> Value {
+                        assert_eq!(reply.status, 200, "{}", String::from_utf8_lossy(&reply.body));
+                        if stream { collect_sse(&reply.body).unwrap() } else { serde_json::from_slice(&reply.body).unwrap() }
+                    };
+                    let first = decode(f.chat(req.clone()));
+                    let message = first["choices"][0]["message"].clone();
+                    let call = &message["tool_calls"][0];
+                    assert_eq!(call["function"]["name"], "execute");
+                    assert_eq!(serde_json::from_str::<Value>(call["function"]["arguments"].as_str().unwrap()).unwrap(), json!({"command":"document.inspect","params":{"measure":true}}));
+                    let tool = json!({"role":"tool","tool_call_id":call["id"],"content":payload.to_string()});
+                    req["messages"].as_array_mut().unwrap().extend([message, tool]);
+                    let second = decode(f.chat(req));
+                    let text = second["choices"][0]["message"]["content"].as_str().unwrap();
+                    assert!(text.contains(expected), "{question}: {text}");
+                    assert!(!text.contains("completed"));
+                    assert!(f.proxy.scripted.as_ref().unwrap().borrow().requests.is_empty());
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn direct_query_missing_or_ambiguous_facts_hand_back() {
+        for (question, payload) in [
+            ("Tell me the volume", json!({"bodies":[{"name":"A"}]})),
+            (
+                "Tell me the volume",
+                json!({"bodies":[{"name":"A","volume_mm3":-1}]}),
+            ),
+            (
+                "Tell me the volume",
+                json!({"bodies":[{"name":"A","volume_mm3":10}],"total":{"volume_mm3":20}}),
+            ),
+            (
+                "Tell me the volume of the current solid",
+                json!({"bodies":[{"name":"A","volume_mm3":10},{"name":"B","volume_mm3":20}]}),
+            ),
+            (
+                "Tell me the volume of Missing",
+                json!({"bodies":[{"name":"A","volume_mm3":10}]}),
+            ),
+            ("Count the bodies", json!({"bodies":["A"]})),
+            (
+                "Count the bodies",
+                json!({"bodies":[{"name":"A"}],"body_count":2}),
+            ),
+            (
+                "Count the bodies",
+                json!({"bodies":[{"name":"A"}],"truncated":true}),
+            ),
+            (
+                "Count the bodies",
+                json!({"isError":true,"error":"cannot inspect"}),
+            ),
+        ] {
+            let mut f = Fixture::new(vec![reply("I need a complete measurement.")]);
+            f.proxy.cfg.direct_recipes = true;
+            let mut req = planner::cases::request(question);
+            req["messages"].as_array_mut().unwrap().remove(0);
+            let first: Value = serde_json::from_slice(&f.chat(req.clone()).body).unwrap();
+            let message = first["choices"][0]["message"].clone();
+            let id = message["tool_calls"][0]["id"].clone();
+            req["messages"].as_array_mut().unwrap().extend([
+                message,
+                json!({"role":"tool","tool_call_id":id,"content":payload.to_string()}),
+            ]);
+            let second = f.chat(req);
+            assert_eq!(second.status, 200);
+            let script = f.proxy.scripted.as_ref().unwrap().borrow();
+            assert_eq!(script.requests.len(), 1, "{question}: {payload}");
+            assert!(script.requests[0].to_string().contains("Recipe completion"));
+        }
+    }
+    #[test]
     fn direct_calls_and_measured_replies_never_use_upstream() {
         for stream in [false, true] {
             let mut f = Fixture::new(vec![]);

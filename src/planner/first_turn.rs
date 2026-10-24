@@ -70,6 +70,78 @@ fn descriptive_dimensions_and_polite_requests() {
 }
 
 #[test]
+fn query_formats_selection_and_conversion() {
+    let c = Catalog::bundled().unwrap();
+    let mut req = cases::request("Report the volume of the existing part in cm^3");
+    req["messages"][0]["content"] = json!(include_str!(
+        "../../tests/fixtures/inspect-volume-granite-0.20.json"
+    ));
+    let p = plan_direct(&req, &c).unwrap().unwrap();
+    assert_eq!(p.facts.as_ref().unwrap()["volume_mm3"], 9520.0);
+    assert_eq!(
+        direct_summary(&req, &p),
+        "Exact match (no model): volume 9.52 cm³ (converted from 9520 mm³; 1 cm³ = 1000 mm³)"
+    );
+    for (text, expected) in [
+        (
+            "Report the volume of Small",
+            "Exact match (no model): volume 1000 mm³",
+        ),
+        (
+            "Report the volume of all bodies",
+            "Exact match (no model): volume 17387.064 mm³",
+        ),
+        ("Count the bodies", "Exact match (no model): 2 bodies"),
+    ] {
+        let mut req = cases::request(text);
+        req["messages"][0]["content"] = json!(json!({"bodies":[{"name":"Small","volume_mm3":1000},{"name":"Large","volume_mm3":16387.064}]}).to_string());
+        let p = plan_direct(&req, &c).unwrap().unwrap();
+        assert_eq!(direct_summary(&req, &p), expected);
+    }
+    for (unit, divisor) in [
+        ("mm³", 1.0),
+        ("cm^3", 1000.0),
+        ("cubic inches", 16387.064),
+        ("m³", 1_000_000_000.0),
+        ("cubic feet", 28_316_846.592),
+    ] {
+        let mut req = cases::request(&format!("Report the volume in {unit}"));
+        req["messages"][0]["content"] =
+            json!(json!({"bodies":[{"name":"Unit","volume_mm3":divisor}]}).to_string());
+        let p = plan_direct(&req, &c).unwrap().unwrap();
+        assert!(direct_summary(&req, &p).starts_with("Exact match (no model): volume 1 "));
+    }
+    for text in [
+        "Report the volume in cm³ and in³",
+        "Report the volume in cubic furlongs",
+        "Report the volume of the existing solid",
+        "Report the volume of Unknown",
+    ] {
+        let mut req = cases::request(text);
+        req["messages"][0]["content"] = json!(
+            json!({"bodies":[{"name":"One","volume_mm3":10},{"name":"Two","volume_mm3":20}]})
+                .to_string()
+        );
+        assert!(plan_direct(&req, &c).unwrap().is_none(), "{text}");
+    }
+    for text in ["Report the volume", "Count the bodies"] {
+        let mut req = cases::request(text);
+        req["messages"][0]["content"] = json!("{\"bodies\":[]}");
+        let p = plan_direct(&req, &c).unwrap().unwrap();
+        assert!(
+            direct_summary(&req, &p).contains(": volume 0 mm³")
+                || direct_summary(&req, &p).contains(": 0 bodies")
+        );
+    }
+    let mut req = cases::request("Report the volume of the existing solid");
+    req["messages"][0]["content"] = json!(
+        json!({"bodies":[{"name":"Solid","volume_mm3":10},{"name":"Other","volume_mm3":20}]})
+            .to_string()
+    );
+    assert!(plan_direct(&req, &c).unwrap().is_none());
+}
+
+#[test]
 fn principal_planes_are_bounded_slots() {
     let c = Catalog::bundled().unwrap();
     for plane in ["XY", "xy plane", "the X-Y plane", "the xy plane"] {

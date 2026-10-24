@@ -63,7 +63,7 @@ intents are left to the model. There is no benchmark wording or task-id matching
 | Uniform scale | Uniquely resolved body, explicitly about the origin, and a factor: `by 1.5`, `by 150%`, `double` (2), or `half` (0.5). Factor must be positive and at most 1000. |
 | Shell box | New box dimensions, wall thickness, and explicitly open / remove top. Shelling inward leaves the bottom and four walls. |
 | Revolve rectangle | Rectangle radial `radius` and height, explicitly `from axis on XZ about Z full turn`. Other profiles, axes, offsets and partial turns defer. |
-| Volume query | “What’s the volume”, requests mentioning volume with any unit wording, or “how many cubic millimetres”. A complete measured snapshot, optionally one uniquely named body; otherwise one inspect request. Results retain the existing mm³ reporting. |
+| Volume query | “What’s the volume”, requests mentioning volume with unit wording, or “how many cubic millimetres”. A complete measured snapshot, optionally one uniquely named body; otherwise one inspect request. A current / existing solid reference requires exactly one body. Replies use mm³ by default, or the requested cm³ / m³ / in³ / ft³ with the conversion stated. Conflicting units defer. |
 | Body count query | “How many bodies / solid bodies / parts / solids are here / in the design”, or count bodies. A complete snapshot; otherwise one inspect request. “How do I count” defers. |
 
 Lengths default to mm. `mm`, `cm`, `m`, `in`, `inch`, `inches`, and `"` are
