@@ -229,10 +229,10 @@ impl Redactor {
                 Some("IP address")
             } else if self.commands.contains(token) || measurement(token) {
                 None
-            } else if secret(token) || token.split(':').any(secret) {
-                Some("token")
             } else if path(token) {
                 Some("path")
+            } else if secret(token) || token.split(':').any(secret) {
+                Some("token")
             } else if self.environment.contains(token) {
                 Some("environment name")
             } else if !command_id
@@ -646,6 +646,31 @@ mod more_tests {
 #[allow(clippy::unwrap_used)]
 mod name_classes {
     use super::*;
+    #[test]
+    fn paths_take_precedence_over_entropy_tokens() {
+        for path in [
+            "/home/USER/Projects/secret/bracket.solidcraft",
+            r"C:\Users\USER\Projects\secret\bracket.solidcraft",
+            "~/Projects/secret/bracket.solidcraft",
+        ] {
+            // The POSIX path meets the entropy rule, so ordering matters.
+            if path.starts_with('/') {
+                assert!(secret(path));
+            }
+            for text in [
+                path.to_string(),
+                format!("\"{path}\""),
+                format!("save to {path}."),
+            ] {
+                let mut r = Redactor::new(&[], &Catalog::bundled().unwrap());
+                let redacted = r.prose(&text);
+                assert!(redacted.contains("[path]"), "{redacted}");
+                assert!(!redacted.contains("[token]"));
+                assert_eq!(r.counts.get("path"), Some(&1));
+                assert!(!r.counts.contains_key("token"));
+            }
+        }
+    }
     #[test]
     fn each_name_class_is_consistent() {
         let names = [

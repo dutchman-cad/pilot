@@ -53,6 +53,8 @@
 
 ### Fixed
 
+- Report redaction classifies file paths before applying token entropy checks,
+  including Windows and home-relative paths.
 - Direct volume and body-count answers use complete measured results, including
   current-solid references and requested cubic-unit conversions. Incomplete,
   conflicting, partial, or ambiguous measurements return to the model.
