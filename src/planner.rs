@@ -538,6 +538,7 @@ fn plan_impl(
         }
         if [
             "make",
+            "draw",
             "create",
             "build",
             "add",
@@ -946,6 +947,7 @@ pub fn report_tokens(text: &str) -> Vec<String> {
                 || matches!(
                     word.as_str(),
                     "make"
+                        | "draw"
                         | "create"
                         | "build"
                         | "add"
