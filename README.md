@@ -1,5 +1,7 @@
 # Pilot
 
+[![Discord](https://img.shields.io/badge/Discord-Dutchman%20CAD-5865F2?logo=discord&logoColor=white)](https://discord.gg/yTcseBEdeu)
+
 Pilot is a local helper that lets small language models drive
 SolidCraft through its public interfaces. It repairs explicit tool calls,
 finds commands, and adds bounded hints. With `--planner`, a matching
@@ -163,5 +165,12 @@ Run the public [SolidCraft Assistant model benchmarks](bench/) directly or throu
 - [Plugin preparation](docs/plugin.md): portable logic and future plugin boundaries.
 - [Changelog](CHANGELOG.md), [contributing](CONTRIBUTING.md),
   [security](SECURITY.md), and [the contract](SPEC.md).
+
+## Help and community
+
+- Questions and discussion: the [Dutchman CAD Discord](https://discord.gg/yTcseBEdeu).
+- Bugs: open an [issue](https://github.com/dutchman-cad/pilot/issues). `dutchman pilot report`
+  writes a redacted report you can review and paste there.
+- Results with your own model: add them to [#1](https://github.com/dutchman-cad/pilot/issues/1).
 
 Licensed under [Apache-2.0](LICENSE). See [NOTICE](NOTICE).
