@@ -1,4 +1,4 @@
-# SolidCraft-Pilot changelog
+# Pilot changelog
 
 ## 0.1.0-beta.1
 

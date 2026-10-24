@@ -1,6 +1,6 @@
 # Security
 
-SolidCraft-Pilot passes the client's Authorization header to the configured model endpoint
+Pilot passes the client's Authorization header to the configured model endpoint
 in memory. It never stores API keys in configuration, profiles, or its audit log.
 The evaluation runner reads optional authorization from OPENAI_API_KEY without
 recording it. Put credentials in the client or environment, never in URLs, prompts,

@@ -1,4 +1,4 @@
-//! SolidCraft-Pilot: make small language models drive SolidCraft reliably, from outside SolidCraft.
+//! Pilot: make small language models drive SolidCraft reliably, from outside SolidCraft.
 //!
 //! With the default `proxy` feature, `model` is an OpenAI-compatible endpoint that sits between
 //! SolidCraft's Assistant (or any client) and a local model, and `mcp` is an MCP server that

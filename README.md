@@ -27,7 +27,7 @@ use Ollama, LM Studio, or another chat-completions endpoint for the model face.
 Download the archive for your platform from
 [GitHub Releases](https://github.com/dutchman-cad/pilot/releases):
 `x86_64-linux`, `aarch64-linux`, `aarch64-macos`, or `x86_64-windows`.
-Archive names start with `SolidCraft-Pilot-VERSION-`. Each contains the standalone
+Archive names start with `pilot-VERSION-`. Each contains the standalone
 `dutchman-pilot` and `dutchman-pilot-eval` binaries, docs, corpus, and license notices.
 Compare its SHA-256 digest with the adjacent `.sha256` file before extracting:
 

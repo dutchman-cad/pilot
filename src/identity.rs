@@ -1,5 +1,5 @@
 //! Product identity. Executable and storage names follow Cargo's package identity.
-pub const DISPLAY_NAME: &str = "SolidCraft-Pilot";
+pub const DISPLAY_NAME: &str = "Pilot";
 pub const BINARY: &str = env!("CARGO_PKG_NAME");
 pub const EVAL_BINARY: &str = concat!(env!("CARGO_PKG_NAME"), "-eval");
 

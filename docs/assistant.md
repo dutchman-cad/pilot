@@ -1,4 +1,4 @@
-# Use SolidCraft-Pilot with SolidCraft's Assistant
+# Use Pilot with SolidCraft's Assistant
 
 Start your model server, then Pilot, then add an API agent in SolidCraft's
 Assistant. Pilot is the agent's base URL; the real model endpoint is Pilot's

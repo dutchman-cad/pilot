@@ -6,7 +6,7 @@ The test suite compares this page with both binaries' help output.
 ## dutchman-pilot
 
 ```text
-SolidCraft-Pilot — a local helper for SolidCraft
+Pilot — a local helper for SolidCraft
 
 Usage:
   dutchman-pilot how "<task>"
@@ -58,7 +58,7 @@ Flags (including aliases):
 ## dutchman-pilot-eval
 
 ```text
-SolidCraft-Pilot — corpus evaluation
+Pilot — corpus evaluation
 
 dutchman-pilot-eval --base-url URL/v1 --model MODEL [--corpus corpus/starter.jsonl] [--floors corpus/floors.json] [--repetitions N (alias -n; default 3, range 1–10)] [--timeout SECONDS (default 120, range 1–600)] [--output eval-results] [--cache FILE] [--no-cache | --refresh]
 dutchman-pilot-eval --rescore results.json [--floors FILE] [--output DIR]

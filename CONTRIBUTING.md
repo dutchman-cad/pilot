@@ -1,4 +1,4 @@
-# Contributing to SolidCraft-Pilot
+# Contributing to Pilot
 
 Read [SPEC.md](SPEC.md) before changing behavior. Rust 1.88 or newer is required;
 Cargo.toml is the source of truth for the minimum version. Build and check with:

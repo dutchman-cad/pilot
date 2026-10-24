@@ -1,4 +1,4 @@
-# Use SolidCraft-Pilot with an MCP client
+# Use Pilot with an MCP client
 
 The mcp face is a stdio server wrapping `solidcraft-cli mcp`. The client launches
 Pilot; Pilot launches SolidCraft's public MCP binary, loads its live command

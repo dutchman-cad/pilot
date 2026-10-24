@@ -1,6 +1,6 @@
 # Measure it
 
-Compare the same model and tasks against the direct endpoint and SolidCraft-Pilot. Keep
+Compare the same model and tasks against the direct endpoint and Pilot. Keep
 model weights, context, temperature, seed, hardware, and task-set version fixed.
 Record the exact commands, binary versions, and settings with the results.
 

@@ -1,6 +1,6 @@
 # Behavior and limits
 
-SolidCraft-Pilot is a local, opt-in helper for small language models driving SolidCraft through its
+Pilot is a local, opt-in helper for small language models driving SolidCraft through its
 public interfaces. Rust only; no SolidCraft source or CAD library dependency.
 
 Two faces share a library: `model` is a blocking OpenAI-compatible model proxy;

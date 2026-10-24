@@ -1,4 +1,4 @@
-# SolidCraft-Pilot: specification
+# Pilot: specification
 
 A local helper that lets small language models drive SolidCraft reliably, **from outside
 SolidCraft**. SolidCraft's core uses native tool calling only: no text-call scraping, JSON

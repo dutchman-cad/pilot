@@ -51,7 +51,7 @@ jobs:
         run: cargo build --locked --release --bins --target "$BUILD_TARGET"
       - name: Assemble
         run: |
-          bundle="SolidCraft-Pilot-$VERSION-$PLATFORM"
+          bundle="pilot-$VERSION-$PLATFORM"
           mkdir -p "stage/$bundle" dist
           while IFS= read -r binary; do
             if [ "$RUNNER_OS" = macOS ]; then
@@ -83,7 +83,7 @@ jobs:
           done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: SolidCraft-Pilot-${{ matrix.platform }}
+          name: pilot-${{ matrix.platform }}
           path: dist/*
           if-no-files-found: error
           retention-days: 7
@@ -103,4 +103,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
-        run: gh release create "$RELEASE_TAG" dist/* --verify-tag --draft --title "SolidCraft-Pilot $RELEASE_TAG" --notes "Binaries, documentation, corpus, and SHA-256 checksums."
+        run: gh release create "$RELEASE_TAG" dist/* --verify-tag --draft --title "Pilot $RELEASE_TAG" --notes "Binaries, documentation, corpus, and SHA-256 checksums."

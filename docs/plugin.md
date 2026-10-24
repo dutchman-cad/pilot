@@ -1,6 +1,6 @@
 # Plugin preparation
 
-SolidCraft-Pilot's default features, `core` and `proxy`, retain both existing proxy faces
+Pilot's default features, `core` and `proxy`, retain both existing proxy faces
 and their binaries. `proxy` depends on `core`. Building only `core` provides
 catalogue search and the how matcher, the request planner, argument repair, and
 state hint rules. It uses serde and serde_json, without HTTP, subprocesses,
