@@ -35,7 +35,7 @@ pub enum FallbackPrompt {
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Config {
-    /// Explicit SolidCraft 98 dialect: no SolidCraft catalogue, planner or local how.
+    /// Explicit SolidCraft 98 dialect: no SolidCraft catalogue, planner, or local how.
     pub solidcraft98: bool,
     pub listen: SocketAddr,
     pub no_report_buffer: bool,

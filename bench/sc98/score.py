@@ -65,7 +65,7 @@ def score(task, summary, final, initial=None):
             reasons.append('no complete empty-state evidence')
         if not initial or geometry(final) == geometry(initial):
             reasons.append('geometry did not change')
-        # A camera, selection, name, clock or dialog change is not a shape change.
+        # A camera, selection, name, clock, or dialog change is not a shape change.
         return {'pass': not reasons, 'reasons': reasons, 'evidence': geometry(final)}
     sketches = [r for r in rows if r['kind'].startswith('Sketch (')]
     solids = [r for r in rows if r['kind'] in ('Extrude', 'Revolve')]

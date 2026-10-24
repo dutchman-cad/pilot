@@ -231,7 +231,7 @@ pub fn run(cfg: Config) -> Result<Value, String> {
         response(&agent, url, body, timeout)
     })
 }
-/// Embedding entry point with a completion client, sharing all parsing, budgets and auditing.
+/// Embedding entry point with a completion client, sharing all parsing, budgets, and auditing.
 /// The callback must honor its timeout and return a bounded completion (at most 1 MiB).
 pub fn run_with(
     cfg: Config,
@@ -440,7 +440,7 @@ pub fn run_in_session(
         };
         let is_error = result["isError"] == true;
         session.record("transcript", message, &result)?;
-        // Compare actions/errors and semantic state, never commentary, observation or clock.
+        // Compare actions/errors and semantic state, never commentary, observation, or clock.
         let key = json!([
             action_key,
             is_error,

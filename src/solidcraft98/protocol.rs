@@ -5,7 +5,7 @@ pub const ANSWER: usize = 262144;
 const HIGH: &str = "€�‚ƒ„…†‡ˆ‰Š‹Œ�Ž��‘’“”•–—˜™š›œ�žŸ";
 pub fn encode(s: &str) -> Result<Vec<u8>, String> {
     if s.len() > COMMAND || s.contains(['\r', '\n', '\0']) {
-        return Err("command exceeds 4 KiB or contains CR, LF or NUL".into());
+        return Err("command exceeds 4 KiB or contains CR, LF, or NUL".into());
     }
     s.chars()
         .map(|c| {

@@ -54,7 +54,7 @@ class Remote:
         with self.lock:
             data = command.encode('cp1252')
             if len(data) > 4096 or any(c in command for c in '\r\n\0') or command.lstrip().split(' ', 1)[0] == 'quit':
-                raise ValueError('invalid, oversized or shutdown command')
+                raise ValueError('invalid, oversized, or shutdown command')
             if self.commands >= 1000:
                 raise ValueError('benchmark remote command cap (1000)')
             self.commands += 1
