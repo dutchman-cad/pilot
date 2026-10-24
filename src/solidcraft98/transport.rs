@@ -19,7 +19,8 @@ pub struct RemoteSession {
     endpoint: Endpoint,
     worker: Option<Worker>,
     pub commands: usize,
-    started: Instant,
+    pub(crate) command_limit: usize,
+    pub(crate) deadline: Instant,
     directory: Option<PathBuf>,
 }
 struct Worker {
@@ -102,7 +103,8 @@ impl RemoteSession {
             endpoint,
             worker: None,
             commands: 0,
-            started: Instant::now(),
+            command_limit: 160,
+            deadline: Instant::now() + Duration::from_secs(900),
             directory: None,
         }
     }
@@ -110,14 +112,17 @@ impl RemoteSession {
         let w = match &self.endpoint {
             Endpoint::Tcp(address) => {
                 let mut result = Err("connection not attempted".into());
-                let deadline = (Instant::now() + Duration::from_secs(3))
-                    .min(self.started + Duration::from_secs(900));
+                let deadline = (Instant::now() + Duration::from_secs(3)).min(self.deadline);
                 for delay in [0, 250, 500] {
-                    if self.commands >= 160 {
+                    if self.commands >= self.command_limit {
                         return Err("SolidCraft 98 command/reconnect budget exhausted".into());
                     }
                     self.commands += 1;
-                    thread::sleep(Duration::from_millis(delay));
+                    let pause = Duration::from_millis(delay);
+                    if deadline.saturating_duration_since(Instant::now()) <= pause {
+                        break;
+                    }
+                    thread::sleep(pause);
                     let remaining = deadline.saturating_duration_since(Instant::now());
                     if remaining.is_zero() {
                         break;
@@ -191,7 +196,7 @@ impl RemoteSession {
     }
     pub fn exchange(&mut self, command: &str) -> Result<String, String> {
         protocol::encode(command)?;
-        if self.commands >= 160 || self.started.elapsed() >= Duration::from_secs(900) {
+        if self.commands >= self.command_limit || Instant::now() >= self.deadline {
             return Err(
                 "SolidCraft 98 session budget exhausted; start an explicit new session".into(),
             );
@@ -199,13 +204,12 @@ impl RemoteSession {
         if self.worker.is_none() {
             self.connect()?;
         }
-        if self.commands >= 160 {
+        if self.commands >= self.command_limit {
             return Err("SolidCraft 98 command/reconnect budget exhausted".into());
         }
         self.commands += 1;
         let w = self.worker.as_ref().ok_or("remote worker unavailable")?;
-        let deadline =
-            (Instant::now() + Duration::from_secs(15)).min(self.started + Duration::from_secs(900));
+        let deadline = (Instant::now() + Duration::from_secs(15)).min(self.deadline);
         let result = exchange_worker(w, command, deadline);
         if result.is_err() {
             self.worker.take();

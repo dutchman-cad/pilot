@@ -1,0 +1,13 @@
+{
+  "1": {"shape":"rectangle","size":[20,20,20],"origin":[0,0],"bodies":1,"holes":[]},
+  "2": {"shape":"circle","size":[30,50],"origin":[0,0],"bodies":1,"holes":[]},
+  "3": {"shape":"rectangle","size":[60,40,10],"origin":[0,0],"bodies":1,"holes":[]},
+  "4": {"shape":"rectangle","size":[50,30,15],"origin":[0,0],"bodies":1,"holes":[]},
+  "5": {"shape":"rectangle","size":[80,60,10],"origin":[0,0],"bodies":1,"holes":[[20,0,40,30]]},
+  "6": {"shape":"rectangle","size":[40,40,40],"origin":[0,0],"bodies":1,"holes":[],"unsupported":"solid-edge rounding","alternative_corner_radius":3},
+  "7": {"shape":"rectangle","size":[20,20,20],"origin":[50,0],"bodies":1,"holes":[]},
+  "8": {"shape":"rectangle","size":[30,20,10],"origin":[0,0],"bodies":1,"holes":[],"unsupported":"body renaming"},
+  "9": {"shape":"rectangle","size":[30,20,10],"origin":[0,0],"bodies":1,"holes":[],"calculated_volume_mm3":6000},
+  "10": {"shape":"rectangle","size":[100,50,5],"origin":[0,0],"bodies":1,"holes":[[10,0,15,25],[10,0,85,25]]},
+  "11": {"changed_geometry":true,"initial_size":[30,20,10]}
+}

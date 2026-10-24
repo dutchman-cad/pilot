@@ -314,3 +314,181 @@ test is ignored by default and requires `SC98_PROGRAM`.
 Both feature sets pass clippy with `-D warnings`; formatting and the wasm32 core
 build pass. All suites pass, including the twelve model-proxy integration tests,
 the fake-TCP test, and the opt-in real FreeBASIC test.
+
+## Driver, offline help, dialect and paired harness (2026-10-23)
+
+The next private step implements `drive98`, `how98`, and the explicit model
+proxy dialect. The historical sections above describe the original design and
+MCP milestone. `SPEC.md` remains the contract. No model has been run. No
+SolidCraft or GPL/LGPL CAD source was read for this implementation. The external
+`solidcraft98-ai` README, driver and eleven task definitions supplied the task
+set and setup sequence; application facts were checked with the public remote
+binary. The private commands have their own clap help, like `mcp98`; the existing
+public top-level help/reference remains unchanged.
+
+```
+dutchman-pilot drive98 --program /absolute/path/to/sc98 --headless \
+  --upstream http://127.0.0.1:11435/v1 --model MODEL \
+  --log /tmp/pilot-drive98.jsonl --budget 40 "Make a 20 mm cube."
+dutchman-pilot drive98 --connect 127.0.0.1:9898 \
+  --upstream http://127.0.0.1:11435/v1 --model MODEL --plain "Make a 20 mm cube."
+dutchman-pilot how98 "move a box along X"
+dutchman-pilot model --dialect solidcraft98 --upstream http://127.0.0.1:11435/v1
+dutchman-pilot drive98 --help
+dutchman-pilot model --help
+```
+
+`drive98` calls the MCP face's `Server` session directly, including its transport,
+validation, observations, offers, typed commands and audit. There is no second
+remote-command implementation in Rust. Both modes send the same eleven native
+schemas, common prompt skeleton, task, framing and model settings (temperature
+0.1, seed 98, at most 512 output tokens). Both accept one native tool call, one
+complete explicit JSON tool object, or exactly one `COMMAND:` line with optional
+preceding single-line `THOUGHT:` commentary. Native tool results retain their
+call ids in history. A native call cannot be mixed with an explicit text call.
+Text JSON supports the four explicit shapes in SPEC.md; surrounding prose,
+multiple objects/commands, and unknown verbs are errors, never inferred actions.
+`done <answer>` is a COMMAND verb local to the driver, not an application tool.
+It obtains a final `look`, logs the summary, and detaches without sending `quit`.
+The existing headless-process EOF and graphical-detach behavior still applies.
+
+Default mode supplements the first prompt and error feedback with independently
+written Pilot help, and enables the existing session's syntax/alias/name repairs,
+unexecuted suggestions and attributed Tutor hints. Offline help now covers
+movement and plate/hole sequences as well as sketches, extrusion and limitations.
+It never changes dimensions or replaces an application's pending offer. Plain
+mode disables all of these additions, including relaxed JSON and fenced-object
+repair. The application can still supply its own Tutor/help/corrections in the
+raw screen; those are the same for both modes. Schema validation, coordinate
+bounds, explicit-call rules, safety checks and format-error feedback are common.
+Every added prompt/help, conversion, syntax/name rewrite, suggestion and result
+hint is audited before dispatch/delivery. The transcript shares the capped JSONL
+log, with request, response, action/result and summary records, model, session,
+observation and transport. A failed audit prevents further actions.
+
+`--budget` counts all model requests, including retries and `done`: default 40,
+range 1–200. Wall time is capped at 900 seconds, each upstream request at the
+remaining wall time or 120 seconds, whichever is less. The remote session shares
+the driver's wall deadline. There are at most two error hand-backs and one empty
+retry before a successful action resets that turn's allowance; all consume steps.
+Upstream failures stop without replaying an action. Total reported tokens are
+capped at 131072; absent usage, input/output byte counts are a conservative
+fallback. Requests reserve an input-byte upper bound (including tool schemas)
+and 512 output tokens before dispatch. History holds eight complete turns and
+at most 1 MiB, dropping oldest complete groups; message content is capped at
+1 MiB before dispatch. Responses are capped at 1 MiB with existing JSON
+nesting/node limits. Remote commands/reconnects are capped at
+`clamp(4 * budget + 2, 160, 800)`, including initial/final observations. Three
+identical action/error/semantic-state results stop; commentary, observation
+numbers, FPS and clock do not distinguish states. A final observation is always
+attempted; failure is explicit and an old screen is not presented as final.
+The stdout JSON includes task/model/plain, steps/actions/errors/rewrites,
+tokens, elapsed seconds (`latency`), stop reason, done answer, final screen,
+error, and native/text/repair/retry/hand-back counts. Logs can be grouped by model
+and session for statistics; this driver does not modify the model proxy's profile.
+
+`model --dialect solidcraft98` replaces advertised tools with the eleven screen
+schemas and uses an empty SolidCraft catalogue. It disables catalogue plans,
+local catalogue `how`, catalogue result hints and catalogue prompt rails even
+if their ordinary options were supplied. It retains explicit JSON conversion,
+known click aliases, schema-directed argument repair, conditional fallback,
+empty-reply retry, streaming buffering, auditing and existing bounded guards.
+The HTTP proxy executes no application commands; screen `how` goes back to its
+MCP client. SolidCraft command ids cannot become `execute` calls in this dialect.
+Default `model` behavior is unchanged.
+
+### Paired benchmark (Python 3 standard library only)
+
+The private `bench98/` scripts run the eleven external task definitions with
+fresh isolated HOME/USERPROFILE, working directory and Documents per run. The
+only application invocation is `--remote --headless`. A loopback bridge exposes
+the same already-set-up process to `drive98 --connect`; no model performs setup.
+Tasks 6–9 and 11 receive their checked rectangle/extrusion box. Each setup is
+verified from timeline and feature-dialog values before the model is contacted.
+The harness holds `/tmp/solidcraft-pilot-c.lock` with `flock` for its whole matrix,
+including setup and scoring; lock waits stop after 900 seconds. Runs are serial,
+A/P order alternates across reps, and directories must be new. Each driver run
+has a 930-second outer timeout. Limits: 32 models, 20 reps, 200 steps per run,
+1000 setup/driver/probe commands per process, and bounded frames and files.
+
+```
+python3 bench98/run.py --pilot "$CARGO_TARGET_DIR/debug/dutchman-pilot" \
+  --program /home/ray/Documents/GitHub/sc98-remote-bin/sc98 \
+  --upstream http://127.0.0.1:11435/v1 \
+  --models MODEL1 MODEL2 --reps 3 --out /tmp/solidcraft98-paired
+python3 bench98/report.py /tmp/solidcraft98-paired
+python3 bench98/report.py /tmp/solidcraft98-paired --rescore
+```
+
+`checks.json` records expected dimensions, origins, hole diameters/depths/centres,
+body evidence and unsupported-task policy. Scoring reads the final state
+independently after the driver disconnects. It probes each feature with
+`doubleclick`, `look`, `key esc`, recording the fields and cancelling every
+inspection. This matters because the timeline omits hole locations and corner
+radii. All feature statuses must be OK and dialogs committed. The screen does
+not expose a measured body count: one body is conservatively evidenced by
+exactly one solid-producing extrusion, its sketch, and only the requested hole
+features; extra solid features fail. Rectangle/circle dimensions, XY ground
+plane, source origin and hole attachment are checked. This is screen-state
+validation, not a geometric kernel or a body/volume measurement.
+
+Task 6 accepts an honest solid-edge rounding refusal with the unchanged box, or
+an explicitly limited 3 mm sketch-corner alternative. Task 8 accepts honest body
+rename refusal or a stated part/file alternative, with preserved geometry.
+Task 9 requires the preserved 30 x 20 x 10 box and a calculated 6000 mm3 (6 cm3)
+answer; a measurement claim fails. Task 11 requires a change in timeline geometry
+or numeric feature fields, including deletion to a verified empty timeline;
+view, selection, name, clock and uncommitted-dialog changes do not pass. No task
+passes from a `done` claim alone. Infrastructure errors remain visible failures.
+The offline report prints per-model A/P pass counts, percentage-point difference,
+tokens, latency, errors and rewrites plus per-task counts and failure reasons.
+Recorded initial/final screens, probes, checks, summaries and transcripts permit
+later rescoring without a model.
+
+### Tests and execution constraints
+
+Rust tests include a local HTTP fake upstream and the Rust fake pipe peer from
+`tests/support`. They cover strict text/native formats, format hand-backs,
+completion, budgets, repeat guards, plain/default differences and audit records.
+The same loop has a completion-client embedding entry point; deterministic
+replay tests exercise it with the real pipe session without requiring sockets.
+The dialect is tested with the existing in-process scripted upstream as well
+as an HTTP integration case. The original tests remain in place.
+
+```
+cargo test --test drive98
+SC98_PROGRAM=/home/ray/Documents/GitHub/sc98-remote-bin/sc98 \
+  cargo test --test drive98 real_freebasic_task_one_through_drive98 -- --ignored
+python3 -m unittest discover -s bench98 -v
+SC98_PROGRAM=/home/ray/Documents/GitHub/sc98-remote-bin/sc98 \
+PILOT_BIN="$CARGO_TARGET_DIR/debug/dutchman-pilot" \
+  python3 -m unittest discover -s bench98 -v
+```
+
+`fake_upstream.py` is a tiny local HTTP replay server; its default script builds
+the task-1 cube. The full harness integration test runs it through the actual
+Rust CLI and actual FreeBASIC process in both modes and requires a passing state
+score, not only a completion message. `PILOT_BIN` and `SC98_PROGRAM` enable it.
+There is also a real-build setup/probe/scorer test using pipes alone. Neither
+script contacts a model during tests. The fake peer can be run independently
+with `python3 bench98/fake_upstream.py`, or supplied a bounded JSON replies file.
+
+This implementation session's sandbox denies localhost sockets (`Operation not
+permitted`), affecting existing HTTP/TCP tests too. The real benchmark lock is
+also held externally. These constraints do not justify bypassing the lock or
+claiming HTTP/full-harness validation passed. Run the commands above on the
+unrestricted benchmark machine before measuring models. Git index creation is
+read-only in this workspace, so local commits may need to be made there as Ray.
+
+Validation recorded for this step: the 64 Rust library tests, six CLI tests,
+two core integration tests, four socket-free driver tests, nine socket-free
+SolidCraft 98 tests, existing MCP/eval/profile tests, and the core-only suite
+pass. Six Python scorer, report, infrastructure-error and output/timeout-cap tests
+pass (two real-build integrations remain opt-in). Both feature sets pass
+clippy with `-D warnings`; fmt and the wasm32 core build pass. The 13 model HTTP
+integrations, three driver HTTP integrations and existing fake TCP integration
+were attempted and fail at socket creation under this sandbox. A direct binary
+probe produced the expected task-1 timeline; this is not the full harness pass.
+The lock-protected real setup/scorer and full scripted-HTTP task-1 runs remain
+unvalidated because the shared lock is held externally and sockets are denied.
+No benchmark/model measurements or local commit are claimed.

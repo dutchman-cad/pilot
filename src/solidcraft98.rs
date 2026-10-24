@@ -6,3 +6,6 @@ pub mod protocol;
 pub mod screen;
 #[cfg(feature = "proxy")]
 pub mod transport;
+
+#[cfg(feature = "proxy")]
+pub mod drive;

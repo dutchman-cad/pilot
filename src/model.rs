@@ -33,6 +33,8 @@ pub enum FallbackPrompt {
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Config {
+    /// Explicit SolidCraft 98 dialect: no SolidCraft catalogue, planner or local how.
+    pub solidcraft98: bool,
     pub listen: SocketAddr,
     pub upstream: String,
     pub upstream_timeout: Duration,
@@ -204,6 +206,12 @@ struct Scripted {
 }
 impl Server {
     pub fn bind(mut cfg: Config) -> Result<Self, String> {
+        if cfg.solidcraft98 {
+            cfg.planner = false;
+            cfg.no_how = true;
+            cfg.no_hints = true;
+            cfg.prompt_help = false;
+        }
         if cfg.upstream_timeout < Duration::from_secs(1)
             || cfg.upstream_timeout > MAX_UPSTREAM_TIMEOUT
         {
@@ -268,9 +276,13 @@ impl Server {
         Ok(Self {
             listener,
             proxy: Proxy {
-                cfg,
                 agent,
-                catalog: Catalog::bundled()?,
+                catalog: if cfg.solidcraft98 {
+                    Catalog::from_json("[]")?
+                } else {
+                    Catalog::bundled()?
+                },
+                cfg,
                 profiles,
                 profile_path,
                 settings,
@@ -717,6 +729,15 @@ impl Proxy {
         conversation: &mut Conversation,
     ) -> Result<Reply, String> {
         let original = body.clone();
+        if self.cfg.solidcraft98 {
+            set_logged(
+                &mut body,
+                "tools",
+                json!(crate::solidcraft98::drive::chat_tools()),
+                "solidcraft98_tools",
+                audit,
+            )?;
+        }
         if self.cfg.planner {
             if let Some(plan) = planner::plan(&body, &self.catalog)? {
                 let message = plan.message();
@@ -866,7 +887,7 @@ impl Proxy {
                 }
             };
             let mut recovered = false;
-            if let Some(raw) = recovery::ollama_raw(&upstream) {
+            if let Some(raw) = recovery::ollama_raw(&upstream).filter(|_| !self.cfg.solidcraft98) {
                 if let Some(response) =
                     recovery::recover(&raw, &tools, &self.catalog, audit, profile)?
                 {
@@ -920,13 +941,20 @@ impl Proxy {
                     if had_native {
                         profile.native = profile.native.saturating_add(1);
                         profile.native_support = Some(true);
-                    } else if convert_text(message, &tools, &self.catalog, audit)? {
+                    } else if if self.cfg.solidcraft98 {
+                        convert98(message, audit)?
+                    } else {
+                        convert_text(message, &tools, &self.catalog, audit)?
+                    } {
                         profile.text_written = profile.text_written.saturating_add(1);
                     } else if is_empty(message) {
                         profile.empty = profile.empty.saturating_add(1);
                     } else {
                         profile.prose = profile.prose.saturating_add(1);
                     }
+                }
+                if self.cfg.solidcraft98 {
+                    aliases98(message, audit)?;
                 }
                 let guard = repair_calls(
                     message,
@@ -1014,7 +1042,7 @@ impl Proxy {
                 if is_empty(message) && !empty_retried {
                     empty_retried = true;
                     nudge = Some(("your reply was empty; answer or call a tool".into(), false));
-                } else if !is_empty(message) {
+                } else if !is_empty(message) && !self.cfg.solidcraft98 {
                     nudge = prose_guard(&body, message, &self.catalog);
                 }
             }
@@ -1081,6 +1109,39 @@ impl Proxy {
         }
         Err("turn retry limit reached".into())
     }
+}
+fn aliases98(message: &mut Value, audit: &mut Audit) -> Result<(), String> {
+    if let Some(calls) = message["tool_calls"].as_array_mut() {
+        for call in calls {
+            let old = call["function"]["name"].clone();
+            let name = match old.as_str() {
+                Some("dblclick" | "double-click" | "double_click") => Some("doubleclick"),
+                Some("rclick" | "right-click" | "right_click") => Some("rightclick"),
+                _ => None,
+            };
+            if let Some(name) = name {
+                audit.record("solidcraft98_alias", &old, &json!(name))?;
+                call["function"]["name"] = json!(name);
+            }
+        }
+    }
+    Ok(())
+}
+fn convert98(message: &mut Value, audit: &mut Audit) -> Result<bool, String> {
+    // The model proxy converts explicit JSON only; COMMAND: belongs to drive98.
+    let text = message["content"].as_str().unwrap_or("");
+    if !repair::strip_fence(text).starts_with('{') {
+        return Ok(false);
+    }
+    let Ok(crate::solidcraft98::drive::Call::Tool { name, args }) =
+        crate::solidcraft98::drive::parse_text(text, false)
+    else {
+        return Ok(false);
+    };
+    let after = json!({"role":"assistant","content":null,"tool_calls":[{"id":"pilot98_1","type":"function","function":{"name":name,"arguments":args.to_string()}}]});
+    audit.record("solidcraft98_text_call", message, &after)?;
+    *message = after;
+    Ok(true)
 }
 fn has_how(message: &Value) -> bool {
     message["tool_calls"]
@@ -1903,6 +1964,7 @@ mod tests {
             Self {
                 proxy: Proxy {
                     cfg: Config {
+                        solidcraft98: false,
                         listen: "127.0.0.1:0".parse().unwrap(),
                         upstream: "http://localhost:11434/v1".into(),
                         upstream_timeout: DEFAULT_UPSTREAM_TIMEOUT,
@@ -2790,5 +2852,42 @@ mod tests {
             .unwrap()
             .push(json!({"role":"tool","content":"20"}));
         assert!(prose_guard(&req, &json!({"content":"20"}), &catalog).is_none());
+    }
+    #[test]
+    fn scripted_solidcraft98_dialect_repair_and_catalogue_isolation() {
+        let mut f = Fixture::new(vec![
+            json!({"choices":[{"message":{"role":"assistant","content":"{tool:'dblclick',args:{name:'Sketch1'}}"},"finish_reason":"stop"}]}),
+        ]);
+        f.proxy.cfg.solidcraft98 = true;
+        f.proxy.cfg.planner = false;
+        f.proxy.cfg.no_hints = true;
+        f.proxy.cfg.no_how = true;
+        f.proxy.catalog = Catalog::from_json("[]").unwrap();
+        let r = f.chat(request());
+        let response: Value = serde_json::from_slice(&r.body).unwrap();
+        assert_eq!(
+            response["choices"][0]["message"]["tool_calls"][0]["function"]["name"],
+            "doubleclick"
+        );
+        let script = f.proxy.scripted.as_ref().unwrap().borrow();
+        let body = &script.requests[0];
+        assert_eq!(body["tools"].as_array().unwrap().len(), 11);
+        assert!(!body["tools"].to_string().contains("execute"));
+        assert_eq!(body["messages"].as_array().unwrap().len(), 1);
+        let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+        assert!(log.contains("solidcraft98_alias"));
+        assert!(!log.contains("\"kind\":\"plan\""));
+        drop(script);
+        let mut f = Fixture::new(vec![
+            json!({"choices":[{"message":{"role":"assistant","content":"{\"tool\":\"solid.cube\",\"args\":{\"side\":20}}"},"finish_reason":"stop"}]}),
+        ]);
+        f.proxy.cfg.solidcraft98 = true;
+        f.proxy.cfg.planner = false;
+        f.proxy.cfg.no_hints = true;
+        f.proxy.cfg.no_how = true;
+        f.proxy.catalog = Catalog::from_json("[]").unwrap();
+        let r = f.chat(request());
+        let response: Value = serde_json::from_slice(&r.body).unwrap();
+        assert!(response["choices"][0]["message"]["tool_calls"].is_null());
     }
 }

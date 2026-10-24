@@ -43,6 +43,17 @@ impl Harness {
         capabilities: Value,
         how: bool,
     ) -> Self {
+        Self::with_dialect(replies, count, fallback, settings, capabilities, how, false)
+    }
+    fn with_dialect(
+        replies: Vec<(u16, String, String)>,
+        count: usize,
+        fallback: FallbackPrompt,
+        settings: Option<Value>,
+        capabilities: Value,
+        how: bool,
+        solidcraft98: bool,
+    ) -> Self {
         let dir = std::env::temp_dir().join(format!(
             "dutchman-pilot-model-{}-{}",
             std::process::id(),
@@ -95,6 +106,7 @@ impl Harness {
             }
         });
         let mut proxy = Server::bind(Config {
+            solidcraft98,
             listen: "127.0.0.1:0".parse().unwrap(),
             upstream: upstream_url,
             upstream_timeout: Duration::from_secs(300),
@@ -714,5 +726,34 @@ fn deterministic_planner_adds_one_system_message_and_logs_rule() {
     let plans: Vec<_> = entries.iter().filter(|v| v["kind"] == "plan").collect();
     assert_eq!(plans.len(), 1);
     assert_eq!(plans[0]["after"]["rule"], "box");
+    h.finish();
+}
+
+#[test]
+fn solidcraft98_dialect_has_only_screen_tools_and_no_catalogue_plans() {
+    let message = json!({"choices":[{"message":{"role":"assistant","content":"{tool:'dblclick',args:{name:'Sketch1'}}"},"finish_reason":"stop"}]});
+    let h = Harness::with_dialect(
+        vec![(200, message.to_string(), "application/json".into())],
+        1,
+        FallbackPrompt::Off,
+        None,
+        json!({}),
+        true,
+        true,
+    );
+    let (_,_,body)=h.chat(&json!({"model":"fake","messages":[{"role":"user","content":"Make a 20 mm cube"}],"tools":[{"type":"function","function":{"name":"execute","parameters":{"type":"object"}}}]}));
+    let reply: Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(
+        reply["choices"][0]["message"]["tool_calls"][0]["function"]["name"],
+        "doubleclick"
+    );
+    let chats = h.chats();
+    assert_eq!(chats[0]["tools"].as_array().unwrap().len(), 11);
+    assert!(!chats[0]["tools"].to_string().contains("execute"));
+    assert_eq!(chats[0]["messages"].as_array().unwrap().len(), 1);
+    let log = fs::read_to_string(h.dir.join("audit.jsonl")).unwrap();
+    assert!(log.contains("solidcraft98_tools"));
+    assert!(log.contains("solidcraft98_alias"));
+    assert!(!log.contains("\"kind\":\"plan\""));
     h.finish();
 }

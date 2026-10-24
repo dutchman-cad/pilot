@@ -39,7 +39,7 @@ pub fn tools() -> Vec<Value> {
         json!({"name":name,"description":format!("SolidCraft 98 {name}. Explicit actions only; type preserves text (application trims outer whitespace). yes requires a current application offer."),"inputSchema":schema})
     }).collect()
 }
-fn validate(value: &Value, schema: &Value) -> Result<(), String> {
+pub(crate) fn validate(value: &Value, schema: &Value) -> Result<(), String> {
     if let Some(options) = schema["enum"].as_array() {
         if !options.contains(value) {
             return Err("value outside allowed enum".into());
@@ -93,6 +93,9 @@ fn validate(value: &Value, schema: &Value) -> Result<(), String> {
 }
 pub struct Server {
     remote: RemoteSession,
+    plain: bool,
+    action_limit: usize,
+    last_text: String,
     screen: Option<Screen>,
     audit: Audit,
     observation: u64,
@@ -127,6 +130,9 @@ impl Server {
         };
         Ok(Self {
             remote: RemoteSession::new(cfg.endpoint),
+            plain: false,
+            action_limit: 40,
+            last_text: String::new(),
             screen: None,
             audit: Audit {
                 file,
@@ -145,7 +151,70 @@ impl Server {
             audit_failed: false,
         })
     }
-    fn record(&mut self, kind: &str, before: &Value, after: &Value) -> Result<(), String> {
+    /// Configure the same validated session for a driver; framing remains identical.
+    pub(crate) fn driver_options(
+        &mut self,
+        plain: bool,
+        budget: usize,
+        model: &str,
+    ) -> Result<(), String> {
+        if !(1..=200).contains(&budget) {
+            return Err("step budget must be 1–200".into());
+        }
+        self.plain = plain;
+        self.action_limit = budget;
+        self.remote.command_limit = (budget * 4 + 2).clamp(160, 800);
+        self.audit.model = model.to_owned();
+        Ok(())
+    }
+    pub(crate) fn driver_deadline(&mut self, deadline: std::time::Instant) {
+        self.remote.deadline = deadline;
+    }
+    pub(crate) fn final_look(&mut self) -> Result<String, String> {
+        self.look()
+    }
+    pub(crate) fn screen_text(&self) -> &str {
+        &self.last_text
+    }
+    pub(crate) fn stable_state(&self) -> Value {
+        json!({"focus":self.screen.as_ref().and_then(|s|s.focus.clone()),"menu":self.screen.as_ref().and_then(|s|s.menu.clone()),"dialog":self.screen.as_ref().and_then(|s|s.dialog.clone()),"timeline":self.screen.as_ref().map(|s|s.timeline.clone())})
+    }
+    pub(crate) fn repair_count(&self) -> u64 {
+        self.audit
+            .kinds
+            .iter()
+            .filter(|(k, _)| matches!(k.as_str(), "alias" | "syntax" | "name"))
+            .map(|(_, v)| v)
+            .sum()
+    }
+    pub(crate) fn rewrite_count(&self) -> u64 {
+        self.audit
+            .kinds
+            .iter()
+            .filter(|(k, _)| {
+                matches!(
+                    k.as_str(),
+                    "alias"
+                        | "syntax"
+                        | "name"
+                        | "prompt"
+                        | "hint"
+                        | "help"
+                        | "hand_back"
+                        | "text_call"
+                        | "result_guidance"
+                        | "error_guidance"
+                )
+            })
+            .map(|(_, v)| v)
+            .sum()
+    }
+    pub(crate) fn record(
+        &mut self,
+        kind: &str,
+        before: &Value,
+        after: &Value,
+    ) -> Result<(), String> {
         let result = self.audit.record_context(kind,before,after,&json!({"session":self.session,"observation":self.observation,"transport":self.transport}));
         if result.is_err() {
             self.audit_failed = true;
@@ -157,6 +226,7 @@ impl Server {
             Ok(v) => Ok(v),
             Err(e) => {
                 self.screen = None;
+                self.last_text.clear();
                 self.offer = None;
                 self.preferred_offer = None;
                 // Recover observation only. The command that may have run is never resent.
@@ -166,6 +236,7 @@ impl Server {
                         if let Ok(screen) = Screen::parse(&text, self.observation) {
                             if screen.bounds.is_some() {
                                 self.offer = screen.offer.clone();
+                                self.last_text = text;
                                 self.screen = Some(screen);
                             }
                         }
@@ -180,6 +251,7 @@ impl Server {
         self.offer = None;
         let text = self.send("look")?;
         self.observation += 1;
+        self.last_text = text.clone();
         let s = match Screen::parse(&text, self.observation) {
             Ok(s) => s,
             Err(e) => {
@@ -220,11 +292,14 @@ impl Server {
             }
             "click" | "doubleclick" | "rightclick" => {
                 let target = if let Some(n) = args["name"].as_str() {
-                    let target = self
-                        .screen
-                        .as_ref()
-                        .ok_or("screen unavailable")?
-                        .resolve(n)?;
+                    let target = if self.plain {
+                        n.to_owned()
+                    } else {
+                        self.screen
+                            .as_ref()
+                            .ok_or("screen unavailable")?
+                            .resolve(n)?
+                    };
                     if target != n {
                         self.record("name", &json!(n), &json!(target))?;
                     }
@@ -320,6 +395,7 @@ impl Server {
         let start = self.audit.count;
         let mut repaired = args.clone();
         let canonical = match name {
+            _ if self.plain => name,
             "dblclick" | "double-click" | "double_click" => "doubleclick",
             "rclick" | "right-click" | "right_click" => "rightclick",
             _ => name,
@@ -331,8 +407,11 @@ impl Server {
                         .into(),
                 );
             }
-            if self.actions >= 40 {
-                return Err("40 action turns exhausted; start an explicit new session".into());
+            if self.actions >= self.action_limit {
+                return Err(format!(
+                    "{} action turns exhausted; start an explicit new session",
+                    self.action_limit
+                ));
             }
             if canonical != "look" {
                 self.actions += 1;
@@ -340,7 +419,10 @@ impl Server {
             if canonical != name {
                 self.record("alias", &json!(name), &json!(canonical))?;
             }
-            if let Some(tool) = tools().into_iter().find(|t| t["name"] == canonical) {
+            if let Some(tool) = tools()
+                .into_iter()
+                .find(|t| !self.plain && t["name"] == canonical)
+            {
                 let changes = crate::repair::repair_arguments(
                     canonical,
                     &mut repaired,
@@ -360,19 +442,31 @@ impl Server {
         match preparation.and_then(|()| self.execute(canonical, &repaired, start)) {
             Ok(v) => v,
             Err(error) => {
-                let nearest = if matches!(canonical, "click" | "doubleclick" | "rightclick") {
-                    self.screen
-                        .as_ref()
-                        .map(|s| s.nearest(repaired["name"].as_str().unwrap_or("")))
-                        .unwrap_or_default()
-                } else {
-                    Vec::new()
-                };
+                let nearest =
+                    if !self.plain && matches!(canonical, "click" | "doubleclick" | "rightclick") {
+                        self.screen
+                            .as_ref()
+                            .map(|s| s.nearest(repaired["name"].as_str().unwrap_or("")))
+                            .unwrap_or_default()
+                    } else {
+                        Vec::new()
+                    };
                 let suggested: Vec<_> = nearest
                     .into_iter()
                     .map(|n| json!({"name":canonical,"arguments":{"name":n},"execute":false}))
                     .collect();
-                let result = json!({"content":[{"type":"text","text":error}],"isError":true,"structuredContent":{"error":error,"screen":self.screen,"suggested":suggested,"rewrites":self.audit.count-start+1}});
+                let mut result = json!({"content":[{"type":"text","text":error}],"isError":true,"structuredContent":{"error":error,"screen":self.screen,"suggested":suggested,"rewrites":self.audit.count-start+1+usize::from(!self.plain && !suggested.is_empty())}});
+                if !self.plain && !suggested.is_empty() {
+                    if let Err(e) = self.record("error_guidance", &json!(error), &result) {
+                        return json!({"isError":true,"content":[{"type":"text","text":format!("cannot audit suggestions: {e}")}]});
+                    }
+                }
+                if self.plain {
+                    if let Some(obj) = result["structuredContent"].as_object_mut() {
+                        obj.remove("suggested");
+                        obj.remove("rewrites");
+                    }
+                }
                 if let Err(audit_error) = self.record("error", &json!(error), &result) {
                     return json!({"content":[{"type":"text","text":format!("{error}; cannot audit the error: {audit_error}")}],"isError":true});
                 }
@@ -413,17 +507,20 @@ impl Server {
             self.preferred_offer = application_offer.clone();
             self.offer = application_offer;
         }
-        let hint = self
-            .screen
-            .as_ref()
-            .and_then(|s| s.tutor.clone())
-            .map(|s| format!("SolidCraft 98 Tutor: {s}"));
-        let help = if name == "how" {
+        let hint = if self.plain {
+            None
+        } else {
+            self.screen
+                .as_ref()
+                .and_then(|s| s.tutor.clone())
+                .map(|s| format!("SolidCraft 98 Tutor: {s}"))
+        };
+        let help = if !self.plain && name == "how" {
             Some(help(args["task"].as_str().unwrap_or("")))
         } else {
             None
         };
-        let suggested = if answer.contains("Did you mean") {
+        let suggested = if !self.plain && answer.contains("Did you mean") {
             self.offer
                 .as_ref()
                 .map(|s| json!({"applicationOffer":s,"execute":false}))
@@ -431,17 +528,26 @@ impl Server {
             None
         };
         let state = json!({"focus":self.screen.as_ref().and_then(|s|s.focus.clone()),"dialog":self.screen.as_ref().and_then(|s|s.dialog.clone()),"menu":self.screen.as_ref().and_then(|s|s.menu.clone()),"timeline":self.screen.as_ref().map(|s|s.timeline.clone())});
-        let triple = json!([command, is_error, state]).to_string();
+        let triple =
+            json!([command, if is_error { Some(&answer) } else { None }, state]).to_string();
         let repeats = match &self.previous {
             Some((old, n)) if old == &triple => n + 1,
             _ => 1,
         };
         self.previous = Some((triple, repeats));
         if name != "look" && repeats >= 3 {
-            self.actions = 40;
+            self.actions = self.action_limit;
             return Err("three identical action/error/state results; stopped. Inspect the state and start an explicit new session.".into());
         }
-        let structured = json!({"screen":self.screen,"hint":hint,"suggested":suggested,"pilotHelp":help,"offer":self.offer,"error":if is_error {Some(&answer)}else{None},"rewrites":self.audit.count-before_count+1});
+        let structured = json!({"screen":self.screen,"hint":hint,"suggested":suggested,"pilotHelp":help,"offer":self.offer,"error":if is_error {Some(&answer)}else{None},"rewrites":self.audit.count-before_count+1+usize::from(hint.is_some() || help.is_some() || suggested.is_some())});
+        let structured = if self.plain {
+            json!({"screen":self.screen,"error":if is_error {Some(&answer)}else{None}})
+        } else {
+            structured
+        };
+        if !self.plain && (hint.is_some() || help.is_some() || suggested.is_some()) {
+            self.record("result_guidance", &json!(answer), &structured)?;
+        }
         self.record("result", &json!(answer), &structured).map_err(|e|format!("Remote command completed, but result audit failed: {e}. The command must not be repeated without inspecting the design."))?;
         Ok(
             json!({"content":[{"type":"text","text":text}],"isError":is_error,"structuredContent":structured}),
