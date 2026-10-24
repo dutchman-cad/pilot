@@ -45,9 +45,12 @@ keys. Ollama-specific settings do not apply to LM Studio.
 ## Check a turn
 
 Ask for a simple dimensioned part, such as “make a 20 mm cube”. Pilot can suggest
-a deterministic plan to the model and repair explicit JSON calls in its reply;
-SolidCraft receives ordinary tool calls and applies its own validation. A reply
-that only describes an action does not execute it.
+a typed recipe plan to the model and repair explicit JSON calls in its reply.
+In plan mode, a plain action pledge matching the user recipe's intent and slots
+can also become ordinary tool calls. SolidCraft applies its own validation and
+the model receives the results before replying. One completion check compares
+measured state with the recipe. See [recipes](recipes.md); `--no-plan` disables
+recipe prompts, prose conversion, and completion checks.
 
 Rewrites go to the selected JSONL file. Without --log, the log and profiles live
 in the platform data directory under dutchman-pilot. Summarize them with:

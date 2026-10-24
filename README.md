@@ -2,8 +2,8 @@
 
 Pilot is a local helper that lets small language models drive
 SolidCraft through its public interfaces. It repairs explicit tool calls,
-finds commands, and adds bounded plans and hints. Prose alone never becomes an
-action; SolidCraft still validates every forwarded call.
+finds commands, and adds bounded plans and hints. In model plan mode, a matching
+action pledge can become a catalogue-checked recipe; SolidCraft validates every call.
 
 Run it as `dutchman pilot` from the [dutchman](https://github.com/dutchman-cad/dutchman)
 command line. The same commands also come as a standalone download,
@@ -11,6 +11,15 @@ command line. The same commands also come as a standalone download,
 `dutchman pilot`.
 
 **Status:** Early beta: results are still being measured; expect rough edges.
+
+- Typed recipes for primitives, hole layouts, sketch extrusions, edge finishes,
+  movement, renaming, mirror, shell, revolve, and measured queries.
+- Millimetres, metric and inch units, fractions, and deterministic expansions.
+- Matching prose-to-recipe conversion for models without tool calling, plus one
+  measured completion check. Disable together with `--no-plan`.
+- Audited rewrites, argument repair, buffered streaming, and bounded retries.
+
+See [recipes and their limits](docs/recipes.md).
 
 Choose the face that fits your client:
 

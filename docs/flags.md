@@ -24,6 +24,8 @@ Usage:
 
 how uses the bundled public command catalogue and prints explicit JSON example calls.
 model serves /v1/chat/completions and /v1/models; mcp starts the SolidCraft tools proxy.
+Model plan mode uses audited recipes, matching action prose, and one completion check.
+--no-plan disables these recipe features; the MCP face only suggests plans.
 Profiles and the default rewrites.jsonl log live in the user's data dir/dutchman-pilot.
 --prompt-help adds short rules and at most 15 relevant command purposes.
 --model-settings enables Ollama-only temperature 0.1 with tools and num_ctx 8192

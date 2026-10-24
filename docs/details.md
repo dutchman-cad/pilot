@@ -46,7 +46,7 @@ same-type semantic substitution, and never re-runs suggestions automatically.
 
 The model face advertises `how` using the same schema and command discovery as
 the tools face. Pilot answers it locally and re-asks the model; SolidCraft receives
-only the final reply. Up to three local answers share a three-hand-back budget
+only the final reply. Up to two local answers share a two-hand-back budget
 with guards (guards still get at most two nudges). A further `how` call returns a
 bounded proxy error rather than reaching SolidCraft. Mixed replies send only the
 local calls into retry history; other calls must be proposed again afterward.
@@ -55,14 +55,17 @@ their state supports guidance; original result text is preserved. Unchanged-desi
 hints require comparable before/after states in the result or conversation history.
 Use `--no-how` and `--no-hints` independently for A/B measurements.
 
-The deterministic planner is enabled by default (`--planner`, or disable with
-`--no-plan`, also accepted as `--no-planner`). It recognizes dimensioned boxes, cubes, cylinders, spheres,
-plates with centred through holes, moves, renames, volume, and body counts.
-It adds one system message with catalogue-checked calls and logs the matched
-rule as `kind: "plan"`; it never executes those calls. Dimensions default to mm;
-cm, m, and in are accepted. Existing body names come from the latest complete tool
-snapshot, and ambiguous requests are left to the model. Counts and volume totals
-are computed from complete snapshots; missing measurements produce an inspect plan.
+The deterministic recipe planner is enabled by default (`--planner`, or disable
+with `--no-plan`, alias `--no-planner`). See [the recipe library](recipes.md) for
+supported slots, geometry, examples, and limits. It adds catalogue-checked calls
+as a system message and audits rule, typed slots, expected result, and calls.
+In model plan mode, an action pledge parsed as the same recipe and slots can
+become native tool calls. The client executes them, SolidCraft validates them,
+and the model receives the results before writing its reply. Arbitrary prose
+stays prose. After the final reply, a single bounded completion check compares
+measured count / volume and available name / placement facts, handing back a
+difference even if an earlier tool call was accepted. Requests that fired no
+recipe receive no additional completion guard.
 
 Profiles are keyed by upstream URL and model in the user's data directory
 (`$XDG_DATA_HOME/dutchman-pilot`, otherwise the platform data directory); override with

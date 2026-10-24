@@ -1,0 +1,114 @@
+# Model-face recipes
+
+Plan mode is on by default; `--no-plan` (alias `--no-planner`) disables recipe
+prompts, recipe prose conversion, continuations, and completion checks. The model
+still receives SolidCraft's tool results and writes the final answer. The MCP
+`plan` tool exposes suggestions only and never converts prose into actions.
+
+Recipes are a bounded table in `src/planner/recipes.rs`, with typed slots and a
+shared length parser. Every expanded call checks its command and parameter names
+against the supplied catalogue. SolidCraft remains the authoritative validator.
+A recipe needs an explicit action request and all required slots. Questions,
+negations, explanations, unsupported modifiers, missing slots, and multiple
+intents are left to the model. There is no benchmark wording or task-id matching.
+
+| Recipe | Required slots and supported form |
+| --- | --- |
+| Box / block / plate / cube | Three dimensions in length × width × height order, or uniquely labelled length, width and height; a cube can have one side. Two dimensions plus an explicitly labelled thickness also work. |
+| Cylinder / rod / disc | Explicit radius or diameter (also `Ø` or “across”), and height / tall / high / thick / deep. |
+| Sphere | Explicit radius or diameter / `Ø` / across. |
+| Plate with centred hole | Plate dimensions, hole radius or diameter, centred / middle, and through. |
+| Plate with positioned holes | Plate dimensions, integer count, common hole radius or diameter, through, and exactly that many `(x,y)` positions after `at`. Positions use the plate's origin corner, with Z supplied from its thickness. |
+| Plate with rectangular hole pattern | Plate dimensions, hole size, through, centred rectangular pattern, rows, columns, and X × Y pitch. An optional total count must agree. |
+| Plate with circular hole pattern | Plate dimensions, hole size, through, centred circular pattern radius or diameter, count, equally spaced, and explicit `starting at +X`. |
+| Sketch rectangle then extrude | Rectangle width × height, `on PLANE then extrude DISTANCE`. |
+| Sketch circle then extrude | Circle radius or diameter, `on PLANE then extrude DISTANCE`. |
+| Fillet all edges | Uniquely resolved current body, all edges, and radius. |
+| Chamfer all / top edges | Uniquely resolved current body, all or top edges, and distance. |
+| Move / translate | Uniquely resolved body, one signed distance, and exactly one X / Y / Z axis. “negative X” also works; conflicting signs defer. |
+| Rename | Uniquely resolved source body and `to NAME`; quote names containing spaces. |
+| Mirror | Uniquely resolved body and one principal plane XY / XZ / YZ. Creates a separate mirrored body. |
+| Shell box | New box dimensions, wall thickness, and explicitly open / remove top. Shelling inward leaves the bottom and four walls. |
+| Revolve rectangle | Rectangle radial `radius` and height, explicitly `from axis on XZ about Z full turn`. Other profiles, axes, offsets and partial turns defer. |
+| Volume query | A complete measured snapshot, optionally one uniquely named body; otherwise one inspect request. |
+| Body count query | A complete snapshot; otherwise one inspect request. |
+
+Lengths default to mm. `mm`, `cm`, `m`, `in`, `inch`, `inches`, and `"` are
+accepted, including simple fractions such as `1/4 inch`. Mixed fractions such as
+`1 1/4 inch` defer; write `5/4 inch`. Tuple separators are `x`, `by`, and `×`.
+A trailing tuple unit applies to its unqualified members. Independently labelled
+lengths have independent units. Plans explicitly say that slots have been
+converted to mm and display their numeric values. Radius and diameter retain
+their mathematical meaning.
+
+New primitives use `operation: new` and SolidCraft's documented origin / Z-axis
+defaults. Rectangle sketches start at the sketch origin; circles are centred
+there. Sketch planes may be XY / XZ / YZ or an explicitly named construction
+plane, which SolidCraft validates. Through holes must be fully enclosed and
+non-overlapping. Compound plates and shells receive an available `PilotRecipeN`
+body name, and subsequent modifications explicitly target it, including when
+older geometry overlaps the new body.
+
+For example:
+
+```text
+build a block 17 by 23 by 6 mm
+create a rod diameter 1/4 inch tall 2 inches
+sketch a circle radius 9mm on XZ then extrude 7mm
+build a plate 80x60x6mm with 2 through holes diameter 4mm at (12mm,15mm), (65mm,40mm)
+shell a box 70x50x30mm wall 2mm open top
+```
+
+A fresh request fires at most one recipe. The existing `acted` check suppresses
+new recipes after an `execute` or `batch` call in that request's history, even if
+it failed. Edge recipes can first request `model.edges`, then continue that
+already selected recipe once with returned indices. Top-edge selection requires
+complete straight-edge topology and certified endpoint / midpoint heights;
+curved or incomplete topology defers. No accepted creation prefix is replayed.
+
+A model's action pledge (`I will`, `I'll`, `Let me`, or `I am going to`) can become
+the selected recipe's ordinary tool calls when parsing that pledge yields the
+same intent and slots as the user's request. Different dimensions, another
+intent, arbitrary prose, refusal fields, or multiple completion alternatives
+never trigger this conversion. Dimensions always come from the user recipe.
+Native calls and explicit text JSON still use the existing repair path. When the
+client advertises `batch`, multi-step prose recipes use that atomic batch for
+geometry and a separate final inspection. Otherwise they return the ordered
+`execute` calls; the client must execute them in order and stop on failure.
+
+Plans log `kind: plan`, rule, typed slots, expected result, calls, and prompt.
+Prose conversion logs `recipe_prose` with the original reply and resulting calls;
+edge continuation logs `recipe_continue` with the resolved indices. Every action
+plan ends with a measured `document.inspect` when the catalogue offers it.
+
+After the model's final reply, one completion check compares the latest complete
+state against expected body count and total volume where a baseline is known.
+Volume tolerance is max(0.01 mm³, 0.1%). Without a baseline, a known created name
+or a sole resulting body permits checking the created volume; otherwise Pilot
+asks for verification once instead of assuming the design was empty. Rename
+checks the resulting name; move also checks translated bounds when baseline
+bounds are available. Missing / partial / failed measurements count as unverified.
+When a baseline timeline is available, fillet and chamfer also require one more
+successful, unsuppressed feature of the requested type. A pending edge lookup is
+always unverified; a successful lookup alone does not establish completion.
+A difference is handed back once, even after an accepted call, within the existing
+two-hand-back / four-attempt request budget. No completion recipe means no new
+completion guard. Count and volume cannot prove every geometric property of a
+fillet, chamfer or mirror, and unmeasured movement has only count / volume checks.
+
+Limits: 4096 request characters and messages, shared 1 MiB JSON and nesting caps,
+256 bodies / edges inspected, 1,000,000 mm per length, 62 holes (at most 64 calls
+including creation and verification), one edge continuation and one completion
+hand-back. Invalid units, non-finite dimensions, and unsupported geometry defer.
+
+`src/planner/cases.rs` contains independently authored phrasings (five or more per
+recipe, including separate hole layouts and sketch shapes), inch / fraction
+cases, and refusals. They replay through the model face with canned prose.
+An optional clean-room geometry smoke test uses only the public MCP binary:
+
+```sh
+PILOT_SOLIDCRAFT_CLI=/path/to/solidcraft-cli cargo test --test recipes_cli
+```
+
+This test covers 17 geometry cases and checks measured expected results. It is
+not a weak-model benchmark and establishes no live-model pass-rate improvement.

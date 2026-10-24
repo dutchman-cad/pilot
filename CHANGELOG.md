@@ -1,5 +1,19 @@
 # Pilot changelog
 
+## Unreleased
+
+- Prepare 0.1.0-beta.2 with a typed recipe library for primitives, centred and
+  positioned holes, rectangular / circular hole patterns, sketch extrusion,
+  fillet / chamfer, move, rename, mirror, shell, revolve, and existing queries.
+- Parse metric / inch lengths, simple fractions, tuple separators, and explicit
+  radius / diameter slots; reject missing, conflicting, or multiple intents.
+- In model plan mode, convert matching action prose into audited recipe calls;
+  keep ordinary tool results and the model's final reply flow.
+- Verify measured recipe completion once, including after accepted calls, without
+  replaying accepted creation steps or increasing retry budgets.
+- Add independent per-recipe phrasings, model-face replays, and an optional
+  public-binary geometry contract smoke test. No live-model benchmark claim.
+
 ## 0.1.0-beta.1
 
 First public early beta. Results are still being measured; expect rough edges.
