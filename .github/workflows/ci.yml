@@ -1,0 +1,52 @@
+name: Checks
+'on':
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  toolchains:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      rust: ${{ steps.rust.outputs.versions }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: rust
+        shell: bash
+        run: |
+          msrv=$(cargo metadata --offline --no-deps --format-version 1 | jq -er '.packages[0].rust_version')
+          echo "versions=[\"stable\",\"$msrv\"]" >> "$GITHUB_OUTPUT"
+  check:
+    needs: toolchains
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-15, windows-2022]
+        rust: ${{ fromJSON(needs.toolchains.outputs.rust) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      CARGO_BUILD_JOBS: 2
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Rust
+        shell: bash
+        env:
+          RUST_VERSION: ${{ matrix.rust }}
+        run: |
+          rustup toolchain install "$RUST_VERSION" --profile minimal --component rustfmt --component clippy
+          rustup default "$RUST_VERSION"
+      - name: Install wasm target
+        run: rustup target add wasm32-unknown-unknown
+      - run: cargo fmt --all --check
+      - run: cargo clippy --locked --all-targets -- -D warnings
+      - run: cargo clippy --locked --all-targets --no-default-features --features core -- -D warnings
+      - run: cargo test --locked --all-targets
+      - run: cargo test --locked --all-targets --no-default-features --features core
+      - run: cargo check --locked --lib --target wasm32-unknown-unknown --no-default-features --features core

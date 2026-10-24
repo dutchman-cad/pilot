@@ -1,0 +1,4 @@
+target/
+.dutchman-pilot-eval-cache.json
+.dutchman-pilot-eval-cache.*.tmp
+eval-results/

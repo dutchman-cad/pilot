@@ -1,0 +1,9 @@
+SolidCraft-Pilot
+Copyright 2026 Ray
+
+Licensed under the Apache License, Version 2.0. See LICENSE.
+
+SolidCraft is a separate product. Pilot uses its public command catalogue and
+MCP interface; no SolidCraft implementation or CAD library is included.
+Third-party Rust dependencies retain their respective licenses; Cargo.lock
+records the exact versions used in a build.

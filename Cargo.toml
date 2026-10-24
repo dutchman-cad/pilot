@@ -1,0 +1,72 @@
+[package]
+name = "dutchman-pilot"
+version = "0.1.0-beta.1"
+edition = "2021"
+default-run = "dutchman-pilot"
+rust-version = "1.88"
+license = "Apache-2.0"
+description = "SolidCraft-Pilot: a local helper that lets small language models drive SolidCraft reliably: an OpenAI-compatible model proxy and an MCP tools proxy."
+repository = "https://github.com/dutchman-cad/pilot"
+homepage = "https://github.com/dutchman-cad/pilot"
+keywords = ["solidcraft", "cad", "mcp", "ollama", "proxy"]
+publish = false
+
+[features]
+default = ["core", "proxy"]
+core = []
+proxy = ["core", "dep:ureq", "dep:url", "dep:clap"]
+
+[[bin]]
+name = "dutchman-pilot"
+path = "src/main.rs"
+required-features = ["proxy"]
+
+[dependencies]
+clap = { version = "4.5", default-features = false, features = ["std", "derive", "help", "usage", "error-context"], optional = true }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ureq = { version = "2.12", default-features = false, features = ["tls"], optional = true }
+url = { version = "2", optional = true }
+
+[dev-dependencies]
+tiny_http = "0.12"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+unreachable = "deny"
+
+[[bin]]
+name = "dutchman-pilot-eval"
+path = "src/bin/eval.rs"
+required-features = ["proxy"]
+
+[[example]]
+name = "generate_flags"
+required-features = ["proxy"]
+
+[[test]]
+name = "cli"
+required-features = ["proxy"]
+
+[[test]]
+name = "eval"
+required-features = ["proxy"]
+
+[[test]]
+name = "mcp"
+required-features = ["proxy"]
+
+[[test]]
+name = "model"
+required-features = ["proxy"]
+
+[[test]]
+name = "profile"
+required-features = ["proxy"]

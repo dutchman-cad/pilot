@@ -1,0 +1,6 @@
+{"time":1,"model":"alpha","kind":"text_tool_call","before":{"content":"explicit JSON"},"after":{"tool_calls":[]}}
+{"time":2,"model":"beta","kind":"argument_repair:params","before":"{}","after":{}}
+
+{"time":3,"model":"alpha","kind":"argument_repair:params","before":"{}","after":{}}
+{"time":4,"model":"alpha","kind":"provider_error","before":{"status":429},"after":{"error":"rate limit"}}
+{"time":5,"model":"beta","kind":"text_tool_call","before":null,"after":{}}

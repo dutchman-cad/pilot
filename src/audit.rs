@@ -1,0 +1,56 @@
+//! Shared bounded JSONL rewrite records for both proxy faces.
+use serde_json::{json, Value};
+use std::{
+    collections::BTreeMap,
+    fs::File,
+    io::Write,
+    time::{SystemTime, UNIX_EPOCH},
+};
+
+pub(crate) fn now() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+}
+
+pub(crate) struct Audit {
+    pub(crate) file: File,
+    pub(crate) size: u64,
+    pub(crate) model: String,
+    pub(crate) count: usize,
+    pub(crate) kinds: BTreeMap<String, u64>,
+}
+impl Audit {
+    pub(crate) fn record(
+        &mut self,
+        kind: &str,
+        before: &Value,
+        after: &Value,
+    ) -> Result<(), String> {
+        if self.count >= 4096 {
+            return Err("turn exceeds 4096 rewrites".into());
+        }
+        let mut bytes = serde_json::to_vec(
+            &json!({"time":now(),"model":self.model,"kind":kind,"before":before,"after":after}),
+        )
+        .map_err(|e| format!("cannot encode rewrite: {e}"))?;
+        bytes.push(b'\n');
+        if bytes.len() > 8 * 1_048_576 {
+            return Err("rewrite record exceeds 8 MiB".into());
+        }
+        if self.size.saturating_add(bytes.len() as u64) > 64 * 1_048_576 {
+            return Err("rewrite log reached 64 MiB; archive it before continuing".into());
+        }
+        self.file
+            .write_all(&bytes)
+            .and_then(|()| self.file.flush())
+            .map_err(|e| format!("cannot write rewrite log: {e}"))?;
+        self.size += bytes.len() as u64;
+        self.count += 1;
+        let kind = kind.split(':').next().unwrap_or(kind);
+        let count = self.kinds.entry(kind.to_owned()).or_default();
+        *count = count.saturating_add(1);
+        Ok(())
+    }
+}
