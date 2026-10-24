@@ -343,7 +343,22 @@ fn fake_child_end_to_end() {
     assert!(!unknown.contains("suggested:"));
     assert!(texts(&full.call(53, "count", json!({}))).contains("executions"));
     drop(full);
-    std::fs::remove_dir_all(path.parent().unwrap()).unwrap();
+    remove_dir_when_released(path.parent().unwrap());
+}
+
+/// Killing the proxy leaves its fake child exiting on its own; Windows keeps a
+/// running executable's directory locked until then.
+fn remove_dir_when_released(dir: &std::path::Path) {
+    for _ in 0..50 {
+        match std::fs::remove_dir_all(dir) {
+            Ok(()) => return,
+            Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
+                std::thread::sleep(std::time::Duration::from_millis(100))
+            }
+            Err(e) => panic!("cannot remove {}: {e}", dir.display()),
+        }
+    }
+    std::fs::remove_dir_all(dir).unwrap();
 }
 #[test]
 #[ignore = "set SOLIDCRAFT_CLI and run cargo test --test mcp -- --ignored"]
