@@ -15,7 +15,7 @@ command line. The same commands also come as a standalone download,
 **Status:** Early beta: results are still being measured; expect rough edges.
 
 - [SolidCraft 98](docs/solidcraft98.md) screen tools, a bounded model driver, and
-  offline help, using its public remote protocol (v1.1.1 or later).
+  offline help, using its public remote protocol (SolidCraft 98 1.2 or later).
 - Typed recipes for primitives, hole layouts, sketch extrusions, edge finishes,
   movement, renaming, mirror, shell, revolve, and measured queries.
 - Millimetres, metric and inch units, fractions, and deterministic expansions.
@@ -31,7 +31,8 @@ command line. The same commands also come as a standalone download,
   planner replay. Request words require `--include-request`; you review and submit.
 
 For SolidCraft 98, start `dutchman pilot mcp98 --program /path/to/sc98 --headless`
-as an MCP server, or attach with `--connect 127.0.0.1:9898`. See the
+as an MCP server, or attach with `--connect 127.0.0.1:9898` to an application started with `/REMOTE`
+(`/REMOTE:ANY` when Pilot runs on another machine or a virtual machine's host). See the
 [SolidCraft 98 quick start](docs/solidcraft98.md) for the model driver and limits.
 
 See [recipes and their limits](docs/recipes.md).
