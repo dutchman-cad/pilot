@@ -20,6 +20,9 @@ pub(crate) fn record_events(profile: &mut Profile, kinds: &BTreeMap<String, u64>
             "argument_repair" | "argument_reconcile" | "argument_json" => {
                 profile.repairs_by_kind.entry(kind.clone()).or_default()
             }
+            "direct_recipe_calls" => &mut profile.direct_recipe_calls,
+            "direct_recipe_reply" => &mut profile.direct_recipe_reply,
+            "direct_recipe_fallback" => &mut profile.direct_recipe_fallback,
             "provider_error" => &mut profile.provider_errors,
             "ollama 500 recovered" => &mut profile.ollama_500_recoveries,
             "plan" => &mut profile.plans_used,
@@ -80,6 +83,8 @@ pub fn profiles(dir: Option<&Path>, model: Option<&str>, json: bool) -> Result<S
         text.push_str(&format!("\n{} @ {}\n", label(&p.model), label(&p.upstream)));
         let cells = [
             ("turns", p.turns.to_string()),
+            ("direct-turns (no model)", p.direct_turns.to_string()),
+            ("direct-fallbacks", p.direct_recipe_fallback.to_string()),
             ("native%", format!("{:.1}", r.native_percent)),
             ("text-converted%", format!("{:.1}", r.text_written_percent)),
             ("prose-only%", format!("{:.1}", r.prose_percent)),

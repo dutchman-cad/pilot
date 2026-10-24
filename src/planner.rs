@@ -1,156 +1,139 @@
-//! Bounded, conservative plans derived only from the latest user text and tool state.
+//! Bounded recipe plans derived from user instructions and public tool results.
+#[cfg(test)]
+pub(crate) mod cases;
+#[cfg(test)]
+mod english;
+#[cfg(test)]
+mod first_turn;
+mod recipes;
+#[cfg(test)]
+mod robust;
+mod slots;
 use crate::{catalog::Catalog, guidance, repair};
 use serde_json::{json, Value};
+use slots::{dimensions, intent_tokens, labelled, tokens};
 
 const MAX_TEXT: usize = 4096;
 const MAX_BODIES: usize = 256;
 const MAX_MM: f64 = 1_000_000.0;
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct Expected {
+    pub bodies: Option<usize>,
+    pub volume_mm3: Option<f64>,
+    pub name: Option<String>,
+    pub created_volume_mm3: Option<f64>,
+    pub placement: Option<Placement>,
+    pub feature: Option<(String, usize)>,
+}
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct Placement {
+    pub body: String,
+    pub min: [f64; 3],
+    pub max: [f64; 3],
+}
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct Plan {
     pub rule: &'static str,
     pub calls: Vec<Value>,
     pub facts: Option<Value>,
+    pub slots: Value,
+    pub expected: Option<Expected>,
+    pub continuation: Option<EdgeContinuation>,
+}
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct EdgeContinuation {
+    pub body: String,
+    pub amount: f64,
+    pub fillet: bool,
+    pub top: bool,
 }
 impl Plan {
     pub fn message(&self) -> String {
-        let mut message = format!("For this request, run exactly this plan: {}. Don't change it; then handle anything else the user asked.", json!(self.calls));
+        let mut message = format!("For this request, run exactly this plan: {}. Don't change it; then reply using the tool results. Slots are converted to mm (including inches and fractions): {}.", json!(self.calls), self.slots);
         if let Some(facts) = &self.facts {
             message.push_str(&format!(
                 " Computed from the latest tool result: {facts}. Use these exact facts."
             ));
         }
+        if self.expected.is_some() {
+            message.push_str(" After the changes, call execute document.inspect with {\"measure\":true} before your final reply to verify completion.");
+        }
         message
     }
 }
-
-// Words and numbers are separate even in `20mm` and `20x30x4`.
-fn tokens(text: &str) -> Vec<String> {
-    let mut out = Vec::new();
-    let mut current = String::new();
-    let mut numeric = false;
-    for c in text.chars() {
-        let number = c.is_ascii_digit() || c == '.' || c == '-';
-        if c.is_ascii_alphanumeric() || c == '_' || number {
-            if !current.is_empty() && numeric != number {
-                out.push(std::mem::take(&mut current));
-            }
-            numeric = number;
-            current.push(c.to_ascii_lowercase());
-        } else if !current.is_empty() {
-            out.push(std::mem::take(&mut current));
-        }
+/// A narrow action pledge. Recipe slots always come from the user, never this prose.
+pub fn action_prose(message: &Value) -> bool {
+    if message["refusal"].as_str().is_some_and(|s| !s.is_empty()) {
+        return false;
     }
-    if !current.is_empty() {
-        out.push(current);
-    }
-    out
-}
-fn scale(s: &str) -> Option<f64> {
-    match s {
-        "mm" => Some(1.0),
-        "cm" => Some(10.0),
-        "m" => Some(1000.0),
-        "in" | "inch" | "inches" => Some(25.4),
-        _ => None,
-    }
-}
-#[derive(Clone, Copy)]
-struct Dimension {
-    value: f64,
-    index: usize,
-}
-fn dimensions(t: &[String]) -> Option<Vec<Dimension>> {
-    let mut dims = Vec::new();
-    let mut units = Vec::new();
-    for (i, word) in t.iter().enumerate() {
-        let Ok(n) = word.parse::<f64>() else { continue };
-        let next = t.get(i + 1).map(String::as_str).unwrap_or("");
-        let unit = scale(next);
-        if unit.is_none()
-            && !matches!(
-                next,
-                "" | "x"
-                    | "by"
-                    | "and"
-                    | "along"
-                    | "on"
-                    | "tall"
-                    | "high"
-                    | "wide"
-                    | "long"
-                    | "thick"
-                    | "across"
-                    | "diameter"
-                    | "radius"
-                    | "height"
-                    | "length"
-                    | "width"
-                    | "cube"
-                    | "box"
-                    | "sphere"
-                    | "cylinder"
-                    | "plate"
-                    | "with"
-            )
-        {
-            return None;
-        }
-        dims.push(Dimension { value: n, index: i });
-        units.push(unit);
-    }
-    // A trailing unit on a dimension tuple applies to the whole tuple.
-    let common = units.iter().flatten().copied().collect::<Vec<_>>();
-    let tuple = dims.first().zip(dims.last()).is_some_and(|(a, b)| {
-        t[a.index..b.index]
-            .iter()
-            .all(|s| s.parse::<f64>().is_ok() || scale(s).is_some() || s == "x" || s == "by")
-    });
-    let default = if common.len() == 1 && tuple && units.last().is_some_and(Option::is_some) {
-        common[0]
-    } else {
-        1.0
+    let Some(text) = message["content"].as_str().filter(|s| s.len() <= MAX_TEXT) else {
+        return false;
     };
-    for (d, unit) in dims.iter_mut().zip(units) {
-        d.value *= unit.unwrap_or(default);
-        if !d.value.is_finite() || d.value.abs() > MAX_MM || d.value == 0.0 {
-            return None;
+    let lower = text.trim().to_ascii_lowercase();
+    (lower.starts_with("i will ")
+        || lower.starts_with("i'll ")
+        || lower.starts_with("let me ")
+        || lower.starts_with("i am going to "))
+        && !tokens(&lower).iter().any(|s| {
+            matches!(
+                s.as_str(),
+                "not" | "don" | "cannot" | "cant" | "unable" | "if" | "instead"
+            )
+        })
+}
+pub fn matches_prose(
+    request: &Value,
+    catalog: &Catalog,
+    expected: &Plan,
+    message: &Value,
+) -> Result<bool, String> {
+    if !action_prose(message) {
+        return Ok(false);
+    }
+    let mut request = request.clone();
+    let Some(messages) = request["messages"].as_array_mut() else {
+        return Ok(false);
+    };
+    let Some(index) = messages.iter().rposition(|m| m["role"] == "user") else {
+        return Ok(false);
+    };
+    messages.truncate(index + 1);
+    let user = &mut messages[index];
+    let text = message["content"].as_str().unwrap_or("").trim();
+    let lower = text.to_ascii_lowercase();
+    let prefixes = ["i will ", "i'll ", "let me ", "i am going to "];
+    let Some(prefix) = prefixes.iter().find(|p| lower.starts_with(**p)) else {
+        return Ok(false);
+    };
+    user["content"] = json!(&text[prefix.len()..]);
+    let Some(mut actual) = plan(&request, catalog)? else {
+        return Ok(false);
+    };
+    let mut expected_slots = expected.slots.clone();
+    for value in [&mut actual.slots, &mut expected_slots] {
+        if let Some(edges) = value.get_mut("Edges").and_then(Value::as_object_mut) {
+            edges.remove("edges");
         }
     }
-    (dims.len() <= 8).then_some(dims)
+    Ok(actual.rule == expected.rule && actual.slots == expected_slots)
 }
-fn labelled(t: &[String], d: Dimension, labels: &[&str]) -> bool {
-    let before = d.index.checked_sub(1).and_then(|i| t.get(i));
-    if let Some(label) =
-        before.filter(|s| ["radius", "diameter", "height", "length", "width"].contains(&s.as_str()))
-    {
-        return labels.contains(&label.as_str());
-    }
-    let mut after = d.index + 1;
-    if t.get(after).is_some_and(|s| scale(s).is_some()) {
-        after += 1;
-    }
-    before
-        .into_iter()
-        .chain(t.get(after))
-        .any(|s| labels.contains(&s.as_str()))
+/// Continue an already fired edge recipe after its read-only topology lookup.
+pub fn resume(request: &Value, previous: &Plan, catalog: &Catalog) -> Result<Option<Plan>, String> {
+    recipes::resume(request, previous, catalog)
 }
-fn state(messages: &[Value]) -> Option<Value> {
-    // Never fall back to an older snapshot when a newer tool result is incomplete.
-    let message = messages.iter().rev().find(|m| m["role"] == "tool")?;
+fn tool_payload(message: &Value) -> Option<Value> {
     let content = message.get("content")?;
     let data = if let Some(s) = content.as_str() {
         if s.len() > repair::MAX_BYTES {
             return None;
         }
-        // The tools face may append our own short guidance after the JSON.
-        let json = s
-            .split_once(&format!("\n{}", crate::identity::HINT))
-            .map_or(s, |(json, _)| json);
-        serde_json::from_str(json).ok()?
+        let marker = format!("\n{}", crate::identity::HINT);
+        serde_json::from_str(s.split_once(&marker).map_or(s, |(s, _)| s)).ok()?
     } else {
         content.clone()
     };
+    repair::check_value(&data).ok()?;
     if data.get("isError") == Some(&json!(true)) || data.get("error").is_some() {
         return None;
     }
@@ -161,67 +144,154 @@ fn state(messages: &[Value]) -> Option<Value> {
     {
         return None;
     }
+    Some(data)
+}
+fn state(messages: &[Value]) -> Option<Value> {
+    let data = tool_payload(messages.iter().rev().find(|m| m["role"] == "tool")?)?;
     let bodies = data.get("bodies")?.as_array()?;
-    (bodies.len() <= MAX_BODIES).then_some(data)
+    if bodies.len() > MAX_BODIES
+        || bodies.iter().any(|b| !b.is_object())
+        || data
+            .get("body_count")
+            .is_some_and(|n| n.as_u64() != Some(bodies.len() as u64))
+    {
+        return None;
+    }
+    Some(data)
 }
 fn body(text: &str, data: Option<&Value>) -> Option<String> {
     let bodies = data?.get("bodies")?.as_array()?;
+    let lower = text.to_ascii_lowercase();
     let names: Vec<_> = bodies
         .iter()
-        .filter_map(|b| b.get("name").and_then(Value::as_str))
+        .filter_map(|b| b["name"].as_str())
         .filter(|n| !n.is_empty() && n.len() <= 256)
         .collect();
-    let lower = text.to_ascii_lowercase();
     let found: Vec<_> = names
         .iter()
         .filter(|n| {
             let name = n.to_ascii_lowercase();
+            if matches!(name.as_str(), "it" | "the body" | "the box" | "the part") {
+                return false;
+            }
             lower.match_indices(&name).any(|(i, _)| {
-                let left = lower[..i].chars().next_back();
-                let right = lower[i + name.len()..].chars().next();
-                left.is_none_or(|c| !c.is_alphanumeric() && c != '_')
-                    && right.is_none_or(|c| !c.is_alphanumeric() && c != '_')
+                if matches!(name.as_str(), "body" | "box" | "part") {
+                    let prefix = tokens(&lower[..i]);
+                    if prefix
+                        .last()
+                        .is_some_and(|s| matches!(s.as_str(), "the" | "current" | "a"))
+                    {
+                        return false;
+                    }
+                }
+                lower[..i]
+                    .chars()
+                    .next_back()
+                    .is_none_or(|c| !c.is_alphanumeric() && c != '_')
+                    && lower[i + name.len()..]
+                        .chars()
+                        .next()
+                        .is_none_or(|c| !c.is_alphanumeric() && c != '_')
             })
         })
         .collect();
     if found.len() == 1 {
-        Some(found[0].to_string())
-    } else if found.is_empty() && names.len() == 1 && bodies.len() == 1 && {
-        let words = tokens(text);
-        words
-            .iter()
-            .position(|s| s == "move" || s == "rename")
-            .is_some_and(|i| {
-                let rest = &words[i + 1..];
-                let rest = if rest.first().is_some_and(|s| s == "the") {
-                    &rest[1..]
-                } else {
-                    rest
-                };
-                rest.first().is_some_and(|s| s == "it" || s == "body")
-                    && rest
-                        .get(1)
-                        .is_none_or(|s| s == "by" || s.parse::<f64>().is_ok())
-            })
-    } {
-        Some(names[0].to_string())
-    } else {
-        None
+        return Some(found[0].to_string());
     }
+    // Pronouns only; never silently substitute an unknown explicit name.
+    let t = intent_tokens(text);
+    if found.is_empty()
+        && t.iter().position(|s| s == "of").is_some_and(|i| {
+            t.get(i + 1).is_some_and(|s| {
+                !matches!(s.as_str(), "the" | "current" | "body" | "it")
+                    && dimensions(std::slice::from_ref(s)).is_none_or(|d| d.len() != 1)
+            })
+        })
+    {
+        return None;
+    }
+    let verb = t.iter().position(|s| {
+        matches!(
+            s.as_str(),
+            "move"
+                | "translate"
+                | "shift"
+                | "slide"
+                | "rename"
+                | "call"
+                | "name"
+                | "mirror"
+                | "scale"
+                | "double"
+                | "half"
+                | "fillet"
+                | "round"
+                | "chamfer"
+                | "bevel"
+                | "drill"
+                | "bore"
+                | "cut"
+        )
+    });
+    if found.is_empty()
+        && bodies.len() == 1
+        && names.len() == 1
+        && verb.is_some_and(|i| {
+            let rest = &t[i + 1..];
+            let rest = if t[i] == "round" && rest.first().is_some_and(|s| s == "off") {
+                &rest[1..]
+            } else {
+                rest
+            };
+            let rest = &rest[rest
+                .iter()
+                .take_while(|s| matches!(s.as_str(), "the" | "current" | "a"))
+                .count()..];
+            rest.first().is_some_and(|s| {
+                matches!(
+                    s.as_str(),
+                    "it" | "body" | "box" | "part" | "all" | "top" | "edges"
+                ) || (s == "size" && matches!(t[i].as_str(), "scale" | "double" | "half"))
+            }) && !rest.windows(2).any(|w| {
+                matches!(w[0].as_str(), "body" | "box" | "part")
+                    && !matches!(
+                        w[1].as_str(),
+                        "to" | "by"
+                            | "about"
+                            | "across"
+                            | "along"
+                            | "on"
+                            | "with"
+                            | "all"
+                            | "top"
+                            | "radius"
+                            | "origin"
+                            | "uniformly"
+                            | "in"
+                            | "distance"
+                    )
+                    && !w[1].starts_with(|c: char| c.is_ascii_digit() || c == '-' || c == '.')
+            })
+        })
+    {
+        return Some(names[0].to_string());
+    }
+    None
 }
 fn call(catalog: &Catalog, id: &str, params: Value) -> Result<Value, String> {
     let command = catalog
         .get(id)
         .ok_or_else(|| format!("planner command missing from catalogue: {id}"))?;
-    // The public docs include alternative parameter names, which the conservative
-    // repair schema intentionally omits (e.g. radius | diameter).
-    let documented = tokens(&command.params);
+    let documented: Vec<_> = command
+        .params
+        .split(|c: char| !c.is_ascii_alphanumeric() && c != '_')
+        .collect();
     for key in params
         .as_object()
         .ok_or("planner parameters must be an object")?
         .keys()
     {
-        if !documented.contains(key) {
+        if !documented.contains(&key.as_str()) {
             return Err(format!(
                 "planner parameter {id}.{key} missing from catalogue"
             ));
@@ -229,285 +299,748 @@ fn call(catalog: &Catalog, id: &str, params: Value) -> Result<Value, String> {
     }
     Ok(json!({"tool":"execute","arguments":{"command":id,"params":params}}))
 }
+fn volume(data: &Value) -> Option<f64> {
+    let bodies = data["bodies"].as_array()?;
+    let mut total = 0.0;
+    for b in bodies {
+        let n = b.get("volume_mm3").or_else(|| b.get("volume"))?.as_f64()?;
+        if !n.is_finite() || n < 0.0 {
+            return None;
+        }
+        total += n;
+    }
+    if data
+        .get("total")
+        .and_then(|t| t.get("volume_mm3"))
+        .is_some_and(|v| {
+            v.as_f64().is_none_or(|v| {
+                !v.is_finite() || (v - total).abs() > 0.01_f64.max(total.abs() * 1e-9)
+            })
+        })
+    {
+        return None;
+    }
+    total.is_finite().then_some(total)
+}
+/// Compare only a complete latest snapshot. Missing measurements request one lookup.
+pub fn completion(request: &Value, expected: &Expected) -> Option<String> {
+    let messages = request["messages"].as_array()?;
+    let Some(data) = state(messages) else {
+        return Some("Recipe completion is unverified: call execute document.inspect with {\"measure\":true}, then finish or explain the difference. Do not repeat accepted changes.".into());
+    };
+    let mut differences = Vec::new();
+    if let Some(count) = expected.bodies {
+        let actual = data["bodies"].as_array()?.len();
+        if count != actual {
+            differences.push(format!("expected {count} bodies, observed {actual}"));
+        }
+    }
+    if let Some(want) = expected.volume_mm3 {
+        match volume(&data) {
+            Some(actual) if (want - actual).abs() <= (want.abs() * 0.001).max(0.01) => (),
+            Some(actual) => differences.push(format!(
+                "expected volume {want:.6} mm³, observed {actual:.6} mm³"
+            )),
+            None => differences.push("volume measurement is missing".into()),
+        }
+    }
+    if let Some(want) = expected.created_volume_mm3 {
+        let bodies = data["bodies"].as_array()?;
+        let selected: Vec<_> = bodies
+            .iter()
+            .filter(|b| expected.name.as_ref().is_none_or(|n| b["name"] == *n))
+            .cloned()
+            .collect();
+        let measured = volume(&json!({"bodies":selected}));
+        if selected.len() != 1 {
+            differences.push(
+                "creation baseline is unavailable; verify the added body's count and volume".into(),
+            );
+        } else if measured
+            .is_none_or(|actual| (want - actual).abs() > (want.abs() * 0.001).max(0.01))
+        {
+            differences.push(format!(
+                "expected created body volume {want:.6} mm³, observed {}",
+                measured.map_or_else(|| "unmeasured".into(), |v| format!("{v:.6} mm³"))
+            ));
+        }
+    }
+    if let Some(name) = &expected.name {
+        if !data["bodies"]
+            .as_array()?
+            .iter()
+            .any(|b| b["name"] == *name)
+        {
+            differences.push(format!("expected body named {name}"));
+        }
+    }
+    if let Some(p) = &expected.placement {
+        let found = data["bodies"]
+            .as_array()?
+            .iter()
+            .find(|b| b["name"] == p.body);
+        let matches = found.is_some_and(|b| {
+            (0..3).all(|i| {
+                b["bbox"]["min"][i]
+                    .as_f64()
+                    .is_some_and(|n| n.is_finite() && (n - p.min[i]).abs() <= 1e-6)
+                    && b["bbox"]["max"][i]
+                        .as_f64()
+                        .is_some_and(|n| n.is_finite() && (n - p.max[i]).abs() <= 1e-6)
+            })
+        });
+        if !matches {
+            differences.push(format!(
+                "expected {} bounds {:?} to {:?}; observed bounds {}",
+                p.body,
+                p.min,
+                p.max,
+                found.map_or(&Value::Null, |b| &b["bbox"])
+            ));
+        }
+    }
+    if let Some((kind, want)) = &expected.feature {
+        let actual = data["timeline"]
+            .as_array()
+            .filter(|t| t.len() <= 4096)
+            .map(|t| {
+                t.iter()
+                    .filter(|f| {
+                        f["type"] == *kind
+                            && f["error"].is_null()
+                            && f["rolled_back"] != true
+                            && f["suppressed"] != true
+                    })
+                    .count()
+            });
+        if actual != Some(*want) {
+            differences.push(format!(
+                "expected {want} successful {kind} features, observed {}",
+                actual.map_or_else(|| "unverified".into(), |n| n.to_string())
+            ));
+        }
+    }
+    (!differences.is_empty()).then(|| format!("Recipe completion differs: {}. Inspect with measure:true and finish the remaining work or explain the difference. Do not repeat accepted changes.", differences.join("; ")))
+}
+
+const REPORT_GUARD_WORDS: &[&str] = &[
+    "not",
+    "no",
+    "avoid",
+    "skip",
+    "stop",
+    "neither",
+    "nor",
+    "explanation",
+    "describe",
+    "tutorial",
+    "instructions",
+    "don",
+    "dont",
+    "never",
+    "explain",
+    "would",
+    "what",
+    "how",
+    "why",
+    "whether",
+    "example",
+    "if",
+    "or",
+    "instead",
+    "except",
+    "without",
+    "undo",
+    "cannot",
+    "cant",
+];
 
 pub fn plan(request: &Value, catalog: &Catalog) -> Result<Option<Plan>, String> {
-    let Some(messages) = request.get("messages").and_then(Value::as_array) else {
+    plan_impl(request, catalog, false)
+}
+/// Direct mode may continue after its own read-only body prerequisite.
+pub fn plan_direct(request: &Value, catalog: &Catalog) -> Result<Option<Plan>, String> {
+    plan_impl(request, catalog, true)
+}
+fn plan_impl(
+    request: &Value,
+    catalog: &Catalog,
+    allow_inspection: bool,
+) -> Result<Option<Plan>, String> {
+    repair::check_value(request)?;
+    let Some(messages) = request["messages"].as_array() else {
         return Ok(None);
     };
     if messages.len() > 4096 {
         return Err("planner conversation exceeds 4096 messages".into());
     }
-    let Some(text) = messages
-        .iter()
-        .rev()
-        .find(|m| m["role"] == "user")
-        .and_then(|m| m["content"].as_str())
+    let Some(user_index) = messages.iter().rposition(|m| m["role"] == "user") else {
+        return Ok(None);
+    };
+    let Some(text) = messages[user_index]["content"]
+        .as_str()
+        .filter(|s| s.len() <= MAX_TEXT)
     else {
         return Ok(None);
     };
-    if text.len() > MAX_TEXT {
-        return Ok(None);
-    }
-    let t = tokens(text);
-    let has = |w: &str| t.iter().any(|s| s == w);
-    let data = state(messages);
-    let lower = text.to_ascii_lowercase();
-    // On continuation requests, an already returned action must not be planned again.
-    let user_index = messages
-        .iter()
-        .rposition(|m| m["role"] == "user")
-        .unwrap_or(0);
-    let acted = messages[user_index + 1..].iter().any(|m| {
-        m.get("tool_calls")
-            .and_then(Value::as_array)
-            .is_some_and(|calls| {
-                calls
-                    .iter()
-                    .any(|c| matches!(c["function"]["name"].as_str(), Some("execute" | "batch")))
-            })
-    });
-    let mut calls = Vec::new();
-    let mut facts = None;
-    let rule;
-    if lower.contains("how many bodies")
-        || (has("volume") && (has("what") || has("tell") || has("measure")))
-    {
-        rule = if has("volume") {
-            "volume"
-        } else {
-            "body_count"
-        };
-        if let Some(bodies) = data.as_ref().and_then(|d| d["bodies"].as_array()) {
-            if rule == "body_count" {
-                facts = Some(json!({"body_count":bodies.len()}));
-            } else {
-                // Named queries must resolve uniquely; general volume means total.
-                let named = body(text, data.as_ref());
-                if named.is_none() && (has("of") || has("for")) && !has("design") && !has("all") {
-                    return Ok(None);
-                }
-                let selected: Vec<_> = bodies
-                    .iter()
-                    .filter(|b| named.as_ref().is_none_or(|n| b["name"] == *n))
-                    .collect();
-                let volumes: Option<Vec<_>> = selected
-                    .iter()
-                    .map(|b| {
-                        b.get("volume_mm3")
-                            .or_else(|| b.get("volume"))?
-                            .as_f64()
-                            .filter(|n| n.is_finite() && *n >= 0.0)
-                    })
-                    .collect();
-                if let Some(volumes) = volumes {
-                    let total: f64 = volumes.iter().sum();
-                    if total.is_finite() {
-                        facts = Some(
-                            json!({"volume_mm3":total,"body_count":bodies.len(),"bodies":selected.iter().filter_map(|b| b["name"].as_str()).collect::<Vec<_>>()}),
-                        );
-                    }
-                }
-            }
-        }
-        if facts.is_none() {
-            // Already looked something up for this request: don't send the model round again.
-            let looked = messages[user_index + 1..].iter().any(|m| {
-                m.get("tool_calls")
-                    .and_then(Value::as_array)
-                    .is_some_and(|calls| !calls.is_empty())
-            });
-            if looked {
-                return Ok(None);
-            }
-            calls.push(call(catalog, "document.inspect", json!({"measure":true}))?);
-        }
-    } else if acted
-        || has("not")
-        || has("don")
-        || has("explain")
-        || has("would")
-        || has("what")
-        || has("how")
-    {
-        return Ok(None);
-    } else if has("rename")
-        && t.first()
-            .is_some_and(|s| s == "rename" || s == "please" || s == "can")
-    {
-        let Some((_, new)) = text.rsplit_once(" to ") else {
-            return Ok(None);
-        };
-        let new = new
-            .trim()
-            .trim_matches(['`', '\'', '"'])
-            .trim_end_matches(['.', '?']);
-        if new.is_empty() || new.len() > 128 || new.contains(['\n', '\r']) {
-            return Ok(None);
-        }
-        let source = text.rsplit_once(" to ").map_or(text, |(s, _)| s);
-        let Some(name) = body(source, data.as_ref()) else {
-            return Ok(None);
-        };
-        rule = "rename";
-        calls.push(call(
-            catalog,
-            "body.rename",
-            json!({"body":name,"name":new}),
-        )?);
-    } else {
-        // Body names commonly contain digits (Box001); they are not dimensions.
-        let dimension_words = if has("move") {
-            body(text, data.as_ref())
-                .map(|name| tokens(&lower.replace(&name.to_ascii_lowercase(), " ")))
-        } else {
-            None
-        };
-        let dimension_words = dimension_words.as_ref().unwrap_or(&t);
-        let Some(dims) = dimensions(dimension_words) else {
-            return Ok(None);
-        };
-        if has("move")
-            && !has("not")
-            && !has("don")
-            && !has("how")
-            && !has("what")
-            && !has("would")
-            && dims.len() == 1
-        {
-            let axes: Vec<_> = ["x", "y", "z"]
-                .iter()
-                .enumerate()
-                .filter(|(_, a)| dimension_words.iter().any(|s| s == *a))
-                .collect();
-            if axes.len() != 1 {
-                return Ok(None);
-            }
-            let Some(name) = body(text, data.as_ref()) else {
-                return Ok(None);
-            };
-            let mut delta = [0.0; 3];
-            delta[axes[0].0] = dims[0].value;
-            rule = "move";
-            calls.push(call(
-                catalog,
-                "solid.move",
-                json!({"bodies":[name],"translate":delta}),
-            )?);
-        } else {
-            let intent = ["make", "create", "build", "add"].iter().any(|w| has(w));
-            if !intent
-                || has("not")
-                || has("don")
-                || has("explain")
-                || has("would")
-                || (has("what") || has("how"))
-                || dims.iter().any(|d| d.value <= 0.0)
-            {
-                return Ok(None);
-            }
-            if has("plate")
-                && has("hole")
-                && (has("centred")
-                    || has("centered")
-                    || has("middle")
-                    || has("centre")
-                    || has("center"))
-                && has("through")
-                && dims.len() == 4
-            {
-                let hole = dims[3];
-                let diameter = if labelled(&t, hole, &["radius"]) {
-                    hole.value * 2.0
-                } else {
-                    hole.value
-                };
-                if diameter >= dims[0].value.min(dims[1].value) {
-                    return Ok(None);
-                }
-                rule = "plate_hole";
-                let [l, w, h] = [dims[0].value, dims[1].value, dims[2].value];
-                calls.push(call(
-                    catalog,
-                    "solid.box",
-                    json!({"length":l,"width":w,"height":h,"operation":"new"}),
-                )?);
-                calls.push(call(
-                    catalog,
-                    "solid.hole",
-                    json!({"position":[l/2.0,w/2.0,h],"diameter":diameter}),
-                )?);
-            } else if (has("box") && dims.len() == 3) || (has("cube") && dims.len() == 1) {
-                rule = "box";
-                let mut l = dims[0].value;
-                let mut w = dims.get(1).map_or(l, |d| d.value);
-                let mut h = dims.get(2).map_or(l, |d| d.value);
-                if has("box") && ["length", "width", "height"].iter().any(|s| has(s)) {
-                    let sizes: Option<Vec<_>> = ["length", "width", "height"]
-                        .iter()
-                        .map(|label| {
-                            let found: Vec<_> = dims
-                                .iter()
-                                .filter(|d| labelled(&t, **d, &[*label]))
-                                .collect();
-                            (found.len() == 1).then(|| found[0].value)
-                        })
-                        .collect();
-                    let Some(sizes) = sizes else { return Ok(None) };
-                    [l, w, h] = [sizes[0], sizes[1], sizes[2]];
-                }
-                calls.push(call(
-                    catalog,
-                    "solid.box",
-                    json!({"length":l,"width":w,"height":h}),
-                )?);
-            } else if has("cylinder") && dims.len() == 2 {
-                let Some(h) = dims
-                    .iter()
-                    .find(|d| labelled(&t, **d, &["height", "tall", "high"]))
-                else {
-                    return Ok(None);
-                };
-                let Some(r) = dims.iter().find(|d| d.index != h.index) else {
-                    return Ok(None);
-                };
-                let radius = if labelled(&t, *r, &["radius"]) {
-                    r.value
-                } else if labelled(&t, *r, &["diameter", "across"]) {
-                    r.value / 2.0
-                } else {
-                    return Ok(None);
-                };
-                rule = "cylinder";
-                calls.push(call(
-                    catalog,
-                    "solid.cylinder",
-                    json!({"radius":radius,"height":h.value}),
-                )?);
-            } else if has("sphere") && dims.len() == 1 {
-                let d = dims[0];
-                let radius = if labelled(&t, d, &["radius"]) {
-                    d.value
-                } else if labelled(&t, d, &["diameter", "across"]) {
-                    d.value / 2.0
-                } else {
-                    return Ok(None);
-                };
-                rule = "sphere";
-                calls.push(call(catalog, "solid.sphere", json!({"radius":radius}))?);
-            } else {
-                return Ok(None);
-            }
-        }
-    }
-    // Do not instruct a model to use a tool the client did not offer.
-    if !request
-        .get("tools")
-        .and_then(Value::as_array)
+    if !request["tools"]
+        .as_array()
         .is_some_and(|tools| tools.iter().any(|t| t["function"]["name"] == "execute"))
     {
         return Ok(None);
     }
-    Ok(Some(Plan { rule, calls, facts }))
+    let polite_question = text.to_ascii_lowercase().contains("can you ")
+        || text.to_ascii_lowercase().contains("could you ")
+        || text.to_ascii_lowercase().contains("would you ");
+    let normalized = slots::normalize(text);
+    let text = normalized.as_str();
+    let t = intent_tokens(text);
+    let has = |w: &str| t.iter().any(|s| s == w);
+    let data = state(messages);
+    let query_text = t
+        .iter()
+        .filter(|s| s.as_str() != "and")
+        .map(String::as_str)
+        .collect::<Vec<_>>()
+        .join(" ");
+    let count = query_text.contains("how many bodies")
+        || query_text.contains("how many solid bodies")
+        || query_text.contains("how many parts")
+        || query_text.contains("count the bodies")
+        || query_text.contains("count bodies");
+    let query = (has("volume") || (has("how") && has("many") && (has("cubic") || has("mm3"))))
+        && ["what", "tell", "measure", "report", "give", "volume", "how"]
+            .iter()
+            .any(|w| has(w));
+    if count && query {
+        return Ok(None);
+    }
+    if count || query {
+        if t.windows(2).any(|w| {
+            matches!(w[0].as_str(), "a" | "an")
+                && matches!(
+                    w[1].as_str(),
+                    "cube"
+                        | "box"
+                        | "block"
+                        | "plate"
+                        | "sphere"
+                        | "cylinder"
+                        | "rod"
+                        | "disc"
+                        | "tube"
+                )
+        }) {
+            return Ok(None);
+        }
+        if has("how") && !query_text.contains("how many") {
+            return Ok(None);
+        }
+        if [
+            "make",
+            "create",
+            "build",
+            "add",
+            "sketch",
+            "fillet",
+            "chamfer",
+            "move",
+            "translate",
+            "rename",
+            "mirror",
+            "shell",
+            "revolve",
+            "extrude",
+            "round",
+            "bevel",
+            "drill",
+            "bore",
+            "cut",
+            "shift",
+            "slide",
+            "call",
+            "name",
+            "not",
+            "no",
+            "avoid",
+            "skip",
+            "stop",
+            "neither",
+            "nor",
+            "explanation",
+            "describe",
+            "tutorial",
+            "instructions",
+            "don",
+            "dont",
+            "cannot",
+            "cant",
+            "discard",
+            "without",
+            "never",
+            "why",
+            "explain",
+            "instead",
+            "except",
+            "undo",
+            "scale",
+            "double",
+            "half",
+        ]
+        .iter()
+        .any(|w| has(w))
+        {
+            return Ok(None);
+        }
+        let rule = if count { "body_count" } else { "volume" };
+        let mut facts = None;
+        if let Some(data) = &data {
+            let bodies = data["bodies"]
+                .as_array()
+                .ok_or("planner bodies must be an array")?;
+            if count {
+                facts = Some(json!({"body_count":bodies.len()}));
+            } else {
+                let named = body(text, Some(data));
+                if (has("of") || has("for")) && !has("design") && !has("all") {
+                    let reference = t
+                        .iter()
+                        .position(|s| matches!(s.as_str(), "of" | "for"))
+                        .map(|i| &t[i + 1..])
+                        .unwrap_or(&[]);
+                    let qualifiers = reference
+                        .iter()
+                        .take_while(|s| matches!(s.as_str(), "the" | "current" | "existing"))
+                        .count();
+                    let reference = &reference[qualifiers..];
+                    let generic = reference
+                        .first()
+                        .is_some_and(|s| matches!(s.as_str(), "body" | "solid" | "part" | "it"))
+                        && reference.get(1).is_none_or(|s| {
+                            matches!(s.as_str(), "in" | "leaving" | "unchanged" | "as")
+                        });
+                    if (named.is_none() && (!generic || bodies.len() != 1))
+                        || (generic && qualifiers > 0 && bodies.len() != 1)
+                    {
+                        return Ok(None);
+                    }
+                }
+                let selected: Vec<_> = bodies
+                    .iter()
+                    .filter(|b| named.as_ref().is_none_or(|n| b["name"] == *n))
+                    .cloned()
+                    .collect();
+                if let Some(total) = volume(data).and_then(|_| volume(&json!({"bodies":selected})))
+                {
+                    facts = Some(
+                        json!({"volume_mm3":total,"body_count":bodies.len(),"bodies":selected.iter().filter_map(|b| b["name"].as_str()).collect::<Vec<_>>()}),
+                    );
+                }
+            }
+        }
+        let mut calls = Vec::new();
+        if !count && volume_unit(text).is_none() {
+            return Ok(None);
+        }
+        if facts.is_none() {
+            if messages[user_index + 1..]
+                .iter()
+                .any(|m| m["tool_calls"].as_array().is_some_and(|c| !c.is_empty()))
+            {
+                return Ok(None);
+            }
+            calls.push(call(catalog, "document.inspect", json!({"measure":true}))?);
+        }
+        return Ok(Some(Plan {
+            rule,
+            calls,
+            facts,
+            slots: json!({"query":rule}),
+            expected: None,
+            continuation: None,
+        }));
+    }
+    let acted = messages[user_index + 1..].iter().any(|m| {
+        m["tool_calls"].as_array().is_some_and(|calls| {
+            calls.iter().any(|c| {
+                matches!(c["function"]["name"].as_str(), Some("execute" | "batch"))
+                    && !(allow_inspection && body_inspection(c))
+            })
+        })
+    });
+    if acted || REPORT_GUARD_WORDS.iter().any(|w| has(w)) {
+        return Ok(None);
+    }
+    if slots::has_question(text) && !polite_question {
+        return Ok(None);
+    }
+    recipes::select(text, data.as_ref(), messages, catalog)
+}
+/// A read-only prerequisite is offered only when every edit slot already parses.
+/// A hypothetical sole body checks syntax; its name never reaches a mutation.
+pub fn inspect_for_edit(request: &Value, catalog: &Catalog) -> Result<Option<Plan>, String> {
+    repair::check_value(request)?;
+    let Some(messages) = request["messages"].as_array() else {
+        return Ok(None);
+    };
+    if messages.len() > 4096 || state(messages).is_some() {
+        return Ok(None);
+    }
+    let Some(index) = messages.iter().rposition(|m| m["role"] == "user") else {
+        return Ok(None);
+    };
+    if messages[index + 1..]
+        .iter()
+        .any(|m| m["tool_calls"].as_array().is_some_and(|c| !c.is_empty()))
+    {
+        return Ok(None);
+    }
+    let mut probe = request.clone();
+    let mut synthetic = vec![
+        json!({"role":"tool","content":json!({"bodies":[{"name":"PilotUnresolvedBody"}]}).to_string()}),
+    ];
+    synthetic.extend(messages.iter().cloned());
+    probe["messages"] = json!(synthetic);
+    let Some(candidate) = plan(&probe, catalog)? else {
+        return Ok(None);
+    };
+    if !matches!(
+        candidate.rule,
+        "move" | "rename" | "fillet" | "chamfer" | "mirror" | "scale" | "hole"
+    ) {
+        return Ok(None);
+    }
+    Ok(Some(Plan {
+        rule: "resolve_body",
+        calls: vec![call(catalog, "document.inspect", json!({"measure":true}))?],
+        facts: None,
+        slots: json!({"prerequisite":"unique body"}),
+        expected: None,
+        continuation: None,
+    }))
+}
+fn body_inspection(call: &Value) -> bool {
+    call["id"]
+        .as_str()
+        .is_some_and(|id| id.starts_with("pilot_direct_") && id.ends_with("_resolve_body_0"))
+        && call["function"]["name"] == "execute"
+        && call["function"]["arguments"]
+            .as_str()
+            .and_then(|s| serde_json::from_str::<Value>(s).ok())
+            == Some(json!({"command":"document.inspect","params":{"measure":true}}))
+}
+/// Names come from the same bounded table that selects recipes.
+pub fn supported_recipes() -> Vec<&'static str> {
+    recipes::names().chain(["body count", "volume"]).collect()
+}
+/// Report measured facts only after the ordinary completion check succeeds.
+pub fn direct_summary(request: &Value, plan: &Plan) -> String {
+    if let Some(facts) = &plan.facts {
+        if plan.rule == "body_count" {
+            return format!("Exact match (no model): {} bodies", facts["body_count"]);
+        }
+        if plan.rule == "volume" {
+            let text = request["messages"]
+                .as_array()
+                .and_then(|m| m.iter().rev().find(|m| m["role"] == "user"))
+                .and_then(|m| m["content"].as_str())
+                .unwrap_or("");
+            if let (Some(value), Some((unit, divisor))) =
+                (facts["volume_mm3"].as_f64(), volume_unit(text))
+            {
+                let conversion = if divisor == 1.0 {
+                    String::new()
+                } else {
+                    format!(" (converted from {value} mm³; 1 {unit} = {divisor} mm³)")
+                };
+                return format!(
+                    "Exact match (no model): volume {} {unit}{conversion}",
+                    value / divisor
+                );
+            }
+        }
+    }
+    let mut text = format!(
+        "Exact match (no model): {} completed.",
+        plan.rule.replace('_', " ")
+    );
+    if let Some(data) = request["messages"].as_array().and_then(|m| state(m)) {
+        if let Some(bodies) = data["bodies"].as_array() {
+            text.push_str(&format!(" Measured {} bodies.", bodies.len()));
+            if let Some(total) = volume(&data) {
+                text.push_str(&format!(" Total volume {total:.6} mm³."));
+            }
+            for body in bodies.iter().take(8) {
+                if let (Some(min), Some(max)) = (
+                    body["bbox"]["min"].as_array(),
+                    body["bbox"]["max"].as_array(),
+                ) {
+                    if min.len() == 3 && max.len() == 3 {
+                        let size: Option<Vec<f64>> = (0..3)
+                            .map(|i| Some(max[i].as_f64()? - min[i].as_f64()?))
+                            .collect();
+                        if let Some(size) =
+                            size.filter(|s| s.iter().all(|n| n.is_finite() && *n >= 0.0))
+                        {
+                            text.push_str(&format!(
+                                " Measured size {} × {} × {} mm.",
+                                size[0], size[1], size[2]
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if let Some(facts) = &plan.facts {
+        text.push_str(&format!(" Measured facts: {facts}."));
+    }
+    text.push_str(" Length slots use mm (1 inch = 25.4 mm; 1 cm = 10 mm; 1 m = 1000 mm).");
+    text
+}
+
+/// Cubic units are explicit and bounded by the request size. Conflicting units defer.
+fn volume_unit(text: &str) -> Option<(&'static str, f64)> {
+    let lower = text.to_ascii_lowercase().replace('³', "3").replace('^', "");
+    let mut found = None;
+    for (unit, divisor, aliases) in [
+        (
+            "mm³",
+            1.0,
+            &[
+                "mm3",
+                "cubic millimetres",
+                "cubic millimeters",
+                "cubic millimetre",
+                "cubic millimeter",
+            ][..],
+        ),
+        (
+            "cm³",
+            1000.0,
+            &[
+                "cm3",
+                "cubic centimetres",
+                "cubic centimeters",
+                "cubic centimetre",
+                "cubic centimeter",
+            ][..],
+        ),
+        (
+            "m³",
+            1_000_000_000.0,
+            &[
+                "m3",
+                "cubic metres",
+                "cubic meters",
+                "cubic metre",
+                "cubic meter",
+            ][..],
+        ),
+        (
+            "in³",
+            16_387.064,
+            &["in3", "cubic inches", "cubic inch"][..],
+        ),
+        (
+            "ft³",
+            28_316_846.592,
+            &["ft3", "cubic feet", "cubic foot"][..],
+        ),
+    ] {
+        if aliases.iter().any(|alias| {
+            lower.match_indices(*alias).any(|(at, _)| {
+                lower[..at]
+                    .chars()
+                    .next_back()
+                    .is_none_or(|c| !c.is_ascii_alphabetic())
+                    && lower[at + alias.len()..]
+                        .chars()
+                        .next()
+                        .is_none_or(|c| !c.is_ascii_alphabetic())
+            })
+        }) {
+            if found.is_some() {
+                return None;
+            }
+            found = Some((unit, divisor));
+        }
+    }
+    if found.is_none()
+        && (lower.contains("cubic") || lower.contains("cubed") || text.contains(['³', '^']))
+    {
+        return None;
+    }
+    Some(found.unwrap_or(("mm³", 1.0)))
+}
+
+/// Offer a fully matched leading clause, leaving compound work to the model.
+pub fn partial_plan(request: &Value, catalog: &Catalog) -> Result<Option<(Plan, String)>, String> {
+    let Some(messages) = request["messages"].as_array() else {
+        return Ok(None);
+    };
+    let Some(index) = messages.iter().rposition(|m| m["role"] == "user") else {
+        return Ok(None);
+    };
+    if index + 1 != messages.len() {
+        return Ok(None);
+    }
+    let Some(text) = messages[index]["content"]
+        .as_str()
+        .filter(|s| s.len() <= MAX_TEXT)
+    else {
+        return Ok(None);
+    };
+    // Quoted destinations are indivisible name data.
+    if text.contains(['"', '\'']) {
+        return Ok(None);
+    }
+    let lower = text.to_ascii_lowercase();
+    for separator in [" and then ", " and also ", " and ", "; ", " then "] {
+        for (at, _) in lower.match_indices(separator).take(32) {
+            let rest = text[at + separator.len()..].trim();
+            if rest.is_empty() {
+                continue;
+            }
+            let mut prefix = request.clone();
+            prefix["messages"][index]["content"] = json!(text[..at].trim());
+            if let Some(plan) = plan(&prefix, catalog)? {
+                return Ok(Some((plan, rest.to_string())));
+            }
+        }
+    }
+    Ok(None)
+}
+
+/// Privacy-safe decline diagnostics derived from the planner's own guards.
+#[cfg(feature = "proxy")]
+pub fn report_decline(text: &str) -> (&'static str, Vec<String>) {
+    if text.len() > MAX_TEXT {
+        return ("request exceeds planner text limit", Vec::new());
+    }
+    let text = report_input_tokens(text)
+        .into_iter()
+        .filter(|token| !token.starts_with('['))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let tokens = slots::intent_tokens(&text);
+    let guarded: Vec<String> = tokens
+        .iter()
+        .filter(|w| REPORT_GUARD_WORDS.contains(&w.as_str()))
+        .cloned()
+        .collect();
+    if !guarded.is_empty() {
+        return ("guarded request", guarded);
+    }
+    recipes::report_decline(&text)
+}
+/// Only words in Pilot's fixed planner lists may appear in request diagnostics.
+#[cfg(feature = "proxy")]
+pub fn report_tokens(text: &str) -> Vec<String> {
+    report_input_tokens(text)
+        .into_iter()
+        .map(|word| {
+            if word.starts_with('[')
+                || REPORT_GUARD_WORDS.contains(&word.as_str())
+                || recipes::UNSUPPORTED.contains(&word.as_str())
+                || matches!(
+                    word.as_str(),
+                    "make"
+                        | "create"
+                        | "build"
+                        | "add"
+                        | "sketch"
+                        | "fillet"
+                        | "chamfer"
+                        | "move"
+                        | "translate"
+                        | "rename"
+                        | "mirror"
+                        | "shell"
+                        | "revolve"
+                        | "cube"
+                        | "box"
+                        | "plate"
+                        | "sphere"
+                        | "cylinder"
+                        | "rod"
+                        | "disc"
+                        | "tube"
+                        | "volume"
+                        | "count"
+                        | "bodies"
+                        | "and"
+                        | "then"
+                        | "hole"
+                        | "holes"
+                        | "extrude"
+                        | "radius"
+                        | "diameter"
+                        | "height"
+                        | "width"
+                        | "length"
+                        | "mm"
+                        | "cm"
+                        | "inch"
+                        | "inches"
+                )
+            {
+                word
+            } else {
+                "[word]".into()
+            }
+        })
+        .collect()
+}
+
+/// Redaction placeholders are single opaque tokens, including multiword labels.
+#[cfg(feature = "proxy")]
+fn report_input_tokens(text: &str) -> Vec<String> {
+    let mut end = text.len().min(MAX_TEXT);
+    while !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    let mut rest = &text[..end];
+    let mut tokens = Vec::new();
+    while !rest.is_empty() && tokens.len() < 256 {
+        let start = rest.find('[').unwrap_or(rest.len());
+        tokens.extend(
+            slots::intent_tokens(&slots::normalize(&rest[..start]))
+                .into_iter()
+                .take(256 - tokens.len()),
+        );
+        rest = &rest[start..];
+        if rest.is_empty() || tokens.len() == 256 {
+            break;
+        }
+        if let Some(end) = rest.find(']') {
+            let placeholder = &rest[..=end];
+            // Only redactor-owned labels may pass through verbatim.
+            tokens.push(
+                if matches!(
+                    placeholder,
+                    "[email]"
+                        | "[path]"
+                        | "[token]"
+                        | "[URL]"
+                        | "[IP address]"
+                        | "[hostname]"
+                        | "[environment name]"
+                        | "[word]"
+                ) {
+                    placeholder.into()
+                } else {
+                    "[word]".into()
+                },
+            );
+            rest = &rest[end + 1..];
+        } else {
+            // An incomplete placeholder (for example at the capture limit) is opaque.
+            tokens.push("[word]".into());
+            break;
+        }
+    }
+    tokens
 }
 
 #[cfg(test)]
@@ -555,23 +1088,23 @@ mod tests {
             assert_eq!(p.rule, "box");
             assert_eq!(
                 params(&p, 0),
-                &json!({"length":20.0,"width":20.0,"height":20.0})
+                &json!({"length":20.0,"width":20.0,"height":20.0,"operation":"new"})
             );
         }
         for text in ["make a box 20 x 30 x 4 mm", "create a 20 by 30 by 4 box"] {
             assert_eq!(
                 params(&get(text), 0),
-                &json!({"length":20.0,"width":30.0,"height":4.0})
+                &json!({"length":20.0,"width":30.0,"height":4.0,"operation":"new"})
             );
         }
         assert_eq!(params(&get("make a 1 in cube"), 0)["length"], 25.4);
         assert_eq!(
             params(&get("make a box 2x3x4 cm"), 0),
-            &json!({"length":20.0,"width":30.0,"height":40.0})
+            &json!({"length":20.0,"width":30.0,"height":40.0,"operation":"new"})
         );
         assert_eq!(
             params(&get("create a box width 30 length 20 height 4"), 0),
-            &json!({"length":20.0,"width":30.0,"height":4.0})
+            &json!({"length":20.0,"width":30.0,"height":4.0,"operation":"new"})
         );
     }
     #[test]
@@ -583,18 +1116,24 @@ mod tests {
         ] {
             let p = get(text);
             assert_eq!(p.rule, "cylinder");
-            assert_eq!(params(&p, 0), &json!({"radius":15.0,"height":50.0}));
+            assert_eq!(
+                params(&p, 0),
+                &json!({"radius":15.0,"height":50.0,"operation":"new"})
+            );
         }
         for text in [
             "make a sphere radius 10",
             "create a sphere 20mm diameter",
             "add a sphere 2 cm across",
         ] {
-            assert_eq!(params(&get(text), 0), &json!({"radius":10.0}));
+            assert_eq!(
+                params(&get(text), 0),
+                &json!({"radius":10.0,"operation":"new"})
+            );
         }
         assert_eq!(
             params(&get("make a cylinder radius 1 cm height 2"), 0),
-            &json!({"radius":10.0,"height":2.0})
+            &json!({"radius":10.0,"height":2.0,"operation":"new"})
         );
     }
     #[test]
@@ -606,11 +1145,11 @@ mod tests {
         ] {
             let p = get(text);
             assert_eq!(p.rule, "plate_hole");
-            assert_eq!(p.calls.len(), 2);
+            assert_eq!(p.calls.len(), 3);
             assert_eq!(p.calls[1]["arguments"]["command"], "solid.hole");
             assert_eq!(
                 params(&p, 1),
-                &json!({"position":[20.0,15.0,5.0],"diameter":10.0})
+                &json!({"position":[20.0,15.0,5.0],"diameter":10.0,"targets":["PilotRecipe1"]})
             );
         }
     }

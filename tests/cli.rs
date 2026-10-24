@@ -205,3 +205,54 @@ fn embedded_help_names_the_parent_command() {
         dutchman_pilot::cli::help().replace("dutchman-pilot", "dutchman pilot")
     );
 }
+
+#[test]
+fn report_offline_cli_and_request_consent() {
+    let path = std::env::temp_dir().join(format!("pilot-offline-report-{}.md", std::process::id()));
+    let input = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/planner-replay/box.json");
+    // A non-loopback listen would fail if the offline command ever tried fetching.
+    let output = run(&[
+        "report",
+        "--from-request",
+        input.to_str().unwrap(),
+        "--listen",
+        "192.0.2.1:1",
+        "--out",
+        path.to_str().unwrap(),
+    ]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let text = String::from_utf8(output.stdout).unwrap();
+    let file = std::fs::read_to_string(&path).unwrap();
+    assert!(text.starts_with(&file));
+    assert!(text.contains("https://github.com/dutchman-cad/pilot/issues/new?title="));
+    assert!(!file.contains("Request text (explicitly"));
+    assert!(file.contains("Request shape:"));
+    let output = run(&[
+        "report",
+        "--from-request",
+        input.to_str().unwrap(),
+        "--include-request",
+        "--out",
+        path.to_str().unwrap(),
+    ]);
+    assert!(output.status.success());
+    assert!(std::fs::read_to_string(&path)
+        .unwrap()
+        .contains("Request text (explicitly included; redacted)"));
+    std::fs::remove_file(path).unwrap();
+    assert!(!run(&["report", "--turn", "0"]).status.success());
+    assert!(!run(&[
+        "report",
+        "--turn",
+        "1",
+        "--from-request",
+        input.to_str().unwrap()
+    ])
+    .status
+    .success());
+}

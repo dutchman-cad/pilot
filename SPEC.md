@@ -13,8 +13,13 @@ MCP server, `solidcraft-cli mcp`, documented in SolidCraft's docs/mcp.md).
 
 1. **Opt-in and visible.** Nothing changes unless the user points SolidCraft (or an agent) at
    Pilot. Every rewrite Pilot makes is logged, and can be shown to the user.
-2. **Explicit calls only.** Pilot turns a tool call the model wrote as an explicit JSON object
-   into a native tool call. It never turns prose ("I'll extrude it 10 mm") into an action.
+2. **Explicit calls and selected recipes.** Pilot turns explicit JSON calls into native
+   calls. In model-face plan mode only, an action pledge matching one fresh user recipe's
+   intent and typed slots can become that recipe's catalogue-checked calls. Arbitrary prose
+   never supplies new arguments. Every recipe and conversion is audited. Plan-text
+   recipes require `--planner`; `--no-plan` is an accepted no-op alias for the default.
+   Independent opt-in `--direct-recipes` returns exact calls and measured answers
+   through the same approval checks. The MCP face continues to offer suggestions only.
 3. **Same checks as a native call.** Anything Pilot produces still goes through SolidCraft's
    own tool validation; Pilot only reshapes, it never bypasses.
 4. **Measured.** Every feature is judged by SolidCraft's benchmark (`solidcraft-cli
@@ -46,7 +51,8 @@ it as a well-formed stream):
    shapes: `{"tool","args"}`, `{"name","arguments"}`, `{"function":{"name","arguments"}}`, and a
    bare `{"<tool name>": {...}}`. Strip ``` fences first. Take the first balanced object only.
    If the "tool" isn't a tool but IS a SolidCraft command id (from the catalogue), rewrite it as
-   the `execute` tool with that command. Prose with no JSON object is left as text.
+   the `execute` tool with that command. Prose with no JSON object is left as text except
+   for the selected-recipe exception in principle 2.
 2. **Argument repair.** For each tool call (native or converted): if the tool's schema expects an
    array or object and the argument is a string that parses as JSON of exactly that type (also
    inside a fence), use the parsed value; do the same for each `batch` step's `params`. Try
@@ -122,26 +128,47 @@ user gives. Rust only. Builds on Linux, macOS and Windows.
 
 ## Out of scope
 
-Anything inside SolidCraft; storing keys; running a model; acting on prose.
+Anything inside SolidCraft; storing keys; running a model; acting on arbitrary prose
+outside the selected model-face recipe exception.
 
 ## Techniques, mapped
 
 Every weak-model technique Pilot provides, and where it lives.
 Items marked (M) are in the model face, (T) in the tools face.
 
-1. **Deterministic planning for common requests (M).** The biggest single win. A rule-based
+1. **Deterministic planning for common requests (M), opt-in.** A rule-based
    recogniser for frequent requests ("make a 20 mm cube", "a cylinder 30 mm across and 50 tall",
    "a plate with a hole through the middle", "move it 50 mm along X", "rename the body to X",
    "what is the volume") computes the exact command plan from the request and, where needed, the
-   design's state (read through SolidCraft's MCP `inspect`). The plan goes to the model as the
+   design's state (read through SolidCraft's MCP `inspect`). With `--planner`, the plan goes to the model as the
    answer to that part of the message: "run this plan; don't reinvent it; handle anything else
    asked". Counting, totals, and "which is biggest" are computed, never left to the model. Track
    which requests fail most in the benchmark and move those into the planner first.
+   The beta.2 recipe contract is [docs/recipes.md](docs/recipes.md): typed bounded slots,
+   metric / inch / fractional lengths, deterministic catalogue-checked expansions, no firing
+   with missing or ambiguous slots or multiple intents, and no new action recipe after the
+   request's `acted` check. A selected edge recipe may continue after its topology lookup;
+   accepted creation prefixes are never replayed. Matching model prose can be converted only
+   in model plan mode. In that mode, the model receives all results and writes the
+   reply. Direct recipes return measured replies without a model; all proposed
+   calls still require SolidCraft approval and validation. Every fired
+   recipe audits rule, slots, calls and expected state. After the final reply, compare the
+   latest complete measured state with expected body count and computable volume (0.1% or
+   0.01 mm³ tolerance), plus available rename / move facts. Missing measurements or a
+   difference get one hand-back within existing retry budgets, including after accepted
+   calls. Queries and unrelated requests keep their existing guards. Evaluation prompts
+   are never recipe rules; tests use independently authored phrasings.
 2. **Per-model profiling (M).** Detect tool support (Ollama `/api/show` capabilities; otherwise
    learn from replies). Keep a per-model record (local JSON) of which path each turn took
    (native, text-written call, prose), empty replies, repairs, and hand-backs. Use it to turn on
    the conditional fallback block only for models that need it, and to report per-model stats
-   (`dutchman pilot profile [model]`). Never stop sending native tools because of it.
+   (`dutchman pilot profile [model]`). Text-call frequency alone never disables native
+   tools. Explicit capabilities lacking tools or an HTTP 400 containing "does not
+   support tools" (case-insensitive) select model-face text tool mode: omit native
+   tool fields, describe offered tools and JSON reply format in a bounded system
+   block, and flatten tool history on the upstream wire. Persist explicit provider
+   rejections and retry that turn once; recipes and repairs still apply. Audit all
+   transformations. MCP clients continue calling tools themselves.
 3. **The text-written call fallback, repair, and command-id rewrites (M).** As in Face 1, plus
    params packed into the id (`solid.cube {side: 20}`): split at the first space or `{`/`(`,
    look up the id, and repair the rest into `params`.
@@ -157,7 +184,8 @@ Items marked (M) are in the model face, (T) in the tools face.
    near-miss resolution, then "unknown x; closest a, b"; missing or misnamed arguments are
    reconciled (case/punctuation/word match; a single unclaimed value of the right type), else
    "x needs y"; **an instruction answered only in prose that names a command** gets "you
-   described x; run it, or say why not", handed back to the MODEL (never executed by Pilot);
+   described x; run it, or say why not", handed back to the MODEL unless the selected-recipe
+   exception in principle 2 applies;
    a question about a specific thing answered with nothing looked up gets "look it up first"
    (narrow trigger); an empty reply gets one retry; provider errors (rate limit with retry time,
    bad key, missing model, out of quota) become one human sentence plus a machine code.

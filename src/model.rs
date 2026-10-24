@@ -1,4 +1,4 @@
-//! Blocking OpenAI-compatible proxy. Only explicit JSON calls become actions.
+//! Blocking OpenAI-compatible proxy with explicit-call repair and optional recipes.
 use crate::{
     audit::{now, Audit},
     catalog::Catalog,
@@ -7,7 +7,9 @@ use crate::{
 use prompting::FALLBACK;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+mod direct;
 mod recovery;
+mod text_mode;
 use recovery::Conversation;
 use std::{
     collections::BTreeMap,
@@ -34,12 +36,14 @@ pub enum FallbackPrompt {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Config {
     pub listen: SocketAddr,
+    pub no_report_buffer: bool,
     pub upstream: String,
     pub upstream_timeout: Duration,
     pub fallback_prompt: FallbackPrompt,
     pub no_how: bool,
     pub no_hints: bool,
     pub planner: bool,
+    pub direct_recipes: bool,
     pub log: Option<PathBuf>,
     pub profile_dir: Option<PathBuf>,
     /// JSON object keyed by model name; omitted models keep their own settings.
@@ -76,6 +80,10 @@ pub struct Profile {
     pub upstream: String,
     pub model: String,
     pub turns: u64,
+    pub direct_turns: u64,
+    pub direct_recipe_calls: u64,
+    pub direct_recipe_reply: u64,
+    pub direct_recipe_fallback: u64,
     pub native: u64,
     pub text_written: u64,
     pub prose: u64,
@@ -90,6 +98,8 @@ pub struct Profile {
     pub hints_added: u64,
     pub capabilities_checked: bool,
     pub native_support: Option<bool>,
+    /// Explicit provider rejection; independent of prose/text-call profiling.
+    pub text_tool_mode: bool,
     pub ollama: bool,
     /// One entry per client turn, oldest first. Old profiles start with no evidence.
     pub recent_text_calls: Vec<bool>,
@@ -193,12 +203,14 @@ struct Proxy {
     settings: BTreeMap<String, ModelSettings>,
     log: File,
     conversations: Vec<Conversation>,
+    turns: crate::capture::Ring,
     #[cfg(test)]
     scripted: Option<std::cell::RefCell<Scripted>>,
 }
 #[cfg(test)]
 #[derive(Default)]
 struct Scripted {
+    reject_tools: bool,
     replies: std::collections::VecDeque<Upstream>,
     requests: Vec<Value>,
 }
@@ -209,20 +221,22 @@ impl Server {
         {
             return Err("upstream-timeout must be between 1 and 3600 seconds".into());
         }
-        let url = url::Url::parse(&cfg.upstream).map_err(|_| "invalid upstream URL")?;
-        if !matches!(url.scheme(), "http" | "https")
-            || url.host_str().is_none()
-            || !url.username().is_empty()
-            || url.password().is_some()
-            || url.query().is_some()
-            || url.fragment().is_some()
-        {
-            return Err(
-                "upstream must be an HTTP(S) base URL without credentials, query or fragment"
-                    .into(),
-            );
+        if cfg.upstream != "none" {
+            let url = url::Url::parse(&cfg.upstream).map_err(|_| "invalid upstream URL")?;
+            if !matches!(url.scheme(), "http" | "https")
+                || url.host_str().is_none()
+                || !url.username().is_empty()
+                || url.password().is_some()
+                || url.query().is_some()
+                || url.fragment().is_some()
+            {
+                return Err(
+                    "upstream must be an HTTP(S) base URL without credentials, query or fragment"
+                        .into(),
+                );
+            }
+            cfg.upstream = url.as_str().trim_end_matches('/').to_string();
         }
-        cfg.upstream = url.as_str().trim_end_matches('/').to_string();
         let dir = data_dir(cfg.profile_dir.as_deref())?;
         fs::create_dir_all(&dir).map_err(|e| format!("cannot create profile dir: {e}"))?;
         let profile_path = dir.join("profiles.json");
@@ -276,6 +290,7 @@ impl Server {
                 settings,
                 log,
                 conversations: Vec::new(),
+                turns: crate::capture::Ring::default(),
                 #[cfg(test)]
                 scripted: None,
             },
@@ -288,7 +303,7 @@ impl Server {
     }
     /// Handle one connection, including malformed-request responses; useful for embedding/tests.
     pub fn serve_one(&mut self) -> Result<(), String> {
-        let (mut socket, _) = self
+        let (mut socket, peer) = self
             .listener
             .accept()
             .map_err(|e| format!("accept failed: {e}"))?;
@@ -296,7 +311,7 @@ impl Server {
             .set_write_timeout(Some(Duration::from_secs(5)))
             .map_err(|e| format!("cannot set timeout: {e}"))?;
         let response = match read_request(&mut socket) {
-            Ok(request) => self.proxy.handle(request),
+            Ok(request) => self.proxy.handle_peer(request, peer),
             Err(message) => Err(message),
         }
         .unwrap_or_else(|message| Reply::error(400, "proxy_error", &message));
@@ -524,6 +539,19 @@ impl Proxy {
             script
                 .requests
                 .push(serde_json::from_slice(body).unwrap_or(Value::Null));
+            if script.reject_tools
+                && script
+                    .requests
+                    .last()
+                    .is_some_and(|r| r.get("tools").is_some())
+            {
+                return Ok(Upstream {
+                    status: 400,
+                    body: br#"{"error":"model DOES NOT SUPPORT TOOLS"}"#.to_vec(),
+                    content_type: "application/json".into(),
+                    retry_after: None,
+                });
+            }
             return script
                 .replies
                 .pop_front()
@@ -569,10 +597,45 @@ impl Proxy {
             retry_after,
         })
     }
+    fn handle_peer(&mut self, request: Request, peer: SocketAddr) -> Result<Reply, String> {
+        if request.path == "/pilot/turns" && !peer.ip().is_loopback() {
+            return Ok(Reply::error(
+                403,
+                "forbidden",
+                "turn capture is loopback only",
+            ));
+        }
+        self.handle(request)
+    }
     fn handle(&mut self, request: Request) -> Result<Reply, String> {
         // Two shared hand-backs, one parse-error retry, and the capability probe.
-        let deadline = Instant::now() + self.cfg.upstream_timeout * 4 + Duration::from_secs(3);
+        let deadline = Instant::now() + self.cfg.upstream_timeout * 5 + Duration::from_secs(3);
+        if request.path == "/pilot/turns" && request.method == "GET" {
+            let body = serde_json::to_vec(self.turns.turns())
+                .map_err(|e| format!("cannot encode turns: {e}"))?;
+            if body.len() > 8 * 1_048_576 {
+                return Err("turn response exceeds 8 MiB".into());
+            }
+            return Ok(Reply {
+                status: 200,
+                content_type: "application/json".into(),
+                body,
+                rewrites: 0,
+                retry_after: None,
+            });
+        }
         if request.path == "/v1/models" && request.method == "GET" {
+            if self.cfg.upstream == "none" {
+                return Ok(Reply {
+                    status: 200,
+                    content_type: "application/json".into(),
+                    body: json_bytes(
+                        &json!({"object":"list","data":[{"id":"pilot-recipes","object":"model","owned_by":"pilot"}]}),
+                    )?,
+                    rewrites: 0,
+                    retry_after: None,
+                });
+            }
             let response = self.fetch("GET", "/models", request.auth.as_deref(), &[], deadline)?;
             return Ok(Reply {
                 status: response.status,
@@ -607,6 +670,7 @@ impl Proxy {
             ..Profile::default()
         });
         let mut audit = Audit {
+            events: None,
             file: self
                 .log
                 .try_clone()
@@ -620,7 +684,25 @@ impl Proxy {
             count: 0,
             kinds: BTreeMap::new(),
         };
-        profile.turns = profile.turns.saturating_add(1);
+        let mut captured = if self.cfg.no_report_buffer {
+            None
+        } else {
+            audit.events = Some(Vec::new());
+            Some(crate::capture::Turn::from_request(
+                &body,
+                &self.catalog,
+                json!({
+                    "planner":self.cfg.planner,"direct_recipes":self.cfg.direct_recipes,
+                    "fallback_prompt":format!("{:?}",self.cfg.fallback_prompt),"prompt_help":self.cfg.prompt_help,
+                    "no_how":self.cfg.no_how,"no_hints":self.cfg.no_hints,"no_report_buffer":self.cfg.no_report_buffer,
+                    "model_settings_enabled":self.cfg.model_settings_enabled || self.cfg.model_settings.is_some(),
+                    "seed":self.cfg.seed,"upstream_timeout":self.cfg.upstream_timeout.as_secs(),
+                    "upstream":crate::capture::bounded(&self.cfg.upstream),"listen":self.cfg.listen.to_string(),
+                    "log":self.cfg.log.as_ref().map(|p|crate::capture::bounded(&p.to_string_lossy())),
+                    "profile_dir":self.cfg.profile_dir.as_ref().map(|p|crate::capture::bounded(&p.to_string_lossy()))
+                }),
+            )?)
+        };
         let text_before = profile.text_written;
         let history = recovery::history(&body)?;
         let mut conversation = self
@@ -644,9 +726,16 @@ impl Proxy {
             self.conversations.remove(0);
         }
         self.conversations.push(conversation);
-        profile
-            .recent_text_calls
-            .push(profile.text_written > text_before);
+        if audit.kinds.contains_key("direct_recipe_calls")
+            || audit.kinds.contains_key("direct_recipe_reply")
+        {
+            profile.direct_turns = profile.direct_turns.saturating_add(1);
+        } else if self.cfg.upstream != "none" {
+            profile.turns = profile.turns.saturating_add(1);
+            profile
+                .recent_text_calls
+                .push(profile.text_written > text_before);
+        }
         if profile.recent_text_calls.len() > 5 {
             profile.recent_text_calls.remove(0);
         }
@@ -657,6 +746,20 @@ impl Proxy {
             Err(message) => Reply::error(500, "profile_error", &message),
         };
         reply.rewrites = audit.count;
+        if let Some(turn) = &mut captured {
+            for event in audit.events.take().unwrap_or_default() {
+                turn.event(&event.kind, event.facts);
+            }
+            let response = if reply.content_type.contains("text/event-stream") {
+                collect_sse(&reply.body).unwrap_or(Value::Null)
+            } else {
+                serde_json::from_slice(&reply.body).unwrap_or(Value::Null)
+            };
+            turn.finish(&response, reply.status);
+        }
+        if let Some(turn) = captured {
+            self.turns.push(turn);
+        }
         Ok(reply)
     }
     fn save_profiles(&self) -> Result<(), String> {
@@ -717,19 +820,88 @@ impl Proxy {
         conversation: &mut Conversation,
     ) -> Result<Reply, String> {
         let original = body.clone();
-        if self.cfg.planner {
-            if let Some(plan) = planner::plan(&body, &self.catalog)? {
-                let message = plan.message();
+        let user_index = body["messages"]
+            .as_array()
+            .and_then(|m| m.iter().rposition(|m| m["role"] == "user"))
+            .unwrap_or(0);
+        if conversation
+            .recipe
+            .as_ref()
+            .is_some_and(|(index, _)| *index != user_index)
+        {
+            conversation.recipe = None;
+            conversation.completion_checked = false;
+            conversation.pending_recipe = None;
+            conversation.direct = None;
+            conversation.direct_failed = false;
+        }
+        let mut recipe = if self.cfg.direct_recipes {
+            planner::plan_direct(&body, &self.catalog)?
+        } else if self.cfg.planner {
+            planner::plan(&body, &self.catalog)?
+        } else {
+            None
+        };
+        let mut resumed = false;
+        if (self.cfg.planner || self.cfg.direct_recipes) && recipe.is_none() {
+            if let Some(pending) = &conversation.pending_recipe {
+                recipe = planner::resume(&body, pending, &self.catalog)?;
+                resumed = recipe.is_some();
+            }
+        }
+        if self.cfg.direct_recipes && recipe.is_none() && !conversation.direct_failed {
+            recipe = planner::inspect_for_edit(&body, &self.catalog)?;
+        }
+        if self.cfg.direct_recipes {
+            if let Some(reply) =
+                self.direct_turn(&original, &recipe, user_index, conversation, audit)?
+            {
+                return Ok(reply);
+            }
+        }
+        if conversation.direct_failed {
+            recipe = None;
+        }
+        if let Some(reason) = conversation.direct_handback.take() {
+            body["messages"]
+                .as_array_mut()
+                .ok_or("messages must be an array")?
+                .push(json!({"role":"system","content":reason}));
+            profile.hand_backs = profile.hand_backs.saturating_add(1);
+        }
+        if self.cfg.planner
+            && self.cfg.direct_recipes
+            && recipe.is_none()
+            && !conversation.direct_failed
+        {
+            if let Some((plan, rest)) = planner::partial_plan(&original, &self.catalog)? {
+                let message = format!("Nothing has been done yet. You must submit tool calls for the whole request and verify their results before answering. For the matched leading part, you may submit these computed calls: {}. You must also handle this remaining request: {}. All calls require client approval and tool results.", plan.message(), rest);
                 body["messages"]
                     .as_array_mut()
                     .ok_or("messages must be an array")?
                     .push(json!({"role":"system","content":message}));
-                audit.record(
-                    "plan",
-                    &Value::Null,
-                    &json!({"rule":plan.rule,"calls":plan.calls,"prompt":message}),
-                )?;
+                audit.record("direct_recipe_fallback", &Value::Null, &json!({"reason":"multiple intents","offered":plan,"remaining":rest,"from_model":false}))?;
             }
+        }
+        if self.cfg.upstream == "none" {
+            return direct::reply(&original, direct::unavailable(), audit.count);
+        }
+        if let Some(plan) = &recipe {
+            conversation.pending_recipe = plan.continuation.as_ref().map(|_| plan.clone());
+            if let Some(expected) = &plan.expected {
+                conversation.recipe = Some((user_index, expected.clone()));
+                conversation.completion_checked = false;
+            }
+            let message = plan.message();
+            body["messages"]
+                .as_array_mut()
+                .ok_or("messages must be an array")?
+                .push(json!({"role":"system","content":message}));
+            audit.record(
+                    if resumed { "recipe_continue" } else { "plan" },
+                    &Value::Null,
+                    &json!({"rule":plan.rule,"slots":plan.slots,"expected":plan.expected,"calls":plan.calls,"prompt":message}),
+                )?;
         }
         let accepted = recovery::previous_accepted(&body);
         if !self.cfg.no_how {
@@ -756,9 +928,7 @@ impl Proxy {
             .settings
             .get(&profile.model)
             .or_else(|| self.cfg.model_settings_enabled.then_some(&defaults));
-        if (!tools.is_empty() && self.cfg.fallback_prompt == FallbackPrompt::Auto)
-            || settings.is_some()
-        {
+        if !tools.is_empty() || settings.is_some() {
             self.probe(profile, request.auth.as_deref(), deadline);
         }
         let settings = settings.filter(|_| profile.ollama);
@@ -834,14 +1004,25 @@ impl Proxy {
         if !self.cfg.no_hints {
             append_hints(&mut body, &self.catalog, audit)?;
         }
+        let mut text_mode = profile.text_tool_mode || profile.native_support == Some(false);
+        if text_mode {
+            text_mode::activate(&mut body, &tools, "profile_or_capabilities", audit)?;
+        }
         let mut empty_retried = false;
         let mut parse_retried = false;
         let mut hand_backs = 0;
         let mut guard_backs = 0;
         let mut how_answers = 0;
         let mut last_reason = String::new();
-        for attempt in 0..=3 {
-            let wire = if attempt == 0 && body == original {
+        let mut mode_retry = 0;
+        for wire_attempt in 0..=4 {
+            let attempt = wire_attempt - mode_retry;
+            if attempt > 3 {
+                break;
+            }
+            let wire = if text_mode {
+                json_bytes(&text_mode::wire(&body, audit)?)?
+            } else if attempt == 0 && body == original {
                 request.body.clone()
             } else {
                 json_bytes(&body)?
@@ -865,6 +1046,17 @@ impl Proxy {
                     return Ok(reply);
                 }
             };
+            if !text_mode
+                && !tools.is_empty()
+                && text_mode::rejected(upstream.status, &upstream.body)
+            {
+                profile.text_tool_mode = true;
+                profile.native_support = Some(false);
+                text_mode = true;
+                mode_retry = 1;
+                text_mode::activate(&mut body, &tools, "provider_400_unsupported_tools", audit)?;
+                continue;
+            }
             let mut recovered = false;
             if let Some(raw) = recovery::ollama_raw(&upstream) {
                 if let Some(response) =
@@ -902,17 +1094,27 @@ impl Proxy {
                     .map_err(|_| "upstream did not return completion JSON")?
             };
             repair::check_value(&response)?;
+            if let Some(choices) = response["choices"].as_array() {
+                for choice in choices.iter().take(8) {
+                    audit.capture(
+                        "upstream finish",
+                        &json!({"finish_reason":choice["finish_reason"]}),
+                    );
+                }
+            }
             let before = response.clone();
             let choices = response["choices"]
                 .as_array_mut()
                 .filter(|c| !c.is_empty() && c.len() <= 8)
                 .ok_or("upstream choices must contain 1 to 8 entries")?;
             let mut nudge = None;
+            let single_choice = choices.len() == 1;
             for choice in choices.iter_mut() {
                 let message = choice
                     .get_mut("message")
                     .filter(|m| m.is_object())
                     .ok_or("upstream choice is missing an assistant message")?;
+                let raw_message = message.clone();
                 let had_native = message["tool_calls"]
                     .as_array()
                     .is_some_and(|c| !c.is_empty());
@@ -920,12 +1122,50 @@ impl Proxy {
                     if had_native {
                         profile.native = profile.native.saturating_add(1);
                         profile.native_support = Some(true);
-                    } else if convert_text(message, &tools, &self.catalog, audit)? {
+                    } else if (!text_mode
+                        || repair::single_call_text(message["content"].as_str().unwrap_or("")))
+                        && convert_text(message, &tools, &self.catalog, audit)?
+                    {
+                        if text_mode {
+                            audit.record("text_call_converted", &raw_message, message)?;
+                        }
                         profile.text_written = profile.text_written.saturating_add(1);
                     } else if is_empty(message) {
                         profile.empty = profile.empty.saturating_add(1);
                     } else {
                         profile.prose = profile.prose.saturating_add(1);
+                        if single_choice {
+                            if let Some(plan) = recipe.as_ref().filter(|p| p.expected.is_some()) {
+                                if planner::matches_prose(&original, &self.catalog, plan, message)?
+                                {
+                                    let mut planned = plan.calls.clone();
+                                    let has_batch =
+                                        tools.iter().any(|t| t["function"]["name"] == "batch");
+                                    let inspect = planned.last().is_some_and(|c| {
+                                        c["arguments"]["command"] == "document.inspect"
+                                    });
+                                    if has_batch && planned.len() > 1 + usize::from(inspect) {
+                                        let verification =
+                                            if inspect { planned.pop() } else { None };
+                                        let commands = planned
+                                            .iter()
+                                            .map(|c| c["arguments"].clone())
+                                            .collect::<Vec<_>>();
+                                        planned = vec![
+                                            json!({"tool":"batch","arguments":{"commands":commands}}),
+                                        ];
+                                        if let Some(verification) = verification {
+                                            planned.push(verification);
+                                        }
+                                    }
+                                    let calls = planned.iter().enumerate().map(|(i,c)| json!({"id":format!("pilot_recipe_{user_index}_{i}"),"type":"function","function":{"name":c["tool"],"arguments":c["arguments"].to_string()}})).collect::<Vec<_>>();
+                                    let before = message.clone();
+                                    message["content"] = Value::Null;
+                                    message["tool_calls"] = json!(calls);
+                                    audit.record("recipe_prose", &before, &json!({"rule":plan.rule,"slots":plan.slots,"message":message}))?;
+                                }
+                            }
+                        }
                     }
                 }
                 let guard = repair_calls(
@@ -1010,6 +1250,28 @@ impl Proxy {
                 profile.hand_backs = profile.hand_backs.saturating_add(calls.len() as u64);
                 continue;
             }
+            let mut completion_nudge = false;
+            if nudge.is_none()
+                && self.cfg.planner
+                && !conversation.completion_checked
+                && response["choices"].as_array().is_some_and(|c| c.len() == 1)
+                && message["tool_calls"]
+                    .as_array()
+                    .is_none_or(|c| c.is_empty())
+            {
+                if let Some((_, expected)) = &conversation.recipe {
+                    let difference = if conversation.pending_recipe.is_some() {
+                        Some("Recipe completion is unverified: the edge topology lookup has not completed. Run the planned lookup, finish the edge operation, and verify; do not repeat accepted changes.".into())
+                    } else {
+                        planner::completion(&original, expected)
+                    };
+                    if let Some(reason) = difference {
+                        nudge = Some((reason, false));
+                        completion_nudge = true;
+                    }
+                    conversation.completion_checked = true;
+                }
+            }
             if nudge.is_none() && response["choices"].as_array().is_some_and(|c| c.len() == 1) {
                 if is_empty(message) && !empty_retried {
                     empty_retried = true;
@@ -1020,7 +1282,7 @@ impl Proxy {
             }
             if let Some((reason, json_decided)) = nudge {
                 let command = recovery::failing_command(message, &reason);
-                if !accepted
+                if (!accepted || completion_nudge)
                     && guard_backs < 2
                     && hand_backs < 2
                     && reason != last_reason
@@ -1595,18 +1857,8 @@ fn schema_type_matches(value: &Value, schema: &Value) -> bool {
         Some("number") => value.is_number(),
         Some("integer") => value.is_i64() || value.is_u64(),
         Some("boolean") => value.is_boolean(),
-        // An unspecified or union type cannot justify moving an unclaimed argument.
         _ => false,
     }
-}
-fn key_words(key: &str) -> Vec<String> {
-    let mut words: Vec<_> = key
-        .split(|c: char| !c.is_ascii_alphanumeric())
-        .filter(|s| !s.is_empty())
-        .map(str::to_ascii_lowercase)
-        .collect();
-    words.sort();
-    words
 }
 fn reconcile(args: &mut Value, schema: &Value) -> Option<String> {
     let object = args.as_object_mut()?;
@@ -1621,12 +1873,20 @@ fn reconcile(args: &mut Value, schema: &Value) -> Option<String> {
         .cloned()
         .collect();
     for extra in extras {
+        let spelling = normalize(&extra);
+        if spelling.is_empty()
+            || object
+                .keys()
+                .filter(|key| normalize(key) == spelling)
+                .take(2)
+                .count()
+                != 1
+        {
+            continue;
+        }
         let matches: Vec<_> = properties
             .keys()
-            .filter(|k| {
-                !object.contains_key(*k)
-                    && (normalize(k) == normalize(&extra) || key_words(k) == key_words(&extra))
-            })
+            .filter(|k| !object.contains_key(*k) && normalize(k) == spelling)
             .cloned()
             .collect();
         if matches.len() == 1 {
@@ -1640,26 +1900,33 @@ fn reconcile(args: &mut Value, schema: &Value) -> Option<String> {
         .filter(|k| !object.contains_key(**k))
         .copied()
         .collect();
-    let extras: Vec<_> = object
-        .keys()
-        .filter(|k| !properties.contains_key(*k))
-        .cloned()
-        .collect();
-    if missing.len() == 1
-        && extras.len() == 1
-        && schema_type_matches(&object[&extras[0]], &properties[missing[0]])
-    {
-        if let Some(value) = object.remove(&extras[0]) {
-            object.insert(missing[0].to_string(), value);
-        }
-    }
-    let missing: Vec<_> = required
-        .iter()
-        .filter(|k| !object.contains_key(**k))
-        .copied()
-        .collect();
     if !missing.is_empty() {
         return Some(format!("needs {}", missing.join(", ")));
+    }
+    for group in schema["allOf"].as_array().into_iter().flatten() {
+        let names: Vec<_> = group["anyOf"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|choice| choice["required"][0].as_str())
+            .collect();
+        if !names.is_empty() && !names.iter().any(|name| object.contains_key(*name)) {
+            return Some(format!("needs one of {}", names.join(" | ")));
+        }
+    }
+    for (key, value) in object.iter() {
+        if let Some(allowed) = properties.get(key).and_then(|s| s["enum"].as_array()) {
+            if !allowed.contains(value) {
+                return Some(format!("{key} must be one of {}", json!(allowed)));
+            }
+        }
+        if let Some(count) = properties.get(key).and_then(|s| s["maxItems"].as_u64()) {
+            if value.as_array().is_none_or(|a| a.len() != count as usize) {
+                return Some(format!(
+                    "{key} needs an array of exactly {count} coordinates"
+                ));
+            }
+        }
     }
     if schema["additionalProperties"] == false {
         if let Some(key) = object.keys().find(|k| !properties.contains_key(*k)) {
@@ -1710,6 +1977,46 @@ fn guard_command(
     let schema = catalog.parameter_schema(&id);
     if let Some(params) = step.get_mut("params") {
         repair::repair_arguments("execute", params, &schema)?;
+        if id == "sketch.line" && schema["properties"].get("points").is_some() {
+            if let Some(object) = params.as_object_mut() {
+                let point = |v: &Value| {
+                    v.as_array().is_some_and(|a| {
+                        a.len() == 2 && a.iter().all(|v| v.is_number() || v.is_string())
+                    })
+                };
+                if object.len() == 2
+                    && object.get("p0").is_some_and(point)
+                    && object.get("p1").is_some_and(point)
+                {
+                    let points = json!([object["p0"], object["p1"]]);
+                    object.clear();
+                    object.insert("points".into(), points);
+                } else if !object.contains_key("points") {
+                    return Ok(Some(
+                        "sketch.line needs points: [[x,y], [x,y], …] in sketch coordinates".into(),
+                    ));
+                }
+                if object
+                    .get("points")
+                    .and_then(Value::as_array)
+                    .is_none_or(|points| {
+                        points.len() < 2
+                            || points
+                                .iter()
+                                .any(|p| p.as_array().is_some_and(|a| a.len() != 2))
+                    })
+                {
+                    return Ok(Some(
+                        "sketch.line needs 2D points: [[x,y], [x,y], …]; use sketch coordinates"
+                            .into(),
+                    ));
+                }
+            } else {
+                return Ok(Some(
+                    "sketch.line needs params with points: [[x,y], [x,y], …]".into(),
+                ));
+            }
+        }
         if let Some(reason) = reconcile(params, &schema) {
             return Ok(Some(format!("{id} {reason}")));
         }
@@ -1903,6 +2210,7 @@ mod tests {
             Self {
                 proxy: Proxy {
                     cfg: Config {
+                        no_report_buffer: false,
                         listen: "127.0.0.1:0".parse().unwrap(),
                         upstream: "http://localhost:11434/v1".into(),
                         upstream_timeout: DEFAULT_UPSTREAM_TIMEOUT,
@@ -1910,6 +2218,7 @@ mod tests {
                         no_how: true,
                         no_hints: false,
                         planner: true,
+                        direct_recipes: false,
                         log: None,
                         profile_dir: Some(dir.clone()),
                         model_settings: None,
@@ -1924,7 +2233,9 @@ mod tests {
                     settings: BTreeMap::new(),
                     log,
                     conversations: Vec::new(),
+                    turns: crate::capture::Ring::default(),
                     scripted: Some(RefCell::new(Scripted {
+                        reject_tools: false,
                         replies: replies
                             .into_iter()
                             .map(|v| Upstream {
@@ -1953,6 +2264,7 @@ mod tests {
         }
         fn audit(&self) -> Audit {
             Audit {
+                events: None,
                 file: self.proxy.log.try_clone().unwrap(),
                 size: 0,
                 model: "unit".into(),
@@ -1964,6 +2276,60 @@ mod tests {
     impl Drop for Fixture {
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.dir);
+        }
+    }
+    #[test]
+    fn report_ring_and_peer_policy_without_sockets() {
+        for disabled in [false, true] {
+            let mut fixture = Fixture::new(Vec::new());
+            fixture.proxy.cfg.upstream = "none".into();
+            fixture.proxy.cfg.direct_recipes = true;
+            fixture.proxy.cfg.planner = false;
+            fixture.proxy.cfg.no_report_buffer = disabled;
+            for i in 1..=7 {
+                assert_eq!(
+                    fixture
+                        .chat(planner::cases::request(&format!("create a cube {i}mm")))
+                        .status,
+                    200
+                );
+            }
+            for (peer, status) in [
+                ("127.0.0.1:1", 200),
+                ("[::1]:1", 200),
+                ("192.0.2.1:1", 403),
+                ("[2001:db8::1]:1", 403),
+            ] {
+                let reply = fixture
+                    .proxy
+                    .handle_peer(
+                        Request {
+                            method: "GET".into(),
+                            path: "/pilot/turns".into(),
+                            auth: None,
+                            body: Vec::new(),
+                        },
+                        peer.parse().unwrap(),
+                    )
+                    .unwrap();
+                assert_eq!(reply.status, status);
+                if status == 200 {
+                    let turns: Value = serde_json::from_slice(&reply.body).unwrap();
+                    assert_eq!(
+                        turns.as_array().unwrap().len(),
+                        if disabled { 0 } else { 5 }
+                    );
+                    if !disabled {
+                        assert_eq!(turns[0]["id"], 3);
+                        assert_eq!(turns[4]["id"], 7);
+                        assert_eq!(turns[4]["flags"]["planner"], false);
+                        assert_eq!(turns[4]["flags"]["direct_recipes"], true);
+                        assert_eq!(turns[4]["shape"]["intent"], "box");
+                        assert_eq!(turns[4]["failed"], false);
+                        assert!(turns[4]["events"].to_string().contains("finish_reason"));
+                    }
+                }
+            }
         }
     }
     fn tools() -> Value {
@@ -2111,7 +2477,10 @@ mod tests {
     #[test]
     fn planner_is_optional_and_only_guides_the_upstream() {
         for enabled in [false, true] {
-            let mut f = Fixture::new(vec![reply("Ready.")]);
+            let mut f = Fixture::new(vec![call(
+                "execute",
+                json!({"command":"solid.box","params":{"length":20,"width":20,"height":20}}),
+            )]);
             f.proxy.cfg.planner = enabled;
             let mut req = request();
             req["messages"][0]["content"] = json!("make a 20 mm cube");
@@ -2129,6 +2498,149 @@ mod tests {
                 assert_eq!(script.requests[0], req);
             }
         }
+    }
+    #[test]
+    fn replay_every_recipe_through_prose_model_face() {
+        for (rule, phrases) in planner::cases::CASES {
+            for phrase in *phrases {
+                let req = planner::cases::request(phrase);
+                let expected = planner::plan(&req, &Catalog::bundled().unwrap())
+                    .unwrap()
+                    .unwrap();
+                let mut f = Fixture::new(vec![reply(&format!("I will {phrase}"))]);
+                let result = f.chat(req);
+                assert_eq!(
+                    result.status,
+                    200,
+                    "{rule}: {phrase}: {}",
+                    String::from_utf8_lossy(&result.body)
+                );
+                let response: Value = serde_json::from_slice(&result.body).unwrap();
+                let message = &response["choices"][0]["message"];
+                if matches!(*rule, "volume" | "body_count") {
+                    assert!(message.get("tool_calls").is_none());
+                } else {
+                    let calls = message["tool_calls"]
+                        .as_array()
+                        .unwrap_or_else(|| panic!("no calls: {rule}: {phrase}: {response}"));
+                    assert_eq!(calls.len(), expected.calls.len());
+                    for (actual, planned) in calls.iter().zip(expected.calls) {
+                        assert_eq!(actual["function"]["name"], planned["tool"]);
+                        let args: Value =
+                            serde_json::from_str(actual["function"]["arguments"].as_str().unwrap())
+                                .unwrap();
+                        assert_eq!(args, planned["arguments"], "{phrase}");
+                    }
+                    assert!(f.proxy.scripted.as_ref().unwrap().borrow().requests.len() == 1);
+                }
+            }
+        }
+    }
+    #[test]
+    fn recipe_completion_checks_once_after_accepted_calls() {
+        for (actual, retries) in [(1256.047875, 0), (1000.0, 1)] {
+            let first = call(
+                "execute",
+                json!({"command":"solid.box","params":{"length":6.35,"width":6.35,"height":6.35,"operation":"new"}}),
+            );
+            let mut replies = vec![first, reply("Done.")];
+            if retries == 1 {
+                replies.push(reply("The measured volume differs; I cannot finish."));
+            }
+            let mut f = Fixture::new(replies);
+            let mut req = planner::cases::request("create a cube 1/4 inch");
+            let response = f.chat(req.clone());
+            assert_eq!(response.status, 200);
+            let response: Value = serde_json::from_slice(&response.body).unwrap();
+            req["messages"].as_array_mut().unwrap().extend([
+                response["choices"][0]["message"].clone(),
+                json!({"role":"tool","tool_call_id":"native","content":json!({"bodies":[{"name":"Blank","volume_mm3":1000},{"name":"New","volume_mm3":actual-1000.0}]}).to_string()}),
+            ]);
+            assert_eq!(f.chat(req).status, 200);
+            let script = f.proxy.scripted.as_ref().unwrap().borrow();
+            assert_eq!(script.requests.len(), 2 + retries);
+            if retries == 1 {
+                assert!(script.requests[2]["messages"]
+                    .as_array()
+                    .unwrap()
+                    .last()
+                    .unwrap()["content"]
+                    .as_str()
+                    .unwrap()
+                    .contains("expected volume"));
+            }
+        }
+    }
+    #[test]
+    fn prose_conversion_requires_plan_mode_and_equal_user_slots() {
+        for (enabled, prose) in [
+            (false, "I will create a cube 1/4 inch"),
+            (true, "I will create a sphere radius 3mm"),
+            (true, "I will create a cube 1/2 inch"),
+            (true, "A cube could be created here."),
+        ] {
+            let mut f = Fixture::new(vec![reply(prose), reply("I cannot finish this request.")]);
+            f.proxy.cfg.planner = enabled;
+            let response = f.chat(planner::cases::request("create a cube 1/4 inch"));
+            assert_eq!(response.status, 200);
+            let response: Value = serde_json::from_slice(&response.body).unwrap();
+            assert!(response["choices"][0]["message"]
+                .get("tool_calls")
+                .is_none());
+        }
+    }
+    #[test]
+    fn recipe_stream_and_slot_audit_are_visible() {
+        let mut f = Fixture::new(vec![reply("I will create a cube 1/4 inch")]);
+        let mut req = planner::cases::request("create a cube 1/4 inch");
+        req["stream"] = json!(true);
+        let result = f.chat(req);
+        assert_eq!(result.status, 200);
+        assert_eq!(result.content_type, "text/event-stream");
+        let response = collect_sse(&result.body).unwrap();
+        assert_eq!(response["choices"][0]["finish_reason"], "tool_calls");
+        assert_eq!(
+            response["choices"][0]["message"]["tool_calls"]
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
+        let records: Vec<Value> = fs::read_to_string(f.dir.join("log.jsonl"))
+            .unwrap()
+            .lines()
+            .map(|s| serde_json::from_str(s).unwrap())
+            .collect();
+        for kind in ["plan", "recipe_prose"] {
+            let record = records.iter().find(|r| r["kind"] == kind).unwrap();
+            assert_eq!(
+                record["after"]["slots"]["Box"]["size"],
+                json!([6.35, 6.35, 6.35])
+            );
+        }
+    }
+    #[test]
+    fn compound_prose_prefers_advertised_atomic_batch() {
+        let text = "build a plate 72x48x6mm with a centred through hole diameter 8mm";
+        let mut f = Fixture::new(vec![reply(&format!("I will {text}"))]);
+        let mut req = planner::cases::request(text);
+        req["tools"] = tools();
+        let result = f.chat(req);
+        assert_eq!(result.status, 200);
+        let response: Value = serde_json::from_slice(&result.body).unwrap();
+        let calls = response["choices"][0]["message"]["tool_calls"]
+            .as_array()
+            .unwrap();
+        assert_eq!(calls.len(), 2);
+        assert_eq!(calls[0]["function"]["name"], "batch");
+        let args: Value =
+            serde_json::from_str(calls[0]["function"]["arguments"].as_str().unwrap()).unwrap();
+        assert_eq!(args["commands"].as_array().unwrap().len(), 2);
+        assert_eq!(
+            args["commands"][1]["params"]["targets"],
+            json!(["PilotRecipe1"])
+        );
+        assert_eq!(calls[1]["function"]["name"], "execute");
     }
     fn reply(text: &str) -> Value {
         json!({"id":"a","created":1,"model":"unit","object":"chat.completion","choices":[{"index":0,"message":{"role":"assistant","content":text},"finish_reason":"stop"}]})
@@ -2372,7 +2884,165 @@ mod tests {
         );
     }
     #[test]
+    fn recorded_radius_batches_preserve_every_argument() {
+        // Unmodified audit `before` arguments from runs-pilot-c:
+        // v1-C/gpt-oss_20b/10-two-holes, v2-C/gpt-oss_20b/05-hole-grid,
+        // and v1-C/qwen3_14b/10-two-holes (pilot-rewrites.jsonl).
+        let fixture = Fixture::new(vec![]);
+        let tools = tools().as_array().unwrap().clone();
+        for (text, circles) in [
+            (include_str!("../tests/fixtures/gpt-oss-r5.json"), 2),
+            (include_str!("../tests/fixtures/gpt-oss-r4.json"), 12),
+            (include_str!("../tests/fixtures/qwen3-r5.json"), 2),
+        ] {
+            let original: Value = serde_json::from_str(text).unwrap();
+            assert_eq!(
+                original["commands"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .filter(|step| step["command"] == "sketch.circle.center")
+                    .count(),
+                circles
+            );
+            let mut message = call("batch", original.clone())["choices"][0]["message"].clone();
+            let before = message.clone();
+            repair_calls(
+                &mut message,
+                &tools,
+                &fixture.proxy.catalog,
+                "",
+                &mut fixture.audit(),
+                &mut Profile::default(),
+            )
+            .unwrap();
+            assert_eq!(message, before);
+            for step in original["commands"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|step| step["command"] == "sketch.circle.center")
+            {
+                for name in ["radius", "diameter"] {
+                    let mut step = step.clone();
+                    let value = step["params"]
+                        .as_object_mut()
+                        .unwrap()
+                        .remove("radius")
+                        .unwrap();
+                    step["params"][name] = value;
+                    let before = step.clone();
+                    assert_eq!(
+                        guard_command(&mut step, &fixture.proxy.catalog, "").unwrap(),
+                        None
+                    );
+                    assert_eq!(step, before);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn parameter_names_never_substitute_semantics() {
+        for (source, target) in [
+            ("radius", "diameter"),
+            ("diameter", "radius"),
+            ("distance", "radius"),
+            ("width", "height"),
+            ("amount", "radius"),
+            ("start_end", "end_start"),
+        ] {
+            let schema = json!({"properties":{target:{"type":"number"}},"required":[target]});
+            let mut params = json!({source:5});
+            let before = params.clone();
+            assert!(reconcile(&mut params, &schema).is_some());
+            assert_eq!(params, before);
+        }
+        let schema = json!({"properties":{"body_name":{"type":"string"}},"required":["body_name"]});
+        for source in ["Body_Name", "body-name", "bodyName"] {
+            let mut params = json!({source:"Plate"});
+            assert_eq!(reconcile(&mut params, &schema), None);
+            assert_eq!(params, json!({"body_name":"Plate"}));
+        }
+        let mut ambiguous = json!({"Body_Name":"First", "body-name":"Second"});
+        let before = ambiguous.clone();
+        assert!(reconcile(&mut ambiguous, &schema).is_some());
+        assert_eq!(ambiguous, before);
+    }
+
+    #[test]
+    fn shapes_and_enums_are_repaired_without_guessing_and_logged() {
+        let fixture = Fixture::new(vec![]);
+        let tools = tools().as_array().unwrap().clone();
+        let mut message = call(
+            "execute",
+            json!({"command":"sketch.line",
+            "params":{"p0":[0,0], "p1":["15 mm",25]}}),
+        )["choices"][0]["message"]
+            .clone();
+        assert_eq!(
+            repair_calls(
+                &mut message,
+                &tools,
+                &fixture.proxy.catalog,
+                "",
+                &mut fixture.audit(),
+                &mut Profile::default()
+            )
+            .unwrap(),
+            None
+        );
+        let args: Value = serde_json::from_str(
+            message["tool_calls"][0]["function"]["arguments"]
+                .as_str()
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(args["params"], json!({"points":[[0,0],["15 mm",25]]}));
+        assert!(fs::read_to_string(fixture.dir.join("log.jsonl"))
+            .unwrap()
+            .contains("argument_reconcile"));
+        for params in [
+            json!({"p0":[0,0,0],"p1":[15,25,0]}),
+            json!({"p0":[0,0],"p1":[15,25],"closed":true}),
+            json!({"p0":[0,0]}),
+            json!({"points":[[0,0,0],[15,25,0]]}),
+        ] {
+            let mut step = json!({"command":"sketch.line","params":params});
+            let before = step.clone();
+            assert!(guard_command(&mut step, &fixture.proxy.catalog, "")
+                .unwrap()
+                .unwrap()
+                .contains("points"));
+            assert_eq!(step, before);
+        }
+        let mut circle =
+            json!({"command":"sketch.circle.center","params":{"center":"[15,25]","radius":5}});
+        assert_eq!(
+            guard_command(&mut circle, &fixture.proxy.catalog, "").unwrap(),
+            None
+        );
+        assert_eq!(circle["params"], json!({"center":[15,25],"radius":5}));
+        let mut step =
+            json!({"command":"solid.extrude","params":{"distance":"2 in","operation":"create"}});
+        let before = step.clone();
+        let reason = guard_command(&mut step, &fixture.proxy.catalog, "")
+            .unwrap()
+            .unwrap();
+        for allowed in ["new", "join", "cut", "intersect", "auto"] {
+            assert!(reason.contains(allowed));
+        }
+        assert_eq!(step, before);
+    }
+
+    #[test]
     fn command_and_parameter_reconciliation_is_conservative() {
+        let mut box_call =
+            json!({"command":"solid.box","params":{"length":20,"width":20,"height":20}});
+        assert_eq!(
+            guard_command(&mut box_call, &Catalog::bundled().unwrap(), "box").unwrap(),
+            None
+        );
         let mut f = Fixture::new(vec![call(
             "execute",
             json!({"Command":"solid.bxo {length:20,width:20,height:20}","Params":{}}),
@@ -2384,8 +3054,9 @@ mod tests {
         );
         let schema = json!({"properties":{"target":{"type":"object"},"radius":{"type":"number"}},"required":["target","radius"]});
         let mut args = json!({"target":{},"amount":3});
-        assert!(reconcile(&mut args, &schema).is_none());
-        assert_eq!(args["radius"], 3);
+        assert!(reconcile(&mut args, &schema).unwrap().contains("radius"));
+        assert_eq!(args["amount"], 3);
+        assert!(args.get("radius").is_none());
         let mut args = json!({"target":{},"amount":"3"});
         assert!(reconcile(&mut args, &schema).unwrap().contains("radius"));
         assert!(args.get("amount").is_some());
@@ -2731,7 +3402,11 @@ mod tests {
             assert_eq!(f.chat(request()).status, 200);
             let script = f.proxy.scripted.as_ref().unwrap().borrow();
             assert_eq!(
-                script.requests[0]["messages"][0]["content"] == FALLBACK,
+                script.requests[0]["messages"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|m| m["content"].as_str().is_some_and(|c| c.contains(FALLBACK))),
                 ollama
             );
             let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
@@ -2742,6 +3417,503 @@ mod tests {
         let old: Profile = serde_json::from_value(json!({"text_written":100})).unwrap();
         assert!(old.recent_text_calls.is_empty());
     }
+    #[test]
+    fn text_mode_bounds_and_narrow_rejection_patterns() {
+        assert!(text_mode::rejected(400, b"model DOES NOT SUPPORT TOOLS"));
+        for (status, body) in [
+            (500, "does not support tools"),
+            (400, "invalid tools schema"),
+            (404, "missing model"),
+        ] {
+            assert!(!text_mode::rejected(status, body.as_bytes()));
+        }
+        let f = Fixture::new(vec![]);
+        let mut body = request();
+        body["messages"] = json!([
+            {"role":"assistant","content":[{"type":"text","text":"context"}],"tool_calls":[]},
+            {"role":"tool","name":"inspect","content":"é".repeat(20000)}
+        ]);
+        let wire = text_mode::wire(&body, &mut f.audit()).unwrap();
+        assert!(wire["messages"][0]["content"]
+            .as_str()
+            .unwrap()
+            .contains("context"));
+        let text = wire["messages"][1]["content"].as_str().unwrap();
+        assert!(text.len() < 16410 && text.ends_with("[truncated]"));
+        let tools: Vec<_> = (0..128).map(|i| json!({"function":{"name":format!("tool{i}"), "description":"purpose ".repeat(1000), "parameters":{"type":"object","properties":{"command":{"type":"string"}}}}})).collect();
+        let mut body = request();
+        text_mode::activate(&mut body, &tools, "test", &mut f.audit()).unwrap();
+        assert!(body["messages"][0]["content"].as_str().unwrap().len() <= 32768);
+        let tools = vec![
+            json!({"function":{"name":"tool", "parameters":{"properties":(0..64).map(|i| (format!("{i}{}", "x".repeat(128)), json!({"type":"string"}))).collect::<serde_json::Map<_, _>>()}}});
+            128
+        ];
+        assert!(text_mode::activate(&mut body, &tools, "test", &mut f.audit()).is_err());
+    }
+
+    #[test]
+    fn text_mode_rejection_reload_history_and_repairs() {
+        let mut f = Fixture::new(vec![
+            reply("Here is the call:\n```json\n{\"tool\":\"inspect\",\"args\":{}}\n```"),
+            reply("{\"tool\":\"inspect\",\"args\":{}}"),
+        ]);
+        f.proxy.scripted.as_ref().unwrap().borrow_mut().reject_tools = true;
+        let mut req = request();
+        req["tool_choice"] = json!("auto");
+        req["parallel_tool_calls"] = json!(true);
+        let result = f.chat(req.clone());
+        assert_eq!(result.status, 200);
+        assert_eq!(args(&result), json!({}));
+        let restored: Profiles = read_json(&f.dir.join("profiles.json")).unwrap();
+        assert!(restored.values().next().unwrap().text_tool_mode);
+        f.proxy.profiles = restored;
+        req["messages"] = json!([
+            {"role":"user","content":"hello"},
+            {"role":"assistant","tool_calls":[{"id":"a","function":{"name":"inspect","arguments":"{}"}}]},
+            {"role":"tool","tool_call_id":"a","content":"volume = 42"}
+        ]);
+        assert_eq!(f.chat(req).status, 200);
+        let script = f.proxy.scripted.as_ref().unwrap().borrow();
+        assert_eq!(script.requests.len(), 3);
+        for wire in &script.requests[1..] {
+            for key in ["tools", "tool_choice", "parallel_tool_calls"] {
+                assert!(wire.get(key).is_none());
+            }
+            assert!(wire["messages"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|m| m["role"] != "tool" && m.get("tool_calls").is_none()));
+        }
+        assert!(script.requests[2]
+            .to_string()
+            .contains("Tool inspect returned: volume = 42"));
+        let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+        for kind in [
+            "text_tool_mode",
+            "tools_stripped",
+            "tool_history_flattened",
+            "text_call_converted",
+        ] {
+            assert!(log.contains(kind));
+        }
+    }
+
+    #[test]
+    fn text_mode_preserves_recipes_guards_how_and_refusals() {
+        for text in [
+            "Hello.",
+            "{\"tool\":\"inspect\",\"args\":{}} {\"tool\":\"inspect\",\"args\":{}}",
+        ] {
+            let mut f = Fixture::new(vec![reply(text)]);
+            f.proxy.scripted.as_ref().unwrap().borrow_mut().reject_tools = true;
+            let result = f.chat(request());
+            assert_eq!(result.status, 200);
+            let value: Value = serde_json::from_slice(&result.body).unwrap();
+            assert_eq!(value["choices"][0]["message"]["content"], text);
+        }
+        let mut f = Fixture::new(vec![reply("I will make a 20 mm cube")]);
+        f.proxy.scripted.as_ref().unwrap().borrow_mut().reject_tools = true;
+        let mut req = request();
+        req["messages"][0]["content"] = json!("make a 20 mm cube");
+        assert_eq!(args(&f.chat(req))["command"], "solid.box");
+        let mut f = Fixture::new(vec![
+            reply("I'll use solid.box."),
+            reply("{\"tool\":\"inspect\",\"args\":{}}"),
+        ]);
+        f.proxy.scripted.as_ref().unwrap().borrow_mut().reject_tools = true;
+        let mut req = request();
+        req["messages"][0]["content"] = json!("make a box");
+        assert_eq!(f.chat(req).status, 200);
+        assert!(fs::read_to_string(f.dir.join("log.jsonl"))
+            .unwrap()
+            .contains("hand_back"));
+        let mut f = Fixture::new(vec![
+            reply("{\"tool\":\"how\",\"args\":{\"task\":\"make a box\"}}"),
+            reply("Ready."),
+        ]);
+        f.proxy.cfg.no_how = false;
+        f.proxy.scripted.as_ref().unwrap().borrow_mut().reject_tools = true;
+        assert_eq!(f.chat(request()).status, 200);
+        let script = f.proxy.scripted.as_ref().unwrap().borrow();
+        assert!(script.requests[2]
+            .to_string()
+            .contains("Tool how returned:"));
+        assert!(script.requests[2]["messages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|m| m["role"] != "tool"));
+    }
+
+    #[test]
+    fn direct_all_recipe_phrasings_and_nonrecipe_passthrough() {
+        for enabled in [false, true] {
+            for (_, phrases) in planner::cases::CASES {
+                for phrase in *phrases {
+                    let mut f = Fixture::new(vec![]);
+                    f.proxy.cfg.direct_recipes = true;
+                    f.proxy.cfg.planner = enabled;
+                    let result = f.chat(planner::cases::request(phrase));
+                    assert_eq!(
+                        result.status,
+                        200,
+                        "{phrase}: {}",
+                        String::from_utf8_lossy(&result.body)
+                    );
+                    assert!(
+                        f.proxy
+                            .scripted
+                            .as_ref()
+                            .unwrap()
+                            .borrow()
+                            .requests
+                            .is_empty(),
+                        "{phrase}"
+                    );
+                }
+            }
+        }
+        let mut f = Fixture::new(vec![reply("Hello.")]);
+        f.proxy.cfg.direct_recipes = true;
+        let mut req = request();
+        req["messages"][0]["content"] = json!("hello");
+        let result = f.chat(req.clone());
+        let value: Value = serde_json::from_slice(&result.body).unwrap();
+        assert_eq!(value["choices"][0]["message"]["content"], "Hello.");
+        assert_eq!(f.proxy.scripted.as_ref().unwrap().borrow().requests[0], req);
+        assert_eq!(f.proxy.profiles.values().next().unwrap().turns, 1);
+    }
+    #[test]
+    fn no_model_models_endpoint_and_missing_results_are_explicit() {
+        let mut f = Fixture::new(vec![]);
+        f.proxy.cfg.direct_recipes = true;
+        f.proxy.cfg.upstream = "none".into();
+        let models = f
+            .proxy
+            .handle(Request {
+                method: "GET".into(),
+                path: "/v1/models".into(),
+                auth: None,
+                body: vec![],
+            })
+            .unwrap();
+        let value: Value = serde_json::from_slice(&models.body).unwrap();
+        assert_eq!(value["data"][0]["id"], "pilot-recipes");
+        let mut req = planner::cases::request("create a cube 1/4 inch");
+        let first: Value = serde_json::from_slice(&f.chat(req.clone()).body).unwrap();
+        req["messages"]
+            .as_array_mut()
+            .unwrap()
+            .push(first["choices"][0]["message"].clone());
+        let result = f.chat(req);
+        assert_eq!(result.status, 200);
+        assert!(String::from_utf8(result.body)
+            .unwrap()
+            .contains("missing or invalid"));
+    }
+
+    fn direct_results(req: &mut Value, message: Value, error: bool, volume: f64) {
+        let calls = message["tool_calls"].as_array().unwrap().clone();
+        req["messages"].as_array_mut().unwrap().push(message);
+        for (i, call) in calls.iter().enumerate() {
+            let content = if error && i == 0 {
+                json!({"isError":true,"error":"tool failed"})
+            } else {
+                json!({"bodies":[{"name":"Blank","volume_mm3":1000},{"name":"New","volume_mm3":volume,"bbox":{"min":[0,0,0],"max":[6.35,6.35,6.35]}}]})
+            };
+            req["messages"].as_array_mut().unwrap().push(
+                json!({"role":"tool","tool_call_id":call["id"],"content":content.to_string()}),
+            );
+        }
+    }
+    #[test]
+    fn direct_polite_creation_questions_skip_upstream() {
+        for (text, command) in [
+            (
+                "Would you make a solid sphere measuring 26 mm in diameter?",
+                "solid.sphere",
+            ),
+            (
+                "Could you build a box that measures 36 by 24 by 8 mm?",
+                "solid.box",
+            ),
+            (
+                "Can you create a solid cylinder with a size of diameter 12 and height 25 mm?",
+                "solid.cylinder",
+            ),
+            (
+                "Would you make a solid plate sized 48x26x5 mm?",
+                "solid.box",
+            ),
+        ] {
+            let mut f = Fixture::new(vec![]);
+            f.proxy.cfg.direct_recipes = true;
+            let first = f.chat(planner::cases::request(text));
+            assert_eq!(first.status, 200, "{text}");
+            let value: Value = serde_json::from_slice(&first.body).unwrap();
+            let call = &value["choices"][0]["message"]["tool_calls"][0];
+            assert_eq!(call["function"]["name"], "execute", "{text}: {value}");
+            let args: Value =
+                serde_json::from_str(call["function"]["arguments"].as_str().unwrap()).unwrap();
+            assert_eq!(args["command"], command);
+            assert!(f
+                .proxy
+                .scripted
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .requests
+                .is_empty());
+        }
+    }
+
+    #[test]
+    fn direct_query_recorded_results_and_units() {
+        let fixtures: Vec<Value> = [
+            include_str!("../tests/fixtures/inspect-volume-granite-0.20.json"),
+            include_str!("../tests/fixtures/inspect-volume-qwen-0.20.json"),
+            include_str!("../tests/fixtures/measure-volume-0.20.json"),
+        ]
+        .iter()
+        .map(|s| serde_json::from_str(s).unwrap())
+        .collect();
+        for payload in fixtures {
+            for stream in [false, true] {
+                for (question, expected) in [
+                    ("Report the volume of the current solid in cubic millimeters; leave it unchanged.", "Exact match (no model): volume 9520 mm³"),
+                    ("What volume does this design have in cm³?", "Exact match (no model): volume 9.52 cm³ (converted from 9520 mm³; 1 cm³ = 1000 mm³)"),
+                    ("Tell me the volume in cubic inches", "1 in³ = 16387.064 mm³"),
+                    ("How many bodies are in this document?", "Exact match (no model): 1 bodies"),
+                ] {
+                    let mut f = Fixture::new(vec![]);
+                    f.proxy.cfg.direct_recipes = true;
+                    let mut req = planner::cases::request(question);
+                    // Query starts without a measured baseline.
+                    req["messages"].as_array_mut().unwrap().remove(0);
+                    req["stream"] = json!(stream);
+                    let decode = |reply: Reply| -> Value {
+                        assert_eq!(reply.status, 200, "{}", String::from_utf8_lossy(&reply.body));
+                        if stream { collect_sse(&reply.body).unwrap() } else { serde_json::from_slice(&reply.body).unwrap() }
+                    };
+                    let first = decode(f.chat(req.clone()));
+                    let message = first["choices"][0]["message"].clone();
+                    let call = &message["tool_calls"][0];
+                    assert_eq!(call["function"]["name"], "execute");
+                    assert_eq!(serde_json::from_str::<Value>(call["function"]["arguments"].as_str().unwrap()).unwrap(), json!({"command":"document.inspect","params":{"measure":true}}));
+                    let tool = json!({"role":"tool","tool_call_id":call["id"],"content":payload.to_string()});
+                    req["messages"].as_array_mut().unwrap().extend([message, tool]);
+                    let second = decode(f.chat(req));
+                    let text = second["choices"][0]["message"]["content"].as_str().unwrap();
+                    assert!(text.contains(expected), "{question}: {text}");
+                    assert!(!text.contains("completed"));
+                    assert!(f.proxy.scripted.as_ref().unwrap().borrow().requests.is_empty());
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn direct_query_missing_or_ambiguous_facts_hand_back() {
+        for (question, payload) in [
+            ("Tell me the volume", json!({"bodies":[{"name":"A"}]})),
+            (
+                "Tell me the volume",
+                json!({"bodies":[{"name":"A","volume_mm3":-1}]}),
+            ),
+            (
+                "Tell me the volume",
+                json!({"bodies":[{"name":"A","volume_mm3":10}],"total":{"volume_mm3":20}}),
+            ),
+            (
+                "Tell me the volume of the current solid",
+                json!({"bodies":[{"name":"A","volume_mm3":10},{"name":"B","volume_mm3":20}]}),
+            ),
+            (
+                "Tell me the volume of Missing",
+                json!({"bodies":[{"name":"A","volume_mm3":10}]}),
+            ),
+            ("Count the bodies", json!({"bodies":["A"]})),
+            (
+                "Count the bodies",
+                json!({"bodies":[{"name":"A"}],"body_count":2}),
+            ),
+            (
+                "Count the bodies",
+                json!({"bodies":[{"name":"A"}],"truncated":true}),
+            ),
+            (
+                "Count the bodies",
+                json!({"isError":true,"error":"cannot inspect"}),
+            ),
+        ] {
+            let mut f = Fixture::new(vec![reply("I need a complete measurement.")]);
+            f.proxy.cfg.direct_recipes = true;
+            let mut req = planner::cases::request(question);
+            req["messages"].as_array_mut().unwrap().remove(0);
+            let first: Value = serde_json::from_slice(&f.chat(req.clone()).body).unwrap();
+            let message = first["choices"][0]["message"].clone();
+            let id = message["tool_calls"][0]["id"].clone();
+            req["messages"].as_array_mut().unwrap().extend([
+                message,
+                json!({"role":"tool","tool_call_id":id,"content":payload.to_string()}),
+            ]);
+            let second = f.chat(req);
+            assert_eq!(second.status, 200);
+            let script = f.proxy.scripted.as_ref().unwrap().borrow();
+            assert_eq!(script.requests.len(), 1, "{question}: {payload}");
+            assert!(script.requests[0].to_string().contains("Recipe completion"));
+        }
+    }
+    #[test]
+    fn direct_calls_and_measured_replies_never_use_upstream() {
+        for stream in [false, true] {
+            let mut f = Fixture::new(vec![]);
+            f.proxy.cfg.direct_recipes = true;
+            f.proxy.cfg.planner = false;
+            let mut req = planner::cases::request("create a cube 1/4 inch");
+            req["stream"] = json!(stream);
+            let first = f.chat(req.clone());
+            assert_eq!(first.status, 200);
+            let value: Value = if stream {
+                collect_sse(&first.body).unwrap()
+            } else {
+                serde_json::from_slice(&first.body).unwrap()
+            };
+            assert_eq!(value["choices"][0]["finish_reason"], "tool_calls");
+            assert_eq!(value["model"], "pilot-recipes");
+            direct_results(
+                &mut req,
+                value["choices"][0]["message"].clone(),
+                false,
+                256.047875,
+            );
+            let second = f.chat(req);
+            assert_eq!(second.status, 200);
+            let value: Value = if stream {
+                collect_sse(&second.body).unwrap()
+            } else {
+                serde_json::from_slice(&second.body).unwrap()
+            };
+            let text = value["choices"][0]["message"]["content"].as_str().unwrap();
+            assert!(text.starts_with("Exact match (no model):"));
+            assert!(text.contains("1256.047875 mm³") && text.contains("6.35 × 6.35 × 6.35 mm"));
+            assert!(f
+                .proxy
+                .scripted
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .requests
+                .is_empty());
+            let p = f.proxy.profiles.values().next().unwrap();
+            assert_eq!((p.direct_turns, p.turns, p.native, p.prose), (2, 0, 0, 0));
+            assert!(!p.capabilities_checked && p.recent_text_calls.is_empty());
+            let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+            assert!(
+                log.contains("direct_recipe_calls")
+                    && log.contains("direct_recipe_reply")
+                    && log.contains("from_model")
+            );
+        }
+    }
+    #[test]
+    fn direct_failures_hand_back_once_and_disable_direct_for_the_turn() {
+        for (error, volume) in [(true, 256.047875), (false, 100.0)] {
+            for no_model in [false, true] {
+                let mut f = Fixture::new(vec![reply("Recovery needed.")]);
+                f.proxy.cfg.direct_recipes = true;
+                if no_model {
+                    f.proxy.cfg.upstream = "none".into();
+                }
+                let mut req = planner::cases::request("create a cube 1/4 inch");
+                let first: Value = serde_json::from_slice(&f.chat(req.clone()).body).unwrap();
+                direct_results(
+                    &mut req,
+                    first["choices"][0]["message"].clone(),
+                    error,
+                    volume,
+                );
+                let second = f.chat(req);
+                assert_eq!(second.status, 200);
+                let script = f.proxy.scripted.as_ref().unwrap().borrow();
+                if no_model {
+                    assert!(script.requests.is_empty());
+                    assert!(String::from_utf8(second.body)
+                        .unwrap()
+                        .contains("No model is configured to recover"));
+                } else {
+                    assert_eq!(script.requests.len(), 1);
+                    assert!(script.requests[0].to_string().contains("Recipe completion"));
+                }
+                assert_eq!(
+                    f.proxy
+                        .profiles
+                        .values()
+                        .next()
+                        .unwrap()
+                        .direct_recipe_fallback,
+                    1
+                );
+            }
+        }
+    }
+    #[test]
+    fn direct_no_model_nonrecipe_batch_and_multiple_intents() {
+        let mut f = Fixture::new(vec![]);
+        f.proxy.cfg.direct_recipes = true;
+        f.proxy.cfg.upstream = "none".into();
+        let result = f.chat(request());
+        let text = String::from_utf8(result.body).unwrap();
+        assert!(text.contains("No model is configured") && text.contains("sketch_extrude"));
+        let mut req = planner::cases::request(
+            "build a plate 72x48x6mm with a centred through hole diameter 8mm",
+        );
+        req["tools"] = tools();
+        let value: Value = serde_json::from_slice(&f.chat(req).body).unwrap();
+        let calls = value["choices"][0]["message"]["tool_calls"]
+            .as_array()
+            .unwrap();
+        assert_eq!(calls[0]["function"]["name"], "batch");
+        assert!(
+            serde_json::from_str::<Value>(calls[0]["function"]["arguments"].as_str().unwrap())
+                .unwrap()["commands"]
+                .is_array()
+        );
+        for enabled in [false, true] {
+            let mut f = Fixture::new(vec![reply("I'll handle the rest.")]);
+            f.proxy.cfg.direct_recipes = true;
+            f.proxy.cfg.planner = enabled;
+            assert_eq!(
+                f.chat(planner::cases::request(
+                    "make a 20mm cube and explain how to export it"
+                ))
+                .status,
+                200
+            );
+            let script = f.proxy.scripted.as_ref().unwrap().borrow();
+            assert_eq!(script.requests.len(), 1);
+            let sent = script.requests[0].to_string();
+            assert_eq!(sent.contains("Nothing has been done yet."), enabled);
+            assert_eq!(
+                sent.contains("must submit tool calls for the whole request"),
+                enabled
+            );
+            assert_eq!(
+                sent.contains("For this request, run exactly this plan:"),
+                enabled
+            );
+            for claim in [
+                "completed",
+                "already executed",
+                "worked out in code and offered",
+                "Handle only the rest",
+            ] {
+                assert!(!sent.contains(claim), "{claim}: {sent}");
+            }
+        }
+    }
+
     #[test]
     fn provider_failures_are_counted_and_persisted() {
         let mut f = Fixture::new(vec![]);
@@ -2790,5 +3962,261 @@ mod tests {
             .unwrap()
             .push(json!({"role":"tool","content":"20"}));
         assert!(prose_guard(&req, &json!({"content":"20"}), &catalog).is_none());
+    }
+    #[test]
+    fn direct_natural_first_turn_edits_with_recorded_inspection() {
+        let inspect: Value = serde_json::from_str(include_str!(
+            "../tests/fixtures/inspect-single-body-0.20.json"
+        ))
+        .unwrap();
+        let topology: Value = serde_json::from_str(include_str!(
+            "../tests/fixtures/edges-single-body-0.20.json"
+        ))
+        .unwrap();
+        let edges: Vec<Value> = (0..12)
+            .map(|index| json!({"body":"Body1","index":index}))
+            .collect();
+        for (text, expected, needs_edges) in [
+            (
+                "Fillet all edges with a radius of 1 mm.",
+                json!({"command":"solid.fillet","params":{"body":"Body1","edges":edges,"radius":1.0}}),
+                true,
+            ),
+            (
+                "Chamfer all edges by 1 mm.",
+                json!({"command":"solid.chamfer","params":{"body":"Body1","edges":edges,"distance":1.0}}),
+                true,
+            ),
+            (
+                "Move this body 9 mm along -Y.",
+                json!({"command":"solid.move","params":{"bodies":["Body1"],"translate":[0.0,-9.0,0.0]}}),
+                false,
+            ),
+            (
+                "Call this body Mount.",
+                json!({"command":"body.rename","params":{"body":"Body1","name":"Mount"}}),
+                false,
+            ),
+            (
+                "Mirror this body across the X-Z plane keeping the original.",
+                json!({"command":"solid.mirror","params":{"bodies":["Body1"],"plane":"XZ"}}),
+                false,
+            ),
+            (
+                "Double the size with the origin as the centre.",
+                json!({"command":"solid.scale","params":{"bodies":["Body1"],"factor":2.0,"origin":[0,0,0]}}),
+                false,
+            ),
+        ] {
+            for ambiguous in [false, true] {
+                let mut f = Fixture::new(vec![reply("Which body should I edit?")]);
+                f.proxy.cfg.direct_recipes = true;
+                f.proxy.cfg.planner = false;
+                let mut req = planner::cases::request(text);
+                req["messages"] = json!([{"role":"system","content":"Use the offered tools for CAD edits."},{"role":"user","content":text}]);
+                let first: Value = serde_json::from_slice(&f.chat(req.clone()).body).unwrap();
+                let message = first["choices"][0]["message"].clone();
+                let calls = message["tool_calls"]
+                    .as_array()
+                    .unwrap_or_else(|| panic!("{text}: {first}"));
+                assert_eq!(calls.len(), 1);
+                assert_eq!(calls[0]["function"]["name"], "execute");
+                let args: Value =
+                    serde_json::from_str(calls[0]["function"]["arguments"].as_str().unwrap())
+                        .unwrap();
+                assert_eq!(
+                    args,
+                    json!({"command":"document.inspect","params":{"measure":true}})
+                );
+                assert!(f
+                    .proxy
+                    .scripted
+                    .as_ref()
+                    .unwrap()
+                    .borrow()
+                    .requests
+                    .is_empty());
+                let mut result = inspect.clone();
+                if ambiguous {
+                    let mut data: Value =
+                        serde_json::from_str(result["content"][0]["text"].as_str().unwrap())
+                            .unwrap();
+                    let mut second = data["bodies"][0].clone();
+                    second["name"] = json!("Body2");
+                    data["bodies"].as_array_mut().unwrap().push(second);
+                    result["content"][0]["text"] = json!(data.to_string());
+                }
+                req["messages"].as_array_mut().unwrap().extend([
+                    message.clone(),
+                    json!({"role":"tool","tool_call_id":calls[0]["id"],"content":result.to_string()}),
+                ]);
+                let mut next: Value = serde_json::from_slice(&f.chat(req.clone()).body).unwrap();
+                if ambiguous {
+                    assert_eq!(
+                        next["choices"][0]["message"]["content"], "Which body should I edit?",
+                        "{text}: {next}"
+                    );
+                    assert!(next["choices"][0]["message"]["tool_calls"].is_null());
+                    let scripted = f.proxy.scripted.as_ref().unwrap().borrow();
+                    assert_eq!(scripted.requests.len(), 1, "{text}");
+                    assert!(scripted.requests[0]
+                        .to_string()
+                        .contains("Recipe target is unresolved"));
+                    continue;
+                }
+                if needs_edges {
+                    let message = next["choices"][0]["message"].clone();
+                    let calls = message["tool_calls"].as_array().unwrap();
+                    assert_eq!(calls.len(), 1);
+                    let args: Value =
+                        serde_json::from_str(calls[0]["function"]["arguments"].as_str().unwrap())
+                            .unwrap();
+                    assert_eq!(
+                        args,
+                        json!({"command":"model.edges","params":{"body":"Body1"}})
+                    );
+                    req["messages"].as_array_mut().unwrap().extend([
+                        message.clone(),
+                        json!({"role":"tool","tool_call_id":calls[0]["id"],"content":topology.to_string()}),
+                    ]);
+                    next = serde_json::from_slice(&f.chat(req).body).unwrap();
+                }
+                let calls = next["choices"][0]["message"]["tool_calls"]
+                    .as_array()
+                    .unwrap_or_else(|| panic!("{text}: {next}"));
+                assert_eq!(calls.len(), 2, "{text}: {next}");
+                for (call, expected) in calls.iter().zip([
+                    expected.clone(),
+                    json!({"command":"document.inspect","params":{"measure":true}}),
+                ]) {
+                    assert_eq!(call["function"]["name"], "execute");
+                    let args: Value =
+                        serde_json::from_str(call["function"]["arguments"].as_str().unwrap())
+                            .unwrap();
+                    assert_eq!(args, expected, "{text}");
+                }
+                assert!(f
+                    .proxy
+                    .scripted
+                    .as_ref()
+                    .unwrap()
+                    .borrow()
+                    .requests
+                    .is_empty());
+            }
+        }
+    }
+
+    #[test]
+    fn direct_first_turn_body_lookup_then_edit_and_verification() {
+        for text in [
+            "move this box 8mm along X",
+            "rename to Spacer",
+            "mirror it across XZ",
+            "double it about origin",
+        ] {
+            let mut f = Fixture::new(vec![]);
+            f.proxy.cfg.direct_recipes = true;
+            f.proxy.cfg.planner = false;
+            let mut req = planner::cases::request(text);
+            req["messages"].as_array_mut().unwrap().remove(0);
+            let first: Value = serde_json::from_slice(&f.chat(req.clone()).body).unwrap();
+            let assistant = first["choices"][0]["message"].clone();
+            let calls = assistant["tool_calls"].as_array().unwrap();
+            assert_eq!(calls.len(), 1, "{text}: {first}");
+            let args: Value =
+                serde_json::from_str(calls[0]["function"]["arguments"].as_str().unwrap()).unwrap();
+            assert_eq!(
+                args,
+                json!({"command":"document.inspect","params":{"measure":true}})
+            );
+            req["messages"]
+                .as_array_mut()
+                .unwrap()
+                .push(assistant.clone());
+            req["messages"].as_array_mut().unwrap().push(json!({"role":"tool","tool_call_id":calls[0]["id"],"content":planner::cases::design().to_string()}));
+            let second: Value = serde_json::from_slice(&f.chat(req.clone()).body).unwrap();
+            let assistant = second["choices"][0]["message"].clone();
+            let calls = assistant["tool_calls"]
+                .as_array()
+                .unwrap_or_else(|| panic!("{text}: {second}"));
+            assert_eq!(calls.len(), 2, "{text}: {second}");
+            assert!(!calls[0]["id"].as_str().unwrap().contains("resolve_body"));
+            let mut after = planner::cases::design();
+            if text.starts_with("rename") {
+                after["bodies"][0]["name"] = json!("Spacer");
+            }
+            if text.starts_with("double") {
+                after["bodies"][0]["volume_mm3"] = json!(8000);
+            }
+            if text.starts_with("mirror") {
+                after["bodies"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(json!({"name":"Mirrored","volume_mm3":1000}));
+            }
+            req["messages"]
+                .as_array_mut()
+                .unwrap()
+                .push(assistant.clone());
+            for call in calls {
+                req["messages"].as_array_mut().unwrap().push(
+                    json!({"role":"tool","tool_call_id":call["id"],"content":after.to_string()}),
+                );
+            }
+            let final_reply: Value = serde_json::from_slice(&f.chat(req).body).unwrap();
+            assert!(
+                final_reply["choices"][0]["message"]["content"]
+                    .as_str()
+                    .unwrap()
+                    .contains("completed"),
+                "{text}: {final_reply}"
+            );
+            assert!(f
+                .proxy
+                .scripted
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .requests
+                .is_empty());
+        }
+    }
+
+    #[test]
+    fn direct_body_lookup_refuses_ambiguous_failed_and_missing_results() {
+        for result in [
+            Some(json!({"bodies":[]})),
+            Some(json!({"bodies":[{"name":"A"},{"name":"B"}]})),
+            Some(json!({"isError":true})),
+            Some(json!({"bodies":[{"name":"A"}],"truncated":true})),
+            None,
+        ] {
+            let mut f = Fixture::new(vec![]);
+            f.proxy.cfg.direct_recipes = true;
+            f.proxy.cfg.upstream = "none".into();
+            let mut req = planner::cases::request("move this box 8mm along X");
+            req["messages"].as_array_mut().unwrap().remove(0);
+            let first: Value = serde_json::from_slice(&f.chat(req.clone()).body).unwrap();
+            let assistant = first["choices"][0]["message"].clone();
+            let id = assistant["tool_calls"][0]["id"].clone();
+            req["messages"].as_array_mut().unwrap().push(assistant);
+            if let Some(result) = result {
+                req["messages"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(json!({"role":"tool","tool_call_id":id,"content":result.to_string()}));
+            }
+            let next: Value = serde_json::from_slice(&f.chat(req.clone()).body).unwrap();
+            assert!(
+                next["choices"][0]["message"]["tool_calls"].is_null(),
+                "{next}"
+            );
+            let again: Value = serde_json::from_slice(&f.chat(req).body).unwrap();
+            assert!(
+                again["choices"][0]["message"]["tool_calls"].is_null(),
+                "{again}"
+            );
+        }
     }
 }

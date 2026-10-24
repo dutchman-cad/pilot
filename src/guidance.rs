@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 
 #[cfg(feature = "proxy")]
 pub(crate) fn how_tool() -> Value {
-    json!({"name":"how","description":"Find a SolidCraft command and one explicit example call for a task; never executes it.","inputSchema":{"type":"object","properties":{"task":{"type":"string","maxLength":256}},"required":["task"],"additionalProperties":false},"annotations":{"readOnlyHint":true,"destructiveHint":false}})
+    json!({"name":"how","description":"Find a SolidCraft command, a typed template, and a concrete example when possible. Templates must be filled from the request and current model; never executes anything.","inputSchema":{"type":"object","properties":{"task":{"type":"string","maxLength":256}},"required":["task"],"additionalProperties":false},"annotations":{"readOnlyHint":true,"destructiveHint":false}})
 }
 
 #[cfg(feature = "proxy")]

@@ -25,9 +25,28 @@ rewrite is needed. Guards return at most two nudges to the model per turn; empty
 replies get one retry. Provider failures retain HTTP status and return a human
 message plus `error.code`. It never executes a command itself.
 
+Argument reconciliation preserves meaning: only equivalent spellings (case or
+separators) may be renamed. A matching type never justifies
+moving a value to another parameter: radius is never diameter, and width is never
+height. Catalogue alternatives such as `radius | diameter: number` declare both
+names and require either, rather than requiring the last name. Unknown fields
+remain for SolidCraft's validation unless the advertised schema forbids them.
+Stringified containers must parse completely as the schema's declared container,
+including the supported JSON5 subset or fences; nested values are never repaired
+by inserting or dropping brackets. Coordinates and units are preserved.
+
+When the catalogue declares `sketch.line`'s `points`, exactly two parameters
+`p0` and `p1`, each a 2D point, can be reshaped to `points: [p0, p1]`.
+Other endpoint shapes receive the expected-shape hand-back; 3D coordinates are
+never flattened. Invalid enum values, including extrude operation `create`, get
+the allowed catalogue values instead of a guessed replacement. These rewrites
+use the existing audit log and retry limits, and SolidCraft validates every call.
+The MCP face likewise suggests only equivalent parameter spellings, never a
+same-type semantic substitution, and never re-runs suggestions automatically.
+
 The model face advertises `how` using the same schema and command discovery as
 the tools face. Pilot answers it locally and re-asks the model; SolidCraft receives
-only the final reply. Up to three local answers share a three-hand-back budget
+only the final reply. Up to two local answers share a two-hand-back budget
 with guards (guards still get at most two nudges). A further `how` call returns a
 bounded proxy error rather than reaching SolidCraft. Mixed replies send only the
 local calls into retry history; other calls must be proposed again afterward.
@@ -36,14 +55,19 @@ their state supports guidance; original result text is preserved. Unchanged-desi
 hints require comparable before/after states in the result or conversation history.
 Use `--no-how` and `--no-hints` independently for A/B measurements.
 
-The deterministic planner is enabled by default (`--planner`, or disable with
-`--no-plan`, also accepted as `--no-planner`). It recognizes dimensioned boxes, cubes, cylinders, spheres,
-plates with centred through holes, moves, renames, volume, and body counts.
-It adds one system message with catalogue-checked calls and logs the matched
-rule as `kind: "plan"`; it never executes those calls. Dimensions default to mm;
-cm, m, and in are accepted. Existing body names come from the latest complete tool
-snapshot, and ambiguous requests are left to the model. Counts and volume totals
-are computed from complete snapshots; missing measurements produce an inspect plan.
+Plan-text recipes require `--planner` and are off by default. `--no-plan` (alias
+`--no-planner`) is accepted as a no-op alias for the default. Independent
+`--direct-recipes` enables exact-match calls and measured replies with normal
+SolidCraft approval; it can accompany `--planner`. See [the recipe library](recipes.md) for
+supported slots, geometry, examples, and limits. It adds catalogue-checked calls
+as a system message and audits rule, typed slots, expected result, and calls.
+In model plan mode, an action pledge parsed as the same recipe and slots can
+become native tool calls. The client executes them, SolidCraft validates them,
+and the model receives the results before writing its reply. Arbitrary prose
+stays prose. After the final reply, a single bounded completion check compares
+measured count / volume and available name / placement facts, handing back a
+difference even if an earlier tool call was accepted. Requests that fired no
+recipe receive no additional completion guard.
 
 Profiles are keyed by upstream URL and model in the user's data directory
 (`$XDG_DATA_HOME/dutchman-pilot`, otherwise the platform data directory); override with
@@ -66,9 +90,37 @@ events and 4096 distinct kinds. JSON output uses `total`, `by_kind`, and `by_mod
 `native_percent`, `text_written_percent`, and `prose_percent`.
 
 Auto fallback uses Ollama capabilities lacking tools, or text-written calls in at least two of
-the last five client turns, and keeps sending native tools. Each client turn
+the last five client turns. Text-call frequency alone keeps native tools enabled. Each client turn
 counts once in that window, including its retries; old profiles start with an empty
 window. The fallback log entry names the rule that fired.
+The model face enters text tool mode when probed capabilities lack `tools`, or a
+profile remembers an explicit rejection. It also recognises HTTP 400 containing
+`does not support tools` (case-insensitive); this is the complete, deliberately
+small pattern list. Other provider failures retain their existing error handling.
+On that rejection Pilot persists `text_tool_mode: true` and retries the same turn
+once. This retry is separate from existing hand-back and parse-retry budgets.
+Capability-based selection works even with `--fallback-prompt off`: that flag
+controls the conditional prompt, while text mode makes the chat template usable.
+
+In text mode the upstream receives no `tools`, `tool_choice`, or
+`parallel_tool_calls`. A system block lists only the offered tools (including
+`how` when enabled), their short purposes and parameter names/types; it does not
+expand the command catalogue into fictional tools. The block is capped at 32 KiB
+(an oversized block returns a clear error), with 160-byte purposes and schemas
+at most three levels deep and 64 properties per level. The model is asked for
+exactly one object `{"tool": NAME, "args": {...}}`, or plain text when no action
+is needed. Fences and a leading sentence are accepted; several objects remain
+text. Converted calls use the existing argument repairs and validation paths.
+Recipes and prose guardrails still use the original tools and history.
+
+Only the upstream wire copy flattens assistant tool calls into assistant text and
+tool results into user text (`Tool NAME returned: ...`), preserving call-id/name
+associations. Each rewritten message is capped at 16 KiB plus a truncation marker.
+This also applies to Pilot's local `how` results on retries. Audit kinds are
+`text_tool_mode`, `tools_stripped`, `tool_history_flattened`, and
+`text_call_converted` (alongside the existing `text_tool_call` repair event).
+Native-tool models keep their request format. The MCP face is unchanged.
+
 Every rewrite is recorded in `--log FILE`, or `rewrites.jsonl` beside profiles;
 responses include `x-dutchman-pilot: rewrites=N`. Archive the log when it reaches 64 MiB.
 
@@ -122,11 +174,14 @@ to append the same planner calls as a `suggested` plan. It preserves the origina
 error and never executes suggestions. Failed batches only get corrections for an
 explicitly identified failing step, since earlier steps may have succeeded.
 
-Both faces enable planning, discovery, and state hints by default:
+Both faces enable discovery and state hints by default. MCP also enables plan
+suggestions by default; model-face plan-text recipes require `--planner`:
 
 | Flag | `model` | `mcp` |
 | --- | --- | --- |
-| `--no-plan` | Disable deterministic request plans (`--no-planner` alias; `--planner` enables). | Disable the local `plan` tool and planner suggestions. |
+| `--no-plan` | Accepted no-op alias for the default (`--no-planner` alias). | Disable the local `plan` tool and planner suggestions. |
+| `--planner` | Enable plan-text recipe suggestions, prose conversion, continuations, and completion checks. | Not available. |
+| `--direct-recipes` | Answer exact matches directly with normal approval; accepts `--planner`. | Not available. |
 | `--no-hints` | Disable appended state hints in tool history. | Disable state hints and their before/after inspect probes. |
 | `--no-how` | Disable local command discovery. | Disable the local `how` tool. |
 | `--log FILE` | JSONL rewrites, keyed by model. | Same format, keyed by `mcp`. |
@@ -148,9 +203,14 @@ cargo run -- --help
 ```
 
 `how` searches the bundled snapshot of `solidcraft-cli 0.20 commands` in
-`tests/fixtures/commands.json`. It leads with one explicit JSON call and trims the trailing parameter
-docs to 400 characters; it never executes them. Geometry selectors in examples must match the
-current design. The catalogue loader also accepts live CLI JSON and MCP
+`tests/fixtures/commands.json`. It leads with a concrete example when available
+(otherwise `null`), followed by a separately labelled, non-executable typed
+template, and trims trailing parameter docs to 400 characters. Placeholders such
+as `<number mm>` and `<body id from model.bodies>` belong only to templates.
+Examples with unresolved references or enum choices are omitted; an enum choice
+is shown only when the task explicitly names it (for example, revolute).
+Geometry selectors in examples must match the current design; SolidCraft still
+validates the filled call. The catalogue loader also accepts live CLI JSON and MCP
 `list_commands` results. Unsupported tasks return a no-command message and up to
 three nearest alternatives.
 

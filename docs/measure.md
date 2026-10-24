@@ -38,8 +38,9 @@ dutchman pilot profile --json
 ```
 
 Use separate --profile-dir and --log paths for experiments. For ablations,
-repeat with --no-plan, --no-how, or --no-hints; record any --prompt-help,
---fallback-prompt and --model-settings choices.
+compare --direct-recipes and --planner separately, and repeat with --no-how or
+--no-hints; record any --prompt-help, --fallback-prompt, and --model-settings choices.
+Plan-text recipes are off by default; --no-plan is an accepted no-op on the model face.
 
 ## dutchman-pilot-eval
 
