@@ -11,14 +11,14 @@ SolidCraft-Pilot — a local helper for SolidCraft
 Usage:
   dutchman-pilot how "<task>"
   dutchman-pilot model [--listen 127.0.0.1:11500] [--upstream URL]
-                 [--upstream-timeout SECONDS (default 300, max 3600)]
-                 [--fallback-prompt auto|on|off] [--prompt-help] [--log FILE]
-                 [--profile-dir DIR] [--model-settings [FILE]] [--seed INTEGER]
-                 [--no-how] [--no-hints] [--planner | --no-plan (alias --no-planner)]
+                       [--upstream-timeout SECONDS (default 300, max 3600)]
+                       [--fallback-prompt auto|on|off] [--prompt-help] [--log FILE]
+                       [--profile-dir DIR] [--model-settings [FILE]] [--seed INTEGER]
+                       [--no-how] [--no-hints] [--planner | --no-plan (alias --no-planner)]
   dutchman-pilot profile [model] [--profile-dir DIR] [--json]
   dutchman-pilot log-summary <rewrites.jsonl> [--json]
   dutchman-pilot mcp [--solidcraft-cli PATH] [--log FILE]
-               [--no-plan] [--no-hints] [--no-how] -- <args for solidcraft-cli mcp>
+                     [--no-plan] [--no-hints] [--no-how] -- <args for solidcraft-cli mcp>
   dutchman-pilot --version (-V)
   dutchman-pilot --help (-h)
 
