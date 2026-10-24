@@ -317,7 +317,15 @@ def converse(app, messages, prompt, model, url):
                 value = {'isError': True, 'content': [{'type': 'text', 'text': str(error)}]}
             transcript.append({'tool': function['name'], 'arguments': function['arguments'], 'result': value})
             messages.append({'role': 'tool', 'tool_call_id': call['id'], 'content': json.dumps(value)})
-    raise RuntimeError("turn exceeded 24 model requests")
+    raise RequestLimit(transcript)
+
+
+class RequestLimit(RuntimeError):
+    """The model used every request in a turn; the design is still scored as it stands."""
+
+    def __init__(self, transcript):
+        super().__init__("turn exceeded 24 model requests")
+        self.transcript = transcript
 
 
 def run_one(args, root, task, mode, url):
@@ -337,6 +345,7 @@ def run_one(args, root, task, mode, url):
         records = []
         reply = ''
         for item in turns:
+            stopped = None
             app.deadline = time.monotonic() + TIMEOUT
             before = check.inspect_for_task(app, item)
             transcript = []
@@ -346,9 +355,15 @@ def run_one(args, root, task, mode, url):
                 position = end
                 reply = item.get('reference_reply', task.get('reference_reply', ''))
             elif mode == 'model':
-                reply, transcript = converse(app, messages, item['prompt'], args.model, url)
+                try:
+                    reply, transcript = converse(app, messages, item['prompt'], args.model, url)
+                except RequestLimit as limit:
+                    reply, transcript = '', limit.transcript
+                    stopped = 'request limit'
             record = score(app, item, before, reply)
             record['transcript'] = transcript
+            if stopped:
+                record['stopped'] = stopped
             records.append(record)
         final = score(app, task, initial, reply)
         passed = all(r['pass'] for r in records) and final['pass']

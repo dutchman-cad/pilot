@@ -81,7 +81,9 @@ refusal tasks therefore also fail their reply predicates. An execution error,
 missing measurement or timeout fails validation. Exit status
 is 0 only if every expected outcome matches, 1 for an unexpected outcome and 2
 for a configuration/startup error. In model mode, a failed task yields status 1
-while the remaining tasks still run.
+while the remaining tasks still run. A turn that uses all 24 model requests
+ends there; its design is scored as it stands and the record says
+`"stopped": "request limit"`.
 
 ## Format 1
 
