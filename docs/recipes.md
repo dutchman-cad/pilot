@@ -38,31 +38,33 @@ in [tangency-labs/solidcraft#5862](https://github.com/tangency-labs/solidcraft/i
 Recipes are a bounded table in `src/planner/recipes.rs`, with typed slots and a
 shared length parser. Every expanded call checks its command and parameter names
 against the supplied catalogue. SolidCraft remains the authoritative validator.
-A recipe needs an explicit action request and all required slots. Questions,
+A recipe needs an action or a geometry noun request and all required slots. How-to questions,
 negations, explanations, unsupported modifiers, missing slots, and multiple
 intents are left to the model. There is no benchmark wording or task-id matching.
 
 | Recipe | Required slots and supported form |
 | --- | --- |
-| Box / block / plate / cube | Three dimensions in length × width × height order, or uniquely labelled length, width and height; a cube can have one side. Two dimensions plus an explicitly labelled thickness also work. |
-| Cylinder / rod / disc | Explicit radius or diameter (also `Ø` or “across”), and height / tall / high / thick / deep. |
-| Sphere | Explicit radius or diameter / `Ø` / across. |
-| Plate with centred hole | Plate dimensions, hole radius or diameter, centred / middle, and through. |
+| Box / block / brick / bar / plate / slab / sheet / cube | Three dimensions in length × width × height order, or uniquely labelled length, width and height; a cube can have one side. Two dimensions plus an explicitly labelled thickness also work. |
+| Cylinder / rod / disc / disk / puck / coin | Explicit radius or diameter (also `Ø`, “across”, or “wide”), and height / tall / high / thick / deep / length / long. “Round disc” also works. |
+| Sphere / ball | Explicit radius or diameter / `Ø` / across / wide. |
+| Hollow tube | Outer and inner diameter (`OD` / `ID`), or outer diameter and wall thickness, plus length / height. Inner diameter must be positive and smaller than outer diameter. A new named cylinder and targeted axial through hole leave existing bodies untouched. |
+| Plate with centred hole | Plate dimensions, hole radius or diameter, centred / middle, and through. “One centred 6mm through hole” uses 6mm as its diameter. |
 | Plate with positioned holes | Plate dimensions, integer count, common hole radius or diameter, through, and exactly that many `(x,y)` positions after `at`. Positions use the plate's origin corner, with Z supplied from its thickness. |
 | Plate with rectangular hole pattern | Plate dimensions, hole size, through, centred rectangular pattern, rows, columns, and X × Y pitch. An optional total count must agree. |
 | Plate with circular hole pattern | Plate dimensions, hole size, through, centred circular pattern radius or diameter, count, equally spaced, and explicit `starting at +X`. |
 | Drill / bore / cut a hole | Uniquely resolved existing body, explicit hole radius or diameter, `through BODY at (x,y,z)`. All three coordinates are required; uses the public hole command's Z direction. |
-| Sketch rectangle then extrude | Rectangle width × height, `on PLANE then extrude DISTANCE`. |
-| Sketch circle then extrude | Circle radius or diameter, `on PLANE then extrude DISTANCE`. |
-| Fillet / round / round off all edges | Uniquely resolved current body, all edges, and radius. |
+| Sketch rectangle then extrude | Rectangle width × height, `on PLANE then extrude DISTANCE`; “raise”, “pull it up”, and “extrude by” also work. |
+| Sketch circle then extrude | Circle radius or diameter, `on PLANE then extrude DISTANCE`; “raise”, “pull it up”, and “extrude by” also work. |
+| Fillet / round / round off all edges | Uniquely resolved current body, all edges (also “every edge” / “all the edges”), and radius, including “a 2mm round”. |
 | Chamfer / bevel all / top edges | Uniquely resolved current body, all or top edges, and distance. |
-| Move / translate / shift / slide | Uniquely resolved body, one signed distance, and exactly one X / Y / Z axis. “negative X” also works; conflicting signs defer. |
-| Rename / call / name | Uniquely resolved source body and `to NAME`, or `call it NAME` / `name the body NAME`; quote names containing spaces. |
-| Mirror | Uniquely resolved body and one principal plane XY / XZ / YZ. Creates a separate mirrored body. |
+| Move / translate / shift / slide | Uniquely resolved body, one signed distance, and exactly one X / Y / Z axis. “negative X”, “in the negative Y direction”, “along -Y”, and “down Y” also work; conflicting signs defer. |
+| Rename / call / name | Uniquely resolved source body and `to NAME`, or `call it NAME` / `name the body NAME`; `rename to NAME` for the unique current body; quote names containing spaces. |
+| Mirror | Uniquely resolved body and one principal plane XY / XZ / YZ. Keeps the original by default or with “keeping the original”. “Not keeping the original”, “without keeping the original”, or “do not keep the original” emits mirror then `solid.remove` for the original. Joining is unsupported. |
+| Uniform scale | Uniquely resolved body, explicitly about the origin, and a factor: `by 1.5`, `by 150%`, `double` (2), or `half` (0.5). Factor must be positive and at most 1000. |
 | Shell box | New box dimensions, wall thickness, and explicitly open / remove top. Shelling inward leaves the bottom and four walls. |
 | Revolve rectangle | Rectangle radial `radius` and height, explicitly `from axis on XZ about Z full turn`. Other profiles, axes, offsets and partial turns defer. |
-| Volume query | A complete measured snapshot, optionally one uniquely named body; otherwise one inspect request. |
-| Body count query | A complete snapshot; otherwise one inspect request. |
+| Volume query | “What’s the volume”, requests mentioning volume with any unit wording, or “how many cubic millimetres”. A complete measured snapshot, optionally one uniquely named body; otherwise one inspect request. Results retain the existing mm³ reporting. |
+| Body count query | “How many bodies / solids are there”, or count bodies. A complete snapshot; otherwise one inspect request. |
 
 Lengths default to mm. `mm`, `cm`, `m`, `in`, `inch`, `inches`, and `"` are
 accepted, including simple fractions such as `1/4 inch`. Mixed fractions such as
@@ -74,10 +76,35 @@ their mathematical meaning.
 
 Matching ignores case, sentence punctuation (`. , ; : ! ?`), and quotes or
 brackets around words. A question mark still invokes the question guard: action
-questions defer, except the existing polite `can you` / `could you` requests.
+questions defer, except polite `can you` / `could you` requests, including after filler.
 Decimal points, fractions, `x` / `×`, and inch marks keep their numeric meaning.
 Quoted rename destinations preserve their original case and punctuation; words
 inside a complete quoted destination are name data rather than competing actions.
+
+Normalization removes this small filler list anywhere: `please`, `pls`, `thanks`,
+`thank`, `you`, `can`, `could`, `I`, `need`, `want`, `give`, `me`, `ok`, `okay`, `so`.
+It preserves numeric punctuation, coordinates and opaque rename destinations.
+Unknown conversational words are tolerated. Label colons may precede values, and
+numbers may precede their shape noun, including a separate sentence:
+`Length: 8.4cm, width: 3.6cm, height: 0.9cm. I need a solid brick.`
+A thickness may precede the remaining two dimensions: `a 9mm thick slab, 84 by 36`.
+
+Conflicting action families or primitive families defer; synonyms form one family.
+Negation and explanation guards also include `no`, `avoid`, `skip`, `stop`,
+`neither`, `nor`, `explanation`, `describe`, `tutorial`, `instructions`, and
+common negative contractions (`can’t`, `won’t`, `isn’t`, `shouldn’t`, `wouldn’t`,
+`couldn’t`, `mustn’t`, using ASCII apostrophes).
+The semantic deny list includes `not`, `don`, `dont`, `never`, `without`, `undo`,
+`cannot`, `cant`, `explain`, `would`, `what`, `how`, `why`, `whether`, `example`,
+`if`, `or`, `instead`, `except`. Measurement questions are a separate guarded path;
+the scoped mirror-original phrases above are the only negation exception.
+Known unsupported modifiers also defer: rotate/rotation, taper/tapered,
+rounded, thread/threaded, counterbore/countersink, blind, offset, angled/angle,
+hollowed, combine/join/union/subtract/intersect/delete, duplicate/copy/copies,
+twice, oval/ellipse/cone/torus, flat/vertical/curved, triangle/triangular/polygon,
+sweep/loft, text/engrave, color/colour/material, unless/maybe/possibly/either/but.
+`hollow` is restricted to tubes; primitive positioning/centering modifiers defer.
+An unsupported fillet or chamfer on a new primitive is a conflicting intent.
 
 Labelled lengths accept both orders: `length 31mm, width 22mm, thickness 4mm`
 or `31mm long, 22mm wide and 4mm thick`. Height also accepts `high`, `tall`,
@@ -115,6 +142,15 @@ sketch a circle radius 9mm on XZ then extrude 7mm
 build a plate 80x60x6mm with 2 through holes diameter 4mm at (12mm,15mm), (65mm,40mm)
 shell a box 70x50x30mm wall 2mm open top
 ```
+
+In `--direct-recipes` mode only, an edit whose geometry slots already parse but
+whose current body is unknown can first emit one read-only `execute` call to
+`document.inspect` with `measure:true` (the public catalogue's inspect equivalent).
+No mutation uses a provisional body name. The continuation validates every
+returned tool result, resolves the actual body, and only then emits edit calls.
+Zero bodies, multiple bodies, partial snapshots, failed or missing results defer;
+the lookup never repeats. Plan-text mode retains its original acted/body guards.
+These prerequisites use the existing direct audit events with rule `resolve_body`.
 
 A fresh request fires at most one recipe. The existing `acted` check suppresses
 new recipes after an `execute` or `batch` call in that request's history, even if
@@ -167,5 +203,14 @@ An optional clean-room geometry smoke test uses only the public MCP binary:
 PILOT_SOLIDCRAFT_CLI=/path/to/solidcraft-cli cargo test --test recipes_cli
 ```
 
-This test covers 17 geometry cases and checks measured expected results. It is
+This test covers 25 geometry cases and checks measured expected results. It is
 not a weak-model benchmark and establishes no live-model pass-rate improvement.
+
+`src/planner/robust.rs` adds 228 independently authored exact-slot phrasings
+(at least twelve per recipe), over fifty refusal cases, and 288 compositions of
+filler, metric unit style and dimension order across every creation recipe.
+Additional tests cover fractions, inch marks, round discs, mirror retention,
+scale factors and the bounded body-resolution prerequisite. Proxy tests exercise
+inspection, edit and measured completion without upstream traffic, plus refusal
+on ambiguous, partial, failed and missing inspections. Existing fixtures retain
+their expectations; no held-out benchmark requests are read or embedded.

@@ -775,7 +775,11 @@ impl Proxy {
             conversation.direct_failed = false;
         }
         let mut recipe = if self.cfg.planner {
-            planner::plan(&body, &self.catalog)?
+            if self.cfg.direct_recipes {
+                planner::plan_direct(&body, &self.catalog)?
+            } else {
+                planner::plan(&body, &self.catalog)?
+            }
         } else {
             None
         };
@@ -785,6 +789,13 @@ impl Proxy {
                 recipe = planner::resume(&body, pending, &self.catalog)?;
                 resumed = recipe.is_some();
             }
+        }
+        if self.cfg.direct_recipes
+            && self.cfg.planner
+            && recipe.is_none()
+            && !conversation.direct_failed
+        {
+            recipe = planner::inspect_for_edit(&body, &self.catalog)?;
         }
         if self.cfg.direct_recipes && self.cfg.planner {
             if let Some(reply) =
@@ -3669,5 +3680,116 @@ mod tests {
             .unwrap()
             .push(json!({"role":"tool","content":"20"}));
         assert!(prose_guard(&req, &json!({"content":"20"}), &catalog).is_none());
+    }
+    #[test]
+    fn direct_first_turn_body_lookup_then_edit_and_verification() {
+        for text in [
+            "move this box 8mm along X",
+            "rename to Spacer",
+            "mirror it across XZ",
+            "double it about origin",
+        ] {
+            let mut f = Fixture::new(vec![]);
+            f.proxy.cfg.direct_recipes = true;
+            let mut req = planner::cases::request(text);
+            req["messages"].as_array_mut().unwrap().remove(0);
+            let first: Value = serde_json::from_slice(&f.chat(req.clone()).body).unwrap();
+            let assistant = first["choices"][0]["message"].clone();
+            let calls = assistant["tool_calls"].as_array().unwrap();
+            assert_eq!(calls.len(), 1, "{text}: {first}");
+            let args: Value =
+                serde_json::from_str(calls[0]["function"]["arguments"].as_str().unwrap()).unwrap();
+            assert_eq!(
+                args,
+                json!({"command":"document.inspect","params":{"measure":true}})
+            );
+            req["messages"]
+                .as_array_mut()
+                .unwrap()
+                .push(assistant.clone());
+            req["messages"].as_array_mut().unwrap().push(json!({"role":"tool","tool_call_id":calls[0]["id"],"content":planner::cases::design().to_string()}));
+            let second: Value = serde_json::from_slice(&f.chat(req.clone()).body).unwrap();
+            let assistant = second["choices"][0]["message"].clone();
+            let calls = assistant["tool_calls"]
+                .as_array()
+                .unwrap_or_else(|| panic!("{text}: {second}"));
+            assert_eq!(calls.len(), 2, "{text}: {second}");
+            assert!(!calls[0]["id"].as_str().unwrap().contains("resolve_body"));
+            let mut after = planner::cases::design();
+            if text.starts_with("rename") {
+                after["bodies"][0]["name"] = json!("Spacer");
+            }
+            if text.starts_with("double") {
+                after["bodies"][0]["volume_mm3"] = json!(8000);
+            }
+            if text.starts_with("mirror") {
+                after["bodies"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(json!({"name":"Mirrored","volume_mm3":1000}));
+            }
+            req["messages"]
+                .as_array_mut()
+                .unwrap()
+                .push(assistant.clone());
+            for call in calls {
+                req["messages"].as_array_mut().unwrap().push(
+                    json!({"role":"tool","tool_call_id":call["id"],"content":after.to_string()}),
+                );
+            }
+            let final_reply: Value = serde_json::from_slice(&f.chat(req).body).unwrap();
+            assert!(
+                final_reply["choices"][0]["message"]["content"]
+                    .as_str()
+                    .unwrap()
+                    .contains("completed"),
+                "{text}: {final_reply}"
+            );
+            assert!(f
+                .proxy
+                .scripted
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .requests
+                .is_empty());
+        }
+    }
+
+    #[test]
+    fn direct_body_lookup_refuses_ambiguous_failed_and_missing_results() {
+        for result in [
+            Some(json!({"bodies":[]})),
+            Some(json!({"bodies":[{"name":"A"},{"name":"B"}]})),
+            Some(json!({"isError":true})),
+            Some(json!({"bodies":[{"name":"A"}],"truncated":true})),
+            None,
+        ] {
+            let mut f = Fixture::new(vec![]);
+            f.proxy.cfg.direct_recipes = true;
+            f.proxy.cfg.upstream = "none".into();
+            let mut req = planner::cases::request("move this box 8mm along X");
+            req["messages"].as_array_mut().unwrap().remove(0);
+            let first: Value = serde_json::from_slice(&f.chat(req.clone()).body).unwrap();
+            let assistant = first["choices"][0]["message"].clone();
+            let id = assistant["tool_calls"][0]["id"].clone();
+            req["messages"].as_array_mut().unwrap().push(assistant);
+            if let Some(result) = result {
+                req["messages"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(json!({"role":"tool","tool_call_id":id,"content":result.to_string()}));
+            }
+            let next: Value = serde_json::from_slice(&f.chat(req.clone()).body).unwrap();
+            assert!(
+                next["choices"][0]["message"]["tool_calls"].is_null(),
+                "{next}"
+            );
+            let again: Value = serde_json::from_slice(&f.chat(req).body).unwrap();
+            assert!(
+                again["choices"][0]["message"]["tool_calls"].is_null(),
+                "{again}"
+            );
+        }
     }
 }

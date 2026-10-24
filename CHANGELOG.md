@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- Generalize recipes through bounded normalization and tolerant labelled/positional
+  slots: filler, noun-first requests, glued units, reordered labels, value-first
+  thickness, ordinary shape synonyms, signed axes, and measurement questions.
+  Keep competing intents, missing/ambiguous slots, negations and known unsupported
+  modifiers on the model path.
+- Add OD/ID or wall-thickness tubes, uniform scaling about the origin, explicit
+  mirror-original retention/removal, and naturally worded centred through holes;
+  validate expansions against the public 0.20 command catalogue.
+- In direct mode, inspect once before an otherwise complete edit with an unknown
+  current body; require a unique measured target and valid results before editing.
+  Preserve plan-text behavior and existing action/recovery budgets.
+- Add independent exact-slot and refusal tables, compositional creation tests,
+  direct inspection lifecycle tests, and public-binary geometry smoke coverage.
+
 - Add opt-in `--direct-recipes` with native calls, SSE, measured no-model replies,
   ordinary approval, completion recovery, separate audit/profile counters, and
   `--upstream none`.

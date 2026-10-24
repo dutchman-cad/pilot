@@ -95,6 +95,9 @@ impl Proxy {
                 });
                 let difference = if !valid {
                     Some("Recipe completion failed: a tool returned an error, or the expected tool results are missing or invalid. Inspect the design and recover; do not repeat accepted changes.".to_string())
+                } else if previous.rule == "resolve_body" {
+                    recipe.as_ref().is_none_or(|p| p.rule == "resolve_body").then(||
+                        "Recipe target is unresolved: inspection must identify exactly one requested body. No change was made.".into())
                 } else if previous.continuation.is_some() {
                     recipe.is_none().then(|| "Recipe completion is unverified: the edge lookup could not resolve the requested edges.".into())
                 } else if let Some(expected) = &previous.expected {
@@ -129,7 +132,7 @@ impl Proxy {
                     // The caller adds this hand-back before entering the ordinary model path.
                     return Ok(None);
                 }
-                if previous.continuation.is_none() {
+                if previous.continuation.is_none() && previous.rule != "resolve_body" {
                     let summary_plan = if previous.expected.is_none() {
                         recipe.as_ref().unwrap_or(&previous)
                     } else {
