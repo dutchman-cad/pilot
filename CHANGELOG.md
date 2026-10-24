@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.1.0-beta.4 (2026-10-24)
+
+- Exact matches are answered without the model by default; `--no-direct-recipes` opts out.
+- Centred holes in cubes and boxes, from a user report, with box placement hints.
+- Type `/report` in the Assistant for a local redacted report and issue link.
+- A public field-report benchmark set.
+
 ### Added
 
 - Type `/report` in the Assistant to save a local redacted report, with a prefilled

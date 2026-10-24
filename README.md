@@ -179,8 +179,9 @@ Run the public [SolidCraft Assistant model benchmarks](bench/) directly or throu
 ## Help and community
 
 - Questions and discussion: the [Dutchman CAD Discord](https://discord.gg/yTcseBEdeu).
-- Bugs: open an [issue](https://github.com/dutchman-cad/pilot/issues). `dutchman pilot report`
-  writes a redacted report you can review and paste there.
+- Bugs: type `/report` in SolidCraft's Assistant, or run `dutchman pilot report`. Either
+  writes a redacted report and a prefilled [issue](https://github.com/dutchman-cad/pilot/issues)
+  link you review before submitting.
 - Results with your own model: add them to [#1](https://github.com/dutchman-cad/pilot/issues/1).
 
 Licensed under [Apache-2.0](LICENSE). See [NOTICE](NOTICE).

@@ -1,6 +1,6 @@
 [package]
 name = "dutchman-pilot"
-version = "0.1.0-beta.3"
+version = "0.1.0-beta.4"
 edition = "2021"
 default-run = "dutchman-pilot"
 rust-version = "1.88"
