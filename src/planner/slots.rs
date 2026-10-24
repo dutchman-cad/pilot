@@ -179,6 +179,8 @@ pub(super) fn dimensions(t: &[String]) -> Option<Vec<Dimension>> {
                                     | "radius"
                                     | "od"
                                     | "id"
+                                    | "from"
+                                    | "both"
                             )
                         })))
             {

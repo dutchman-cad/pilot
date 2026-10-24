@@ -3,6 +3,8 @@
 pub(crate) mod cases;
 #[cfg(test)]
 mod english;
+#[cfg(test)]
+mod first_turn;
 mod recipes;
 #[cfg(test)]
 mod robust;
@@ -192,8 +194,10 @@ fn body(text: &str, data: Option<&Value>) -> Option<String> {
     let t = intent_tokens(text);
     if found.is_empty()
         && t.iter().position(|s| s == "of").is_some_and(|i| {
-            t.get(i + 1)
-                .is_some_and(|s| !matches!(s.as_str(), "the" | "current" | "body" | "it"))
+            t.get(i + 1).is_some_and(|s| {
+                !matches!(s.as_str(), "the" | "current" | "body" | "it")
+                    && dimensions(std::slice::from_ref(s)).is_none_or(|d| d.len() != 1)
+            })
         })
     {
         return None;
@@ -239,7 +243,7 @@ fn body(text: &str, data: Option<&Value>) -> Option<String> {
                 matches!(
                     s.as_str(),
                     "it" | "body" | "box" | "part" | "all" | "top" | "edges"
-                )
+                ) || (s == "size" && matches!(t[i].as_str(), "scale" | "double" | "half"))
             }) && !rest.windows(2).any(|w| {
                 matches!(w[0].as_str(), "body" | "box" | "part")
                     && !matches!(
@@ -448,6 +452,8 @@ fn plan_impl(
         .collect::<Vec<_>>()
         .join(" ");
     let count = query_text.contains("how many bodies")
+        || query_text.contains("how many solid bodies")
+        || query_text.contains("how many parts")
         || query_text.contains("count the bodies")
         || query_text.contains("count bodies");
     let query = (has("volume") || (has("how") && has("many") && (has("cubic") || has("mm3"))))

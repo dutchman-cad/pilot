@@ -485,13 +485,12 @@ fn normalization_preserves_names_and_removes_trailing_politeness() {
             json!({"Rename":{"body":"Blank","name":"Spacer"}})
         );
     }
-    let p = plan(
+    assert!(plan(
         &cases::request("Please sketch a rectangle 20x10mm on FixtureDatum then extrude 5mm"),
         &c,
     )
     .unwrap()
-    .unwrap();
-    assert_eq!(p.slots["Sketch"]["plane"], "FixtureDatum");
+    .is_none());
     let mut req = cases::request("Move RaisedPart 2mm along X");
     req["messages"][0]["content"] = json!(json!({"bodies":[{"name":"RaisedPart"}]}).to_string());
     assert_eq!(

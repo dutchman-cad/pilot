@@ -148,12 +148,48 @@ impl Input<'_> {
         Some(text)
     }
     fn plane(&self) -> Option<String> {
-        let found: Vec<_> = self
+        let start = self
             .t
             .iter()
-            .filter(|s| matches!(s.as_str(), "xy" | "xz" | "yz"))
-            .collect();
-        (found.len() == 1).then(|| found[0].to_ascii_uppercase())
+            .position(|s| matches!(s.as_str(), "across" | "about" | "on"))?;
+        let tail = &self.t[start + 1..];
+        let end = tail
+            .iter()
+            .position(|s| {
+                matches!(s.as_str(), "keep" | "keeping" | "discard")
+                    || (self.has("revolve") && s == "about")
+            })
+            .unwrap_or(tail.len());
+        if end < tail.len() && !self.has("revolve") {
+            let retention: Vec<_> = tail[end..].iter().map(String::as_str).collect();
+            if !matches!(
+                retention.as_slice(),
+                ["keep" | "keeping" | "discard", "original"]
+                    | ["keep" | "keeping" | "discard", "the", "original"]
+                    | ["keep" | "keeping" | "discard", "original", "and"]
+                    | ["keep" | "keeping" | "discard", "the", "original", "and"]
+            ) {
+                return None;
+            }
+        }
+        principal_plane(&tail[..end])
+    }
+}
+// The catalogue documents these principal planes, but no "top" alias.
+fn principal_plane(t: &[String]) -> Option<String> {
+    let t = t.strip_suffix(&["and".into()]).unwrap_or(t);
+    let t = t.strip_prefix(&["the".into()]).unwrap_or(t);
+    let t = t.strip_prefix(&["plane".into()]).unwrap_or(t);
+    let t = t.strip_suffix(&["plane".into()]).unwrap_or(t);
+    if t.len() != 1 && !(t.len() == 3 && t[1] == "-") {
+        return None;
+    }
+    let joined = t.join("");
+    match joined.as_str() {
+        "xy" | "x-y" => Some("XY".into()),
+        "xz" | "x-z" => Some("XZ".into()),
+        "yz" | "y-z" => Some("YZ".into()),
+        _ => None,
     }
 }
 fn positive(d: &[slots::Dimension]) -> bool {
@@ -222,7 +258,18 @@ fn vocabulary(kind: Kind, input: &Input<'_>) -> bool {
     {
         return false;
     }
-    matches!(kind, Kind::Rename) || !input.t.iter().any(|s| s == "-")
+    matches!(kind, Kind::Rename)
+        || input.t.iter().enumerate().all(|(i, s)| {
+            s != "-"
+                || (matches!(kind, Kind::Sketch | Kind::Mirror | Kind::Revolve)
+                    && i > 0
+                    && input.t.get(i + 1).is_some_and(|next| {
+                        matches!(
+                            (input.t[i - 1].as_str(), next.as_str()),
+                            ("x", "y") | ("x", "z") | ("y", "z")
+                        )
+                    }))
+        })
 }
 
 fn box_size(t: &[String], d: &[slots::Dimension], cube: bool) -> Option<[f64; 3]> {
@@ -435,7 +482,7 @@ fn parse(kind: Kind, input: &Input<'_>) -> Option<Slots> {
                     }
                     inner
                 } else {
-                    if raw.contains(['`', '\'', '"']) {
+                    if raw.contains(['`', '\'', '"', '.', '!', '?', ';', ':', ',']) {
                         return None;
                     }
                     raw
@@ -668,28 +715,25 @@ fn parse(kind: Kind, input: &Input<'_>) -> Option<Slots> {
             if has("rectangle") && has("circle") {
                 return None;
             }
-            let lower = input.text.to_ascii_lowercase();
-            let (profile, after) = lower.split_once(" on ")?;
-            let (plane, extent) = after
-                .split_once(" then extrude ")
-                .or_else(|| after.split_once(" extrude "))?;
-            let plane = input
-                .text
-                .get(profile.len() + 4..profile.len() + 4 + plane.len())?
-                .trim()
-                .trim_matches([
-                    '`', '\'', '"', '[', ']', '(', ')', ',', ';', ':', '.', '!', '?',
-                ]);
-            if plane.is_empty()
-                || plane.len() > 128
-                || plane.contains([',', '\n', '\r'])
-                || plane.split_whitespace().count() > 4
+            let at = t.iter().position(|s| s == "extrude")?;
+            let mut before = &t[..at];
+            while before
+                .last()
+                .is_some_and(|s| matches!(s.as_str(), "and" | "then"))
             {
-                return None;
+                before = &before[..before.len() - 1];
             }
-            let profile = tokens(profile);
-            let d = dimensions(&profile)?;
-            let extent = dimensions(&tokens(extent))?;
+            let on = before.iter().position(|s| s == "on")?;
+            let (profile, plane) = if on == 0 {
+                let end = before
+                    .iter()
+                    .position(|s| matches!(s.as_str(), "and" | "sketch" | "draw"))?;
+                (&before[end..], principal_plane(&before[1..end])?)
+            } else {
+                (&before[..on], principal_plane(&before[on + 1..])?)
+            };
+            let d = dimensions(profile)?;
+            let extent = dimensions(&t[at + 1..])?;
             if extent.len() != 1 || !positive(&extent) || !positive(&d) {
                 return None;
             }
@@ -704,16 +748,18 @@ fn parse(kind: Kind, input: &Input<'_>) -> Option<Slots> {
                 }
                 vec![d[0].value, d[1].value]
             } else if has("circle") && d.len() == 1 {
-                vec![radial(&profile, d[0])?]
+                // An unqualified circle size is its diameter; explicit radius wins.
+                vec![radial(profile, d[0]).or_else(|| {
+                    (!profile
+                        .iter()
+                        .any(|s| matches!(s.as_str(), "radius" | "diameter" | "across")))
+                    .then_some(d[0].value / 2.0)
+                })?]
             } else {
                 return None;
             };
             Some(Slots::Sketch {
-                plane: if matches!(plane.to_ascii_lowercase().as_str(), "xy" | "xz" | "yz") {
-                    plane.to_ascii_uppercase()
-                } else {
-                    plane.into()
-                },
+                plane,
                 size,
                 distance: extent[0].value,
             })
@@ -828,6 +874,14 @@ fn holes(input: &Input<'_>) -> Option<Slots> {
     let base = &input.t[..split];
     let size = box_size(base, &dimensions(base)?, false)?;
     let mut rest = input.t[split + 1..].to_vec();
+    let relative = rest
+        .iter()
+        .any(|s| matches!(s.as_str(), "end" | "ends" | "corner" | "corners"));
+    let relative_slots = if relative {
+        Some(relative_holes(&rest, size)?)
+    } else {
+        None
+    };
     let n = if rest.iter().position(|s| s == "holes").is_some_and(|i| {
         i > 0
             && (rest[i - 1].parse::<usize>().is_ok()
@@ -841,12 +895,18 @@ fn holes(input: &Input<'_>) -> Option<Slots> {
         .iter()
         .position(|s| matches!(s.as_str(), "at" | "rectangular" | "circular"));
     let hole_tokens = &rest[..boundary.unwrap_or(rest.len())];
-    let d = dimensions(hole_tokens)?;
-    if d.len() != 1 || !positive(&d) {
+    let d = if relative {
+        Vec::new()
+    } else {
+        dimensions(hole_tokens)?
+    };
+    if !relative && (d.len() != 1 || !positive(&d)) {
         return None;
     }
     // In a single through-hole noun phrase, an unqualified size is its diameter.
-    let diameter = if hole_tokens
+    let diameter = if let Some((diameter, _)) = &relative_slots {
+        *diameter
+    } else if hole_tokens
         .iter()
         .any(|s| matches!(s.as_str(), "radius" | "diameter" | "across"))
     {
@@ -855,7 +915,9 @@ fn holes(input: &Input<'_>) -> Option<Slots> {
         d[0].value
     };
     let mut centers = Vec::new();
-    if boundary.is_some_and(|i| rest[i] == "at") {
+    if let Some((_, positions)) = relative_slots {
+        centers = positions;
+    } else if boundary.is_some_and(|i| rest[i] == "at") {
         let lower = input.text.to_ascii_lowercase();
         let (_, positions) = lower.split_once(" at ")?;
         let mut tail = positions;
@@ -972,6 +1034,86 @@ fn holes(input: &Input<'_>) -> Option<Slots> {
         diameter,
         centers,
     })
+}
+/// Relative layouts use the same origin-corner convention as explicit coordinates.
+fn relative_holes(rest: &[String], size: [f64; 3]) -> Option<(f64, Vec<[f64; 2]>)> {
+    let has = |w: &str| rest.iter().any(|s| s == w);
+    if !has("each") || has("long") || has("rectangular") || has("circular") {
+        return None;
+    }
+    let mut t = rest.to_vec();
+    let count = match t.first().map(String::as_str) {
+        Some(s)
+            if [
+                "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+                "eleven", "twelve",
+            ]
+            .contains(&s) =>
+        {
+            let n = [
+                "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+                "eleven", "twelve",
+            ]
+            .iter()
+            .position(|w| *w == s)?
+                + 1;
+            t.remove(0);
+            Some(n)
+        }
+        Some(s) if s.parse::<usize>().is_ok() => Some(t.remove(0).parse::<usize>().ok()?),
+        _ => None,
+    };
+    let d = dimensions(&t)?;
+    if d.len() != 2 || !positive(&d) {
+        return None;
+    }
+    let from = t.iter().position(|s| s == "from")?;
+    if d[1].index >= from || d[0].index >= d[1].index {
+        return None;
+    }
+    let sizing = &t[..d[1].index];
+    let diameter = if sizing
+        .iter()
+        .any(|s| matches!(s.as_str(), "radius" | "diameter" | "across"))
+    {
+        radial(sizing, d[0])? * 2.0
+    } else {
+        d[0].value
+    };
+    let inset = d[1].value;
+    let positions = if has("corner") || has("corners") {
+        if count != Some(4)
+            || !has("both")
+            || !has("adjacent")
+            || !has("edges")
+            || !has("in")
+            || inset * 2.0 >= size[0].min(size[1])
+        {
+            return None;
+        }
+        vec![
+            [inset, inset],
+            [size[0] - inset, inset],
+            [inset, size[1] - inset],
+            [size[0] - inset, size[1] - inset],
+        ]
+    } else {
+        let centre_line = (has("centre") || has("center")) && has("line");
+        let halfway = has("halfway") && has("across") && has("width");
+        if count.is_some_and(|n| n != 2)
+            || !(centre_line || (has("short") && halfway))
+            || size[0] == size[1]
+            || inset * 2.0 >= size[0].max(size[1])
+        {
+            return None;
+        }
+        if size[0] > size[1] {
+            vec![[inset, size[1] / 2.0], [size[0] - inset, size[1] / 2.0]]
+        } else {
+            vec![[size[0] / 2.0, inset], [size[0] / 2.0, size[1] - inset]]
+        }
+    };
+    Some((diameter, positions))
 }
 type Expansion = (Vec<Value>, Option<f64>, bool, Option<String>);
 fn expand(slots: &Slots, catalog: &Catalog) -> Result<Expansion, String> {
