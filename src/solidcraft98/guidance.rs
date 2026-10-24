@@ -1,0 +1,28 @@
+//! Independently written Pilot lookup. Application help always wins.
+use serde_json::{json, Value};
+pub fn help(task: &str) -> Value {
+    let task = task.to_lowercase();
+    if ["fillet", "round", "bevel", "chamfer"]
+        .iter()
+        .any(|w| task.contains(w))
+    {
+        json!({"source":"Pilot help","limitation":"SolidCraft 98 cannot fillet solid edges. A sketch corner radius is a limited alternative; this does not round solid edges."})
+    } else if task.contains("rename") {
+        json!({"source":"Pilot help","limitation":"SolidCraft 98 cannot rename bodies. The design is unchanged by this help lookup."})
+    } else if task.contains("volume") {
+        json!({"source":"Pilot help","limitation":"SolidCraft 98 does not measure volume. A volume derived from timeline dimensions is a calculation, not an application measurement."})
+    } else if ["sketch", "rectangle", "cube", "box", "block", "plate"]
+        .iter()
+        .any(|w| task.contains(w))
+    {
+        json!({"source":"Pilot help","example":{"name":"menu","arguments":{"title":"Sketch","item":"Rectangle..."}},"limitation":"Start with a sketch, then extrude. Application help is authoritative; use look to read fields before entering dimensions."})
+    } else if ["circle", "cylinder"].iter().any(|w| task.contains(w)) {
+        json!({"source":"Pilot help","example":{"name":"menu","arguments":{"title":"Sketch","item":"Circle..."}},"limitation":"Read the displayed fields; extrude the sketch separately. Application help wins conflicts."})
+    } else if ["extrude", "extrusion"].iter().any(|w| task.contains(w)) {
+        json!({"source":"Pilot help","example":{"name":"menu","arguments":{"title":"Features","item":"Extrude..."}},"limitation":"Requires a sketch. Read the displayed fields; Pilot never changes dimensions."})
+    } else if ["hole", "drill"].iter().any(|w| task.contains(w)) {
+        json!({"source":"Pilot help","example":{"name":"menu","arguments":{"title":"Features","item":"Hole..."}},"limitation":"Read application help and the displayed fields to choose placement and depth."})
+    } else {
+        json!({"source":"Pilot help","limitation":"Pilot has no matching help topic. The application's response above is authoritative; no action was inferred."})
+    }
+}

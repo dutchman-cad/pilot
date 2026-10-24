@@ -28,13 +28,30 @@ impl Audit {
         before: &Value,
         after: &Value,
     ) -> Result<(), String> {
+        self.record_context(kind, before, after, &Value::Null)
+    }
+
+    pub(crate) fn record_context(
+        &mut self,
+        kind: &str,
+        before: &Value,
+        after: &Value,
+        context: &Value,
+    ) -> Result<(), String> {
         if self.count >= 4096 {
             return Err("turn exceeds 4096 rewrites".into());
         }
-        let mut bytes = serde_json::to_vec(
-            &json!({"time":now(),"model":self.model,"kind":kind,"before":before,"after":after}),
-        )
-        .map_err(|e| format!("cannot encode rewrite: {e}"))?;
+        let mut record =
+            json!({"time":now(),"model":self.model,"kind":kind,"before":before,"after":after});
+        if let (Some(record), Some(context)) = (record.as_object_mut(), context.as_object()) {
+            for key in ["session", "observation", "transport"] {
+                if let Some(value) = context.get(key) {
+                    record.insert(key.into(), value.clone());
+                }
+            }
+        }
+        let mut bytes =
+            serde_json::to_vec(&record).map_err(|e| format!("cannot encode rewrite: {e}"))?;
         bytes.push(b'\n');
         if bytes.len() > 8 * 1_048_576 {
             return Err("rewrite record exceeds 8 MiB".into());

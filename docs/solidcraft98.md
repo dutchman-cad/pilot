@@ -197,3 +197,120 @@ final parity check. Run neither models nor the VM for this design.
 - Which remote-capable FreeBASIC executable should replace the older checkout for measurement?
 - Is the MCP tools face first, with the text driver second, the desired order?
 - Should benchmark success for unsupported requests require refusal or allow a stated partial alternative?
+
+## First MCP implementation (2026-10-23)
+
+The MCP tools face is implemented on the private branch. `SPEC.md` remains the
+contract. `drive98`, `how98`, and the model-face dialect are deferred. No model,
+VM, benchmark loop, or SolidCraft catalogue is involved in this face.
+
+```
+dutchman-pilot mcp98 --connect 127.0.0.1:9898 --log /path/to/audit.jsonl
+dutchman-pilot mcp98 --program /absolute/path/to/sc98 --headless --log /path/to/audit.jsonl
+dutchman-pilot mcp98 --help
+```
+
+Exactly one transport is required; `--headless` requires `--program`. TCP currently
+requires a numeric socket address (IPv4 or bracketed IPv6), including its port.
+The same clap command can be embedded as `dutchman pilot mcp98`. The existing
+public help reference is unchanged; this private face has its own subcommand help.
+MCP uses newline-delimited JSON-RPC on stdin/stdout, with a 64 KiB input-message
+cap. It advertises only the eleven tools in the table above, with closed schemas.
+Known double-click/right-click aliases and schema-directed stringified JSON
+containers are repaired and audited; prose is rejected. Literal `type.text` is
+never repaired. The application's command reader trims outer whitespace.
+
+Core modules implement Windows-1252, framing, screen parsing, normalized and
+ambiguous target matching, bounded nearest-target ranking, and an independently
+written Pilot help lookup. Proxy modules implement transports and MCP. Every
+input action refreshes the screen first, and every application action/help/error
+is followed by a `look`; these observations count against the command budget.
+Display names are used only for unique normalized matches in the active context.
+Unseen menu paths go to the application for validation. Unknown click targets
+return at most three unexecuted suggestions. Application corrections remain
+authoritative. Help/error offers take priority over Tutor offers, survive looks,
+and are invalidated by other actions or transport loss. `yes` never invokes `how`.
+Results retain application text and supply structured screen, hint, offer,
+suggestions, rewrite count, and errors. Tutor hints are attributed to the app.
+Unknown help topics receive no inferred plan. Solid-edge fillets and body
+renaming are explicitly unavailable; calculated volume is not a measurement.
+
+Limits are fixed defaults in this cut: 40 action/help attempts (including invalid
+calls), 160 command/connect attempts, and 15 minutes per MCP connection. Three
+identical action/error/state results stop the session; clock/FPS are excluded.
+There is no model history or model retry loop in this face. A new MCP connection
+is the explicit reset. Frame, target, coordinate, name, key and wait caps are
+those specified above. TCP initial connection/reconnection uses a three-second
+deadline and at most two retries (250/500 ms). Write and read share a fifteen-second
+command deadline, with one bounded worker/channel per pipe; stderr is continuously
+drained with a fixed buffer. After transport failure, cached state is discarded.
+TCP attempts a fresh `look`, reports the uncertain outcome, and never resends the
+failed command. Lost child processes require a new session and are never respawned.
+
+The process runs with `--remote`, an isolated working directory and child-only
+HOME/USERPROFILE under the system temporary directory; its Documents directory
+is created there. These directories are retained so saved designs are not removed.
+No path is passed through a shell. Closing MCP closes child stdin: headless mode
+exits; graphical mode resumes manual operation. A hung owned headless process
+gets two seconds to exit before it is killed and reaped. Attached TCP applications
+are never killed. Pilot never sends or advertises `quit`.
+
+The existing default JSONL log location and 64 MiB cap are reused. Records include
+time, model (`mcp98`), kind, before/after, session, observation and transport.
+Syntax/name changes are logged before dispatch; native calls and result/hint
+additions are also recorded before delivery. Audit failure prevents further
+calls in that session. `log-summary` can summarize these records. There is no
+per-model profiling in the MCP face because it does not run a model.
+
+### FreeBASIC build evidence
+
+Source: a temporary `git archive remote freebasic` export from
+`/home/ray/Documents/GitHub/solidvb6`, revision `4292235`; the checkout was not
+modified. Its FreeBASIC README documents version 1.2 and `--remote`. The documented
+`sc98-fb-x86` Podman build could not start in this sandbox: Podman's stored runtime
+root `/run/user/1000/containers` is read-only; overriding it caused a database
+configuration mismatch. A native fallback successfully built the unchanged
+export with the FreeBASIC 1.10.1 compiler archive already present under
+`~/vms/fb/img-x86/`:
+
+```
+# Export the authorized FreeBASIC port into a writable temporary directory.
+git -C /home/ray/Documents/GitHub/solidvb6 archive remote freebasic \
+  | tar -x -C /tmp/sc98-pilot-build
+# Extract ~/vms/fb/img-x86/FreeBASIC-1.10.1-ubuntu-22.04-x86_64.tar.xz there.
+# In /tmp/sc98-pilot-build/lib, provide linker symlinks to the host's
+# libX11.so.6, libXext.so.6, libXpm.so.4, libXrandr.so.2, libXrender.so.1,
+# libncurses.so.6 and libtinfo.so.6, named lib<name>.so.
+CCACHE_DISABLE=1 /tmp/sc98-pilot-build/FreeBASIC-1.10.1-ubuntu-22.04-x86_64/bin/fbc \
+  -w all -exx -p /tmp/sc98-pilot-build/lib -l tinfo \
+  /tmp/sc98-pilot-build/freebasic/src/sc98.bas -x /tmp/sc98-pilot-build/sc98
+```
+
+The compiler emitted existing mixed-boolean warnings and linked successfully.
+The executable is installed at
+`/home/ray/Documents/GitHub/sc98-remote-bin/sc98`. Note that even `--help` opens
+its window and waits, so probe it only through `mcp98`. The ignored integration
+test passes with this binary:
+
+```
+SC98_PROGRAM=/home/ray/Documents/GitHub/sc98-remote-bin/sc98 cargo test \
+  --test solidcraft98 real_freebasic_task_one_through_mcp98 -- --ignored
+```
+
+It launches the actual `mcp98` binary, reads `look`, uses menus to create a part
+and rectangle sketch, enters 20 by 20 mm, extrudes 20 mm (tasks.json task 1), and
+asserts both dimensions and Extrude1 in the final timeline. It uses a fresh
+isolated data directory, sends no shutdown command, and detaches through EOF.
+
+### Validation status
+
+Rust tests cover framing/caps/encoding, fake pipe and TCP peers, fragmented CRLF
+and dot stuffing, EOF/no replay, missing terminators and deadlines, blocked write
+deadlines, stderr floods, typed schemas, dialog precedence, duplicate and stale
+targets, authoritative corrections, offers, explicit syntax repair and prose
+refusal, audit failure, repeated-state stops and session budgets. The real-build
+test is ignored by default and requires `SC98_PROGRAM`.
+
+Both feature sets pass clippy with `-D warnings`; formatting and the wasm32 core
+build pass. All suites pass, including the twelve model-proxy integration tests,
+the fake-TCP test, and the opt-in real FreeBASIC test.

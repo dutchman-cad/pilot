@@ -73,6 +73,8 @@ enum Action {
     Model(ModelArgs),
     /// Start the MCP tools proxy.
     Mcp(McpArgs),
+    /// Serve the MCP tools face for SolidCraft 98.
+    Mcp98(Mcp98Args),
     /// Show recorded model profiles.
     Profile {
         model: Option<String>,
@@ -117,6 +119,18 @@ struct ModelArgs {
     planner: bool,
     #[arg(long, alias = "no-planner")]
     no_plan: bool,
+}
+
+#[derive(Debug, clap::Args)]
+struct Mcp98Args {
+    #[arg(long, required_unless_present = "program", conflicts_with = "program")]
+    connect: Option<SocketAddr>,
+    #[arg(long, required_unless_present = "connect")]
+    program: Option<PathBuf>,
+    #[arg(long, requires = "program", conflicts_with = "connect")]
+    headless: bool,
+    #[arg(long)]
+    log: Option<PathBuf>,
 }
 
 #[derive(Debug, clap::Args)]
@@ -205,6 +219,24 @@ pub fn run_named(cmd: Command, bin: &str) -> Result<i32, Error> {
             no_hints: args.no_hints,
             planner: !args.no_plan,
         }),
+        Some(Action::Mcp98(args)) => {
+            let endpoint = match (args.connect, args.program) {
+                (Some(address), None) => crate::solidcraft98::transport::Endpoint::Tcp(address),
+                (None, Some(path)) => crate::solidcraft98::transport::Endpoint::Program {
+                    path,
+                    headless: args.headless,
+                },
+                _ => {
+                    return Err(Error(
+                        "exactly one SolidCraft 98 transport is required".into(),
+                    ))
+                }
+            };
+            crate::solidcraft98::mcp::serve(crate::solidcraft98::mcp::Config {
+                endpoint,
+                log: args.log,
+            })
+        }
         Some(Action::Mcp(args)) => mcp::serve(mcp::Config {
             solidcraft_cli: args.solidcraft_cli,
             args: args.args,
@@ -264,6 +296,14 @@ fn validate_bounds(cmd: &Command) -> Result<(), Error> {
             }
             for arg in &args.args {
                 add(arg.len());
+            }
+        }
+        Some(Action::Mcp98(args)) => {
+            if let Some(path) = &args.program {
+                add(path.as_os_str().len());
+            }
+            if let Some(path) = &args.log {
+                add(path.as_os_str().len());
             }
         }
         None => {}
