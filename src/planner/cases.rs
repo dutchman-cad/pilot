@@ -211,3 +211,30 @@ fn placement_units_negatives_and_partial_prose_are_conservative() {
         assert!(plan(&request(text),&c).unwrap().is_none(),"{text}");
     }
 }
+#[test]
+fn lexical_collisions_and_incomplete_hole_counts_do_not_change_meaning() {
+    let c = Catalog::bundled().unwrap();
+    let mut req = request("move cm 2cm along X");
+    req["messages"][0]["content"] =
+        json!(json!({"bodies":[{"name":"cm","volume_mm3":1000}]}).to_string());
+    let p = plan(&req, &c).unwrap().unwrap();
+    assert_eq!(
+        p.calls[0]["arguments"]["params"]["translate"],
+        json!([20.0, 0.0, 0.0])
+    );
+    for text in ["make a 20mm cm cube", "build a plate 80x60x6mm with centered through holes diameter 4mm", "revolve a rectangle radius 8mm height 35mm from axis on XZ about Z and X full turn", "build a plate 80x60x6mm with 2 through holes diameter 4mm at (radius 12mm,15mm), (65mm,40mm)"] {
+        assert!(plan(&request(text),&c).unwrap().is_none(),"{text}");
+    }
+}
+#[test]
+fn repeated_action_or_shape_is_not_a_single_recipe() {
+    let c = Catalog::bundled().unwrap();
+    for text in [
+        "make a box and a plate 20x30x4mm",
+        "build a cylinder and a rod diameter 4mm height 20mm",
+        "move Blank 2mm along X and move it",
+        "sketch rectangle and rectangle 13x21mm on XY then extrude 6mm",
+    ] {
+        assert!(plan(&request(text), &c).unwrap().is_none(), "{text}");
+    }
+}

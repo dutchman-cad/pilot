@@ -59,6 +59,18 @@ pub(super) fn dimensions(t: &[String]) -> Option<Vec<Dimension>> {
     let mut dims = Vec::new();
     let mut units = Vec::new();
     for (i, word) in t.iter().enumerate() {
+        if scale(word).is_some() {
+            let previous = i.checked_sub(1).and_then(|i| t.get(i));
+            if previous.is_none_or(|s| number(s).is_none())
+                && (word != "in"
+                    || (previous.is_some_and(|s| scale(s).is_some())
+                        && !t.get(i + 1).is_some_and(|s| {
+                            matches!(s.as_str(), "a" | "an" | "the" | "rectangular" | "circular")
+                        })))
+            {
+                return None;
+            }
+        }
         let Some(n) = number(word) else {
             if word.chars().any(|c| c.is_ascii_digit()) || word.contains('/') {
                 return None;

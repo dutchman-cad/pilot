@@ -95,17 +95,36 @@ impl Input<'_> {
         words.iter().any(|w| self.has(w))
     }
     fn dims(&self) -> Option<Vec<slots::Dimension>> {
-        let t = if let Some(name) = body(self.text, self.data) {
-            tokens(
-                &self
-                    .text
-                    .to_ascii_lowercase()
-                    .replace(&name.to_ascii_lowercase(), " "),
-            )
-        } else {
-            self.t.clone()
-        };
+        let t = tokens(&self.without_body()?);
         dimensions(&t)
+    }
+    fn without_body(&self) -> Option<String> {
+        let mut text = self.text.to_ascii_lowercase();
+        if let Some(name) = body(self.text, self.data) {
+            let name = name.to_ascii_lowercase();
+            let matches: Vec<_> = text
+                .match_indices(&name)
+                .filter(|(i, _)| {
+                    text[..*i]
+                        .chars()
+                        .next_back()
+                        .is_none_or(|c| !c.is_alphanumeric() && c != '_')
+                        && text[*i + name.len()..]
+                            .chars()
+                            .next()
+                            .is_none_or(|c| !c.is_alphanumeric() && c != '_')
+                })
+                .map(|(i, _)| i)
+                .collect();
+            if matches.is_empty() {
+                return Some(text);
+            }
+            if matches.len() != 1 {
+                return None;
+            }
+            text.replace_range(matches[0]..matches[0] + name.len(), " ");
+        }
+        Some(text)
     }
     fn plane(&self) -> Option<String> {
         let found: Vec<_> = self
@@ -124,8 +143,14 @@ fn vocabulary(kind: Kind, input: &Input<'_>) -> bool {
         return true;
     }
     let mut text = input.text.to_ascii_lowercase();
-    if let Some(name) = body(input.text, input.data) {
-        text = text.replace(&name.to_ascii_lowercase(), " ");
+    if matches!(
+        kind,
+        Kind::Move | Kind::Mirror | Kind::Fillet | Kind::Chamfer
+    ) {
+        let Some(stripped) = input.without_body() else {
+            return false;
+        };
+        text = stripped;
     }
     if matches!(kind, Kind::Sketch) {
         if let Some((profile, after)) = text.split_once(" on ") {
@@ -217,7 +242,7 @@ fn vocabulary(kind: Kind, input: &Input<'_>) -> bool {
             "negative",
         ],
         Kind::Mirror => &[
-            "mirror", "it", "body", "current", "about", "across", "xy", "xz", "yz",
+            "mirror", "it", "body", "current", "about", "across", "plane", "xy", "xz", "yz",
         ],
         Kind::Shell => &["shell", "box", "wall", "open", "remove", "top"],
         Kind::Revolve => &[
@@ -532,6 +557,8 @@ fn parse(kind: Kind, input: &Input<'_>) -> Option<Slots> {
             // A radial rectangle from the axis, in XZ, makes a full Z revolution.
             if input.plane()?.as_str() != "XZ"
                 || !has("z")
+                || has("x")
+                || has("y")
                 || !has("axis")
                 || !has("from")
                 || !has("full")
@@ -658,7 +685,10 @@ fn holes(input: &Input<'_>) -> Option<Slots> {
     if boundary.is_some_and(|i| rest[i] == "at") {
         let (_, positions) = input.text.split_once(" at ")?;
         let mut tail = positions;
-        while let Some((_, after)) = tail.split_once('(') {
+        while let Some((prefix, after)) = tail.split_once('(') {
+            if !matches!(prefix.trim(), "" | "," | "and" | ", and") {
+                return None;
+            }
             let (pair, next) = after.split_once(')')?;
             let parts: Vec<_> = pair.split(',').collect();
             if parts.len() != 2 {
@@ -666,8 +696,13 @@ fn holes(input: &Input<'_>) -> Option<Slots> {
             }
             let mut p = [0.0; 2];
             for (i, s) in parts.iter().enumerate() {
-                let d = dimensions(&tokens(s))?;
-                if d.len() != 1 {
+                let coordinate = tokens(s);
+                let d = dimensions(&coordinate)?;
+                if d.len() != 1
+                    || d[0].index != 0
+                    || coordinate.len() > 2
+                    || coordinate.get(1).is_some_and(|s| slots::scale(s).is_none())
+                {
                     return None;
                 }
                 p[i] = d[0].value;
@@ -731,6 +766,7 @@ fn holes(input: &Input<'_>) -> Option<Slots> {
             ]);
         }
     } else if input.any(&["centred", "centered", "middle", "centre", "center"])
+        && (input.has("hole") || n == Some(1))
         && n.is_none_or(|n| n == 1)
     {
         centers.push([size[0] / 2.0, size[1] / 2.0]);
@@ -935,11 +971,42 @@ pub(super) fn select(
     if actions.iter().filter(|a| input.any(a)).count() > 1 {
         return Ok(None);
     }
+    if actions
+        .iter()
+        .any(|a| input.t.iter().filter(|w| a.contains(&w.as_str())).count() > 1)
+        || input
+            .t
+            .iter()
+            .filter(|w| matches!(w.as_str(), "make" | "create" | "build" | "add"))
+            .count()
+            > 1
+    {
+        return Ok(None);
+    }
     let create = input.any(&[
         "make", "create", "build", "add", "sketch", "shell", "revolve",
     ]);
     let mut found = Vec::new();
     for (rule, kind) in LIBRARY {
+        let shapes: &[&str] = match kind {
+            Kind::Box => &["box", "block", "plate", "cube"],
+            Kind::Cylinder => &["cylinder", "rod", "disc"],
+            Kind::Sphere => &["sphere"],
+            Kind::Sketch => &["rectangle", "circle"],
+            Kind::Shell => &["box"],
+            Kind::Revolve => &["rectangle"],
+            _ => &[],
+        };
+        if !shapes.is_empty()
+            && input
+                .t
+                .iter()
+                .filter(|w| shapes.contains(&w.as_str()))
+                .count()
+                != 1
+        {
+            continue;
+        }
         if matches!(
             kind,
             Kind::Box | Kind::Cylinder | Kind::Sphere | Kind::Holes
@@ -984,7 +1051,7 @@ pub(super) fn select(
             .collect();
         let created = (1..=MAX_BODIES + 1)
             .map(|i| format!("PilotRecipe{i}"))
-            .find(|n| !names.contains(&n.as_str()))
+            .find(|n| !names.iter().any(|old| old.eq_ignore_ascii_case(n)))
             .ok_or("recipe body name capacity exceeded")?;
         calls[0]["arguments"]["params"]["body_name"] = json!(created);
         for c in &mut calls[1..] {
