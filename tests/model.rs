@@ -43,7 +43,59 @@ impl Harness {
         capabilities: Value,
         how: bool,
     ) -> Self {
-        Self::with_dialect(replies, count, fallback, settings, capabilities, how, false)
+        Self::configured(
+            replies,
+            count,
+            fallback,
+            settings,
+            capabilities,
+            how,
+            false,
+            false,
+        )
+    }
+    fn with_direct(
+        replies: Vec<(u16, String, String)>,
+        count: usize,
+        fallback: FallbackPrompt,
+        settings: Option<Value>,
+        capabilities: Value,
+        how: bool,
+        direct: bool,
+    ) -> Self {
+        Self::configured(
+            replies,
+            count,
+            fallback,
+            settings,
+            capabilities,
+            how,
+            direct,
+            false,
+        )
+    }
+    #[allow(clippy::too_many_arguments)]
+    fn configured(
+        replies: Vec<(u16, String, String)>,
+        count: usize,
+        fallback: FallbackPrompt,
+        settings: Option<Value>,
+        capabilities: Value,
+        how: bool,
+        direct: bool,
+        planner: bool,
+    ) -> Self {
+        Self::configured_dialect(
+            replies,
+            count,
+            fallback,
+            settings,
+            capabilities,
+            how,
+            direct,
+            planner,
+            false,
+        )
     }
     fn with_dialect(
         replies: Vec<(u16, String, String)>,
@@ -52,6 +104,30 @@ impl Harness {
         settings: Option<Value>,
         capabilities: Value,
         how: bool,
+        solidcraft98: bool,
+    ) -> Self {
+        Self::configured_dialect(
+            replies,
+            count,
+            fallback,
+            settings,
+            capabilities,
+            how,
+            false,
+            false,
+            solidcraft98,
+        )
+    }
+    #[allow(clippy::too_many_arguments)]
+    fn configured_dialect(
+        replies: Vec<(u16, String, String)>,
+        count: usize,
+        fallback: FallbackPrompt,
+        settings: Option<Value>,
+        capabilities: Value,
+        how: bool,
+        direct: bool,
+        planner: bool,
         solidcraft98: bool,
     ) -> Self {
         let dir = std::env::temp_dir().join(format!(
@@ -74,6 +150,10 @@ impl Harness {
         let upstream_thread = thread::spawn(move || {
             while !quit.load(Ordering::Relaxed) {
                 if let Some(mut req) = upstream.recv_timeout(Duration::from_millis(100)).unwrap() {
+                    assert!(
+                        !direct,
+                        "direct turn called upstream, including capability probe"
+                    );
                     assert_eq!(
                         req.headers()
                             .iter()
@@ -107,13 +187,15 @@ impl Harness {
         });
         let mut proxy = Server::bind(Config {
             solidcraft98,
+            direct_recipes: direct,
+            no_report_buffer: false,
             listen: "127.0.0.1:0".parse().unwrap(),
             upstream: upstream_url,
             upstream_timeout: Duration::from_secs(300),
             fallback_prompt: fallback,
             no_how: !how,
             no_hints: false,
-            planner: true,
+            planner,
             log: Some(dir.join("audit.jsonl")),
             profile_dir: Some(dir.clone()),
             model_settings: settings_path,
@@ -596,6 +678,7 @@ fn opt_in_settings_capability_fallback_and_json_only_on_decided_retry() {
             .iter()
             .filter(|m| m["role"] == "system")
             .count(),
+        // Text tool mode joins Pilot's system block instead of adding another.
         1
     );
     h.chat(&request("what can you do?"));
@@ -685,8 +768,34 @@ fn malformed_or_oversized_requests_are_rejected_before_upstream() {
 }
 
 #[test]
-fn deterministic_planner_adds_one_system_message_and_logs_rule() {
+fn default_has_no_recipe_prompt_or_prose_conversion() {
+    let text = "I will make a 20 mm cube";
     let h = Harness::new(
+        vec![ok(prose(text))],
+        1,
+        FallbackPrompt::Off,
+        None,
+        json!({"capabilities":["tools"]}),
+    );
+    let req = request("make a 20 mm cube");
+    let (status, _, response) = h.chat(&req);
+    assert_eq!(status, 200);
+    let response: Value = serde_json::from_str(&response).unwrap();
+    assert_eq!(response["choices"][0]["message"]["content"], text);
+    assert!(response["choices"][0]["message"]
+        .get("tool_calls")
+        .is_none());
+    assert_eq!(h.chats()[0], req);
+    let log = fs::read_to_string(h.dir.join("audit.jsonl")).unwrap();
+    for kind in ["plan", "recipe_prose", "recipe_continue"] {
+        assert!(!log.contains(&format!("\"kind\":\"{kind}\"")));
+    }
+    h.finish();
+}
+
+#[test]
+fn deterministic_planner_adds_one_system_message_and_logs_rule() {
+    let h = Harness::configured(
         vec![ok(call(
             "execute",
             json!({"command":"solid.box","params":{"length":20,"width":20,"height":20}}),
@@ -695,6 +804,9 @@ fn deterministic_planner_adds_one_system_message_and_logs_rule() {
         FallbackPrompt::Off,
         None,
         json!({"capabilities":["tools"]}),
+        false,
+        false,
+        true,
     );
     let (status, _, _) = h.chat(&request("make a 20 mm cube"));
     assert_eq!(status, 200);
@@ -710,13 +822,16 @@ fn deterministic_planner_adds_one_system_message_and_logs_rule() {
     let calls = text
         .strip_prefix("For this request, run exactly this plan: ")
         .unwrap()
-        .split_once(". Don't change it; then handle anything else the user asked.")
+        .split_once(". Don't change it; then reply using the tool results.")
         .unwrap()
         .0;
     let calls: Value = serde_json::from_str(calls).unwrap();
     assert_eq!(
         calls,
-        json!([{"tool":"execute","arguments":{"command":"solid.box","params":{"length":20.0,"width":20.0,"height":20.0}}}])
+        json!([
+            {"tool":"execute","arguments":{"command":"solid.box","params":{"length":20.0,"width":20.0,"height":20.0,"operation":"new"}}},
+            {"tool":"execute","arguments":{"command":"document.inspect","params":{"measure":true}}}
+        ])
     );
     let log = fs::read_to_string(h.dir.join("audit.jsonl")).unwrap();
     let entries: Vec<Value> = log
@@ -726,7 +841,281 @@ fn deterministic_planner_adds_one_system_message_and_logs_rule() {
     let plans: Vec<_> = entries.iter().filter(|v| v["kind"] == "plan").collect();
     assert_eq!(plans.len(), 1);
     assert_eq!(plans[0]["after"]["rule"], "box");
+    assert_eq!(
+        plans[0]["after"]["slots"]["Box"]["size"],
+        json!([20.0, 20.0, 20.0])
+    );
     h.finish();
+}
+
+#[test]
+fn unsupported_tools_retry_persists_and_flattens_client_history() {
+    let h = Harness::new(
+        vec![
+            (
+                400,
+                json!({"error":"gemma3 DOES NOT SUPPORT TOOLS"}).to_string(),
+                "application/json".into(),
+            ),
+            ok(prose(
+                "Here is the call:\n```json\n{\"tool\":\"inspect\",\"args\":{}}\n```",
+            )),
+            ok(prose("{\"tool\":\"inspect\",\"args\":{}}")),
+        ],
+        2,
+        FallbackPrompt::Off,
+        None,
+        json!({}),
+    );
+    let mut req = request("check status");
+    req["tool_choice"] = json!("auto");
+    req["parallel_tool_calls"] = json!(true);
+    assert_eq!(h.chat(&req).0, 200);
+    req["messages"] = json!([
+        {"role":"user","content":"check status"},
+        {"role":"assistant","content":null,"tool_calls":[{"id":"i1","type":"function","function":{"name":"inspect","arguments":"{}"}}]},
+        {"role":"tool","tool_call_id":"i1","content":"volume = 123"},
+        {"role":"user","content":"check again"}
+    ]);
+    let (status, _, response) = h.chat(&req);
+    assert_eq!(status, 200);
+    assert_eq!(args(&response), json!({}));
+    let chats = h.chats();
+    assert!(chats[0].get("tools").is_some());
+    for chat in &chats[1..] {
+        for key in ["tools", "tool_choice", "parallel_tool_calls"] {
+            assert!(chat.get(key).is_none());
+        }
+        assert!(chat["messages"][0]["content"]
+            .as_str()
+            .unwrap()
+            .contains("command:string"));
+    }
+    let history = chats[2]["messages"].as_array().unwrap();
+    assert!(history
+        .iter()
+        .all(|m| m["role"] != "tool" && m.get("tool_calls").is_none()));
+    assert!(history.iter().any(|m| m["content"]
+        .as_str()
+        .is_some_and(|s| s.contains("Tool inspect returned: volume = 123"))));
+    let profile = dutchman_pilot::model::profiles(Some(&h.dir), None).unwrap();
+    assert!(profile.contains("\"text_tool_mode\": true"));
+    let log = fs::read_to_string(h.dir.join("audit.jsonl")).unwrap();
+    for kind in [
+        "text_tool_mode",
+        "tools_stripped",
+        "tool_history_flattened",
+        "text_call_converted",
+    ] {
+        assert!(log.contains(&format!("\"kind\":\"{kind}\"")), "{kind}");
+    }
+    h.finish();
+}
+
+#[test]
+fn capabilities_select_text_mode_and_recipes_still_fire() {
+    let h = Harness::configured(
+        vec![ok(prose("I will make a 20 mm cube"))],
+        1,
+        FallbackPrompt::Off,
+        None,
+        json!({"capabilities":["completion"]}),
+        true,
+        false,
+        true,
+    );
+    let (status, _, response) = h.chat(&request("make a 20 mm cube"));
+    assert_eq!(status, 200, "{response}");
+    assert_eq!(args(&response)["command"], "solid.box");
+    assert!(h.chats()[0].get("tools").is_none());
+    let prompt = h.chats()[0]["messages"][0]["content"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    assert!(prompt.contains("how:") && !prompt.contains("solid.box:"));
+    assert!(fs::read_to_string(h.dir.join("audit.jsonl"))
+        .unwrap()
+        .contains("recipe_prose"));
+    h.finish();
+}
+
+#[test]
+fn text_mode_refuses_multiple_objects_and_keeps_plain_text() {
+    for text in [
+        "Hello.",
+        "{\"tool\":\"inspect\",\"args\":{}} {\"tool\":\"inspect\",\"args\":{}}",
+    ] {
+        let h = Harness::new(
+            vec![ok(prose(text))],
+            1,
+            FallbackPrompt::Auto,
+            None,
+            json!({"capabilities":["completion"]}),
+        );
+        let (status, _, response) = h.chat(&request("hello"));
+        assert_eq!(status, 200);
+        let value: Value = serde_json::from_str(&response).unwrap();
+        assert_eq!(value["choices"][0]["message"]["content"], text);
+        h.finish();
+    }
+}
+
+#[test]
+fn direct_http_turn_has_no_upstream_requests() {
+    for stream in [false, true] {
+        let h = Harness::with_direct(
+            vec![],
+            2,
+            FallbackPrompt::Auto,
+            None,
+            json!({}),
+            false,
+            true,
+        );
+        let mut req = request("create a cube 1/4 inch");
+        req["stream"] = json!(stream);
+        let (status, _, text) = h.chat(&req);
+        assert_eq!(status, 200, "{text}");
+        let value: Value = if stream {
+            let chunks: Vec<Value> = text
+                .lines()
+                .filter_map(|s| s.strip_prefix("data: "))
+                .filter(|s| *s != "[DONE]")
+                .map(|s| serde_json::from_str(s).unwrap())
+                .collect();
+            assert!(text.ends_with("data: [DONE]\n\n"));
+            json!({"choices":[{"message":{"role":"assistant","content":null,"tool_calls":chunks[1]["choices"][0]["delta"]["tool_calls"]}}]})
+        } else {
+            serde_json::from_str(&text).unwrap()
+        };
+        let mut message = value["choices"][0]["message"].clone();
+        for call in message["tool_calls"].as_array_mut().unwrap() {
+            call.as_object_mut().unwrap().remove("index");
+        }
+        let calls = message["tool_calls"].as_array().unwrap().clone();
+        req["messages"].as_array_mut().unwrap().push(message);
+        for c in calls {
+            req["messages"].as_array_mut().unwrap().push(json!({"role":"tool","tool_call_id":c["id"],"content":json!({"bodies":[{"name":"Cube","volume_mm3":256.047875}]}).to_string()}));
+        }
+        let (status, _, text) = h.chat(&req);
+        assert_eq!(status, 200, "{text}");
+        assert!(text.contains("Exact match (no model):") && text.contains("256.047875"));
+        assert!(h.requests.lock().unwrap().is_empty());
+        h.finish();
+    }
+}
+
+#[test]
+fn report_capture_endpoint_and_disabled_buffer() {
+    for disabled in [false, true] {
+        let dir = std::env::temp_dir().join(format!(
+            "pilot-report-capture-{}-{disabled}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        let mut server = Server::bind(Config {
+            solidcraft98: false,
+            listen: "127.0.0.1:0".parse().unwrap(),
+            upstream: "none".into(),
+            upstream_timeout: Duration::from_secs(2),
+            fallback_prompt: FallbackPrompt::Off,
+            no_report_buffer: disabled,
+            no_how: true,
+            no_hints: true,
+            planner: true,
+            direct_recipes: true,
+            log: Some(dir.join("audit.jsonl")),
+            profile_dir: Some(dir.clone()),
+            model_settings: None,
+            model_settings_enabled: false,
+            seed: None,
+            prompt_help: false,
+        })
+        .unwrap();
+        let address = server.local_addr().unwrap();
+        let thread = thread::spawn(move || {
+            for _ in 0..9 {
+                server.serve_one().unwrap();
+            }
+        });
+        for i in 0..7 {
+            let body = json!({"model":"unit","messages":[{"role":"user","content":format!("create a cube {}mm",i+1)}],"tools":[{"type":"function","function":{"name":"execute","parameters":{"type":"object"}}}]});
+            ureq::post(&format!("http://{address}/v1/chat/completions"))
+                .send_string(&body.to_string())
+                .unwrap();
+        }
+        let mut response = String::new();
+        let mut socket = TcpStream::connect(address).unwrap();
+        socket
+            .write_all(b"GET /pilot/turns HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            .unwrap();
+        socket.read_to_string(&mut response).unwrap();
+        assert!(response.starts_with("HTTP/1.1 200 "));
+        let turns: Value =
+            serde_json::from_str(response.split_once("\r\n\r\n").unwrap().1).unwrap();
+        assert_eq!(
+            turns.as_array().unwrap().len(),
+            if disabled { 0 } else { 5 }
+        );
+        if !disabled {
+            assert_eq!(turns[0]["id"], 3);
+            assert_eq!(turns[4]["id"], 7);
+            assert!(turns[4]["events"].to_string().contains("finish_reason"));
+            assert!(!turns.to_string().contains("parameters"));
+        }
+        let models: Value = serde_json::from_str(
+            &ureq::get(&format!("http://{address}/v1/models"))
+                .call()
+                .unwrap()
+                .into_string()
+                .unwrap(),
+        )
+        .unwrap();
+        assert!(!models.to_string().contains("turns"));
+        thread.join().unwrap();
+        fs::remove_dir_all(dir).unwrap();
+    }
+}
+
+#[test]
+fn report_endpoint_rejects_non_loopback_peer() {
+    // Discover the host's local interface without sending a UDP packet.
+    let route = std::net::UdpSocket::bind("0.0.0.0:0").unwrap();
+    route.connect("192.0.2.1:9").unwrap();
+    let ip = route.local_addr().unwrap().ip();
+    assert!(!ip.is_loopback());
+    let dir = std::env::temp_dir().join(format!("pilot-report-peer-{}", std::process::id()));
+    fs::create_dir_all(&dir).unwrap();
+    let mut server = Server::bind(Config {
+        solidcraft98: false,
+        listen: "0.0.0.0:0".parse().unwrap(),
+        upstream: "none".into(),
+        upstream_timeout: Duration::from_secs(2),
+        fallback_prompt: FallbackPrompt::Off,
+        no_report_buffer: false,
+        no_how: true,
+        no_hints: true,
+        planner: true,
+        direct_recipes: true,
+        log: Some(dir.join("audit.jsonl")),
+        profile_dir: Some(dir.clone()),
+        model_settings: None,
+        model_settings_enabled: false,
+        seed: None,
+        prompt_help: false,
+    })
+    .unwrap();
+    let address = std::net::SocketAddr::new(ip, server.local_addr().unwrap().port());
+    let thread = thread::spawn(move || server.serve_one().unwrap());
+    let mut socket = TcpStream::connect(address).unwrap();
+    socket
+        .write_all(b"GET /pilot/turns HTTP/1.1\r\nHost: localhost\r\n\r\n")
+        .unwrap();
+    let mut response = String::new();
+    socket.read_to_string(&mut response).unwrap();
+    assert!(response.starts_with("HTTP/1.1 403 "), "{response}");
+    thread.join().unwrap();
+    fs::remove_dir_all(dir).unwrap();
 }
 
 #[test]

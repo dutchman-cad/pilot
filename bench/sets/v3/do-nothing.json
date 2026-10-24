@@ -1,0 +1,166 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "format": 1,
+  "expectations": [
+    {
+      "id": "build-P02b",
+      "pass": false
+    },
+    {
+      "id": "build-P03b",
+      "pass": false
+    },
+    {
+      "id": "build-P04c",
+      "pass": false
+    },
+    {
+      "id": "build-P05b",
+      "pass": false
+    },
+    {
+      "id": "build-P06b",
+      "pass": false
+    },
+    {
+      "id": "build-P07a",
+      "pass": false
+    },
+    {
+      "id": "build-P08a",
+      "pass": false
+    },
+    {
+      "id": "build-P09a",
+      "pass": false
+    },
+    {
+      "id": "build-P10a",
+      "pass": false
+    },
+    {
+      "id": "build-X05a",
+      "pass": false
+    },
+    {
+      "id": "build-E01c",
+      "pass": false
+    },
+    {
+      "id": "build-E02a",
+      "pass": false
+    },
+    {
+      "id": "build-F15d",
+      "pass": false
+    },
+    {
+      "id": "build-F22b",
+      "pass": false
+    },
+    {
+      "id": "build-X08a",
+      "pass": false
+    },
+    {
+      "id": "build-X06c",
+      "pass": false
+    },
+    {
+      "id": "build-P13a",
+      "pass": false
+    },
+    {
+      "id": "build-E02c",
+      "pass": false
+    },
+    {
+      "id": "edit-P01",
+      "pass": false
+    },
+    {
+      "id": "edit-P04c",
+      "pass": false
+    },
+    {
+      "id": "edit-P05",
+      "pass": false
+    },
+    {
+      "id": "edit-P06",
+      "pass": false
+    },
+    {
+      "id": "edit-P07",
+      "pass": false
+    },
+    {
+      "id": "edit-P08",
+      "pass": false
+    },
+    {
+      "id": "edit-P10",
+      "pass": false
+    },
+    {
+      "id": "edit-P13",
+      "pass": false
+    },
+    {
+      "id": "edit-X03c",
+      "pass": false
+    },
+    {
+      "id": "edit-X05",
+      "pass": false
+    },
+    {
+      "id": "edit-E01c",
+      "pass": false
+    },
+    {
+      "id": "edit-E02c",
+      "pass": false
+    },
+    {
+      "id": "edit-F04c",
+      "pass": false
+    },
+    {
+      "id": "edit-F17c",
+      "pass": false
+    },
+    {
+      "id": "edit-F22b",
+      "pass": false
+    },
+    {
+      "id": "honest-F17d",
+      "pass": false
+    },
+    {
+      "id": "honest-S06a",
+      "pass": false
+    },
+    {
+      "id": "honest-S10a",
+      "pass": false
+    },
+    {
+      "id": "build-S02a",
+      "pass": false
+    },
+    {
+      "id": "build-S04a",
+      "pass": false
+    },
+    {
+      "id": "edit-S02",
+      "pass": false
+    },
+    {
+      "id": "edit-S13b",
+      "pass": false
+    }
+  ]
+}

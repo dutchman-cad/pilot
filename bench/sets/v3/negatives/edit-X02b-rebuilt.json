@@ -1,0 +1,87 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "commands": [
+    {
+      "command": "sketch.create",
+      "params": {
+        "plane": "XY"
+      }
+    },
+    {
+      "command": "sketch.rectangle.center",
+      "params": {
+        "center": [
+          0,
+          0
+        ],
+        "corner": [
+          20,
+          15
+        ]
+      }
+    },
+    {
+      "command": "sketch.circle.center",
+      "params": {
+        "center": [
+          0,
+          0
+        ],
+        "diameter": 10
+      }
+    },
+    {
+      "command": "sketch.finish",
+      "params": {}
+    },
+    {
+      "command": "solid.extrude",
+      "params": {
+        "distance": 5,
+        "profiles": [
+          {
+            "point": [
+              15,
+              0
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "command": "timeline.delete",
+      "params": {
+        "features": [
+          "Extrude1",
+          "Sketch1"
+        ]
+      }
+    },
+    {
+      "command": "sketch.create",
+      "params": {
+        "plane": "XY"
+      }
+    },
+    {
+      "command": "sketch.circle.center",
+      "params": {
+        "center": [
+          0,
+          0
+        ],
+        "diameter": 10
+      }
+    },
+    {
+      "command": "sketch.finish",
+      "params": {}
+    },
+    {
+      "command": "solid.extrude",
+      "params": {
+        "distance": 5
+      }
+    }
+  ]
+}

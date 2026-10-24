@@ -7,6 +7,13 @@ pub(super) struct Conversation {
     pub model: String,
     pub history: Vec<u64>,
     counts: BTreeMap<String, usize>,
+    pub recipe: Option<(usize, planner::Expected)>,
+    pub completion_checked: bool,
+    pub direct: Option<(usize, planner::Plan, Value)>,
+    pub direct_failed: bool,
+    pub direct_index: usize,
+    pub direct_handback: Option<String>,
+    pub pending_recipe: Option<planner::Plan>,
 }
 impl Conversation {
     pub fn allow(&mut self, command: &str, count: usize) -> bool {

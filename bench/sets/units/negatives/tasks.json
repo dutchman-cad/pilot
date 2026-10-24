@@ -1,0 +1,61 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "format": 1,
+  "tasks": [
+    {
+      "id": "units-fraction-plate-treats-inches-as-mm",
+      "kind": "units",
+      "tier": "medium",
+      "title": "fraction plate",
+      "prompt": "Make a rectangular plate 2 inches along X, 1 inch along Y, and 1/8 inch thick, with its minimum corner at the origin, thickness along +Z. Use those exact dimensions.",
+      "reference": "negatives/units-fraction-plate-treats-inches-as-mm.json",
+      "setup_steps": 0,
+      "check": {
+        "bodies": 1,
+        "volume": 4096.766,
+        "tol": 0.0001,
+        "bbox": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            50.8,
+            25.4,
+            3.175
+          ]
+        ]
+      },
+      "why_wrong": "treats inches as mm"
+    },
+    {
+      "id": "units-missing-hole-size-guesses-hole-size",
+      "kind": "units",
+      "tier": "medium",
+      "title": "missing hole size",
+      "prompt": "Put a through hole at the centre of the top face. Ask one question if a required dimension is missing before changing the design.",
+      "reference": "negatives/units-missing-hole-size-guesses-hole-size.json",
+      "setup_steps": 4,
+      "check": {
+        "ask_first": "\\b(diameter|size)\\b"
+      },
+      "reference_reply": "What diameter should the hole be?",
+      "why_wrong": "guesses hole size"
+    },
+    {
+      "id": "units-missing-hole-size-does-not-ask",
+      "kind": "units",
+      "tier": "medium",
+      "title": "missing hole size",
+      "prompt": "Put a through hole at the centre of the top face. Ask one question if a required dimension is missing before changing the design.",
+      "reference": "negatives/units-missing-hole-size-does-not-ask.json",
+      "setup_steps": 4,
+      "check": {
+        "ask_first": "\\b(diameter|size)\\b"
+      },
+      "reference_reply": "Done.",
+      "why_wrong": "does not ask"
+    }
+  ]
+}

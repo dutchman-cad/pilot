@@ -1,0 +1,54 @@
+{
+  "commands": [
+    {
+      "command": "solid.box",
+      "params": {
+        "height": 5,
+        "length": 100,
+        "width": 50
+      }
+    },
+    {
+      "command": "sketch.create",
+      "params": {
+        "plane": {
+          "normal": [
+            0,
+            0,
+            1
+          ],
+          "origin": [
+            0,
+            0,
+            5
+          ]
+        }
+      }
+    },
+    {
+      "command": "sketch.circle.center",
+      "params": {
+        "center": [
+          15,
+          25
+        ],
+        "radius": 5
+      }
+    },
+    {
+      "command": "sketch.circle.center",
+      "params": {
+        "center": [
+          85,
+          25
+        ],
+        "radius": 5
+      }
+    },
+    {
+      "command": "sketch.finish",
+      "params": {}
+    }
+  ],
+  "verbose": true
+}

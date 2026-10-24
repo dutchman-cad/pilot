@@ -32,3 +32,10 @@ pub mod prompting;
 pub mod repair;
 #[cfg(feature = "core")]
 pub mod solidcraft98;
+
+#[cfg(feature = "proxy")]
+pub mod capture;
+#[cfg(feature = "proxy")]
+pub mod redaction;
+#[cfg(feature = "proxy")]
+pub mod report;

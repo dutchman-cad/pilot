@@ -15,6 +15,7 @@ pub(crate) fn now() -> u64 {
 }
 
 pub(crate) struct Audit {
+    pub(crate) events: Option<Vec<crate::capture::Event>>,
     pub(crate) file: File,
     pub(crate) size: u64,
     pub(crate) model: String,
@@ -22,6 +23,13 @@ pub(crate) struct Audit {
     pub(crate) kinds: BTreeMap<String, u64>,
 }
 impl Audit {
+    pub(crate) fn capture(&mut self, kind: &str, after: &Value) {
+        if let Some(events) = &mut self.events {
+            if events.len() < crate::capture::MAX_EVENTS {
+                events.push(crate::capture::audit_event(kind, after));
+            }
+        }
+    }
     pub(crate) fn record(
         &mut self,
         kind: &str,
@@ -38,6 +46,7 @@ impl Audit {
         after: &Value,
         context: &Value,
     ) -> Result<(), String> {
+        self.capture(kind, after);
         if self.count >= 4096 {
             return Err("turn exceeds 4096 rewrites".into());
         }

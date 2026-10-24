@@ -1,0 +1,123 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "commands": [
+    {
+      "command": "component.create",
+      "params": {
+        "name": "Base"
+      }
+    },
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 10,
+        "width": 10,
+        "height": 10,
+        "corner": [
+          0,
+          0,
+          0
+        ],
+        "body_name": "Base"
+      }
+    },
+    {
+      "command": "component.activate",
+      "params": {
+        "component": "root"
+      }
+    },
+    {
+      "command": "component.create",
+      "params": {
+        "name": "Link"
+      }
+    },
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 10,
+        "width": 10,
+        "height": 10,
+        "corner": [
+          30,
+          0,
+          0
+        ],
+        "body_name": "Link"
+      }
+    },
+    {
+      "command": "component.activate",
+      "params": {
+        "component": "root"
+      }
+    },
+    {
+      "command": "component.create",
+      "params": {
+        "name": "Spare"
+      }
+    },
+    {
+      "command": "solid.box",
+      "params": {
+        "length": 10,
+        "width": 10,
+        "height": 10,
+        "corner": [
+          60,
+          0,
+          0
+        ],
+        "body_name": "Spare"
+      }
+    },
+    {
+      "command": "component.activate",
+      "params": {
+        "component": "root"
+      }
+    },
+    {
+      "command": "joint.create",
+      "params": {
+        "type": "slider",
+        "a": {
+          "occurrence": "Base:1",
+          "point": [
+            5,
+            5,
+            5
+          ],
+          "z": [
+            0,
+            0,
+            1
+          ]
+        },
+        "b": {
+          "occurrence": "Link:1",
+          "point": [
+            35,
+            5,
+            5
+          ],
+          "z": [
+            0,
+            0,
+            1
+          ]
+        },
+        "flip": true,
+        "limits": [
+          [
+            -30,
+            60
+          ]
+        ],
+        "name": "Coupler"
+      }
+    }
+  ]
+}

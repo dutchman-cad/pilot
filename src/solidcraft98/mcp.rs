@@ -135,6 +135,7 @@ impl Server {
             last_text: String::new(),
             screen: None,
             audit: Audit {
+                events: None,
                 file,
                 size,
                 model: "mcp98".into(),

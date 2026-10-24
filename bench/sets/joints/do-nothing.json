@@ -1,0 +1,26 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "format": 1,
+  "expectations": [
+    {
+      "id": "joints-revolute-limits",
+      "pass": false
+    },
+    {
+      "id": "joints-slider-limits",
+      "pass": false
+    },
+    {
+      "id": "joints-cylindrical-limits",
+      "pass": false
+    },
+    {
+      "id": "joints-pin_slot-limits",
+      "pass": false
+    },
+    {
+      "id": "joints-ball-limits",
+      "pass": false
+    }
+  ]
+}

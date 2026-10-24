@@ -42,12 +42,40 @@ LM Studio. If you enabled server authentication, put its key in the agent's API
 key field; Pilot forwards the Authorization header in memory. It never saves
 keys. Ollama-specific settings do not apply to LM Studio.
 
+## Exact matches without a model
+
+```sh
+dutchman pilot model --direct-recipes --upstream none --log rewrites.jsonl
+```
+
+Add an API agent at `http://127.0.0.1:11500/v1` with model `pilot-recipes`.
+To retain model recovery and other chat, use `--direct-recipes` with your upstream
+URL. This is recommended for 3–8B models; plan-text recipes remain off by default.
+
+Keep SolidCraft's tool permission set to **Ask**. Exact matches appear as normal
+native `execute` / `batch` tool proposals in its approval UI, with the command
+arguments available for review. Pilot does not execute them or bypass approval;
+approve them in SolidCraft to run the tools and return results. A declined or
+failed tool cannot produce a success claim. The measured final answer starts
+`Exact match (no model):` and the response identifies its source as `pilot-recipes`.
+Missing results, tool errors, and measurement mismatches go to the configured
+model for recovery, or produce a plain failure message when none is configured.
+Other no-model requests receive a fixed description of supported recipe kinds.
+See [recipes](recipes.md) for required slots, limits and audit counters.
+
 ## Check a turn
 
 Ask for a simple dimensioned part, such as “make a 20 mm cube”. Pilot can suggest
-a deterministic plan to the model and repair explicit JSON calls in its reply;
-SolidCraft receives ordinary tool calls and applies its own validation. A reply
-that only describes an action does not execute it.
+a typed recipe plan to the model with `--planner` and repairs explicit JSON calls
+by default. With `--planner`, a plain action pledge matching the user recipe's intent and slots
+can also become ordinary tool calls. SolidCraft applies its own validation and
+the model receives the results before replying. One completion check compares
+measured state with the recipe. Recipe prompts, prose conversion, continuations,
+and completion checks are off unless `--planner` is passed. `--no-plan` (alias
+`--no-planner`) is accepted as a no-op alias for the default. Argument repair,
+text-call pickup, command lookup, hints, and text tool mode stay enabled.
+`--direct-recipes` also works with `--planner`; exact matches take precedence.
+See [recipes](recipes.md).
 
 Rewrites go to the selected JSONL file. Without --log, the log and profiles live
 in the platform data directory under dutchman-pilot. Summarize them with:
@@ -58,7 +86,8 @@ dutchman pilot log-summary rewrites.jsonl
 ```
 
 Streaming replies are buffered for one assistant turn. Empty turns get one retry;
-guards get at most two nudges. Use --no-plan, --no-how, and --no-hints for paired
-measurements, or --prompt-help for extra bounded command guidance. See the
+guards get at most two nudges. Compare --direct-recipes and --planner separately
+for paired measurements, and use --no-how or --no-hints to disable those additions.
+Use --prompt-help for extra bounded command guidance. See the
 [flags](flags.md), [behavior](details.md), and [security note](../SECURITY.md).
 Keep the listener on loopback and do not expose it to a network.
