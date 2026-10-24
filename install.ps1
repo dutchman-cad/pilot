@@ -58,7 +58,10 @@ foreach ($entry in $entries) {
         $keepFull = $true
     }
 }
-foreach ($name in @('dutchman-pilot.exe', 'dutchman.exe')) {
+$names = @('dutchman-pilot.exe')
+if (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'dutchman-pilot-eval.exe')) { $names += 'dutchman-pilot-eval.exe' }
+$names += 'dutchman.exe'
+foreach ($name in $names) {
     if ($name -eq 'dutchman.exe' -and $keepFull) {
         Write-Output 'Existing Dutchman kept; the existing Dutchman will run dutchman pilot.'
         continue

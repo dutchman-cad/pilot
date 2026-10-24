@@ -1,5 +1,5 @@
 #!/bin/sh
-# Install the two commands from an extracted Pilot archive.
+# Install Pilot's commands from an extracted Pilot archive.
 set -eu
 prefix=${HOME:?HOME is required}/.local/bin
 dry_run=false
@@ -73,6 +73,7 @@ copy_command() {
     fi
 }
 copy_command dutchman-pilot
+if [ -f "$source_dir/dutchman-pilot-eval" ]; then copy_command dutchman-pilot-eval; fi
 if "$keep_full"; then
     echo 'Existing Dutchman kept; the existing Dutchman will run dutchman pilot.'
 else
