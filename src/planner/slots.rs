@@ -6,6 +6,22 @@ pub(super) struct Dimension {
     pub index: usize,
 }
 pub(super) fn tokens(text: &str) -> Vec<String> {
+    let mut guarded = text.to_ascii_lowercase().replace('’', "'");
+    for contraction in [
+        "can't",
+        "won't",
+        "isn't",
+        "shouldn't",
+        "wouldn't",
+        "couldn't",
+        "mustn't",
+        "shouldnt",
+        "wont",
+        "isnt",
+    ] {
+        guarded = guarded.replace(contraction, "not");
+    }
+    let text = guarded.as_str();
     let mut out = Vec::new();
     let mut current = String::new();
     let mut numeric = false;
@@ -34,7 +50,7 @@ pub(super) fn tokens(text: &str) -> Vec<String> {
                 '"' if attached_number && !quoted => out.push("in".into()),
                 '"' => quoted = !quoted,
                 '×' => out.push("x".into()),
-                ',' | ';' | ':' => out.push("and".into()),
+                ',' | ';' => out.push("and".into()),
                 'Ø' | 'ø' => out.push("diameter".into()),
                 '-' | '/' => out.push(c.to_string()),
                 _ => (),
@@ -44,7 +60,51 @@ pub(super) fn tokens(text: &str) -> Vec<String> {
     if !current.is_empty() {
         out.push(current);
     }
-    out
+    out.into_iter()
+        .filter_map(|word| {
+            // Small, deliberately documented politeness list; semantic words remain.
+            if filler(&word) {
+                return None;
+            }
+            Some(
+                match word.as_str() {
+                    "ball" => "sphere",
+                    "puck" | "coin" | "disk" => "disc",
+                    "bar" | "brick" => "block",
+                    "slab" | "sheet" => "plate",
+                    "every" => "all",
+                    "edge" => "edges",
+                    "this" => "the",
+                    "solids" => "bodies",
+                    "millimeters" | "millimetres" => "mm",
+                    "centimeters" | "centimetres" => "cm",
+                    "meters" | "metres" => "m",
+                    _ => return Some(word),
+                }
+                .to_string(),
+            )
+        })
+        .collect()
+}
+fn filler(word: &str) -> bool {
+    matches!(
+        word,
+        "please"
+            | "pls"
+            | "thanks"
+            | "thank"
+            | "you"
+            | "can"
+            | "could"
+            | "i"
+            | "need"
+            | "want"
+            | "give"
+            | "me"
+            | "ok"
+            | "okay"
+            | "so"
+    )
 }
 /// A quoted rename destination is data, including words which name actions.
 /// Only hide a complete final quoted name; trailing instructions stay visible.
@@ -62,21 +122,15 @@ pub(super) fn has_question(text: &str) -> bool {
     text.contains('?')
 }
 fn rename_name_range(text: &str, t: &[String]) -> Option<std::ops::Range<usize>> {
-    let verb = t
-        .iter()
-        .find(|s| !matches!(s.as_str(), "please" | "can" | "could" | "you"));
-    if verb.is_some_and(|s| matches!(s.as_str(), "rename" | "call" | "name")) {
+    if t.iter()
+        .any(|s| matches!(s.as_str(), "rename" | "call" | "name"))
+    {
         if let Some((end, quote)) = text
             .char_indices()
             .rfind(|(_, c)| matches!(c, '"' | '\'' | '`'))
         {
             if let Some(start) = text[..end].rfind(quote) {
-                if text[end + quote.len_utf8()..]
-                    .trim_matches(|c: char| {
-                        c.is_whitespace() || matches!(c, '.' | ',' | ';' | ':' | '!' | '?')
-                    })
-                    .is_empty()
-                {
+                if tokens(&text[end + quote.len_utf8()..]).is_empty() {
                     return Some(start..end + quote.len_utf8());
                 }
             }
@@ -123,6 +177,8 @@ pub(super) fn dimensions(t: &[String]) -> Option<Vec<Dimension>> {
                                     | "circular"
                                     | "diameter"
                                     | "radius"
+                                    | "od"
+                                    | "id"
                             )
                         })))
             {
@@ -155,10 +211,13 @@ pub(super) fn dimensions(t: &[String]) -> Option<Vec<Dimension>> {
                     | "across"
                     | "diameter"
                     | "radius"
+                    | "od"
+                    | "id"
                     | "height"
                     | "length"
                     | "width"
                     | "depth"
+                    | "thickness"
                     | "cube"
                     | "box"
                     | "block"
@@ -179,6 +238,13 @@ pub(super) fn dimensions(t: &[String]) -> Option<Vec<Dimension>> {
                     | "edges"
                     | "all"
                     | "top"
+                    | "hole"
+                    | "through"
+                    | "centered"
+                    | "centred"
+                    | "round"
+                    | "origin"
+                    | "factor"
                     | "open"
                     | "remove"
                     | "from"
@@ -219,6 +285,8 @@ pub(super) fn dimensions(t: &[String]) -> Option<Vec<Dimension>> {
 pub(super) fn labelled(t: &[String], d: Dimension, labels: &[&str]) -> bool {
     let all_labels = [
         "radius",
+        "od",
+        "id",
         "diameter",
         "across",
         "height",
@@ -242,26 +310,125 @@ pub(super) fn labelled(t: &[String], d: Dimension, labels: &[&str]) -> bool {
     if t.get(after).is_some_and(|s| s == "in") {
         after += 1;
     }
+    let first_number = t
+        .iter()
+        .position(|s| number(s).is_some())
+        .unwrap_or(d.index);
+    let value_first = !t[..first_number]
+        .iter()
+        .any(|s| all_labels.contains(&s.as_str()));
     // A following label belongs to the next value in label-first prose.
     // Otherwise it belongs to this value ("7 mm in diameter and ...").
     let suffix = t
         .get(after)
         .filter(|s| all_labels.contains(&s.as_str()))
         .filter(|_| {
-            !t.get(after + 1)
-                .is_some_and(|s| number(s).is_some() || s == "of")
+            value_first
+                || !t
+                    .get(after + 1)
+                    .is_some_and(|s| number(s).is_some() || s == "of")
         });
     let mut before = d.index;
     if before > 0 && t[before - 1] == "of" {
         before -= 1;
     }
-    let prefix = before
+    let mut prefix = before
         .checked_sub(1)
         .and_then(|i| t.get(i))
         .filter(|s| all_labels.contains(&s.as_str()));
+    if value_first
+        && suffix.is_some()
+        && before >= 2
+        && (number(&t[before - 2]).is_some() || scale(&t[before - 2]).is_some())
+    {
+        prefix = None;
+    }
     match (prefix, suffix) {
         (Some(a), Some(b)) if a != b => false,
         (Some(s), _) | (_, Some(s)) => labels.contains(&s.as_str()),
         _ => false,
     }
+}
+
+/// Phrase normalization keeps coordinates, quoted names and decimal punctuation intact.
+pub(super) fn normalize(text: &str) -> String {
+    let mut lower = text.replace('’', "'");
+    for contraction in [
+        "can't",
+        "won't",
+        "isn't",
+        "shouldn't",
+        "wouldn't",
+        "couldn't",
+        "mustn't",
+    ] {
+        lower = replace_phrase(&lower, contraction, "not");
+    }
+    // Rename destinations are opaque user data, retaining case and punctuation.
+    if tokens(text)
+        .iter()
+        .any(|s| matches!(s.as_str(), "rename" | "call" | "name"))
+    {
+        return text.to_string();
+    }
+    let mut out = String::new();
+    let mut word = String::new();
+    for c in lower.chars().chain(std::iter::once(' ')) {
+        if c.is_ascii_alphabetic() {
+            word.push(c);
+        } else {
+            if !filler(&word.to_ascii_lowercase()) {
+                out.push_str(&word);
+            }
+            word.clear();
+            out.push(c);
+        }
+    }
+    let mut out = out.split_whitespace().collect::<Vec<_>>().join(" ");
+    for (from, to) in [
+        ("outer diameter", "od"),
+        ("outside diameter", "od"),
+        ("inner diameter", "id"),
+        ("inside diameter", "id"),
+        ("wall thickness", "wall"),
+        ("pull it up", "extrude"),
+        ("raise", "extrude"),
+        ("extrude by", "extrude"),
+        ("along -", "along negative "),
+        ("down x", "negative x"),
+        ("down y", "negative y"),
+        ("down z", "negative z"),
+        ("not keeping the original", "discard original"),
+        ("without keeping the original", "discard original"),
+        ("do not keep the original", "discard original"),
+    ] {
+        out = replace_phrase(&out, from, to);
+    }
+    out
+}
+
+fn replace_phrase(text: &str, from: &str, to: &str) -> String {
+    let lower = text.to_ascii_lowercase();
+    let mut out = String::new();
+    let mut previous = 0;
+    for (start, _) in lower.match_indices(from) {
+        let end = start + from.len();
+        if text[..start]
+            .chars()
+            .next_back()
+            .is_some_and(|c| c.is_alphabetic())
+            || (from.ends_with(|c: char| c.is_alphabetic())
+                && text[end..]
+                    .chars()
+                    .next()
+                    .is_some_and(|c| c.is_alphabetic()))
+        {
+            continue;
+        }
+        out.push_str(&text[previous..start]);
+        out.push_str(to);
+        previous = end;
+    }
+    out.push_str(&text[previous..]);
+    out
 }

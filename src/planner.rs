@@ -4,6 +4,8 @@ pub(crate) mod cases;
 #[cfg(test)]
 mod english;
 mod recipes;
+#[cfg(test)]
+mod robust;
 mod slots;
 use crate::{catalog::Catalog, guidance, repair};
 use serde_json::{json, Value};
@@ -167,7 +169,7 @@ fn body(text: &str, data: Option<&Value>) -> Option<String> {
                     let prefix = tokens(&lower[..i]);
                     if prefix
                         .last()
-                        .is_some_and(|s| matches!(s.as_str(), "the" | "current"))
+                        .is_some_and(|s| matches!(s.as_str(), "the" | "current" | "a"))
                     {
                         return false;
                     }
@@ -207,6 +209,9 @@ fn body(text: &str, data: Option<&Value>) -> Option<String> {
                 | "call"
                 | "name"
                 | "mirror"
+                | "scale"
+                | "double"
+                | "half"
                 | "fillet"
                 | "round"
                 | "chamfer"
@@ -228,10 +233,13 @@ fn body(text: &str, data: Option<&Value>) -> Option<String> {
             };
             let rest = &rest[rest
                 .iter()
-                .take_while(|s| matches!(s.as_str(), "the" | "current"))
+                .take_while(|s| matches!(s.as_str(), "the" | "current" | "a"))
                 .count()..];
             rest.first().is_some_and(|s| {
-                matches!(s.as_str(), "it" | "body" | "box" | "part" | "all" | "top")
+                matches!(
+                    s.as_str(),
+                    "it" | "body" | "box" | "part" | "all" | "top" | "edges"
+                )
             }) && !rest.windows(2).any(|w| {
                 matches!(w[0].as_str(), "body" | "box" | "part")
                     && !matches!(
@@ -245,6 +253,9 @@ fn body(text: &str, data: Option<&Value>) -> Option<String> {
                             | "all"
                             | "top"
                             | "radius"
+                            | "origin"
+                            | "uniformly"
+                            | "in"
                             | "distance"
                     )
                     && !w[1].starts_with(|c: char| c.is_ascii_digit() || c == '-' || c == '.')
@@ -390,6 +401,17 @@ pub fn completion(request: &Value, expected: &Expected) -> Option<String> {
 }
 
 pub fn plan(request: &Value, catalog: &Catalog) -> Result<Option<Plan>, String> {
+    plan_impl(request, catalog, false)
+}
+/// Direct mode may continue after its own read-only body prerequisite.
+pub fn plan_direct(request: &Value, catalog: &Catalog) -> Result<Option<Plan>, String> {
+    plan_impl(request, catalog, true)
+}
+fn plan_impl(
+    request: &Value,
+    catalog: &Catalog,
+    allow_inspection: bool,
+) -> Result<Option<Plan>, String> {
     repair::check_value(request)?;
     let Some(messages) = request["messages"].as_array() else {
         return Ok(None);
@@ -412,10 +434,13 @@ pub fn plan(request: &Value, catalog: &Catalog) -> Result<Option<Plan>, String> 
     {
         return Ok(None);
     }
+    let polite_question = text.to_ascii_lowercase().contains("can you ")
+        || text.to_ascii_lowercase().contains("could you ");
+    let normalized = slots::normalize(text);
+    let text = normalized.as_str();
     let t = intent_tokens(text);
     let has = |w: &str| t.iter().any(|s| s == w);
     let data = state(messages);
-    let lower = text.to_ascii_lowercase();
     let query_text = t
         .iter()
         .filter(|s| s.as_str() != "and")
@@ -425,14 +450,34 @@ pub fn plan(request: &Value, catalog: &Catalog) -> Result<Option<Plan>, String> 
     let count = query_text.contains("how many bodies")
         || query_text.contains("count the bodies")
         || query_text.contains("count bodies");
-    let query = has("volume")
-        && ["what", "tell", "measure", "report", "give"]
+    let query = (has("volume") || (has("how") && has("many") && (has("cubic") || has("mm3"))))
+        && ["what", "tell", "measure", "report", "give", "volume", "how"]
             .iter()
             .any(|w| has(w));
     if count && query {
         return Ok(None);
     }
     if count || query {
+        if t.windows(2).any(|w| {
+            matches!(w[0].as_str(), "a" | "an")
+                && matches!(
+                    w[1].as_str(),
+                    "cube"
+                        | "box"
+                        | "block"
+                        | "plate"
+                        | "sphere"
+                        | "cylinder"
+                        | "rod"
+                        | "disc"
+                        | "tube"
+                )
+        }) {
+            return Ok(None);
+        }
+        if has("how") && !query_text.contains("how many") {
+            return Ok(None);
+        }
         if [
             "make",
             "create",
@@ -458,8 +503,31 @@ pub fn plan(request: &Value, catalog: &Catalog) -> Result<Option<Plan>, String> 
             "call",
             "name",
             "not",
+            "no",
+            "avoid",
+            "skip",
+            "stop",
+            "neither",
+            "nor",
+            "explanation",
+            "describe",
+            "tutorial",
+            "instructions",
             "don",
+            "dont",
+            "cannot",
+            "cant",
+            "discard",
+            "without",
+            "never",
+            "why",
             "explain",
+            "instead",
+            "except",
+            "undo",
+            "scale",
+            "double",
+            "half",
         ]
         .iter()
         .any(|w| has(w))
@@ -512,64 +580,106 @@ pub fn plan(request: &Value, catalog: &Catalog) -> Result<Option<Plan>, String> 
     }
     let acted = messages[user_index + 1..].iter().any(|m| {
         m["tool_calls"].as_array().is_some_and(|calls| {
-            calls
-                .iter()
-                .any(|c| matches!(c["function"]["name"].as_str(), Some("execute" | "batch")))
+            calls.iter().any(|c| {
+                matches!(c["function"]["name"].as_str(), Some("execute" | "batch"))
+                    && !(allow_inspection && body_inspection(c))
+            })
         })
     });
     if acted
         || [
-            "not", "don", "dont", "never", "explain", "would", "what", "how", "why", "whether",
-            "example", "if", "or", "instead", "except",
+            "not",
+            "no",
+            "avoid",
+            "skip",
+            "stop",
+            "neither",
+            "nor",
+            "explanation",
+            "describe",
+            "tutorial",
+            "instructions",
+            "don",
+            "dont",
+            "never",
+            "explain",
+            "would",
+            "what",
+            "how",
+            "why",
+            "whether",
+            "example",
+            "if",
+            "or",
+            "instead",
+            "except",
+            "without",
+            "undo",
+            "cannot",
+            "cant",
         ]
         .iter()
         .any(|w| has(w))
     {
         return Ok(None);
     }
-    if slots::has_question(text)
-        && !lower.starts_with("can you ")
-        && !lower.starts_with("could you ")
-    {
-        return Ok(None);
-    }
-    let mut words = t.as_slice();
-    if words.first().is_some_and(|w| w == "please") {
-        words = &words[1..];
-    }
-    if words.len() >= 2 && matches!(words[0].as_str(), "can" | "could") && words[1] == "you" {
-        words = &words[2..];
-    }
-    if !words.first().is_some_and(|w| {
-        matches!(
-            w.as_str(),
-            "make"
-                | "create"
-                | "build"
-                | "add"
-                | "sketch"
-                | "fillet"
-                | "chamfer"
-                | "move"
-                | "translate"
-                | "rename"
-                | "mirror"
-                | "shell"
-                | "revolve"
-                | "round"
-                | "bevel"
-                | "drill"
-                | "bore"
-                | "cut"
-                | "shift"
-                | "slide"
-                | "call"
-                | "name"
-        )
-    }) {
+    if slots::has_question(text) && !polite_question {
         return Ok(None);
     }
     recipes::select(text, data.as_ref(), messages, catalog)
+}
+/// A read-only prerequisite is offered only when every edit slot already parses.
+/// A hypothetical sole body checks syntax; its name never reaches a mutation.
+pub fn inspect_for_edit(request: &Value, catalog: &Catalog) -> Result<Option<Plan>, String> {
+    repair::check_value(request)?;
+    let Some(messages) = request["messages"].as_array() else {
+        return Ok(None);
+    };
+    if messages.len() > 4096 || state(messages).is_some() {
+        return Ok(None);
+    }
+    let Some(index) = messages.iter().rposition(|m| m["role"] == "user") else {
+        return Ok(None);
+    };
+    if messages[index + 1..]
+        .iter()
+        .any(|m| m["tool_calls"].as_array().is_some_and(|c| !c.is_empty()))
+    {
+        return Ok(None);
+    }
+    let mut probe = request.clone();
+    let mut synthetic = vec![
+        json!({"role":"tool","content":json!({"bodies":[{"name":"PilotUnresolvedBody"}]}).to_string()}),
+    ];
+    synthetic.extend(messages.iter().cloned());
+    probe["messages"] = json!(synthetic);
+    let Some(candidate) = plan(&probe, catalog)? else {
+        return Ok(None);
+    };
+    if !matches!(
+        candidate.rule,
+        "move" | "rename" | "fillet" | "chamfer" | "mirror" | "scale" | "hole"
+    ) {
+        return Ok(None);
+    }
+    Ok(Some(Plan {
+        rule: "resolve_body",
+        calls: vec![call(catalog, "document.inspect", json!({"measure":true}))?],
+        facts: None,
+        slots: json!({"prerequisite":"unique body"}),
+        expected: None,
+        continuation: None,
+    }))
+}
+fn body_inspection(call: &Value) -> bool {
+    call["id"]
+        .as_str()
+        .is_some_and(|id| id.starts_with("pilot_direct_") && id.ends_with("_resolve_body_0"))
+        && call["function"]["name"] == "execute"
+        && call["function"]["arguments"]
+            .as_str()
+            .and_then(|s| serde_json::from_str::<Value>(s).ok())
+            == Some(json!({"command":"document.inspect","params":{"measure":true}}))
 }
 /// Names come from the same bounded table that selects recipes.
 pub fn supported_recipes() -> Vec<&'static str> {

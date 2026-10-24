@@ -15,6 +15,8 @@ enum Kind {
     Move,
     Rename,
     Mirror,
+    Scale,
+    Tube,
     Shell,
     Revolve,
 }
@@ -30,6 +32,8 @@ const LIBRARY: &[(&str, Kind)] = &[
     ("move", Kind::Move),
     ("rename", Kind::Rename),
     ("mirror", Kind::Mirror),
+    ("scale", Kind::Scale),
+    ("tube", Kind::Tube),
     ("shell", Kind::Shell),
     ("revolve", Kind::Revolve),
 ];
@@ -78,6 +82,16 @@ enum Slots {
     Mirror {
         body: String,
         plane: String,
+        keep_original: bool,
+    },
+    Scale {
+        body: String,
+        factor: f64,
+    },
+    Tube {
+        outer_radius: f64,
+        inner_radius: f64,
+        height: f64,
     },
     Shell {
         size: [f64; 3],
@@ -146,150 +160,92 @@ fn positive(d: &[slots::Dimension]) -> bool {
     d.iter().all(|d| d.value > 0.0)
 }
 fn vocabulary(kind: Kind, input: &Input<'_>) -> bool {
-    if matches!(kind, Kind::Rename) {
-        return true;
+    // Unknown conversational words are fine. Known unsupported geometry is not.
+    if input.any(&[
+        "rotate",
+        "rotation",
+        "taper",
+        "tapered",
+        "rounded",
+        "thread",
+        "threaded",
+        "counterbore",
+        "countersink",
+        "blind",
+        "offset",
+        "angled",
+        "angle",
+        "hollowed",
+        "combine",
+        "join",
+        "union",
+        "subtract",
+        "intersect",
+        "delete",
+        "duplicate",
+        "copy",
+        "copies",
+        "twice",
+        "oval",
+        "ellipse",
+        "cone",
+        "torus",
+        "flat",
+        "vertical",
+        "curved",
+        "triangle",
+        "triangular",
+        "polygon",
+        "sweep",
+        "loft",
+        "text",
+        "engrave",
+        "color",
+        "colour",
+        "material",
+        "unless",
+        "maybe",
+        "possibly",
+        "either",
+        "but",
+    ]) {
+        return false;
     }
-    let mut text = input.text.to_ascii_lowercase();
-    if matches!(
-        kind,
-        Kind::Move | Kind::Mirror | Kind::Fillet | Kind::Chamfer | Kind::Hole
-    ) {
-        let Some(stripped) = input.without_body() else {
-            return false;
-        };
-        text = stripped;
+    if input.has("discard") && !matches!(kind, Kind::Mirror) {
+        return false;
     }
-    if matches!(kind, Kind::Sketch) {
-        if let Some((profile, after)) = text.split_once(" on ") {
-            if let Some((_, extent)) = after.split_once(" then extrude ") {
-                text = format!("{profile} on then extrude {extent}");
-            }
-        }
+    if input.has("hollow") && !matches!(kind, Kind::Tube) {
+        return false;
     }
-    let common = [
-        "make",
-        "create",
-        "build",
-        "add",
-        "please",
-        "can",
-        "could",
-        "you",
-        "a",
-        "an",
-        "the",
-        "of",
-        "mm",
-        "cm",
-        "m",
-        "in",
-        "inch",
-        "inches",
-        "x",
-        "by",
-        "and",
-        "with",
-        "length",
-        "width",
-        "height",
-        "depth",
-        "thickness",
-        "radius",
-        "diameter",
-        "across",
-        "long",
-        "wide",
-        "high",
-        "deep",
-        "thick",
-        "tall",
-    ];
-    let specific: &[&str] = match kind {
-        Kind::Box => &["box", "block", "plate", "cube"],
-        Kind::Cylinder => &["cylinder", "rod", "disc"],
-        Kind::Sphere => &["sphere"],
-        Kind::Holes => &[
-            "plate",
-            "hole",
-            "holes",
-            "through",
-            "centred",
-            "centered",
-            "center",
-            "centre",
-            "middle",
-            "one",
-            "in",
-            "at",
-            "rectangular",
-            "circular",
-            "pattern",
-            "rows",
-            "columns",
-            "pitch",
-            "equally",
-            "spaced",
-            "starting",
-        ],
-        Kind::Hole => &[
-            "drill", "bore", "cut", "hole", "through", "at", "it", "body", "box", "part", "current",
-        ],
-        Kind::Sketch => &["sketch", "rectangle", "circle", "on", "then", "extrude"],
-        Kind::Fillet | Kind::Chamfer => &[
-            "fillet", "round", "off", "chamfer", "bevel", "all", "top", "edges", "it", "body",
-            "box", "part", "current", "distance",
-        ],
-        Kind::Move => &[
-            "move",
-            "translate",
-            "shift",
-            "slide",
-            "box",
-            "part",
-            "it",
-            "body",
-            "current",
-            "along",
-            "on",
-            "y",
-            "z",
-            "positive",
-            "negative",
-        ],
-        Kind::Mirror => &[
-            "mirror", "it", "body", "box", "part", "current", "about", "across", "plane", "xy",
-            "xz", "yz",
-        ],
-        Kind::Shell => &["shell", "box", "wall", "open", "remove", "top"],
-        Kind::Revolve => &[
-            "revolve",
-            "rectangle",
-            "profile",
-            "from",
-            "axis",
-            "on",
-            "xz",
-            "about",
-            "z",
-            "full",
-            "turn",
-        ],
-        Kind::Rename => &[],
-    };
-    tokens(&text).iter().all(|s| {
-        common.contains(&s.as_str())
-            || specific.contains(&s.as_str())
-            || s.parse::<f64>().is_ok()
-            || s.split_once('/')
-                .is_some_and(|(a, b)| a.parse::<f64>().is_ok() && b.parse::<f64>().is_ok())
-    })
+    if matches!(kind, Kind::Box | Kind::Cylinder | Kind::Sphere)
+        && input.any(&["at", "centered", "centred", "origin"])
+    {
+        return false;
+    }
+    matches!(kind, Kind::Rename) || !input.t.iter().any(|s| s == "-")
 }
+
 fn box_size(t: &[String], d: &[slots::Dimension], cube: bool) -> Option<[f64; 3]> {
     if cube && d.len() == 1 && positive(d) {
         return Some([d[0].value; 3]);
     }
     if d.len() != 3 || !positive(d) {
         return None;
+    }
+    let thickness: Vec<_> = d
+        .iter()
+        .filter(|v| labelled(t, **v, &["thick", "thickness"]))
+        .collect();
+    if thickness.len() == 1 {
+        let pair: Vec<_> = d.iter().filter(|v| v.index != thickness[0].index).collect();
+        let between = &t[pair[0].index + 1..pair[1].index];
+        if between
+            .iter()
+            .all(|s| slots::scale(s).is_some() || matches!(s.as_str(), "x" | "by"))
+            && between.iter().any(|s| matches!(s.as_str(), "x" | "by"))
+        {
+            return Some([pair[0].value, pair[1].value, thickness[0].value]);
+        }
     }
     let labels = [["length", "long"], ["width", "wide"], ["height", "high"]];
     if labelled(
@@ -352,7 +308,7 @@ fn radial(t: &[String], d: slots::Dimension) -> Option<f64> {
         return None;
     }
     let r = labelled(t, d, &["radius"]);
-    let dia = labelled(t, d, &["diameter", "across"]);
+    let dia = labelled(t, d, &["diameter", "across", "wide"]);
     match (r, dia) {
         (true, false) => Some(d.value),
         (false, true) => Some(d.value / 2.0),
@@ -421,6 +377,12 @@ fn parse(kind: Kind, input: &Input<'_>) -> Option<Slots> {
                 .trim_end_matches(['.', ',', ';', ':', '!', '?'])
                 .trim();
             let lower = text.to_ascii_lowercase();
+            let verb = ["rename ", "call ", "name "]
+                .iter()
+                .filter_map(|v| lower.find(v))
+                .min()?;
+            let text = &text[verb..];
+            let lower = text.to_ascii_lowercase();
             let (source, raw) = if let Some(i) = rename_separator(&lower) {
                 (&text[..i], text.get(i + 4..)?)
             } else {
@@ -428,7 +390,15 @@ fn parse(kind: Kind, input: &Input<'_>) -> Option<Slots> {
                     .iter()
                     .find_map(|v| lower.find(v).map(|i| i + v.len()))?;
                 let rest = &lower[verb..];
-                let mut sources = vec!["the current body", "the body", "the box", "the part", "it"];
+                let mut sources = vec![
+                    "the current body",
+                    "this body",
+                    "this box",
+                    "the body",
+                    "the box",
+                    "the part",
+                    "it",
+                ];
                 let names: Vec<_> = input.data?["bodies"]
                     .as_array()?
                     .iter()
@@ -446,7 +416,17 @@ fn parse(kind: Kind, input: &Input<'_>) -> Option<Slots> {
                 let end = verb + source.len();
                 (&text[..end], text.get(end..)?)
             };
-            let raw = raw.trim();
+            let mut raw = raw.trim();
+            while let Some((prefix, suffix)) = raw.rsplit_once(char::is_whitespace) {
+                if !matches!(
+                    suffix.to_ascii_lowercase().as_str(),
+                    "thanks" | "please" | "pls"
+                ) || prefix.trim().is_empty()
+                {
+                    break;
+                }
+                raw = prefix.trim_end_matches([',', ';', ':']).trim();
+            }
             let new =
                 if let Some(quote) = raw.chars().next().filter(|c| matches!(c, '`' | '\'' | '"')) {
                     let inner = raw.strip_prefix(quote)?.strip_suffix(quote)?;
@@ -471,7 +451,11 @@ fn parse(kind: Kind, input: &Input<'_>) -> Option<Slots> {
                 return None;
             }
             Some(Slots::Rename {
-                body: body(source, input.data)?,
+                body: body(source, input.data).or_else(|| {
+                    (tokens(source) == ["rename"])
+                        .then(|| body("rename it", input.data))
+                        .flatten()
+                })?,
                 name: new.into(),
             })
         }
@@ -500,13 +484,89 @@ fn parse(kind: Kind, input: &Input<'_>) -> Option<Slots> {
                 delta,
             })
         }
+        Kind::Scale if input.any(&["scale", "double", "half"]) => {
+            if !has("origin") || input.any(&["x", "y", "z", "factors", "nonuniform"]) {
+                return None;
+            }
+            let lower = input.without_body()?;
+            let numbers: Vec<_> = tokens(&lower)
+                .iter()
+                .filter_map(|s| s.parse::<f64>().ok())
+                .collect();
+            let factor = if input.any(&["double", "half"]) {
+                if !numbers.is_empty() || (has("double") && has("half")) {
+                    return None;
+                }
+                if has("double") {
+                    2.0
+                } else {
+                    0.5
+                }
+            } else {
+                if numbers.len() != 1 {
+                    return None;
+                }
+                numbers[0]
+                    / if lower.contains('%') || has("percent") {
+                        100.0
+                    } else {
+                        1.0
+                    }
+            };
+            if !factor.is_finite() || factor <= 0.0 || factor > 1000.0 {
+                return None;
+            }
+            if tokens(&lower)
+                .iter()
+                .any(|s| slots::scale(s).is_some() && s != "in")
+            {
+                return None;
+            }
+            Some(Slots::Scale {
+                body: body(input.text, input.data)?,
+                factor,
+            })
+        }
+        Kind::Tube if has("tube") => {
+            let d = dimensions(t)?;
+            if d.len() != 3 || !positive(&d) {
+                return None;
+            }
+            let one = |labels: &[&str]| {
+                let found: Vec<_> = d.iter().filter(|v| labelled(t, **v, labels)).collect();
+                if found.len() == 1 {
+                    Some(found[0].value)
+                } else {
+                    None
+                }
+            };
+            let outer = one(&["od"])?;
+            let inner = match (one(&["id"]), one(&["wall", "thickness"])) {
+                (Some(v), None) => v,
+                (None, Some(v)) => outer - 2.0 * v,
+                _ => return None,
+            };
+            let height = one(&["height", "length", "long", "tall"])?;
+            if inner <= 0.0 || inner >= outer {
+                return None;
+            }
+            Some(Slots::Tube {
+                outer_radius: outer / 2.0,
+                inner_radius: inner / 2.0,
+                height,
+            })
+        }
         Kind::Mirror if has("mirror") => {
+            if has("discard") && input.any(&["keep", "keeping"]) {
+                return None;
+            }
             if !input.dims()?.is_empty() {
                 return None;
             }
             Some(Slots::Mirror {
                 body: body(input.text, input.data)?,
                 plane: input.plane()?,
+                keep_original: !has("discard"),
             })
         }
         Kind::Fillet | Kind::Chamfer
@@ -559,6 +619,8 @@ fn parse(kind: Kind, input: &Input<'_>) -> Option<Slots> {
                             "thickness",
                             "deep",
                             "depth",
+                            "length",
+                            "long",
                         ],
                     )
                 })
@@ -602,13 +664,15 @@ fn parse(kind: Kind, input: &Input<'_>) -> Option<Slots> {
             }
             Some(Slots::Shell { size, wall })
         }
-        Kind::Sketch if has("sketch") && has("extrude") && input.any(&["rectangle", "circle"]) => {
+        Kind::Sketch if has("extrude") && input.any(&["rectangle", "circle"]) => {
             if has("rectangle") && has("circle") {
                 return None;
             }
             let lower = input.text.to_ascii_lowercase();
             let (profile, after) = lower.split_once(" on ")?;
-            let (plane, extent) = after.split_once(" then extrude ")?;
+            let (plane, extent) = after
+                .split_once(" then extrude ")
+                .or_else(|| after.split_once(" extrude "))?;
             let plane = input
                 .text
                 .get(profile.len() + 4..profile.len() + 4 + plane.len())?
@@ -781,7 +845,15 @@ fn holes(input: &Input<'_>) -> Option<Slots> {
     if d.len() != 1 || !positive(&d) {
         return None;
     }
-    let diameter = radial(hole_tokens, d[0])? * 2.0;
+    // In a single through-hole noun phrase, an unqualified size is its diameter.
+    let diameter = if hole_tokens
+        .iter()
+        .any(|s| matches!(s.as_str(), "radius" | "diameter" | "across"))
+    {
+        radial(hole_tokens, d[0])? * 2.0
+    } else {
+        d[0].value
+    };
     let mut centers = Vec::new();
     if boundary.is_some_and(|i| rest[i] == "at") {
         let lower = input.text.to_ascii_lowercase();
@@ -1009,8 +1081,37 @@ fn expand(slots: &Slots, catalog: &Catalog) -> Result<Expansion, String> {
             add("body.rename", json!({"body":body,"name":new}))?;
             name = Some(new.clone());
         }
-        Slots::Mirror { body, plane } => {
+        Slots::Mirror {
+            body,
+            plane,
+            keep_original,
+        } => {
             add("solid.mirror", json!({"bodies":[body],"plane":plane}))?;
+            if !keep_original {
+                add("solid.remove", json!({"bodies":[body]}))?;
+            }
+            creates = *keep_original;
+        }
+        Slots::Scale { body, factor } => {
+            add(
+                "solid.scale",
+                json!({"bodies":[body],"factor":factor,"origin":[0,0,0]}),
+            )?;
+        }
+        Slots::Tube {
+            outer_radius,
+            inner_radius,
+            height,
+        } => {
+            add(
+                "solid.cylinder",
+                json!({"radius":outer_radius,"height":height,"operation":"new"}),
+            )?;
+            add(
+                "solid.hole",
+                json!({"diameter":inner_radius * 2.0,"position":[0,0,height]}),
+            )?;
+            v = Some(PI * (outer_radius.powi(2) - inner_radius.powi(2)) * height);
             creates = true;
         }
         Slots::Shell { size, wall } => {
@@ -1076,6 +1177,7 @@ pub(super) fn select(
         &["move", "translate", "shift", "slide"][..],
         &["rename", "call", "name"][..],
         &["mirror"][..],
+        &["scale", "double", "half"][..],
         &["fillet", "round"][..],
         &["chamfer", "bevel"][..],
         &["shell"][..],
@@ -1083,7 +1185,12 @@ pub(super) fn select(
         &["extrude"][..],
         &["drill", "bore", "cut"][..],
     ];
-    if actions.iter().filter(|a| input.any(a)).count() > 1 {
+    if actions
+        .iter()
+        .filter(|a| input.any(a) && !(a.contains(&"round") && input.has("disc")))
+        .count()
+        > 1
+    {
         return Ok(None);
     }
     if actions
@@ -1098,8 +1205,55 @@ pub(super) fn select(
     {
         return Ok(None);
     }
+    if let Some(edit) = input
+        .t
+        .iter()
+        .position(|w| actions.iter().any(|a| a.contains(&w.as_str())))
+    {
+        // An explicit new primitive followed by an edit is two intents, even
+        // when the creation lacks dimensions and the edit alone would parse.
+        if input.t[..edit].iter().enumerate().any(|(i, w)| {
+            matches!(
+                w.as_str(),
+                "box"
+                    | "block"
+                    | "cube"
+                    | "sphere"
+                    | "plate"
+                    | "cylinder"
+                    | "rod"
+                    | "disc"
+                    | "tube"
+            ) && (input.t[..i]
+                .iter()
+                .any(|v| matches!(v.as_str(), "make" | "create" | "build" | "add"))
+                || i.checked_sub(1)
+                    .is_some_and(|i| input.t[i] == "a" || input.t[i] == "an"))
+        }) {
+            return Ok(None);
+        }
+    }
+    let shape_families = [
+        &["box", "block", "plate", "cube"][..],
+        &["cylinder", "rod", "disc"][..],
+        &["sphere"][..],
+        &["tube"][..],
+    ];
+    if shape_families.iter().filter(|f| input.any(f)).count() > 1 {
+        return Ok(None);
+    }
     let create = input.any(&[
-        "make", "create", "build", "add", "sketch", "shell", "revolve",
+        "box", "block", "plate", "cube", "cylinder", "rod", "disc", "sphere", "tube",
+    ]) || input.any(&[
+        "make",
+        "create",
+        "build",
+        "add",
+        "sketch",
+        "rectangle",
+        "circle",
+        "shell",
+        "revolve",
     ]);
     let mut found = Vec::new();
     for (rule, kind) in LIBRARY {
@@ -1107,6 +1261,7 @@ pub(super) fn select(
             Kind::Box => &["box", "block", "plate", "cube"],
             Kind::Cylinder => &["cylinder", "rod", "disc"],
             Kind::Sphere => &["sphere"],
+            Kind::Tube => &["tube"],
             Kind::Sketch => &["rectangle", "circle"],
             Kind::Shell => &["box"],
             Kind::Revolve => &["rectangle"],
@@ -1124,14 +1279,16 @@ pub(super) fn select(
         }
         if matches!(
             kind,
-            Kind::Box | Kind::Cylinder | Kind::Sphere | Kind::Holes
-        ) && actions.iter().any(|a| input.any(a))
+            Kind::Box | Kind::Cylinder | Kind::Sphere | Kind::Tube | Kind::Holes
+        ) && actions
+            .iter()
+            .any(|a| input.any(a) && !(a.contains(&"round") && input.has("disc")))
         {
             continue;
         }
         if matches!(
             kind,
-            Kind::Box | Kind::Cylinder | Kind::Sphere | Kind::Holes | Kind::Sketch
+            Kind::Box | Kind::Cylinder | Kind::Sphere | Kind::Tube | Kind::Holes | Kind::Sketch
         ) && !create
         {
             continue;
@@ -1156,8 +1313,14 @@ pub(super) fn select(
             .and_then(|b| b.iter().find(|b| b["name"] == *body))
             .and_then(|b| volume(&json!({"bodies":[b]})));
     }
+    if v.is_some_and(|v| !v.is_finite()) {
+        return Ok(None);
+    }
     // Explicit targets keep compound changes away from older overlapping bodies.
-    if matches!(slots, Slots::Holes { .. } | Slots::Shell { .. }) {
+    if matches!(
+        slots,
+        Slots::Holes { .. } | Slots::Tube { .. } | Slots::Shell { .. }
+    ) {
         let names: Vec<_> = data
             .and_then(|d| d["bodies"].as_array())
             .into_iter()
@@ -1171,7 +1334,7 @@ pub(super) fn select(
         calls[0]["arguments"]["params"]["body_name"] = json!(created);
         for c in &mut calls[1..] {
             let params = &mut c["arguments"]["params"];
-            if matches!(slots, Slots::Holes { .. }) {
+            if matches!(slots, Slots::Holes { .. } | Slots::Tube { .. }) {
                 params["targets"] = json!([created]);
             } else {
                 params["body"] = json!(created);
@@ -1188,6 +1351,22 @@ pub(super) fn select(
             )?;
         }
         name = Some(created);
+    }
+    let transformed_volume = match &slots {
+        Slots::Scale { body, factor } => data
+            .and_then(|d| d["bodies"].as_array())
+            .and_then(|b| b.iter().find(|b| b["name"] == *body))
+            .and_then(|b| volume(&json!({"bodies":[b]})))
+            .zip(data.and_then(volume))
+            .map(|(body_v, total)| total + body_v * (factor.powi(3) - 1.0)),
+        Slots::Mirror {
+            keep_original: false,
+            ..
+        } => data.and_then(volume),
+        _ => None,
+    };
+    if transformed_volume.is_some_and(|v| !v.is_finite()) {
+        return Ok(None);
     }
     let count = data
         .and_then(|d| d["bodies"].as_array())
@@ -1246,7 +1425,9 @@ pub(super) fn select(
         },
         placement,
         bodies: count,
-        volume_mm3: if creates {
+        volume_mm3: if transformed_volume.is_some() {
+            transformed_volume
+        } else if creates {
             data.and_then(volume).zip(v).map(|(a, b)| a + b)
         } else if matches!(slots, Slots::Move { .. } | Slots::Rename { .. }) {
             data.and_then(volume)
