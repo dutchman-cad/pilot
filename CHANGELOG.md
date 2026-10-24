@@ -2,71 +2,62 @@
 
 ## Unreleased
 
-- Complete direct volume and body-count queries from public 0.20 measure and
-  inspect results, including singular current-solid references. Report concise
-  measured answers with explicit cubic-unit conversions; hand back incomplete,
-  conflicting, partial or ambiguous facts. Add recorded inspection results and
-  a public-binary measure fixture, with streaming and core regression tests.
+## 0.1.0-beta.2 (2026-10-24)
 
-- Accept polite “would you” creation requests and descriptive dimension wording
-  without treating adjectives or participles as extra intents. Compound-request
-  hand-backs explicitly require calls for the whole request and state that
-  nothing has been done yet.
+- Direct exact-match answers with `--direct-recipes`, through SolidCraft's approval.
+- Recipe matching for ordinary wording, shape synonyms, and metric or inch lengths.
+- Text tool mode for models without native tool support.
+- Plan-text recipes now require `--planner` and are off by default.
+- Benchmark start files for repeatable comparisons.
 
-- Restrict plane slots to documented XY / XZ / YZ values and bound name and axis
-  extraction; reject arbitrary plane text instead of leaking extrusion prose.
-- Accept plane-first circle extrusion, relative end/corner through-hole layouts,
-  solid-body and part count questions, and origin-centred size doubling.
-- Replay all six first-turn edits against recorded public 0.20 inspection and
-  topology results, including exact edit calls and ambiguous-body model fallback.
-  Add long-system-prompt request fixtures for planes, circles, layouts and counts.
+### Added
 
-- Generalize recipes through bounded normalization and tolerant labelled/positional
-  slots: filler, noun-first requests, glued units, reordered labels, value-first
-  thickness, ordinary shape synonyms, signed axes, and measurement questions.
-  Keep competing intents, missing/ambiguous slots, negations and known unsupported
-  modifiers on the model path.
-- Add OD/ID or wall-thickness tubes, uniform scaling about the origin, explicit
-  mirror-original retention/removal, and naturally worded centred through holes;
-  validate expansions against the public 0.20 command catalogue.
-- In direct mode, inspect once before an otherwise complete edit with an unknown
-  current body; require a unique measured target and valid results before editing.
-  Preserve plan-text behavior and existing action/recovery budgets.
-- Add independent exact-slot and refusal tables, compositional creation tests,
-  direct inspection lifecycle tests, and public-binary geometry smoke coverage.
+- Typed recipes for primitives, tubes, centred and positioned holes, rectangular
+  and circular hole patterns, sketch extrusions, edge finishes, move, rename,
+  mirror, shell, revolve, uniform scale, and measured queries.
+- `--direct-recipes` proposes normal tool calls and returns measured replies
+  marked "Exact match (no model):" after approval. Supports streaming,
+  `--upstream none`, separate logs and counters, and model recovery on failure.
+- Direct edits can inspect once to resolve a unique current body before proposing
+  changes; edge finishes can request topology before selecting edges.
+- Text tool mode describes available tools and adapts tool history when native
+  tools are unsupported. Remembers explicit provider rejections and retries once.
+- Public v1, v2, and v3 benchmark sets, plus constraint, joint, revision, recovery,
+  and unit checks, with reference answers and incorrect-result checks.
+- Forty-eight SolidCraft 0.19 starting designs, rebuild support, and migration checks.
+- Broader recipe checks covering ordinary requests, refusals, long prompts,
+  inspection results, and measured geometry through the public binary.
 
-- Add opt-in `--direct-recipes` with native calls, SSE, measured no-model replies,
-  ordinary approval, completion recovery, separate audit/profile counters, and
-  `--upstream none`.
-- Offer matched leading clauses of compound requests to the model and leave
-  remaining work to it; direct mode stays off by default.
+### Changed
 
-- Recognise ordinary recipe sentences with case, sentence punctuation, and
-  value-first or label-first lengths, preserving decimals, fractions and names.
-- Add round / round off, bevel, drill / bore / cut a hole, shift / slide, and
-  call / name forms; require explicit hole positions and unique body references.
-- Expand independently authored per-recipe positives and conservative refusals;
-  retain missing-slot, ambiguous-body, competing-intent and action-history guards.
-- Add bounded chat-completions request-body replay fixtures with exact plan
-  assertions and three synthetic long-system-prompt examples, usable in core builds.
+- `--planner` enables recipe suggestions, prose conversion, continuations, and
+  completion checks on the model face. `--no-plan` and `--no-planner` remain
+  accepted no-op aliases for the default. MCP suggestions are unchanged.
+- `--direct-recipes` works independently and can accompany `--planner`. Partial
+  requests receive suggested plans only with `--planner`; remaining work stays
+  with the model. Argument repair, text-call pickup, command lookup, hints, and
+  text tool mode keep their existing defaults.
+- Recipes accept polite requests, ordinary shape and action synonyms, reordered
+  dimensions, joined units, simple fractions, signed axes, and explicit radius
+  or diameter wording. Decimal values and quoted names retain their meaning.
+- Hole layouts accept end and corner insets; circle extrusions accept the plane
+  first. Mirror requests can keep or remove the original, and scale requests can
+  double a body about the origin.
+- Completion checks compare measured results once, including after accepted
+  calls, without repeating accepted creation steps or increasing retry limits.
+- Benchmarks score the resulting design when the model exhausts its request limit.
 
-- Add model-face text tool mode for capabilities without tools and explicit HTTP
-  400 unsupported-tools rejections; persist the rejection and retry once.
-- Describe offered tools in a bounded prompt, flatten tool history on the wire,
-  and audit conversion to native calls while preserving recipes and guardrails.
+### Fixed
 
-- Prepare 0.1.0-beta.2 with a typed recipe library for primitives, centred and
-  positioned holes, rectangular / circular hole patterns, sketch extrusion,
-  fillet / chamfer, move, rename, mirror, shell, revolve, and existing queries.
-- Parse metric / inch lengths, simple fractions, tuple separators, and explicit
-  radius / diameter slots; reject missing, conflicting, or multiple intents.
-- In model plan mode, convert matching action prose into audited recipe calls;
-  keep ordinary tool results and the model's final reply flow.
-- Verify measured recipe completion once, including after accepted calls, without
-  replaying accepted creation steps or increasing retry budgets.
-- Add independent per-recipe phrasings, model-face replays, and an optional
-  public-binary geometry contract smoke test. No live-model benchmark claim.
-- Add 48 SolidCraft 0.19 starting designs, reproducible rebuilds, and migration checks to the public benchmark.
+- Direct volume and body-count answers use complete measured results, including
+  current-solid references and requested cubic-unit conversions. Incomplete,
+  conflicting, partial, or ambiguous measurements return to the model.
+- Plane slots accept only XY, XZ, or YZ; name and axis extraction stay bounded.
+- Missing dimensions, ambiguous bodies, competing intents, negations, and
+  unsupported modifiers leave requests with the model. Edits require valid
+  inspection results; hole recipes require explicit positions.
+- Partial-request suggestions make clear that nothing has run and that the whole
+  request still requires approved calls and returned results.
 
 ## 0.1.0-beta.1
 

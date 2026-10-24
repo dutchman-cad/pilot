@@ -55,8 +55,10 @@ their state supports guidance; original result text is preserved. Unchanged-desi
 hints require comparable before/after states in the result or conversation history.
 Use `--no-how` and `--no-hints` independently for A/B measurements.
 
-The deterministic recipe planner is enabled by default (`--planner`, or disable
-with `--no-plan`, alias `--no-planner`). See [the recipe library](recipes.md) for
+Plan-text recipes require `--planner` and are off by default. `--no-plan` (alias
+`--no-planner`) is accepted as a no-op alias for the default. Independent
+`--direct-recipes` enables exact-match calls and measured replies with normal
+SolidCraft approval; it can accompany `--planner`. See [the recipe library](recipes.md) for
 supported slots, geometry, examples, and limits. It adds catalogue-checked calls
 as a system message and audits rule, typed slots, expected result, and calls.
 In model plan mode, an action pledge parsed as the same recipe and slots can
@@ -172,11 +174,14 @@ to append the same planner calls as a `suggested` plan. It preserves the origina
 error and never executes suggestions. Failed batches only get corrections for an
 explicitly identified failing step, since earlier steps may have succeeded.
 
-Both faces enable planning, discovery, and state hints by default:
+Both faces enable discovery and state hints by default. MCP also enables plan
+suggestions by default; model-face plan-text recipes require `--planner`:
 
 | Flag | `model` | `mcp` |
 | --- | --- | --- |
-| `--no-plan` | Disable deterministic request plans (`--no-planner` alias; `--planner` enables). | Disable the local `plan` tool and planner suggestions. |
+| `--no-plan` | Accepted no-op alias for the default (`--no-planner` alias). | Disable the local `plan` tool and planner suggestions. |
+| `--planner` | Enable plan-text recipe suggestions, prose conversion, continuations, and completion checks. | Not available. |
+| `--direct-recipes` | Answer exact matches directly with normal approval; accepts `--planner`. | Not available. |
 | `--no-hints` | Disable appended state hints in tool history. | Disable state hints and their before/after inspect probes. |
 | `--no-how` | Disable local command discovery. | Disable the local `how` tool. |
 | `--log FILE` | JSONL rewrites, keyed by model. | Same format, keyed by `mcp`. |

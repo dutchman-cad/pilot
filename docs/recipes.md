@@ -1,9 +1,12 @@
 # Model-face recipes
 
-Plan mode is on by default; `--no-plan` (alias `--no-planner`) disables recipe
-prompts, recipe prose conversion, continuations, and completion checks. The model
-still receives SolidCraft's tool results and writes the final answer. The MCP
-`plan` tool exposes suggestions only and never converts prose into actions.
+Plan-text recipes are off by default. `--planner` enables recipe prompts, recipe
+prose conversion, continuations, and completion checks. `--no-plan` (alias
+`--no-planner`) is accepted as a no-op alias for the default; it does not override
+`--planner`. Argument repair, text-call pickup, command lookup, hints, and text
+tool mode remain enabled. In plan mode, the model receives SolidCraft's tool
+results and writes the final answer. The MCP `plan` tool exposes suggestions only
+and never converts prose into actions.
 
 `--direct-recipes` opts into exact matches without an upstream model request,
 including capability probes. Pilot emits native `tool_calls` using the client's
@@ -11,25 +14,27 @@ advertised `execute` and, for multi-step geometry, `batch` shapes; SolidCraft
 validates and approves them normally. Streaming requests receive valid SSE.
 After the client returns every call's result, Pilot runs the same completion
 check and replies with `Exact match (no model):`, the recipe, measured body count,
-volume and available bounds-derived sizes. Length conversions are stated explicitly.
-A tool error, missing result, unresolved topology or completion mismatch hands
+volume, and available bounds-derived sizes. Length conversions are stated explicitly.
+A tool error, missing result, unresolved topology, or completion mismatch hands
 back the failure to the model once; direct answering stays disabled for that
 turn so the model can recover without replaying accepted changes. With no model,
 Pilot states the failure plainly instead. Two-intent requests use the model:
-when a leading clause matches, Pilot offers that computed plan in context and
-asks the model to submit calls for the whole request. Offered calls still need
+with `--planner`, when a leading clause matches, Pilot offers that computed plan
+in context and asks the model to submit calls for the whole request. Offered calls still need
 client approval and results; they are never described as already executed.
 
-Use `--upstream none`, or omit upstream with `--direct-recipes`, for a no-model
-assistant. `/v1/models` then lists `pilot-recipes`; other requests receive a fixed
+Use `--upstream none` with `--direct-recipes` for a no-model assistant.
+`/v1/models` then lists `pilot-recipes`; other requests receive a fixed
 no-model explanation listing supported kinds from the recipe table. Without
-`--direct-recipes`, the upstream default remains Ollama and recipe behavior is
-unchanged. `--direct-recipes` conflicts with `--no-plan`.
+`--direct-recipes`, the upstream default remains Ollama. `--direct-recipes` works
+independently of `--planner` and accepts `--no-plan`. Both opt-ins may be combined:
+exact matches take the direct path, while plan-text suggestions are available
+on the model path. Direct mode retains its own continuations and measured checks.
 
 Audit kinds are `direct_recipe_calls`, `direct_recipe_reply`, and
 `direct_recipe_fallback`, with `from_model: false` on direct events. Profiles
 count `direct_turns` and those events separately; direct replies do not enter
-model turns, reply statistics, capability evidence or recent text-call history.
+model turns, reply statistics, capability evidence, or recent text-call history.
 Recovery requests enter normal model statistics.
 
 SolidCraft tracks offering these matches in its own command search and chat input
@@ -44,7 +49,7 @@ intents are left to the model. There is no benchmark wording or task-id matching
 
 | Recipe | Required slots and supported form |
 | --- | --- |
-| Box / block / brick / bar / plate / slab / sheet / cube | Three dimensions in length × width × height order, or uniquely labelled length, width and height; a cube can have one side. Two dimensions plus an explicitly labelled thickness also work. |
+| Box / block / brick / bar / plate / slab / sheet / cube | Three dimensions in length × width × height order, or uniquely labelled length, width, and height; a cube can have one side. Two dimensions plus an explicitly labelled thickness also work. |
 | Cylinder / rod / disc / disk / puck / coin | Explicit radius or diameter (also `Ø`, “across”, or “wide”), and height / tall / high / thick / deep / length / long. “Round disc” also works. |
 | Sphere / ball | Explicit radius or diameter / `Ø` / across / wide. |
 | Hollow tube | Outer and inner diameter (`OD` / `ID`), or outer diameter and wall thickness, plus length / height. Inner diameter must be positive and smaller than outer diameter. A new named cylinder and targeted axial through hole leave existing bodies untouched. |
@@ -62,7 +67,7 @@ intents are left to the model. There is no benchmark wording or task-id matching
 | Mirror | Uniquely resolved body and one principal plane XY / XZ / YZ. Keeps the original by default or with “keeping the original”. “Not keeping the original”, “without keeping the original”, or “do not keep the original” emits mirror then `solid.remove` for the original. Joining is unsupported. |
 | Uniform scale | Uniquely resolved body, explicitly about the origin, and a factor: `by 1.5`, `by 150%`, `double` (2), or `half` (0.5). Factor must be positive and at most 1000. |
 | Shell box | New box dimensions, wall thickness, and explicitly open / remove top. Shelling inward leaves the bottom and four walls. |
-| Revolve rectangle | Rectangle radial `radius` and height, explicitly `from axis on XZ about Z full turn`. Other profiles, axes, offsets and partial turns defer. |
+| Revolve rectangle | Rectangle radial `radius` and height, explicitly `from axis on XZ about Z full turn`. Other profiles, axes, offsets, and partial turns defer. |
 | Volume query | “What’s the volume”, requests mentioning volume with unit wording, or “how many cubic millimetres”. A complete measured snapshot, optionally one uniquely named body; otherwise one inspect request. A current / existing solid reference requires exactly one body. Replies use mm³ by default, or the requested cm³ / m³ / in³ / ft³ with the conversion stated. Conflicting units defer. |
 | Body count query | “How many bodies / solid bodies / parts / solids are here / in the design”, or count bodies. A complete snapshot; otherwise one inspect request. “How do I count” defers. |
 
@@ -83,7 +88,7 @@ inside a complete quoted destination are name data rather than competing actions
 
 Normalization removes this small filler list anywhere: `please`, `pls`, `thanks`,
 `thank`, `you`, `can`, `could`, `I`, `need`, `want`, `give`, `me`, `ok`, `okay`, `so`.
-It preserves numeric punctuation, coordinates and opaque rename destinations.
+It preserves numeric punctuation, coordinates, and opaque rename destinations.
 Unknown conversational words are tolerated. Label colons may precede values, and
 numbers may precede their shape noun, including a separate sentence:
 `Length: 8.4cm, width: 3.6cm, height: 0.9cm. I need a solid brick.`
@@ -152,7 +157,7 @@ whose current body is unknown can first emit one read-only `execute` call to
 `document.inspect` with `measure:true` (the public catalogue's inspect equivalent).
 No mutation uses a provisional body name. The continuation validates every
 returned tool result, resolves the actual body, and only then emits edit calls.
-Zero bodies, multiple bodies, partial snapshots, failed or missing results defer;
+Zero bodies, multiple bodies, partial snapshots, failed results, or missing results defer;
 the lookup never repeats. Plan-text mode retains its original acted/body guards.
 These prerequisites use the existing direct audit events with rule `resolve_body`.
 The six first-turn edit lifecycle cases use recorded public `solidcraft-cli 0.20`
@@ -198,11 +203,11 @@ always unverified; a successful lookup alone does not establish completion.
 A difference is handed back once, even after an accepted call, within the existing
 two-hand-back / four-attempt request budget. No completion recipe means no new
 completion guard. Count and volume cannot prove every geometric property of a
-fillet, chamfer or mirror, and unmeasured movement has only count / volume checks.
+fillet, chamfer, or mirror, and unmeasured movement has only count / volume checks.
 
 Limits: 4096 request characters and messages, shared 1 MiB JSON and nesting caps,
 256 bodies / edges inspected, 1,000,000 mm per length, 62 holes (at most 64 calls
-including creation and verification), one edge continuation and one completion
+including creation and verification), one edge continuation, and one completion
 hand-back. Invalid units, non-finite dimensions, and unsupported geometry defer.
 
 `src/planner/cases.rs` contains independently authored phrasings (five or more per
@@ -219,9 +224,9 @@ not a weak-model benchmark and establishes no live-model pass-rate improvement.
 
 `src/planner/robust.rs` adds 228 independently authored exact-slot phrasings
 (at least twelve per recipe), over fifty refusal cases, and 288 compositions of
-filler, metric unit style and dimension order across every creation recipe.
+filler, metric unit style, and dimension order across every creation recipe.
 Additional tests cover fractions, inch marks, round discs, mirror retention,
-scale factors and the bounded body-resolution prerequisite. Proxy tests exercise
-inspection, edit and measured completion without upstream traffic, plus refusal
-on ambiguous, partial, failed and missing inspections. Existing fixtures retain
+scale factors, and the bounded body-resolution prerequisite. Proxy tests exercise
+inspection, edit, and measured completion without upstream traffic, plus refusal
+on ambiguous, partial, failed, and missing inspections. Existing fixtures retain
 their expectations; no held-out benchmark requests are read or embedded.

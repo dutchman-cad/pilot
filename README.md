@@ -2,7 +2,7 @@
 
 Pilot is a local helper that lets small language models drive
 SolidCraft through its public interfaces. It repairs explicit tool calls,
-finds commands, and adds bounded plans and hints. In model plan mode, a matching
+finds commands, and adds bounded hints. With `--planner`, a matching
 action pledge can become a catalogue-checked recipe; SolidCraft validates every call.
 
 Run it as `dutchman pilot` from the [dutchman](https://github.com/dutchman-cad/dutchman)
@@ -15,14 +15,22 @@ command line. The same commands also come as a standalone download,
 - Typed recipes for primitives, hole layouts, sketch extrusions, edge finishes,
   movement, renaming, mirror, shell, revolve, and measured queries.
 - Millimetres, metric and inch units, fractions, and deterministic expansions.
-- Matching prose-to-recipe conversion for models without tool calling, plus one
-  measured completion check. Disable together with `--no-plan`.
+- Opt-in `--planner`: recipe suggestions, matching prose conversion, continuations,
+  and one measured completion check. These plan-text features are off by default;
+  `--no-plan` (alias `--no-planner`) is accepted as a no-op.
 - Text tool mode for models without native tools, with automatic retry and saved profiles.
 - Opt-in `--direct-recipes`: native tool proposals and measured replies without a
   model, with normal client approval; `--upstream none` supports recipe-only use.
-- Audited rewrites, argument repair, buffered streaming, and bounded retries.
+- Argument repair, text-call pickup, command lookup, hints, buffered streaming,
+  and bounded retries remain enabled by default, with audited rewrites.
 
 See [recipes and their limits](docs/recipes.md).
+
+**Small models:** For 3–8B models, use `--direct-recipes` with your upstream URL.
+Exact matches bypass the model, and their replies are marked **"Exact match (no model):"**.
+The proposed calls still go through SolidCraft's approval and validation.
+Other requests go to the model. Keep plan-text recipes off unless you want to try
+`--planner`; they reduced reliability in measurements with small models.
 
 Choose the face that fits your client:
 

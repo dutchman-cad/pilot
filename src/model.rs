@@ -3644,6 +3644,7 @@ mod tests {
         for stream in [false, true] {
             let mut f = Fixture::new(vec![]);
             f.proxy.cfg.direct_recipes = true;
+            f.proxy.cfg.planner = false;
             let mut req = planner::cases::request("create a cube 1/4 inch");
             req["stream"] = json!(stream);
             let first = f.chat(req.clone());
@@ -3884,6 +3885,7 @@ mod tests {
             for ambiguous in [false, true] {
                 let mut f = Fixture::new(vec![reply("Which body should I edit?")]);
                 f.proxy.cfg.direct_recipes = true;
+                f.proxy.cfg.planner = false;
                 let mut req = planner::cases::request(text);
                 req["messages"] = json!([{"role":"system","content":"Use the offered tools for CAD edits."},{"role":"user","content":text}]);
                 let first: Value = serde_json::from_slice(&f.chat(req.clone()).body).unwrap();
@@ -3989,6 +3991,7 @@ mod tests {
         ] {
             let mut f = Fixture::new(vec![]);
             f.proxy.cfg.direct_recipes = true;
+            f.proxy.cfg.planner = false;
             let mut req = planner::cases::request(text);
             req["messages"].as_array_mut().unwrap().remove(0);
             let first: Value = serde_json::from_slice(&f.chat(req.clone()).body).unwrap();

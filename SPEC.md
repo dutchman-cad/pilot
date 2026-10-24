@@ -16,8 +16,10 @@ MCP server, `solidcraft-cli mcp`, documented in SolidCraft's docs/mcp.md).
 2. **Explicit calls and selected recipes.** Pilot turns explicit JSON calls into native
    calls. In model-face plan mode only, an action pledge matching one fresh user recipe's
    intent and typed slots can become that recipe's catalogue-checked calls. Arbitrary prose
-   never supplies new arguments. Every recipe and conversion is audited; `--no-plan`
-   disables the exception. The MCP face continues to offer suggestions only.
+   never supplies new arguments. Every recipe and conversion is audited. Plan-text
+   recipes require `--planner`; `--no-plan` is an accepted no-op alias for the default.
+   Independent opt-in `--direct-recipes` returns exact calls and measured answers
+   through the same approval checks. The MCP face continues to offer suggestions only.
 3. **Same checks as a native call.** Anything Pilot produces still goes through SolidCraft's
    own tool validation; Pilot only reshapes, it never bypasses.
 4. **Measured.** Every feature is judged by SolidCraft's benchmark (`solidcraft-cli
@@ -134,11 +136,11 @@ outside the selected model-face recipe exception.
 Every weak-model technique Pilot provides, and where it lives.
 Items marked (M) are in the model face, (T) in the tools face.
 
-1. **Deterministic planning for common requests (M).** The biggest single win. A rule-based
+1. **Deterministic planning for common requests (M), opt-in.** A rule-based
    recogniser for frequent requests ("make a 20 mm cube", "a cylinder 30 mm across and 50 tall",
    "a plate with a hole through the middle", "move it 50 mm along X", "rename the body to X",
    "what is the volume") computes the exact command plan from the request and, where needed, the
-   design's state (read through SolidCraft's MCP `inspect`). The plan goes to the model as the
+   design's state (read through SolidCraft's MCP `inspect`). With `--planner`, the plan goes to the model as the
    answer to that part of the message: "run this plan; don't reinvent it; handle anything else
    asked". Counting, totals, and "which is biggest" are computed, never left to the model. Track
    which requests fail most in the benchmark and move those into the planner first.
@@ -147,7 +149,9 @@ Items marked (M) are in the model face, (T) in the tools face.
    with missing or ambiguous slots or multiple intents, and no new action recipe after the
    request's `acted` check. A selected edge recipe may continue after its topology lookup;
    accepted creation prefixes are never replayed. Matching model prose can be converted only
-   in model plan mode. The model receives all results and writes the reply. Every fired
+   in model plan mode. In that mode, the model receives all results and writes the
+   reply. Direct recipes return measured replies without a model; all proposed
+   calls still require SolidCraft approval and validation. Every fired
    recipe audits rule, slots, calls and expected state. After the final reply, compare the
    latest complete measured state with expected body count and computable volume (0.1% or
    0.01 mm³ tolerance), plus available rename / move facts. Missing measurements or a
