@@ -1,0 +1,132 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "format": 1,
+  "tasks": [
+    {
+      "id": "joints-revolute-limits-connects-spare",
+      "kind": "joints",
+      "tier": "medium",
+      "title": "revolute limits",
+      "prompt": "Connect Base and Link at their box centres with one revolute joint, aligned Z axes. Set its motion limits, in the listed value order, to [[-30, 60]] (angles in degrees, distances in mm). Leave Spare unconnected. Keep all three components and bodies.",
+      "reference": "negatives/joints-revolute-limits-connects-spare.json",
+      "setup_steps": 9,
+      "check": {
+        "bodies": 3,
+        "volume": 3000,
+        "tol": 0.0001,
+        "components": {
+          "Base": [
+            "Base"
+          ],
+          "Link": [
+            "Link"
+          ],
+          "Spare": [
+            "Spare"
+          ]
+        },
+        "joints_count": 1,
+        "joints": [
+          {
+            "type": "revolute",
+            "occurrences": [
+              "Base:1",
+              "Link:1"
+            ],
+            "limits": [
+              [
+                -30,
+                60
+              ]
+            ]
+          }
+        ]
+      },
+      "why_wrong": "connects spare"
+    },
+    {
+      "id": "joints-revolute-limits-wrong-limit",
+      "kind": "joints",
+      "tier": "medium",
+      "title": "revolute limits",
+      "prompt": "Connect Base and Link at their box centres with one revolute joint, aligned Z axes. Set its motion limits, in the listed value order, to [[-30, 60]] (angles in degrees, distances in mm). Leave Spare unconnected. Keep all three components and bodies.",
+      "reference": "negatives/joints-revolute-limits-wrong-limit.json",
+      "setup_steps": 9,
+      "check": {
+        "bodies": 3,
+        "volume": 3000,
+        "tol": 0.0001,
+        "components": {
+          "Base": [
+            "Base"
+          ],
+          "Link": [
+            "Link"
+          ],
+          "Spare": [
+            "Spare"
+          ]
+        },
+        "joints_count": 1,
+        "joints": [
+          {
+            "type": "revolute",
+            "occurrences": [
+              "Base:1",
+              "Link:1"
+            ],
+            "limits": [
+              [
+                -30,
+                60
+              ]
+            ]
+          }
+        ]
+      },
+      "why_wrong": "wrong limit"
+    },
+    {
+      "id": "joints-revolute-limits-wrong-motion-type",
+      "kind": "joints",
+      "tier": "medium",
+      "title": "revolute limits",
+      "prompt": "Connect Base and Link at their box centres with one revolute joint, aligned Z axes. Set its motion limits, in the listed value order, to [[-30, 60]] (angles in degrees, distances in mm). Leave Spare unconnected. Keep all three components and bodies.",
+      "reference": "negatives/joints-revolute-limits-wrong-motion-type.json",
+      "setup_steps": 9,
+      "check": {
+        "bodies": 3,
+        "volume": 3000,
+        "tol": 0.0001,
+        "components": {
+          "Base": [
+            "Base"
+          ],
+          "Link": [
+            "Link"
+          ],
+          "Spare": [
+            "Spare"
+          ]
+        },
+        "joints_count": 1,
+        "joints": [
+          {
+            "type": "revolute",
+            "occurrences": [
+              "Base:1",
+              "Link:1"
+            ],
+            "limits": [
+              [
+                -30,
+                60
+              ]
+            ]
+          }
+        ]
+      },
+      "why_wrong": "wrong motion type"
+    }
+  ]
+}

@@ -1,0 +1,8580 @@
+{
+ "SPDX-License-Identifier": "Apache-2.0",
+ "solidcraft": "0.20.0",
+ "cases": [
+  {
+   "id": "units-fraction-plate-turn-1",
+   "pass": true,
+   "check": {
+    "bodies": 1,
+    "volume": 4096.766,
+    "tol": 0.0001,
+    "bbox": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      50.8,
+      25.4,
+      3.175
+     ]
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 3064.509999999999,
+      "bbox": {
+       "max": [
+        50.8,
+        25.4,
+        3.175
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       25.400000000000002,
+       12.700000000000001,
+       1.5875000000000001
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 4096.765999999997
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 2.357389,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "units-fraction-plate-final",
+   "pass": true,
+   "check": {
+    "bodies": 1,
+    "volume": 4096.766,
+    "tol": 0.0001,
+    "bbox": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      50.8,
+      25.4,
+      3.175
+     ]
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 3064.509999999999,
+      "bbox": {
+       "max": [
+        50.8,
+        25.4,
+        3.175
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       25.400000000000002,
+       12.700000000000001,
+       1.5875000000000001
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 4096.765999999997
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 2.357389,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "units-missing-fillet-radius-turn-1",
+   "pass": true,
+   "check": {
+    "ask_first": "\\b(radius|radii|size)\\b"
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        10.0,
+        15.0,
+        10.0
+       ],
+       "min": [
+        -10.0,
+        -15.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       0.0,
+       0.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 2,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 6,
+    "selection": [],
+    "sketches": [
+     {
+      "constraints": [
+       {
+        "id": "k1",
+        "l": 0,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k2",
+        "l": 2,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k3",
+        "l": 1,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k4",
+        "l": 3,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k5",
+        "l": 4,
+        "name": "MidPoint",
+        "p": 5,
+        "type": "midpoint"
+       },
+       {
+        "id": "k6",
+        "name": "Coincident",
+        "p": 0,
+        "q": 5,
+        "type": "coincident"
+       }
+      ],
+      "curves": [
+       {
+        "construction": false,
+        "end": "p2",
+        "end_at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l1",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l2",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l3",
+        "start": "p3",
+        "start_at": [
+         10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p1",
+        "end_at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l4",
+        "start": "p4",
+        "start_at": [
+         -10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l5",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l6",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       }
+      ],
+      "dof": 2,
+      "failing": [],
+      "fully_constrained": false,
+      "id": 1,
+      "links": [],
+      "name": "Sketch1",
+      "plane": {
+       "origin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "x_dir": [
+        1.0,
+        0.0,
+        0.0
+       ],
+       "y_dir": [
+        0.0,
+        1.0,
+        0.0
+       ]
+      },
+      "points": [
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": true,
+        "fully_constrained": true,
+        "id": "origin",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p1",
+        "link": null,
+        "world": [
+         -10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p2",
+        "link": null,
+        "world": [
+         10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p3",
+        "link": null,
+        "world": [
+         10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p4",
+        "link": null,
+        "world": [
+         -10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": false,
+        "fully_constrained": true,
+        "id": "p5",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       }
+      ],
+      "profiles": [
+       {
+        "area_mm2": 600.0,
+        "centroid_sketch": [
+         0.0,
+         0.0
+        ],
+        "curves": [
+         "l1",
+         "l2",
+         "l3",
+         "l4"
+        ],
+        "holes": [],
+        "index": 0
+       }
+      ],
+      "status": "solved",
+      "visible": false,
+      "wires": []
+     }
+    ],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 0.098716,
+      "name": "Sketch1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 2,
+      "ms": 2.211242,
+      "name": "Extrude1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+     }
+    ],
+    "undo": 3,
+    "units": "mm",
+    "refusal_design": {
+     "definitions": [
+      [
+       1,
+       {
+        "plane": {
+         "name": "XY",
+         "type": "origin"
+        }
+       }
+      ],
+      [
+       2,
+       {
+        "extent": {
+         "convention": "total_distance",
+         "direction": "positive",
+         "distance": "10"
+        },
+        "operation": "new_body",
+        "profiles": {
+         "type": "all"
+        },
+        "sketch": 1
+       }
+      ]
+     ],
+     "appearance": {
+      "bodies": {},
+      "components": [],
+      "faces": [],
+      "in_design": []
+     },
+     "rules": {
+      "active": "Steel (mm)",
+      "rules": [
+       {
+        "rule": {
+         "bend_radius": "Thickness",
+         "corner_relief": "Thickness * 4.0",
+         "corner_relief_shape": "notch",
+         "gap": "Thickness",
+         "hem_gap": "0.01 mm",
+         "k_factor": "0.44",
+         "name": "Steel (mm)",
+         "relief_depth": "Thickness * 0.5",
+         "relief_width": "Thickness",
+         "thickness": "2.5 mm"
+        },
+        "values": {
+         "bend_radius": 2.5,
+         "corner_relief": 10.0,
+         "corner_relief_shape": "notch",
+         "gap": 2.5,
+         "hem_gap": 0.01,
+         "k_factor": 0.44,
+         "relief_depth": 1.25,
+         "relief_width": 2.5,
+         "thickness": 2.5
+        }
+       }
+      ]
+     },
+     "threads": {
+      "threads": []
+     },
+     "components": {
+      "active": 0,
+      "components": [
+       {
+        "bodies": [
+         "Body1"
+        ],
+        "children": [],
+        "construction": [],
+        "features": [
+         "Extrude1"
+        ],
+        "id": 0,
+        "name": "Untitled",
+        "occurrences": [],
+        "parent": null,
+        "sketches": [
+         "Sketch1"
+        ]
+       }
+      ],
+      "pending_moves": []
+     },
+     "joints": {
+      "conflicts": [],
+      "dof": [
+       {
+        "dof": 0,
+        "occurrence": 0
+       }
+      ],
+      "errors": [],
+      "fixed": [
+       0
+      ],
+      "floating": [],
+      "joints": [],
+      "links": [],
+      "origins": []
+     }
+    }
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        10.0,
+        15.0,
+        10.0
+       ],
+       "min": [
+        -10.0,
+        -15.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       0.0,
+       0.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 2,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 6,
+    "selection": [],
+    "sketches": [
+     {
+      "constraints": [
+       {
+        "id": "k1",
+        "l": 0,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k2",
+        "l": 2,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k3",
+        "l": 1,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k4",
+        "l": 3,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k5",
+        "l": 4,
+        "name": "MidPoint",
+        "p": 5,
+        "type": "midpoint"
+       },
+       {
+        "id": "k6",
+        "name": "Coincident",
+        "p": 0,
+        "q": 5,
+        "type": "coincident"
+       }
+      ],
+      "curves": [
+       {
+        "construction": false,
+        "end": "p2",
+        "end_at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l1",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l2",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l3",
+        "start": "p3",
+        "start_at": [
+         10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p1",
+        "end_at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l4",
+        "start": "p4",
+        "start_at": [
+         -10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l5",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l6",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       }
+      ],
+      "dof": 2,
+      "failing": [],
+      "fully_constrained": false,
+      "id": 1,
+      "links": [],
+      "name": "Sketch1",
+      "plane": {
+       "origin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "x_dir": [
+        1.0,
+        0.0,
+        0.0
+       ],
+       "y_dir": [
+        0.0,
+        1.0,
+        0.0
+       ]
+      },
+      "points": [
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": true,
+        "fully_constrained": true,
+        "id": "origin",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p1",
+        "link": null,
+        "world": [
+         -10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p2",
+        "link": null,
+        "world": [
+         10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p3",
+        "link": null,
+        "world": [
+         10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p4",
+        "link": null,
+        "world": [
+         -10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": false,
+        "fully_constrained": true,
+        "id": "p5",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       }
+      ],
+      "profiles": [
+       {
+        "area_mm2": 600.0,
+        "centroid_sketch": [
+         0.0,
+         0.0
+        ],
+        "curves": [
+         "l1",
+         "l2",
+         "l3",
+         "l4"
+        ],
+        "holes": [],
+        "index": 0
+       }
+      ],
+      "status": "solved",
+      "visible": false,
+      "wires": []
+     }
+    ],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 0.098716,
+      "name": "Sketch1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 2,
+      "ms": 2.211242,
+      "name": "Extrude1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+     }
+    ],
+    "undo": 3,
+    "units": "mm",
+    "refusal_design": {
+     "definitions": [
+      [
+       1,
+       {
+        "plane": {
+         "name": "XY",
+         "type": "origin"
+        }
+       }
+      ],
+      [
+       2,
+       {
+        "extent": {
+         "convention": "total_distance",
+         "direction": "positive",
+         "distance": "10"
+        },
+        "operation": "new_body",
+        "profiles": {
+         "type": "all"
+        },
+        "sketch": 1
+       }
+      ]
+     ],
+     "appearance": {
+      "bodies": {},
+      "components": [],
+      "faces": [],
+      "in_design": []
+     },
+     "rules": {
+      "active": "Steel (mm)",
+      "rules": [
+       {
+        "rule": {
+         "bend_radius": "Thickness",
+         "corner_relief": "Thickness * 4.0",
+         "corner_relief_shape": "notch",
+         "gap": "Thickness",
+         "hem_gap": "0.01 mm",
+         "k_factor": "0.44",
+         "name": "Steel (mm)",
+         "relief_depth": "Thickness * 0.5",
+         "relief_width": "Thickness",
+         "thickness": "2.5 mm"
+        },
+        "values": {
+         "bend_radius": 2.5,
+         "corner_relief": 10.0,
+         "corner_relief_shape": "notch",
+         "gap": 2.5,
+         "hem_gap": 0.01,
+         "k_factor": 0.44,
+         "relief_depth": 1.25,
+         "relief_width": 2.5,
+         "thickness": 2.5
+        }
+       }
+      ]
+     },
+     "threads": {
+      "threads": []
+     },
+     "components": {
+      "active": 0,
+      "components": [
+       {
+        "bodies": [
+         "Body1"
+        ],
+        "children": [],
+        "construction": [],
+        "features": [
+         "Extrude1"
+        ],
+        "id": 0,
+        "name": "Untitled",
+        "occurrences": [],
+        "parent": null,
+        "sketches": [
+         "Sketch1"
+        ]
+       }
+      ],
+      "pending_moves": []
+     },
+     "joints": {
+      "conflicts": [],
+      "dof": [
+       {
+        "dof": 0,
+        "occurrence": 0
+       }
+      ],
+      "errors": [],
+      "fixed": [
+       0
+      ],
+      "floating": [],
+      "joints": [],
+      "links": [],
+      "origins": []
+     }
+    }
+   },
+   "reply": "What fillet radius should I use?",
+   "queries": {}
+  },
+  {
+   "id": "units-missing-fillet-radius-final",
+   "pass": true,
+   "check": {
+    "ask_first": "\\b(radius|radii|size)\\b"
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        10.0,
+        15.0,
+        10.0
+       ],
+       "min": [
+        -10.0,
+        -15.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       0.0,
+       0.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 2,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 6,
+    "selection": [],
+    "sketches": [
+     {
+      "constraints": [
+       {
+        "id": "k1",
+        "l": 0,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k2",
+        "l": 2,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k3",
+        "l": 1,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k4",
+        "l": 3,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k5",
+        "l": 4,
+        "name": "MidPoint",
+        "p": 5,
+        "type": "midpoint"
+       },
+       {
+        "id": "k6",
+        "name": "Coincident",
+        "p": 0,
+        "q": 5,
+        "type": "coincident"
+       }
+      ],
+      "curves": [
+       {
+        "construction": false,
+        "end": "p2",
+        "end_at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l1",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l2",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l3",
+        "start": "p3",
+        "start_at": [
+         10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p1",
+        "end_at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l4",
+        "start": "p4",
+        "start_at": [
+         -10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l5",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l6",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       }
+      ],
+      "dof": 2,
+      "failing": [],
+      "fully_constrained": false,
+      "id": 1,
+      "links": [],
+      "name": "Sketch1",
+      "plane": {
+       "origin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "x_dir": [
+        1.0,
+        0.0,
+        0.0
+       ],
+       "y_dir": [
+        0.0,
+        1.0,
+        0.0
+       ]
+      },
+      "points": [
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": true,
+        "fully_constrained": true,
+        "id": "origin",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p1",
+        "link": null,
+        "world": [
+         -10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p2",
+        "link": null,
+        "world": [
+         10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p3",
+        "link": null,
+        "world": [
+         10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p4",
+        "link": null,
+        "world": [
+         -10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": false,
+        "fully_constrained": true,
+        "id": "p5",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       }
+      ],
+      "profiles": [
+       {
+        "area_mm2": 600.0,
+        "centroid_sketch": [
+         0.0,
+         0.0
+        ],
+        "curves": [
+         "l1",
+         "l2",
+         "l3",
+         "l4"
+        ],
+        "holes": [],
+        "index": 0
+       }
+      ],
+      "status": "solved",
+      "visible": false,
+      "wires": []
+     }
+    ],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 0.098716,
+      "name": "Sketch1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 2,
+      "ms": 2.211242,
+      "name": "Extrude1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+     }
+    ],
+    "undo": 3,
+    "units": "mm",
+    "refusal_design": {
+     "definitions": [
+      [
+       1,
+       {
+        "plane": {
+         "name": "XY",
+         "type": "origin"
+        }
+       }
+      ],
+      [
+       2,
+       {
+        "extent": {
+         "convention": "total_distance",
+         "direction": "positive",
+         "distance": "10"
+        },
+        "operation": "new_body",
+        "profiles": {
+         "type": "all"
+        },
+        "sketch": 1
+       }
+      ]
+     ],
+     "appearance": {
+      "bodies": {},
+      "components": [],
+      "faces": [],
+      "in_design": []
+     },
+     "rules": {
+      "active": "Steel (mm)",
+      "rules": [
+       {
+        "rule": {
+         "bend_radius": "Thickness",
+         "corner_relief": "Thickness * 4.0",
+         "corner_relief_shape": "notch",
+         "gap": "Thickness",
+         "hem_gap": "0.01 mm",
+         "k_factor": "0.44",
+         "name": "Steel (mm)",
+         "relief_depth": "Thickness * 0.5",
+         "relief_width": "Thickness",
+         "thickness": "2.5 mm"
+        },
+        "values": {
+         "bend_radius": 2.5,
+         "corner_relief": 10.0,
+         "corner_relief_shape": "notch",
+         "gap": 2.5,
+         "hem_gap": 0.01,
+         "k_factor": 0.44,
+         "relief_depth": 1.25,
+         "relief_width": 2.5,
+         "thickness": 2.5
+        }
+       }
+      ]
+     },
+     "threads": {
+      "threads": []
+     },
+     "components": {
+      "active": 0,
+      "components": [
+       {
+        "bodies": [
+         "Body1"
+        ],
+        "children": [],
+        "construction": [],
+        "features": [
+         "Extrude1"
+        ],
+        "id": 0,
+        "name": "Untitled",
+        "occurrences": [],
+        "parent": null,
+        "sketches": [
+         "Sketch1"
+        ]
+       }
+      ],
+      "pending_moves": []
+     },
+     "joints": {
+      "conflicts": [],
+      "dof": [
+       {
+        "dof": 0,
+        "occurrence": 0
+       }
+      ],
+      "errors": [],
+      "fixed": [
+       0
+      ],
+      "floating": [],
+      "joints": [],
+      "links": [],
+      "origins": []
+     }
+    }
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        10.0,
+        15.0,
+        10.0
+       ],
+       "min": [
+        -10.0,
+        -15.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       0.0,
+       0.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 2,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 6,
+    "selection": [],
+    "sketches": [
+     {
+      "constraints": [
+       {
+        "id": "k1",
+        "l": 0,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k2",
+        "l": 2,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k3",
+        "l": 1,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k4",
+        "l": 3,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k5",
+        "l": 4,
+        "name": "MidPoint",
+        "p": 5,
+        "type": "midpoint"
+       },
+       {
+        "id": "k6",
+        "name": "Coincident",
+        "p": 0,
+        "q": 5,
+        "type": "coincident"
+       }
+      ],
+      "curves": [
+       {
+        "construction": false,
+        "end": "p2",
+        "end_at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l1",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l2",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l3",
+        "start": "p3",
+        "start_at": [
+         10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p1",
+        "end_at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l4",
+        "start": "p4",
+        "start_at": [
+         -10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l5",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l6",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       }
+      ],
+      "dof": 2,
+      "failing": [],
+      "fully_constrained": false,
+      "id": 1,
+      "links": [],
+      "name": "Sketch1",
+      "plane": {
+       "origin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "x_dir": [
+        1.0,
+        0.0,
+        0.0
+       ],
+       "y_dir": [
+        0.0,
+        1.0,
+        0.0
+       ]
+      },
+      "points": [
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": true,
+        "fully_constrained": true,
+        "id": "origin",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p1",
+        "link": null,
+        "world": [
+         -10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p2",
+        "link": null,
+        "world": [
+         10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p3",
+        "link": null,
+        "world": [
+         10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p4",
+        "link": null,
+        "world": [
+         -10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": false,
+        "fully_constrained": true,
+        "id": "p5",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       }
+      ],
+      "profiles": [
+       {
+        "area_mm2": 600.0,
+        "centroid_sketch": [
+         0.0,
+         0.0
+        ],
+        "curves": [
+         "l1",
+         "l2",
+         "l3",
+         "l4"
+        ],
+        "holes": [],
+        "index": 0
+       }
+      ],
+      "status": "solved",
+      "visible": false,
+      "wires": []
+     }
+    ],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 0.098716,
+      "name": "Sketch1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 2,
+      "ms": 2.211242,
+      "name": "Extrude1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+     }
+    ],
+    "undo": 3,
+    "units": "mm",
+    "refusal_design": {
+     "definitions": [
+      [
+       1,
+       {
+        "plane": {
+         "name": "XY",
+         "type": "origin"
+        }
+       }
+      ],
+      [
+       2,
+       {
+        "extent": {
+         "convention": "total_distance",
+         "direction": "positive",
+         "distance": "10"
+        },
+        "operation": "new_body",
+        "profiles": {
+         "type": "all"
+        },
+        "sketch": 1
+       }
+      ]
+     ],
+     "appearance": {
+      "bodies": {},
+      "components": [],
+      "faces": [],
+      "in_design": []
+     },
+     "rules": {
+      "active": "Steel (mm)",
+      "rules": [
+       {
+        "rule": {
+         "bend_radius": "Thickness",
+         "corner_relief": "Thickness * 4.0",
+         "corner_relief_shape": "notch",
+         "gap": "Thickness",
+         "hem_gap": "0.01 mm",
+         "k_factor": "0.44",
+         "name": "Steel (mm)",
+         "relief_depth": "Thickness * 0.5",
+         "relief_width": "Thickness",
+         "thickness": "2.5 mm"
+        },
+        "values": {
+         "bend_radius": 2.5,
+         "corner_relief": 10.0,
+         "corner_relief_shape": "notch",
+         "gap": 2.5,
+         "hem_gap": 0.01,
+         "k_factor": 0.44,
+         "relief_depth": 1.25,
+         "relief_width": 2.5,
+         "thickness": 2.5
+        }
+       }
+      ]
+     },
+     "threads": {
+      "threads": []
+     },
+     "components": {
+      "active": 0,
+      "components": [
+       {
+        "bodies": [
+         "Body1"
+        ],
+        "children": [],
+        "construction": [],
+        "features": [
+         "Extrude1"
+        ],
+        "id": 0,
+        "name": "Untitled",
+        "occurrences": [],
+        "parent": null,
+        "sketches": [
+         "Sketch1"
+        ]
+       }
+      ],
+      "pending_moves": []
+     },
+     "joints": {
+      "conflicts": [],
+      "dof": [
+       {
+        "dof": 0,
+        "occurrence": 0
+       }
+      ],
+      "errors": [],
+      "fixed": [
+       0
+      ],
+      "floating": [],
+      "joints": [],
+      "links": [],
+      "origins": []
+     }
+    }
+   },
+   "reply": "What fillet radius should I use?",
+   "queries": {}
+  },
+  {
+   "id": "units-missing-hole-size-turn-1",
+   "pass": true,
+   "check": {
+    "ask_first": "\\b(diameter|size)\\b"
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        10.0,
+        15.0,
+        10.0
+       ],
+       "min": [
+        -10.0,
+        -15.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       0.0,
+       0.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 2,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 6,
+    "selection": [],
+    "sketches": [
+     {
+      "constraints": [
+       {
+        "id": "k1",
+        "l": 0,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k2",
+        "l": 2,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k3",
+        "l": 1,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k4",
+        "l": 3,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k5",
+        "l": 4,
+        "name": "MidPoint",
+        "p": 5,
+        "type": "midpoint"
+       },
+       {
+        "id": "k6",
+        "name": "Coincident",
+        "p": 0,
+        "q": 5,
+        "type": "coincident"
+       }
+      ],
+      "curves": [
+       {
+        "construction": false,
+        "end": "p2",
+        "end_at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l1",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l2",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l3",
+        "start": "p3",
+        "start_at": [
+         10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p1",
+        "end_at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l4",
+        "start": "p4",
+        "start_at": [
+         -10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l5",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l6",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       }
+      ],
+      "dof": 2,
+      "failing": [],
+      "fully_constrained": false,
+      "id": 1,
+      "links": [],
+      "name": "Sketch1",
+      "plane": {
+       "origin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "x_dir": [
+        1.0,
+        0.0,
+        0.0
+       ],
+       "y_dir": [
+        0.0,
+        1.0,
+        0.0
+       ]
+      },
+      "points": [
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": true,
+        "fully_constrained": true,
+        "id": "origin",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p1",
+        "link": null,
+        "world": [
+         -10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p2",
+        "link": null,
+        "world": [
+         10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p3",
+        "link": null,
+        "world": [
+         10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p4",
+        "link": null,
+        "world": [
+         -10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": false,
+        "fully_constrained": true,
+        "id": "p5",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       }
+      ],
+      "profiles": [
+       {
+        "area_mm2": 600.0,
+        "centroid_sketch": [
+         0.0,
+         0.0
+        ],
+        "curves": [
+         "l1",
+         "l2",
+         "l3",
+         "l4"
+        ],
+        "holes": [],
+        "index": 0
+       }
+      ],
+      "status": "solved",
+      "visible": false,
+      "wires": []
+     }
+    ],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 0.082526,
+      "name": "Sketch1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 2,
+      "ms": 3.4950010000000002,
+      "name": "Extrude1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+     }
+    ],
+    "undo": 3,
+    "units": "mm",
+    "refusal_design": {
+     "definitions": [
+      [
+       1,
+       {
+        "plane": {
+         "name": "XY",
+         "type": "origin"
+        }
+       }
+      ],
+      [
+       2,
+       {
+        "extent": {
+         "convention": "total_distance",
+         "direction": "positive",
+         "distance": "10"
+        },
+        "operation": "new_body",
+        "profiles": {
+         "type": "all"
+        },
+        "sketch": 1
+       }
+      ]
+     ],
+     "appearance": {
+      "bodies": {},
+      "components": [],
+      "faces": [],
+      "in_design": []
+     },
+     "rules": {
+      "active": "Steel (mm)",
+      "rules": [
+       {
+        "rule": {
+         "bend_radius": "Thickness",
+         "corner_relief": "Thickness * 4.0",
+         "corner_relief_shape": "notch",
+         "gap": "Thickness",
+         "hem_gap": "0.01 mm",
+         "k_factor": "0.44",
+         "name": "Steel (mm)",
+         "relief_depth": "Thickness * 0.5",
+         "relief_width": "Thickness",
+         "thickness": "2.5 mm"
+        },
+        "values": {
+         "bend_radius": 2.5,
+         "corner_relief": 10.0,
+         "corner_relief_shape": "notch",
+         "gap": 2.5,
+         "hem_gap": 0.01,
+         "k_factor": 0.44,
+         "relief_depth": 1.25,
+         "relief_width": 2.5,
+         "thickness": 2.5
+        }
+       }
+      ]
+     },
+     "threads": {
+      "threads": []
+     },
+     "components": {
+      "active": 0,
+      "components": [
+       {
+        "bodies": [
+         "Body1"
+        ],
+        "children": [],
+        "construction": [],
+        "features": [
+         "Extrude1"
+        ],
+        "id": 0,
+        "name": "Untitled",
+        "occurrences": [],
+        "parent": null,
+        "sketches": [
+         "Sketch1"
+        ]
+       }
+      ],
+      "pending_moves": []
+     },
+     "joints": {
+      "conflicts": [],
+      "dof": [
+       {
+        "dof": 0,
+        "occurrence": 0
+       }
+      ],
+      "errors": [],
+      "fixed": [
+       0
+      ],
+      "floating": [],
+      "joints": [],
+      "links": [],
+      "origins": []
+     }
+    }
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        10.0,
+        15.0,
+        10.0
+       ],
+       "min": [
+        -10.0,
+        -15.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       0.0,
+       0.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 2,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 6,
+    "selection": [],
+    "sketches": [
+     {
+      "constraints": [
+       {
+        "id": "k1",
+        "l": 0,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k2",
+        "l": 2,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k3",
+        "l": 1,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k4",
+        "l": 3,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k5",
+        "l": 4,
+        "name": "MidPoint",
+        "p": 5,
+        "type": "midpoint"
+       },
+       {
+        "id": "k6",
+        "name": "Coincident",
+        "p": 0,
+        "q": 5,
+        "type": "coincident"
+       }
+      ],
+      "curves": [
+       {
+        "construction": false,
+        "end": "p2",
+        "end_at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l1",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l2",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l3",
+        "start": "p3",
+        "start_at": [
+         10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p1",
+        "end_at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l4",
+        "start": "p4",
+        "start_at": [
+         -10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l5",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l6",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       }
+      ],
+      "dof": 2,
+      "failing": [],
+      "fully_constrained": false,
+      "id": 1,
+      "links": [],
+      "name": "Sketch1",
+      "plane": {
+       "origin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "x_dir": [
+        1.0,
+        0.0,
+        0.0
+       ],
+       "y_dir": [
+        0.0,
+        1.0,
+        0.0
+       ]
+      },
+      "points": [
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": true,
+        "fully_constrained": true,
+        "id": "origin",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p1",
+        "link": null,
+        "world": [
+         -10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p2",
+        "link": null,
+        "world": [
+         10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p3",
+        "link": null,
+        "world": [
+         10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p4",
+        "link": null,
+        "world": [
+         -10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": false,
+        "fully_constrained": true,
+        "id": "p5",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       }
+      ],
+      "profiles": [
+       {
+        "area_mm2": 600.0,
+        "centroid_sketch": [
+         0.0,
+         0.0
+        ],
+        "curves": [
+         "l1",
+         "l2",
+         "l3",
+         "l4"
+        ],
+        "holes": [],
+        "index": 0
+       }
+      ],
+      "status": "solved",
+      "visible": false,
+      "wires": []
+     }
+    ],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 0.082526,
+      "name": "Sketch1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 2,
+      "ms": 3.4950010000000002,
+      "name": "Extrude1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+     }
+    ],
+    "undo": 3,
+    "units": "mm",
+    "refusal_design": {
+     "definitions": [
+      [
+       1,
+       {
+        "plane": {
+         "name": "XY",
+         "type": "origin"
+        }
+       }
+      ],
+      [
+       2,
+       {
+        "extent": {
+         "convention": "total_distance",
+         "direction": "positive",
+         "distance": "10"
+        },
+        "operation": "new_body",
+        "profiles": {
+         "type": "all"
+        },
+        "sketch": 1
+       }
+      ]
+     ],
+     "appearance": {
+      "bodies": {},
+      "components": [],
+      "faces": [],
+      "in_design": []
+     },
+     "rules": {
+      "active": "Steel (mm)",
+      "rules": [
+       {
+        "rule": {
+         "bend_radius": "Thickness",
+         "corner_relief": "Thickness * 4.0",
+         "corner_relief_shape": "notch",
+         "gap": "Thickness",
+         "hem_gap": "0.01 mm",
+         "k_factor": "0.44",
+         "name": "Steel (mm)",
+         "relief_depth": "Thickness * 0.5",
+         "relief_width": "Thickness",
+         "thickness": "2.5 mm"
+        },
+        "values": {
+         "bend_radius": 2.5,
+         "corner_relief": 10.0,
+         "corner_relief_shape": "notch",
+         "gap": 2.5,
+         "hem_gap": 0.01,
+         "k_factor": 0.44,
+         "relief_depth": 1.25,
+         "relief_width": 2.5,
+         "thickness": 2.5
+        }
+       }
+      ]
+     },
+     "threads": {
+      "threads": []
+     },
+     "components": {
+      "active": 0,
+      "components": [
+       {
+        "bodies": [
+         "Body1"
+        ],
+        "children": [],
+        "construction": [],
+        "features": [
+         "Extrude1"
+        ],
+        "id": 0,
+        "name": "Untitled",
+        "occurrences": [],
+        "parent": null,
+        "sketches": [
+         "Sketch1"
+        ]
+       }
+      ],
+      "pending_moves": []
+     },
+     "joints": {
+      "conflicts": [],
+      "dof": [
+       {
+        "dof": 0,
+        "occurrence": 0
+       }
+      ],
+      "errors": [],
+      "fixed": [
+       0
+      ],
+      "floating": [],
+      "joints": [],
+      "links": [],
+      "origins": []
+     }
+    }
+   },
+   "reply": "What diameter should the hole be?",
+   "queries": {}
+  },
+  {
+   "id": "units-missing-hole-size-final",
+   "pass": true,
+   "check": {
+    "ask_first": "\\b(diameter|size)\\b"
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        10.0,
+        15.0,
+        10.0
+       ],
+       "min": [
+        -10.0,
+        -15.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       0.0,
+       0.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 2,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 6,
+    "selection": [],
+    "sketches": [
+     {
+      "constraints": [
+       {
+        "id": "k1",
+        "l": 0,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k2",
+        "l": 2,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k3",
+        "l": 1,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k4",
+        "l": 3,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k5",
+        "l": 4,
+        "name": "MidPoint",
+        "p": 5,
+        "type": "midpoint"
+       },
+       {
+        "id": "k6",
+        "name": "Coincident",
+        "p": 0,
+        "q": 5,
+        "type": "coincident"
+       }
+      ],
+      "curves": [
+       {
+        "construction": false,
+        "end": "p2",
+        "end_at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l1",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l2",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l3",
+        "start": "p3",
+        "start_at": [
+         10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p1",
+        "end_at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l4",
+        "start": "p4",
+        "start_at": [
+         -10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l5",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l6",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       }
+      ],
+      "dof": 2,
+      "failing": [],
+      "fully_constrained": false,
+      "id": 1,
+      "links": [],
+      "name": "Sketch1",
+      "plane": {
+       "origin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "x_dir": [
+        1.0,
+        0.0,
+        0.0
+       ],
+       "y_dir": [
+        0.0,
+        1.0,
+        0.0
+       ]
+      },
+      "points": [
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": true,
+        "fully_constrained": true,
+        "id": "origin",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p1",
+        "link": null,
+        "world": [
+         -10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p2",
+        "link": null,
+        "world": [
+         10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p3",
+        "link": null,
+        "world": [
+         10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p4",
+        "link": null,
+        "world": [
+         -10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": false,
+        "fully_constrained": true,
+        "id": "p5",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       }
+      ],
+      "profiles": [
+       {
+        "area_mm2": 600.0,
+        "centroid_sketch": [
+         0.0,
+         0.0
+        ],
+        "curves": [
+         "l1",
+         "l2",
+         "l3",
+         "l4"
+        ],
+        "holes": [],
+        "index": 0
+       }
+      ],
+      "status": "solved",
+      "visible": false,
+      "wires": []
+     }
+    ],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 0.082526,
+      "name": "Sketch1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 2,
+      "ms": 3.4950010000000002,
+      "name": "Extrude1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+     }
+    ],
+    "undo": 3,
+    "units": "mm",
+    "refusal_design": {
+     "definitions": [
+      [
+       1,
+       {
+        "plane": {
+         "name": "XY",
+         "type": "origin"
+        }
+       }
+      ],
+      [
+       2,
+       {
+        "extent": {
+         "convention": "total_distance",
+         "direction": "positive",
+         "distance": "10"
+        },
+        "operation": "new_body",
+        "profiles": {
+         "type": "all"
+        },
+        "sketch": 1
+       }
+      ]
+     ],
+     "appearance": {
+      "bodies": {},
+      "components": [],
+      "faces": [],
+      "in_design": []
+     },
+     "rules": {
+      "active": "Steel (mm)",
+      "rules": [
+       {
+        "rule": {
+         "bend_radius": "Thickness",
+         "corner_relief": "Thickness * 4.0",
+         "corner_relief_shape": "notch",
+         "gap": "Thickness",
+         "hem_gap": "0.01 mm",
+         "k_factor": "0.44",
+         "name": "Steel (mm)",
+         "relief_depth": "Thickness * 0.5",
+         "relief_width": "Thickness",
+         "thickness": "2.5 mm"
+        },
+        "values": {
+         "bend_radius": 2.5,
+         "corner_relief": 10.0,
+         "corner_relief_shape": "notch",
+         "gap": 2.5,
+         "hem_gap": 0.01,
+         "k_factor": 0.44,
+         "relief_depth": 1.25,
+         "relief_width": 2.5,
+         "thickness": 2.5
+        }
+       }
+      ]
+     },
+     "threads": {
+      "threads": []
+     },
+     "components": {
+      "active": 0,
+      "components": [
+       {
+        "bodies": [
+         "Body1"
+        ],
+        "children": [],
+        "construction": [],
+        "features": [
+         "Extrude1"
+        ],
+        "id": 0,
+        "name": "Untitled",
+        "occurrences": [],
+        "parent": null,
+        "sketches": [
+         "Sketch1"
+        ]
+       }
+      ],
+      "pending_moves": []
+     },
+     "joints": {
+      "conflicts": [],
+      "dof": [
+       {
+        "dof": 0,
+        "occurrence": 0
+       }
+      ],
+      "errors": [],
+      "fixed": [
+       0
+      ],
+      "floating": [],
+      "joints": [],
+      "links": [],
+      "origins": []
+     }
+    }
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        10.0,
+        15.0,
+        10.0
+       ],
+       "min": [
+        -10.0,
+        -15.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       0.0,
+       0.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 2,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 6,
+    "selection": [],
+    "sketches": [
+     {
+      "constraints": [
+       {
+        "id": "k1",
+        "l": 0,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k2",
+        "l": 2,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k3",
+        "l": 1,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k4",
+        "l": 3,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k5",
+        "l": 4,
+        "name": "MidPoint",
+        "p": 5,
+        "type": "midpoint"
+       },
+       {
+        "id": "k6",
+        "name": "Coincident",
+        "p": 0,
+        "q": 5,
+        "type": "coincident"
+       }
+      ],
+      "curves": [
+       {
+        "construction": false,
+        "end": "p2",
+        "end_at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l1",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l2",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l3",
+        "start": "p3",
+        "start_at": [
+         10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p1",
+        "end_at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l4",
+        "start": "p4",
+        "start_at": [
+         -10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l5",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l6",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       }
+      ],
+      "dof": 2,
+      "failing": [],
+      "fully_constrained": false,
+      "id": 1,
+      "links": [],
+      "name": "Sketch1",
+      "plane": {
+       "origin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "x_dir": [
+        1.0,
+        0.0,
+        0.0
+       ],
+       "y_dir": [
+        0.0,
+        1.0,
+        0.0
+       ]
+      },
+      "points": [
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": true,
+        "fully_constrained": true,
+        "id": "origin",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p1",
+        "link": null,
+        "world": [
+         -10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p2",
+        "link": null,
+        "world": [
+         10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p3",
+        "link": null,
+        "world": [
+         10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p4",
+        "link": null,
+        "world": [
+         -10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": false,
+        "fully_constrained": true,
+        "id": "p5",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       }
+      ],
+      "profiles": [
+       {
+        "area_mm2": 600.0,
+        "centroid_sketch": [
+         0.0,
+         0.0
+        ],
+        "curves": [
+         "l1",
+         "l2",
+         "l3",
+         "l4"
+        ],
+        "holes": [],
+        "index": 0
+       }
+      ],
+      "status": "solved",
+      "visible": false,
+      "wires": []
+     }
+    ],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 0.082526,
+      "name": "Sketch1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 2,
+      "ms": 3.4950010000000002,
+      "name": "Extrude1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+     }
+    ],
+    "undo": 3,
+    "units": "mm",
+    "refusal_design": {
+     "definitions": [
+      [
+       1,
+       {
+        "plane": {
+         "name": "XY",
+         "type": "origin"
+        }
+       }
+      ],
+      [
+       2,
+       {
+        "extent": {
+         "convention": "total_distance",
+         "direction": "positive",
+         "distance": "10"
+        },
+        "operation": "new_body",
+        "profiles": {
+         "type": "all"
+        },
+        "sketch": 1
+       }
+      ]
+     ],
+     "appearance": {
+      "bodies": {},
+      "components": [],
+      "faces": [],
+      "in_design": []
+     },
+     "rules": {
+      "active": "Steel (mm)",
+      "rules": [
+       {
+        "rule": {
+         "bend_radius": "Thickness",
+         "corner_relief": "Thickness * 4.0",
+         "corner_relief_shape": "notch",
+         "gap": "Thickness",
+         "hem_gap": "0.01 mm",
+         "k_factor": "0.44",
+         "name": "Steel (mm)",
+         "relief_depth": "Thickness * 0.5",
+         "relief_width": "Thickness",
+         "thickness": "2.5 mm"
+        },
+        "values": {
+         "bend_radius": 2.5,
+         "corner_relief": 10.0,
+         "corner_relief_shape": "notch",
+         "gap": 2.5,
+         "hem_gap": 0.01,
+         "k_factor": 0.44,
+         "relief_depth": 1.25,
+         "relief_width": 2.5,
+         "thickness": 2.5
+        }
+       }
+      ]
+     },
+     "threads": {
+      "threads": []
+     },
+     "components": {
+      "active": 0,
+      "components": [
+       {
+        "bodies": [
+         "Body1"
+        ],
+        "children": [],
+        "construction": [],
+        "features": [
+         "Extrude1"
+        ],
+        "id": 0,
+        "name": "Untitled",
+        "occurrences": [],
+        "parent": null,
+        "sketches": [
+         "Sketch1"
+        ]
+       }
+      ],
+      "pending_moves": []
+     },
+     "joints": {
+      "conflicts": [],
+      "dof": [
+       {
+        "dof": 0,
+        "occurrence": 0
+       }
+      ],
+      "errors": [],
+      "fixed": [
+       0
+      ],
+      "floating": [],
+      "joints": [],
+      "links": [],
+      "origins": []
+     }
+    }
+   },
+   "reply": "What diameter should the hole be?",
+   "queries": {}
+  },
+  {
+   "id": "units-mixed-fraction-turn-1",
+   "pass": true,
+   "check": {
+    "bodies": 1,
+    "volume": 4608.86175,
+    "tol": 0.0001,
+    "bbox": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      38.1,
+      19.05,
+      6.35
+     ]
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2177.415,
+      "bbox": {
+       "max": [
+        38.1,
+        19.05,
+        6.35
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       19.05,
+       9.525,
+       3.175
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 4608.86175
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 1.97694,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "units-mixed-fraction-final",
+   "pass": true,
+   "check": {
+    "bodies": 1,
+    "volume": 4608.86175,
+    "tol": 0.0001,
+    "bbox": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      38.1,
+      19.05,
+      6.35
+     ]
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2177.415,
+      "bbox": {
+       "max": [
+        38.1,
+        19.05,
+        6.35
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       19.05,
+       9.525,
+       3.175
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 4608.86175
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 1.97694,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "units-small-fraction-turn-1",
+   "pass": true,
+   "check": {
+    "bodies": 1,
+    "volume": 320.05984374999997,
+    "tol": 0.0001,
+    "bbox": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      15.875,
+      12.7,
+      1.5875
+     ]
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 493.95062499999995,
+      "bbox": {
+       "max": [
+        15.875,
+        12.7,
+        1.5875
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       7.9375,
+       6.35,
+       0.79375
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 320.05984374999997
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 1.7475559999999999,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "units-small-fraction-final",
+   "pass": true,
+   "check": {
+    "bodies": 1,
+    "volume": 320.05984374999997,
+    "tol": 0.0001,
+    "bbox": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      15.875,
+      12.7,
+      1.5875
+     ]
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 493.95062499999995,
+      "bbox": {
+       "max": [
+        15.875,
+        12.7,
+        1.5875
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       7.9375,
+       6.35,
+       0.79375
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 320.05984374999997
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 1.7475559999999999,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "units-fraction-plate-treats-inches-as-mm-turn-1",
+   "pass": false,
+   "check": {
+    "bodies": 1,
+    "volume": 4096.766,
+    "tol": 0.0001,
+    "bbox": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      50.8,
+      25.4,
+      3.175
+     ]
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 4.75,
+      "bbox": {
+       "max": [
+        2.0,
+        1.0,
+        0.125
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       1.0,
+       0.5,
+       0.0625
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 0.25
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 7.615004,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "units-fraction-plate-treats-inches-as-mm-final",
+   "pass": false,
+   "check": {
+    "bodies": 1,
+    "volume": 4096.766,
+    "tol": 0.0001,
+    "bbox": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      50.8,
+      25.4,
+      3.175
+     ]
+    ]
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 4.75,
+      "bbox": {
+       "max": [
+        2.0,
+        1.0,
+        0.125
+       ],
+       "min": [
+        0.0,
+        0.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       1.0,
+       0.5,
+       0.0625
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 0.25
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 1,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 3,
+    "selection": [],
+    "sketches": [],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 7.615004,
+      "name": "Box1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "BoxFeature",
+      "warning": null
+     }
+    ],
+    "undo": 1,
+    "units": "mm"
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [],
+    "dirty": false,
+    "hidden_origin": [],
+    "marker": 0,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 1,
+    "selection": [],
+    "sketches": [],
+    "timeline": [],
+    "undo": 0,
+    "units": "mm"
+   },
+   "reply": "",
+   "queries": {}
+  },
+  {
+   "id": "units-missing-hole-size-does-not-ask-turn-1",
+   "pass": false,
+   "check": {
+    "ask_first": "\\b(diameter|size)\\b"
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        10.0,
+        15.0,
+        10.0
+       ],
+       "min": [
+        -10.0,
+        -15.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       0.0,
+       0.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 2,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 6,
+    "selection": [],
+    "sketches": [
+     {
+      "constraints": [
+       {
+        "id": "k1",
+        "l": 0,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k2",
+        "l": 2,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k3",
+        "l": 1,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k4",
+        "l": 3,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k5",
+        "l": 4,
+        "name": "MidPoint",
+        "p": 5,
+        "type": "midpoint"
+       },
+       {
+        "id": "k6",
+        "name": "Coincident",
+        "p": 0,
+        "q": 5,
+        "type": "coincident"
+       }
+      ],
+      "curves": [
+       {
+        "construction": false,
+        "end": "p2",
+        "end_at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l1",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l2",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l3",
+        "start": "p3",
+        "start_at": [
+         10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p1",
+        "end_at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l4",
+        "start": "p4",
+        "start_at": [
+         -10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l5",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l6",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       }
+      ],
+      "dof": 2,
+      "failing": [],
+      "fully_constrained": false,
+      "id": 1,
+      "links": [],
+      "name": "Sketch1",
+      "plane": {
+       "origin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "x_dir": [
+        1.0,
+        0.0,
+        0.0
+       ],
+       "y_dir": [
+        0.0,
+        1.0,
+        0.0
+       ]
+      },
+      "points": [
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": true,
+        "fully_constrained": true,
+        "id": "origin",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p1",
+        "link": null,
+        "world": [
+         -10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p2",
+        "link": null,
+        "world": [
+         10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p3",
+        "link": null,
+        "world": [
+         10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p4",
+        "link": null,
+        "world": [
+         -10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": false,
+        "fully_constrained": true,
+        "id": "p5",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       }
+      ],
+      "profiles": [
+       {
+        "area_mm2": 600.0,
+        "centroid_sketch": [
+         0.0,
+         0.0
+        ],
+        "curves": [
+         "l1",
+         "l2",
+         "l3",
+         "l4"
+        ],
+        "holes": [],
+        "index": 0
+       }
+      ],
+      "status": "solved",
+      "visible": false,
+      "wires": []
+     }
+    ],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 0.09539099999999999,
+      "name": "Sketch1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 2,
+      "ms": 4.311967,
+      "name": "Extrude1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+     }
+    ],
+    "undo": 3,
+    "units": "mm",
+    "refusal_design": {
+     "definitions": [
+      [
+       1,
+       {
+        "plane": {
+         "name": "XY",
+         "type": "origin"
+        }
+       }
+      ],
+      [
+       2,
+       {
+        "extent": {
+         "convention": "total_distance",
+         "direction": "positive",
+         "distance": "10"
+        },
+        "operation": "new_body",
+        "profiles": {
+         "type": "all"
+        },
+        "sketch": 1
+       }
+      ]
+     ],
+     "appearance": {
+      "bodies": {},
+      "components": [],
+      "faces": [],
+      "in_design": []
+     },
+     "rules": {
+      "active": "Steel (mm)",
+      "rules": [
+       {
+        "rule": {
+         "bend_radius": "Thickness",
+         "corner_relief": "Thickness * 4.0",
+         "corner_relief_shape": "notch",
+         "gap": "Thickness",
+         "hem_gap": "0.01 mm",
+         "k_factor": "0.44",
+         "name": "Steel (mm)",
+         "relief_depth": "Thickness * 0.5",
+         "relief_width": "Thickness",
+         "thickness": "2.5 mm"
+        },
+        "values": {
+         "bend_radius": 2.5,
+         "corner_relief": 10.0,
+         "corner_relief_shape": "notch",
+         "gap": 2.5,
+         "hem_gap": 0.01,
+         "k_factor": 0.44,
+         "relief_depth": 1.25,
+         "relief_width": 2.5,
+         "thickness": 2.5
+        }
+       }
+      ]
+     },
+     "threads": {
+      "threads": []
+     },
+     "components": {
+      "active": 0,
+      "components": [
+       {
+        "bodies": [
+         "Body1"
+        ],
+        "children": [],
+        "construction": [],
+        "features": [
+         "Extrude1"
+        ],
+        "id": 0,
+        "name": "Untitled",
+        "occurrences": [],
+        "parent": null,
+        "sketches": [
+         "Sketch1"
+        ]
+       }
+      ],
+      "pending_moves": []
+     },
+     "joints": {
+      "conflicts": [],
+      "dof": [
+       {
+        "dof": 0,
+        "occurrence": 0
+       }
+      ],
+      "errors": [],
+      "fixed": [
+       0
+      ],
+      "floating": [],
+      "joints": [],
+      "links": [],
+      "origins": []
+     }
+    }
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        10.0,
+        15.0,
+        10.0
+       ],
+       "min": [
+        -10.0,
+        -15.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       0.0,
+       0.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 2,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 6,
+    "selection": [],
+    "sketches": [
+     {
+      "constraints": [
+       {
+        "id": "k1",
+        "l": 0,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k2",
+        "l": 2,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k3",
+        "l": 1,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k4",
+        "l": 3,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k5",
+        "l": 4,
+        "name": "MidPoint",
+        "p": 5,
+        "type": "midpoint"
+       },
+       {
+        "id": "k6",
+        "name": "Coincident",
+        "p": 0,
+        "q": 5,
+        "type": "coincident"
+       }
+      ],
+      "curves": [
+       {
+        "construction": false,
+        "end": "p2",
+        "end_at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l1",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l2",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l3",
+        "start": "p3",
+        "start_at": [
+         10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p1",
+        "end_at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l4",
+        "start": "p4",
+        "start_at": [
+         -10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l5",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l6",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       }
+      ],
+      "dof": 2,
+      "failing": [],
+      "fully_constrained": false,
+      "id": 1,
+      "links": [],
+      "name": "Sketch1",
+      "plane": {
+       "origin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "x_dir": [
+        1.0,
+        0.0,
+        0.0
+       ],
+       "y_dir": [
+        0.0,
+        1.0,
+        0.0
+       ]
+      },
+      "points": [
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": true,
+        "fully_constrained": true,
+        "id": "origin",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p1",
+        "link": null,
+        "world": [
+         -10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p2",
+        "link": null,
+        "world": [
+         10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p3",
+        "link": null,
+        "world": [
+         10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p4",
+        "link": null,
+        "world": [
+         -10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": false,
+        "fully_constrained": true,
+        "id": "p5",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       }
+      ],
+      "profiles": [
+       {
+        "area_mm2": 600.0,
+        "centroid_sketch": [
+         0.0,
+         0.0
+        ],
+        "curves": [
+         "l1",
+         "l2",
+         "l3",
+         "l4"
+        ],
+        "holes": [],
+        "index": 0
+       }
+      ],
+      "status": "solved",
+      "visible": false,
+      "wires": []
+     }
+    ],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 0.09539099999999999,
+      "name": "Sketch1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 2,
+      "ms": 4.311967,
+      "name": "Extrude1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+     }
+    ],
+    "undo": 3,
+    "units": "mm",
+    "refusal_design": {
+     "definitions": [
+      [
+       1,
+       {
+        "plane": {
+         "name": "XY",
+         "type": "origin"
+        }
+       }
+      ],
+      [
+       2,
+       {
+        "extent": {
+         "convention": "total_distance",
+         "direction": "positive",
+         "distance": "10"
+        },
+        "operation": "new_body",
+        "profiles": {
+         "type": "all"
+        },
+        "sketch": 1
+       }
+      ]
+     ],
+     "appearance": {
+      "bodies": {},
+      "components": [],
+      "faces": [],
+      "in_design": []
+     },
+     "rules": {
+      "active": "Steel (mm)",
+      "rules": [
+       {
+        "rule": {
+         "bend_radius": "Thickness",
+         "corner_relief": "Thickness * 4.0",
+         "corner_relief_shape": "notch",
+         "gap": "Thickness",
+         "hem_gap": "0.01 mm",
+         "k_factor": "0.44",
+         "name": "Steel (mm)",
+         "relief_depth": "Thickness * 0.5",
+         "relief_width": "Thickness",
+         "thickness": "2.5 mm"
+        },
+        "values": {
+         "bend_radius": 2.5,
+         "corner_relief": 10.0,
+         "corner_relief_shape": "notch",
+         "gap": 2.5,
+         "hem_gap": 0.01,
+         "k_factor": 0.44,
+         "relief_depth": 1.25,
+         "relief_width": 2.5,
+         "thickness": 2.5
+        }
+       }
+      ]
+     },
+     "threads": {
+      "threads": []
+     },
+     "components": {
+      "active": 0,
+      "components": [
+       {
+        "bodies": [
+         "Body1"
+        ],
+        "children": [],
+        "construction": [],
+        "features": [
+         "Extrude1"
+        ],
+        "id": 0,
+        "name": "Untitled",
+        "occurrences": [],
+        "parent": null,
+        "sketches": [
+         "Sketch1"
+        ]
+       }
+      ],
+      "pending_moves": []
+     },
+     "joints": {
+      "conflicts": [],
+      "dof": [
+       {
+        "dof": 0,
+        "occurrence": 0
+       }
+      ],
+      "errors": [],
+      "fixed": [
+       0
+      ],
+      "floating": [],
+      "joints": [],
+      "links": [],
+      "origins": []
+     }
+    }
+   },
+   "reply": "Done.",
+   "queries": {}
+  },
+  {
+   "id": "units-missing-hole-size-does-not-ask-final",
+   "pass": false,
+   "check": {
+    "ask_first": "\\b(diameter|size)\\b"
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        10.0,
+        15.0,
+        10.0
+       ],
+       "min": [
+        -10.0,
+        -15.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       0.0,
+       0.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 2,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 6,
+    "selection": [],
+    "sketches": [
+     {
+      "constraints": [
+       {
+        "id": "k1",
+        "l": 0,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k2",
+        "l": 2,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k3",
+        "l": 1,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k4",
+        "l": 3,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k5",
+        "l": 4,
+        "name": "MidPoint",
+        "p": 5,
+        "type": "midpoint"
+       },
+       {
+        "id": "k6",
+        "name": "Coincident",
+        "p": 0,
+        "q": 5,
+        "type": "coincident"
+       }
+      ],
+      "curves": [
+       {
+        "construction": false,
+        "end": "p2",
+        "end_at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l1",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l2",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l3",
+        "start": "p3",
+        "start_at": [
+         10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p1",
+        "end_at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l4",
+        "start": "p4",
+        "start_at": [
+         -10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l5",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l6",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       }
+      ],
+      "dof": 2,
+      "failing": [],
+      "fully_constrained": false,
+      "id": 1,
+      "links": [],
+      "name": "Sketch1",
+      "plane": {
+       "origin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "x_dir": [
+        1.0,
+        0.0,
+        0.0
+       ],
+       "y_dir": [
+        0.0,
+        1.0,
+        0.0
+       ]
+      },
+      "points": [
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": true,
+        "fully_constrained": true,
+        "id": "origin",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p1",
+        "link": null,
+        "world": [
+         -10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p2",
+        "link": null,
+        "world": [
+         10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p3",
+        "link": null,
+        "world": [
+         10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p4",
+        "link": null,
+        "world": [
+         -10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": false,
+        "fully_constrained": true,
+        "id": "p5",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       }
+      ],
+      "profiles": [
+       {
+        "area_mm2": 600.0,
+        "centroid_sketch": [
+         0.0,
+         0.0
+        ],
+        "curves": [
+         "l1",
+         "l2",
+         "l3",
+         "l4"
+        ],
+        "holes": [],
+        "index": 0
+       }
+      ],
+      "status": "solved",
+      "visible": false,
+      "wires": []
+     }
+    ],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 0.09539099999999999,
+      "name": "Sketch1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 2,
+      "ms": 4.311967,
+      "name": "Extrude1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+     }
+    ],
+    "undo": 3,
+    "units": "mm",
+    "refusal_design": {
+     "definitions": [
+      [
+       1,
+       {
+        "plane": {
+         "name": "XY",
+         "type": "origin"
+        }
+       }
+      ],
+      [
+       2,
+       {
+        "extent": {
+         "convention": "total_distance",
+         "direction": "positive",
+         "distance": "10"
+        },
+        "operation": "new_body",
+        "profiles": {
+         "type": "all"
+        },
+        "sketch": 1
+       }
+      ]
+     ],
+     "appearance": {
+      "bodies": {},
+      "components": [],
+      "faces": [],
+      "in_design": []
+     },
+     "rules": {
+      "active": "Steel (mm)",
+      "rules": [
+       {
+        "rule": {
+         "bend_radius": "Thickness",
+         "corner_relief": "Thickness * 4.0",
+         "corner_relief_shape": "notch",
+         "gap": "Thickness",
+         "hem_gap": "0.01 mm",
+         "k_factor": "0.44",
+         "name": "Steel (mm)",
+         "relief_depth": "Thickness * 0.5",
+         "relief_width": "Thickness",
+         "thickness": "2.5 mm"
+        },
+        "values": {
+         "bend_radius": 2.5,
+         "corner_relief": 10.0,
+         "corner_relief_shape": "notch",
+         "gap": 2.5,
+         "hem_gap": 0.01,
+         "k_factor": 0.44,
+         "relief_depth": 1.25,
+         "relief_width": 2.5,
+         "thickness": 2.5
+        }
+       }
+      ]
+     },
+     "threads": {
+      "threads": []
+     },
+     "components": {
+      "active": 0,
+      "components": [
+       {
+        "bodies": [
+         "Body1"
+        ],
+        "children": [],
+        "construction": [],
+        "features": [
+         "Extrude1"
+        ],
+        "id": 0,
+        "name": "Untitled",
+        "occurrences": [],
+        "parent": null,
+        "sketches": [
+         "Sketch1"
+        ]
+       }
+      ],
+      "pending_moves": []
+     },
+     "joints": {
+      "conflicts": [],
+      "dof": [
+       {
+        "dof": 0,
+        "occurrence": 0
+       }
+      ],
+      "errors": [],
+      "fixed": [
+       0
+      ],
+      "floating": [],
+      "joints": [],
+      "links": [],
+      "origins": []
+     }
+    }
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        10.0,
+        15.0,
+        10.0
+       ],
+       "min": [
+        -10.0,
+        -15.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       0.0,
+       0.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 2,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 6,
+    "selection": [],
+    "sketches": [
+     {
+      "constraints": [
+       {
+        "id": "k1",
+        "l": 0,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k2",
+        "l": 2,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k3",
+        "l": 1,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k4",
+        "l": 3,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k5",
+        "l": 4,
+        "name": "MidPoint",
+        "p": 5,
+        "type": "midpoint"
+       },
+       {
+        "id": "k6",
+        "name": "Coincident",
+        "p": 0,
+        "q": 5,
+        "type": "coincident"
+       }
+      ],
+      "curves": [
+       {
+        "construction": false,
+        "end": "p2",
+        "end_at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l1",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l2",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l3",
+        "start": "p3",
+        "start_at": [
+         10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p1",
+        "end_at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l4",
+        "start": "p4",
+        "start_at": [
+         -10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l5",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l6",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       }
+      ],
+      "dof": 2,
+      "failing": [],
+      "fully_constrained": false,
+      "id": 1,
+      "links": [],
+      "name": "Sketch1",
+      "plane": {
+       "origin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "x_dir": [
+        1.0,
+        0.0,
+        0.0
+       ],
+       "y_dir": [
+        0.0,
+        1.0,
+        0.0
+       ]
+      },
+      "points": [
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": true,
+        "fully_constrained": true,
+        "id": "origin",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p1",
+        "link": null,
+        "world": [
+         -10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p2",
+        "link": null,
+        "world": [
+         10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p3",
+        "link": null,
+        "world": [
+         10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p4",
+        "link": null,
+        "world": [
+         -10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": false,
+        "fully_constrained": true,
+        "id": "p5",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       }
+      ],
+      "profiles": [
+       {
+        "area_mm2": 600.0,
+        "centroid_sketch": [
+         0.0,
+         0.0
+        ],
+        "curves": [
+         "l1",
+         "l2",
+         "l3",
+         "l4"
+        ],
+        "holes": [],
+        "index": 0
+       }
+      ],
+      "status": "solved",
+      "visible": false,
+      "wires": []
+     }
+    ],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 0.09539099999999999,
+      "name": "Sketch1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 2,
+      "ms": 4.311967,
+      "name": "Extrude1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+     }
+    ],
+    "undo": 3,
+    "units": "mm",
+    "refusal_design": {
+     "definitions": [
+      [
+       1,
+       {
+        "plane": {
+         "name": "XY",
+         "type": "origin"
+        }
+       }
+      ],
+      [
+       2,
+       {
+        "extent": {
+         "convention": "total_distance",
+         "direction": "positive",
+         "distance": "10"
+        },
+        "operation": "new_body",
+        "profiles": {
+         "type": "all"
+        },
+        "sketch": 1
+       }
+      ]
+     ],
+     "appearance": {
+      "bodies": {},
+      "components": [],
+      "faces": [],
+      "in_design": []
+     },
+     "rules": {
+      "active": "Steel (mm)",
+      "rules": [
+       {
+        "rule": {
+         "bend_radius": "Thickness",
+         "corner_relief": "Thickness * 4.0",
+         "corner_relief_shape": "notch",
+         "gap": "Thickness",
+         "hem_gap": "0.01 mm",
+         "k_factor": "0.44",
+         "name": "Steel (mm)",
+         "relief_depth": "Thickness * 0.5",
+         "relief_width": "Thickness",
+         "thickness": "2.5 mm"
+        },
+        "values": {
+         "bend_radius": 2.5,
+         "corner_relief": 10.0,
+         "corner_relief_shape": "notch",
+         "gap": 2.5,
+         "hem_gap": 0.01,
+         "k_factor": 0.44,
+         "relief_depth": 1.25,
+         "relief_width": 2.5,
+         "thickness": 2.5
+        }
+       }
+      ]
+     },
+     "threads": {
+      "threads": []
+     },
+     "components": {
+      "active": 0,
+      "components": [
+       {
+        "bodies": [
+         "Body1"
+        ],
+        "children": [],
+        "construction": [],
+        "features": [
+         "Extrude1"
+        ],
+        "id": 0,
+        "name": "Untitled",
+        "occurrences": [],
+        "parent": null,
+        "sketches": [
+         "Sketch1"
+        ]
+       }
+      ],
+      "pending_moves": []
+     },
+     "joints": {
+      "conflicts": [],
+      "dof": [
+       {
+        "dof": 0,
+        "occurrence": 0
+       }
+      ],
+      "errors": [],
+      "fixed": [
+       0
+      ],
+      "floating": [],
+      "joints": [],
+      "links": [],
+      "origins": []
+     }
+    }
+   },
+   "reply": "Done.",
+   "queries": {}
+  },
+  {
+   "id": "units-missing-hole-size-guesses-hole-size-turn-1",
+   "pass": false,
+   "check": {
+    "ask_first": "\\b(diameter|size)\\b"
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2317.8097242327526,
+      "bbox": {
+       "max": [
+        10.0,
+        15.0,
+        10.000000000000005
+       ],
+       "min": [
+        -10.0,
+        -15.000000000000005,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       3.8157232773178784e-17,
+       3.664141292033548e-16,
+       4.999999999999999
+      ],
+      "edges": 14,
+      "face_types": {
+       "cylinder": 1,
+       "plane": 6
+      },
+      "faces": 7,
+      "kernel": {
+       "edges": 18,
+       "faces": 8,
+       "shells": 1,
+       "vertices": 12
+      },
+      "name": "Body1",
+      "vertices": 10,
+      "visible": true,
+      "volume_mm3": 5803.683073533215
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 3,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 8,
+    "selection": [],
+    "sketches": [
+     {
+      "constraints": [
+       {
+        "id": "k1",
+        "l": 0,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k2",
+        "l": 2,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k3",
+        "l": 1,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k4",
+        "l": 3,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k5",
+        "l": 4,
+        "name": "MidPoint",
+        "p": 5,
+        "type": "midpoint"
+       },
+       {
+        "id": "k6",
+        "name": "Coincident",
+        "p": 0,
+        "q": 5,
+        "type": "coincident"
+       }
+      ],
+      "curves": [
+       {
+        "construction": false,
+        "end": "p2",
+        "end_at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l1",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l2",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l3",
+        "start": "p3",
+        "start_at": [
+         10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p1",
+        "end_at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l4",
+        "start": "p4",
+        "start_at": [
+         -10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l5",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l6",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       }
+      ],
+      "dof": 2,
+      "failing": [],
+      "fully_constrained": false,
+      "id": 1,
+      "links": [],
+      "name": "Sketch1",
+      "plane": {
+       "origin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "x_dir": [
+        1.0,
+        0.0,
+        0.0
+       ],
+       "y_dir": [
+        0.0,
+        1.0,
+        0.0
+       ]
+      },
+      "points": [
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": true,
+        "fully_constrained": true,
+        "id": "origin",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p1",
+        "link": null,
+        "world": [
+         -10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p2",
+        "link": null,
+        "world": [
+         10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p3",
+        "link": null,
+        "world": [
+         10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p4",
+        "link": null,
+        "world": [
+         -10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": false,
+        "fully_constrained": true,
+        "id": "p5",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       }
+      ],
+      "profiles": [
+       {
+        "area_mm2": 600.0,
+        "centroid_sketch": [
+         0.0,
+         0.0
+        ],
+        "curves": [
+         "l1",
+         "l2",
+         "l3",
+         "l4"
+        ],
+        "holes": [],
+        "index": 0
+       }
+      ],
+      "status": "solved",
+      "visible": false,
+      "wires": []
+     }
+    ],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 0.115058,
+      "name": "Sketch1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 2,
+      "ms": 2.9788240000000004,
+      "name": "Extrude1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 3,
+      "ms": 11.711724,
+      "name": "Hole1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "HoleFeature",
+      "warning": null
+     }
+    ],
+    "undo": 4,
+    "units": "mm",
+    "refusal_design": {
+     "definitions": [
+      [
+       1,
+       {
+        "plane": {
+         "name": "XY",
+         "type": "origin"
+        }
+       }
+      ],
+      [
+       2,
+       {
+        "extent": {
+         "convention": "total_distance",
+         "direction": "positive",
+         "distance": "10"
+        },
+        "operation": "new_body",
+        "profiles": {
+         "type": "all"
+        },
+        "sketch": 1
+       }
+      ],
+      [
+       3,
+       {
+        "diameter": "5",
+        "direction": [
+         -0.0,
+         -0.0,
+         -1.0
+        ],
+        "hole": {
+         "type": "simple"
+        },
+        "position": [
+         0.0,
+         0.0,
+         10.0
+        ]
+       }
+      ]
+     ],
+     "appearance": {
+      "bodies": {},
+      "components": [],
+      "faces": [],
+      "in_design": []
+     },
+     "rules": {
+      "active": "Steel (mm)",
+      "rules": [
+       {
+        "rule": {
+         "bend_radius": "Thickness",
+         "corner_relief": "Thickness * 4.0",
+         "corner_relief_shape": "notch",
+         "gap": "Thickness",
+         "hem_gap": "0.01 mm",
+         "k_factor": "0.44",
+         "name": "Steel (mm)",
+         "relief_depth": "Thickness * 0.5",
+         "relief_width": "Thickness",
+         "thickness": "2.5 mm"
+        },
+        "values": {
+         "bend_radius": 2.5,
+         "corner_relief": 10.0,
+         "corner_relief_shape": "notch",
+         "gap": 2.5,
+         "hem_gap": 0.01,
+         "k_factor": 0.44,
+         "relief_depth": 1.25,
+         "relief_width": 2.5,
+         "thickness": 2.5
+        }
+       }
+      ]
+     },
+     "threads": {
+      "threads": []
+     },
+     "components": {
+      "active": 0,
+      "components": [
+       {
+        "bodies": [
+         "Body1"
+        ],
+        "children": [],
+        "construction": [],
+        "features": [
+         "Extrude1",
+         "Hole1"
+        ],
+        "id": 0,
+        "name": "Untitled",
+        "occurrences": [],
+        "parent": null,
+        "sketches": [
+         "Sketch1"
+        ]
+       }
+      ],
+      "pending_moves": []
+     },
+     "joints": {
+      "conflicts": [],
+      "dof": [
+       {
+        "dof": 0,
+        "occurrence": 0
+       }
+      ],
+      "errors": [],
+      "fixed": [
+       0
+      ],
+      "floating": [],
+      "joints": [],
+      "links": [],
+      "origins": []
+     }
+    }
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        10.0,
+        15.0,
+        10.0
+       ],
+       "min": [
+        -10.0,
+        -15.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       0.0,
+       0.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 2,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 6,
+    "selection": [],
+    "sketches": [
+     {
+      "constraints": [
+       {
+        "id": "k1",
+        "l": 0,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k2",
+        "l": 2,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k3",
+        "l": 1,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k4",
+        "l": 3,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k5",
+        "l": 4,
+        "name": "MidPoint",
+        "p": 5,
+        "type": "midpoint"
+       },
+       {
+        "id": "k6",
+        "name": "Coincident",
+        "p": 0,
+        "q": 5,
+        "type": "coincident"
+       }
+      ],
+      "curves": [
+       {
+        "construction": false,
+        "end": "p2",
+        "end_at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l1",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l2",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l3",
+        "start": "p3",
+        "start_at": [
+         10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p1",
+        "end_at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l4",
+        "start": "p4",
+        "start_at": [
+         -10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l5",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l6",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       }
+      ],
+      "dof": 2,
+      "failing": [],
+      "fully_constrained": false,
+      "id": 1,
+      "links": [],
+      "name": "Sketch1",
+      "plane": {
+       "origin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "x_dir": [
+        1.0,
+        0.0,
+        0.0
+       ],
+       "y_dir": [
+        0.0,
+        1.0,
+        0.0
+       ]
+      },
+      "points": [
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": true,
+        "fully_constrained": true,
+        "id": "origin",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p1",
+        "link": null,
+        "world": [
+         -10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p2",
+        "link": null,
+        "world": [
+         10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p3",
+        "link": null,
+        "world": [
+         10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p4",
+        "link": null,
+        "world": [
+         -10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": false,
+        "fully_constrained": true,
+        "id": "p5",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       }
+      ],
+      "profiles": [
+       {
+        "area_mm2": 600.0,
+        "centroid_sketch": [
+         0.0,
+         0.0
+        ],
+        "curves": [
+         "l1",
+         "l2",
+         "l3",
+         "l4"
+        ],
+        "holes": [],
+        "index": 0
+       }
+      ],
+      "status": "solved",
+      "visible": false,
+      "wires": []
+     }
+    ],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 0.115058,
+      "name": "Sketch1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 2,
+      "ms": 2.9788240000000004,
+      "name": "Extrude1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+     }
+    ],
+    "undo": 3,
+    "units": "mm",
+    "refusal_design": {
+     "definitions": [
+      [
+       1,
+       {
+        "plane": {
+         "name": "XY",
+         "type": "origin"
+        }
+       }
+      ],
+      [
+       2,
+       {
+        "extent": {
+         "convention": "total_distance",
+         "direction": "positive",
+         "distance": "10"
+        },
+        "operation": "new_body",
+        "profiles": {
+         "type": "all"
+        },
+        "sketch": 1
+       }
+      ]
+     ],
+     "appearance": {
+      "bodies": {},
+      "components": [],
+      "faces": [],
+      "in_design": []
+     },
+     "rules": {
+      "active": "Steel (mm)",
+      "rules": [
+       {
+        "rule": {
+         "bend_radius": "Thickness",
+         "corner_relief": "Thickness * 4.0",
+         "corner_relief_shape": "notch",
+         "gap": "Thickness",
+         "hem_gap": "0.01 mm",
+         "k_factor": "0.44",
+         "name": "Steel (mm)",
+         "relief_depth": "Thickness * 0.5",
+         "relief_width": "Thickness",
+         "thickness": "2.5 mm"
+        },
+        "values": {
+         "bend_radius": 2.5,
+         "corner_relief": 10.0,
+         "corner_relief_shape": "notch",
+         "gap": 2.5,
+         "hem_gap": 0.01,
+         "k_factor": 0.44,
+         "relief_depth": 1.25,
+         "relief_width": 2.5,
+         "thickness": 2.5
+        }
+       }
+      ]
+     },
+     "threads": {
+      "threads": []
+     },
+     "components": {
+      "active": 0,
+      "components": [
+       {
+        "bodies": [
+         "Body1"
+        ],
+        "children": [],
+        "construction": [],
+        "features": [
+         "Extrude1"
+        ],
+        "id": 0,
+        "name": "Untitled",
+        "occurrences": [],
+        "parent": null,
+        "sketches": [
+         "Sketch1"
+        ]
+       }
+      ],
+      "pending_moves": []
+     },
+     "joints": {
+      "conflicts": [],
+      "dof": [
+       {
+        "dof": 0,
+        "occurrence": 0
+       }
+      ],
+      "errors": [],
+      "fixed": [
+       0
+      ],
+      "floating": [],
+      "joints": [],
+      "links": [],
+      "origins": []
+     }
+    }
+   },
+   "reply": "What diameter should the hole be?",
+   "queries": {}
+  },
+  {
+   "id": "units-missing-hole-size-guesses-hole-size-final",
+   "pass": false,
+   "check": {
+    "ask_first": "\\b(diameter|size)\\b"
+   },
+   "document": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2317.8097242327526,
+      "bbox": {
+       "max": [
+        10.0,
+        15.0,
+        10.000000000000005
+       ],
+       "min": [
+        -10.0,
+        -15.000000000000005,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       3.8157232773178784e-17,
+       3.664141292033548e-16,
+       4.999999999999999
+      ],
+      "edges": 14,
+      "face_types": {
+       "cylinder": 1,
+       "plane": 6
+      },
+      "faces": 7,
+      "kernel": {
+       "edges": 18,
+       "faces": 8,
+       "shells": 1,
+       "vertices": 12
+      },
+      "name": "Body1",
+      "vertices": 10,
+      "visible": true,
+      "volume_mm3": 5803.683073533215
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 3,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 8,
+    "selection": [],
+    "sketches": [
+     {
+      "constraints": [
+       {
+        "id": "k1",
+        "l": 0,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k2",
+        "l": 2,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k3",
+        "l": 1,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k4",
+        "l": 3,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k5",
+        "l": 4,
+        "name": "MidPoint",
+        "p": 5,
+        "type": "midpoint"
+       },
+       {
+        "id": "k6",
+        "name": "Coincident",
+        "p": 0,
+        "q": 5,
+        "type": "coincident"
+       }
+      ],
+      "curves": [
+       {
+        "construction": false,
+        "end": "p2",
+        "end_at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l1",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l2",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l3",
+        "start": "p3",
+        "start_at": [
+         10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p1",
+        "end_at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l4",
+        "start": "p4",
+        "start_at": [
+         -10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l5",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l6",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       }
+      ],
+      "dof": 2,
+      "failing": [],
+      "fully_constrained": false,
+      "id": 1,
+      "links": [],
+      "name": "Sketch1",
+      "plane": {
+       "origin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "x_dir": [
+        1.0,
+        0.0,
+        0.0
+       ],
+       "y_dir": [
+        0.0,
+        1.0,
+        0.0
+       ]
+      },
+      "points": [
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": true,
+        "fully_constrained": true,
+        "id": "origin",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p1",
+        "link": null,
+        "world": [
+         -10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p2",
+        "link": null,
+        "world": [
+         10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p3",
+        "link": null,
+        "world": [
+         10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p4",
+        "link": null,
+        "world": [
+         -10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": false,
+        "fully_constrained": true,
+        "id": "p5",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       }
+      ],
+      "profiles": [
+       {
+        "area_mm2": 600.0,
+        "centroid_sketch": [
+         0.0,
+         0.0
+        ],
+        "curves": [
+         "l1",
+         "l2",
+         "l3",
+         "l4"
+        ],
+        "holes": [],
+        "index": 0
+       }
+      ],
+      "status": "solved",
+      "visible": false,
+      "wires": []
+     }
+    ],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 0.115058,
+      "name": "Sketch1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 2,
+      "ms": 2.9788240000000004,
+      "name": "Extrude1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 3,
+      "ms": 11.711724,
+      "name": "Hole1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "HoleFeature",
+      "warning": null
+     }
+    ],
+    "undo": 4,
+    "units": "mm",
+    "refusal_design": {
+     "definitions": [
+      [
+       1,
+       {
+        "plane": {
+         "name": "XY",
+         "type": "origin"
+        }
+       }
+      ],
+      [
+       2,
+       {
+        "extent": {
+         "convention": "total_distance",
+         "direction": "positive",
+         "distance": "10"
+        },
+        "operation": "new_body",
+        "profiles": {
+         "type": "all"
+        },
+        "sketch": 1
+       }
+      ],
+      [
+       3,
+       {
+        "diameter": "5",
+        "direction": [
+         -0.0,
+         -0.0,
+         -1.0
+        ],
+        "hole": {
+         "type": "simple"
+        },
+        "position": [
+         0.0,
+         0.0,
+         10.0
+        ]
+       }
+      ]
+     ],
+     "appearance": {
+      "bodies": {},
+      "components": [],
+      "faces": [],
+      "in_design": []
+     },
+     "rules": {
+      "active": "Steel (mm)",
+      "rules": [
+       {
+        "rule": {
+         "bend_radius": "Thickness",
+         "corner_relief": "Thickness * 4.0",
+         "corner_relief_shape": "notch",
+         "gap": "Thickness",
+         "hem_gap": "0.01 mm",
+         "k_factor": "0.44",
+         "name": "Steel (mm)",
+         "relief_depth": "Thickness * 0.5",
+         "relief_width": "Thickness",
+         "thickness": "2.5 mm"
+        },
+        "values": {
+         "bend_radius": 2.5,
+         "corner_relief": 10.0,
+         "corner_relief_shape": "notch",
+         "gap": 2.5,
+         "hem_gap": 0.01,
+         "k_factor": 0.44,
+         "relief_depth": 1.25,
+         "relief_width": 2.5,
+         "thickness": 2.5
+        }
+       }
+      ]
+     },
+     "threads": {
+      "threads": []
+     },
+     "components": {
+      "active": 0,
+      "components": [
+       {
+        "bodies": [
+         "Body1"
+        ],
+        "children": [],
+        "construction": [],
+        "features": [
+         "Extrude1",
+         "Hole1"
+        ],
+        "id": 0,
+        "name": "Untitled",
+        "occurrences": [],
+        "parent": null,
+        "sketches": [
+         "Sketch1"
+        ]
+       }
+      ],
+      "pending_moves": []
+     },
+     "joints": {
+      "conflicts": [],
+      "dof": [
+       {
+        "dof": 0,
+        "occurrence": 0
+       }
+      ],
+      "errors": [],
+      "fixed": [
+       0
+      ],
+      "floating": [],
+      "joints": [],
+      "links": [],
+      "origins": []
+     }
+    }
+   },
+   "before": {
+    "active_sketch": null,
+    "bodies": [
+     {
+      "area_mm2": 2200.0,
+      "bbox": {
+       "max": [
+        10.0,
+        15.0,
+        10.0
+       ],
+       "min": [
+        -10.0,
+        -15.0,
+        0.0
+       ]
+      },
+      "center_of_mass": [
+       0.0,
+       0.0,
+       5.0
+      ],
+      "edges": 12,
+      "face_types": {
+       "plane": 6
+      },
+      "faces": 6,
+      "kernel": {
+       "edges": 12,
+       "faces": 6,
+       "shells": 1,
+       "vertices": 8
+      },
+      "name": "Body1",
+      "vertices": 8,
+      "visible": true,
+      "volume_mm3": 6000.0
+     }
+    ],
+    "dirty": true,
+    "hidden_origin": [],
+    "marker": 2,
+    "metadata": {},
+    "name": "Untitled",
+    "params": [],
+    "path": null,
+    "redo": 0,
+    "revision": 6,
+    "selection": [],
+    "sketches": [
+     {
+      "constraints": [
+       {
+        "id": "k1",
+        "l": 0,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k2",
+        "l": 2,
+        "name": "Horizontal",
+        "type": "horizontal"
+       },
+       {
+        "id": "k3",
+        "l": 1,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k4",
+        "l": 3,
+        "name": "Vertical",
+        "type": "vertical"
+       },
+       {
+        "id": "k5",
+        "l": 4,
+        "name": "MidPoint",
+        "p": 5,
+        "type": "midpoint"
+       },
+       {
+        "id": "k6",
+        "name": "Coincident",
+        "p": 0,
+        "q": 5,
+        "type": "coincident"
+       }
+      ],
+      "curves": [
+       {
+        "construction": false,
+        "end": "p2",
+        "end_at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l1",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l2",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l3",
+        "start": "p3",
+        "start_at": [
+         10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": false,
+        "end": "p1",
+        "end_at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l4",
+        "start": "p4",
+        "start_at": [
+         -10.0,
+         15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p3",
+        "end_at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l5",
+        "start": "p1",
+        "start_at": [
+         -10.0,
+         -15.0
+        ],
+        "type": "line"
+       },
+       {
+        "construction": true,
+        "end": "p4",
+        "end_at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "l6",
+        "start": "p2",
+        "start_at": [
+         10.0,
+         -15.0
+        ],
+        "type": "line"
+       }
+      ],
+      "dof": 2,
+      "failing": [],
+      "fully_constrained": false,
+      "id": 1,
+      "links": [],
+      "name": "Sketch1",
+      "plane": {
+       "origin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "x_dir": [
+        1.0,
+        0.0,
+        0.0
+       ],
+       "y_dir": [
+        0.0,
+        1.0,
+        0.0
+       ]
+      },
+      "points": [
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": true,
+        "fully_constrained": true,
+        "id": "origin",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p1",
+        "link": null,
+        "world": [
+         -10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         -15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p2",
+        "link": null,
+        "world": [
+         10.0,
+         -15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p3",
+        "link": null,
+        "world": [
+         10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         -10.0,
+         15.0
+        ],
+        "fixed": false,
+        "fully_constrained": false,
+        "id": "p4",
+        "link": null,
+        "world": [
+         -10.0,
+         15.0,
+         0.0
+        ]
+       },
+       {
+        "at": [
+         0.0,
+         0.0
+        ],
+        "fixed": false,
+        "fully_constrained": true,
+        "id": "p5",
+        "link": null,
+        "world": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       }
+      ],
+      "profiles": [
+       {
+        "area_mm2": 600.0,
+        "centroid_sketch": [
+         0.0,
+         0.0
+        ],
+        "curves": [
+         "l1",
+         "l2",
+         "l3",
+         "l4"
+        ],
+        "holes": [],
+        "index": 0
+       }
+      ],
+      "status": "solved",
+      "visible": false,
+      "wires": []
+     }
+    ],
+    "timeline": [
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 0.115058,
+      "name": "Sketch1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+     },
+     {
+      "boolean_diagnostics": {
+       "events": [],
+       "truncated": false
+      },
+      "error": null,
+      "id": 2,
+      "ms": 2.9788240000000004,
+      "name": "Extrude1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+     }
+    ],
+    "undo": 3,
+    "units": "mm",
+    "refusal_design": {
+     "definitions": [
+      [
+       1,
+       {
+        "plane": {
+         "name": "XY",
+         "type": "origin"
+        }
+       }
+      ],
+      [
+       2,
+       {
+        "extent": {
+         "convention": "total_distance",
+         "direction": "positive",
+         "distance": "10"
+        },
+        "operation": "new_body",
+        "profiles": {
+         "type": "all"
+        },
+        "sketch": 1
+       }
+      ]
+     ],
+     "appearance": {
+      "bodies": {},
+      "components": [],
+      "faces": [],
+      "in_design": []
+     },
+     "rules": {
+      "active": "Steel (mm)",
+      "rules": [
+       {
+        "rule": {
+         "bend_radius": "Thickness",
+         "corner_relief": "Thickness * 4.0",
+         "corner_relief_shape": "notch",
+         "gap": "Thickness",
+         "hem_gap": "0.01 mm",
+         "k_factor": "0.44",
+         "name": "Steel (mm)",
+         "relief_depth": "Thickness * 0.5",
+         "relief_width": "Thickness",
+         "thickness": "2.5 mm"
+        },
+        "values": {
+         "bend_radius": 2.5,
+         "corner_relief": 10.0,
+         "corner_relief_shape": "notch",
+         "gap": 2.5,
+         "hem_gap": 0.01,
+         "k_factor": 0.44,
+         "relief_depth": 1.25,
+         "relief_width": 2.5,
+         "thickness": 2.5
+        }
+       }
+      ]
+     },
+     "threads": {
+      "threads": []
+     },
+     "components": {
+      "active": 0,
+      "components": [
+       {
+        "bodies": [
+         "Body1"
+        ],
+        "children": [],
+        "construction": [],
+        "features": [
+         "Extrude1"
+        ],
+        "id": 0,
+        "name": "Untitled",
+        "occurrences": [],
+        "parent": null,
+        "sketches": [
+         "Sketch1"
+        ]
+       }
+      ],
+      "pending_moves": []
+     },
+     "joints": {
+      "conflicts": [],
+      "dof": [
+       {
+        "dof": 0,
+        "occurrence": 0
+       }
+      ],
+      "errors": [],
+      "fixed": [
+       0
+      ],
+      "floating": [],
+      "joints": [],
+      "links": [],
+      "origins": []
+     }
+    }
+   },
+   "reply": "What diameter should the hole be?",
+   "queries": {}
+  }
+ ]
+}

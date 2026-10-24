@@ -11,6 +11,12 @@ The Pilot executable is needed only for paired model runs.
 | --- | ---: | --- |
 | v1 | 11 | Primitives, sketch/extrude, holes, fillets, moving, naming, measurement and making a change |
 | v2 | 12 | More involved geometry, parameter edits, patterns, selected edges, threads, assemblies, constrained sketches and measurement |
+| v3 | 40 | Solid builds/edits, sheet metal and honest refusals; a selected subset, with no claimed difficulty calibration |
+| multiturn | 5 | Three successive revisions in one conversation, checking every intermediate design |
+| recovery | 5 | Repairing wrong earlier feature settings in place |
+| constraints | 5 | Fully defined, dimensioned L profiles across XY, XZ and YZ |
+| joints | 5 | Revolute, slider, cylindrical, pin-slot and ball joints; exact endpoints and limits |
+| units | 5 | Inch/fraction conversion and asking for missing dimensions before changing a design |
 
 The original prompts and pass rules for v1/v2 are described in
 [SolidCraft issue 4851](https://github.com/tangency-labs/solidcraft/issues/4851).
@@ -54,9 +60,25 @@ python3 bench/run.py --set v1 --solidcraft /path/to/solidcraft-cli \
 python3 -m unittest discover -s bench/tests -v
 ```
 
-Repeat those three validation commands with `--set v2`. References must pass;
+All eight set names work with every runner mode. For each additional set, run
+both paths with the same model and repetition count:
+
+```sh
+for SET in v2 v3 multiturn recovery constraints joints units; do
+  python3 bench/run.py --set "$SET" --model MODEL --endpoint http://127.0.0.1:11434 \
+    --solidcraft /path/to/solidcraft-cli --reps 3 --out "results/$SET-direct"
+  python3 bench/run.py --set "$SET" --model MODEL --endpoint http://127.0.0.1:11434 \
+    --through-pilot /path/to/dutchman-pilot \
+    --solidcraft /path/to/solidcraft-cli --reps 3 --out "results/$SET-pilot"
+  python3 bench/report.py "results/$SET-direct/results.jsonl" "results/$SET-pilot/results.jsonl"
+done
+```
+
+Repeat the three validation commands with each set name. References must pass;
 negatives must fail their checks; do-nothing checks must match `do-nothing.json`.
-An execution error, missing measurement or timeout fails validation. Exit status
+`--do-nothing` replays only setup and supplies an empty reply; question and
+refusal tasks therefore also fail their reply predicates. An execution error,
+missing measurement or timeout fails validation. Exit status
 is 0 only if every expected outcome matches, 1 for an unexpected outcome and 2
 for a configuration/startup error. In model mode, a failed task yields status 1
 while the remaining tasks still run.
@@ -88,6 +110,30 @@ or refusal checks. It is never sent to a model. `title`, `kind` and `tier` are
 optional descriptive fields. Negative task objects use the same format, with
 references relative to the set directory. No adapter-specific task fields are
 required; a future `bench-assistant` adapter can consume the task array.
+
+### Multi-turn extension
+
+Only multi-turn tasks add `turns`, an ordered array of objects containing `prompt`,
+`check` and `reference_end`. The top-level `prompt` equals the first turn prompt;
+it is not sent a second time. `reference_end` is an exclusive command index in
+the complete reference, including setup. Indices strictly increase and the last
+one must consume the entire reference, leaving no unscored trailing commands.
+A turn may optionally include `reference_reply` for reference validation.
+
+The runner retains one design and one conversation for all turns. Each turn is
+checked against its own starting state, then the top-level `check` is applied to
+the final design against the original setup. Success requires every intermediate
+check and the final check. Each turn has the same request/time budget. A skipped
+middle revision fails even when the final dimensions are right. Recovery tasks
+use ordinary setup commands that create the wrong settings; no failed-command
+allowance or special recovery envelope is needed.
+
+`sketch_defined.values` requires driving dimension values with multiplicity at
+zero degrees of freedom. Joint checks include exact endpoint occurrence names,
+limits and joint count. `ask_first` requires exactly one relevant question mark,
+no completion claim and a full unchanged-design snapshot. Honest refusals also
+require an unchanged snapshot and an explicit inability statement. These are
+check predicates, not additional task-format extensions.
 
 ## Scoring and recordings
 

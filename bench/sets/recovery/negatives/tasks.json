@@ -1,0 +1,35 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "format": 1,
+  "tasks": [
+    {
+      "id": "recovery-wrong-cut-leaves-joined-boss",
+      "kind": "recovery",
+      "tier": "medium",
+      "title": "wrong cut",
+      "prompt": "The circular extrude was wrongly joined instead of cutting. Repair it to cut a 16 mm hole through the block; retain the existing sketches and features.",
+      "reference": "negatives/recovery-wrong-cut-leaves-joined-boss.json",
+      "setup_steps": 9,
+      "check": {
+        "bodies": 1,
+        "volume": 3989.38,
+        "bbox": [
+          [
+            -10,
+            -15,
+            0
+          ],
+          [
+            10,
+            15,
+            10
+          ]
+        ],
+        "tol": 0.005,
+        "keep_features": true,
+        "new_features_max": 0
+      },
+      "why_wrong": "leaves joined boss"
+    }
+  ]
+}

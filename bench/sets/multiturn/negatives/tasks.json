@@ -1,0 +1,106 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "format": 1,
+  "tasks": [
+    {
+      "id": "multiturn-height-skips-middle-revision",
+      "kind": "multiturn",
+      "tier": "medium",
+      "title": "height",
+      "prompt": "Now change the existing block extrude to 12 mm high. Keep all other dimensions and edit the existing feature.",
+      "reference": "negatives/multiturn-height-skips-middle-revision.json",
+      "setup_steps": 4,
+      "check": {
+        "bodies": 1,
+        "keep_features": true,
+        "new_features_max": 0,
+        "tol": 0.0001,
+        "bbox": [
+          [
+            -10,
+            -15,
+            0
+          ],
+          [
+            10,
+            15,
+            8
+          ]
+        ],
+        "volume": 4800
+      },
+      "turns": [
+        {
+          "prompt": "Now change the existing block extrude to 12 mm high. Keep all other dimensions and edit the existing feature.",
+          "check": {
+            "bodies": 1,
+            "keep_features": true,
+            "new_features_max": 0,
+            "tol": 0.0001,
+            "bbox": [
+              [
+                -10,
+                -15,
+                0
+              ],
+              [
+                10,
+                15,
+                12
+              ]
+            ],
+            "volume": 7200
+          },
+          "reference_end": 5
+        },
+        {
+          "prompt": "Now change the existing block extrude to 18 mm high. Keep all other dimensions and edit the existing feature.",
+          "check": {
+            "bodies": 1,
+            "keep_features": true,
+            "new_features_max": 0,
+            "tol": 0.0001,
+            "bbox": [
+              [
+                -10,
+                -15,
+                0
+              ],
+              [
+                10,
+                15,
+                18
+              ]
+            ],
+            "volume": 10800
+          },
+          "reference_end": 6
+        },
+        {
+          "prompt": "Now change the existing block extrude to 8 mm high. Keep all other dimensions and edit the existing feature.",
+          "check": {
+            "bodies": 1,
+            "keep_features": true,
+            "new_features_max": 0,
+            "tol": 0.0001,
+            "bbox": [
+              [
+                -10,
+                -15,
+                0
+              ],
+              [
+                10,
+                15,
+                8
+              ]
+            ],
+            "volume": 4800
+          },
+          "reference_end": 7
+        }
+      ],
+      "why_wrong": "skips middle revision"
+    }
+  ]
+}

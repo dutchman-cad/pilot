@@ -1,0 +1,33 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "commands": [
+    {
+      "command": "solid.cylinder",
+      "params": {
+        "diameter": 60,
+        "height": 5
+      }
+    },
+    {
+      "command": "solid.hole",
+      "params": {
+        "position": [
+          20,
+          0,
+          5
+        ],
+        "diameter": 6
+      }
+    },
+    {
+      "command": "solid.pattern.circular",
+      "params": {
+        "features": [
+          "Hole1"
+        ],
+        "axis": "Z",
+        "count": 6
+      }
+    }
+  ]
+}

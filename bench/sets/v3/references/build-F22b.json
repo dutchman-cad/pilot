@@ -1,0 +1,88 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "commands": [
+    {
+      "command": "sketch.create",
+      "params": {
+        "plane": "XY"
+      }
+    },
+    {
+      "command": "sketch.rectangle.center",
+      "params": {
+        "center": [
+          0,
+          0
+        ],
+        "corner": [
+          10,
+          15
+        ]
+      }
+    },
+    {
+      "command": "sketch.finish",
+      "params": {}
+    },
+    {
+      "command": "solid.extrude",
+      "params": {
+        "distance": 10
+      }
+    },
+    {
+      "command": "sketch.create",
+      "params": {
+        "plane": "XY"
+      }
+    },
+    {
+      "command": "sketch.rectangle.two_point",
+      "params": {
+        "p0": [
+          30,
+          0
+        ],
+        "p1": [
+          40,
+          10
+        ]
+      }
+    },
+    {
+      "command": "sketch.finish",
+      "params": {}
+    },
+    {
+      "command": "solid.extrude",
+      "params": {
+        "distance": 10,
+        "operation": "new"
+      }
+    },
+    {
+      "command": "solid.align",
+      "params": {
+        "bodies": [
+          "Body2"
+        ],
+        "from": {
+          "snap": "face_center",
+          "at": [
+            35,
+            5,
+            0
+          ]
+        },
+        "to": {
+          "snap": "face_center",
+          "at": [
+            0,
+            0,
+            10
+          ]
+        }
+      }
+    }
+  ]
+}

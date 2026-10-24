@@ -1,0 +1,26 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "format": 1,
+  "expectations": [
+    {
+      "id": "recovery-wrong-height",
+      "pass": false
+    },
+    {
+      "id": "recovery-wrong-fillet",
+      "pass": false
+    },
+    {
+      "id": "recovery-wrong-chamfer",
+      "pass": false
+    },
+    {
+      "id": "recovery-wrong-shell",
+      "pass": false
+    },
+    {
+      "id": "recovery-wrong-cut",
+      "pass": false
+    }
+  ]
+}
