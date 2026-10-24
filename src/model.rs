@@ -774,30 +774,24 @@ impl Proxy {
             conversation.direct = None;
             conversation.direct_failed = false;
         }
-        let mut recipe = if self.cfg.planner {
-            if self.cfg.direct_recipes {
-                planner::plan_direct(&body, &self.catalog)?
-            } else {
-                planner::plan(&body, &self.catalog)?
-            }
+        let mut recipe = if self.cfg.direct_recipes {
+            planner::plan_direct(&body, &self.catalog)?
+        } else if self.cfg.planner {
+            planner::plan(&body, &self.catalog)?
         } else {
             None
         };
         let mut resumed = false;
-        if self.cfg.planner && recipe.is_none() {
+        if (self.cfg.planner || self.cfg.direct_recipes) && recipe.is_none() {
             if let Some(pending) = &conversation.pending_recipe {
                 recipe = planner::resume(&body, pending, &self.catalog)?;
                 resumed = recipe.is_some();
             }
         }
-        if self.cfg.direct_recipes
-            && self.cfg.planner
-            && recipe.is_none()
-            && !conversation.direct_failed
-        {
+        if self.cfg.direct_recipes && recipe.is_none() && !conversation.direct_failed {
             recipe = planner::inspect_for_edit(&body, &self.catalog)?;
         }
-        if self.cfg.direct_recipes && self.cfg.planner {
+        if self.cfg.direct_recipes {
             if let Some(reply) =
                 self.direct_turn(&original, &recipe, user_index, conversation, audit)?
             {
@@ -814,7 +808,11 @@ impl Proxy {
                 .push(json!({"role":"system","content":reason}));
             profile.hand_backs = profile.hand_backs.saturating_add(1);
         }
-        if self.cfg.direct_recipes && recipe.is_none() && !conversation.direct_failed {
+        if self.cfg.planner
+            && self.cfg.direct_recipes
+            && recipe.is_none()
+            && !conversation.direct_failed
+        {
             if let Some((plan, rest)) = planner::partial_plan(&original, &self.catalog)? {
                 let message = format!("Nothing has been done yet. You must submit tool calls for the whole request and verify their results before answering. For the matched leading part, you may submit these computed calls: {}. You must also handle this remaining request: {}. All calls require client approval and tool results.", plan.message(), rest);
                 body["messages"]
@@ -3424,27 +3422,30 @@ mod tests {
 
     #[test]
     fn direct_all_recipe_phrasings_and_nonrecipe_passthrough() {
-        for (_, phrases) in planner::cases::CASES {
-            for phrase in *phrases {
-                let mut f = Fixture::new(vec![]);
-                f.proxy.cfg.direct_recipes = true;
-                let result = f.chat(planner::cases::request(phrase));
-                assert_eq!(
-                    result.status,
-                    200,
-                    "{phrase}: {}",
-                    String::from_utf8_lossy(&result.body)
-                );
-                assert!(
-                    f.proxy
-                        .scripted
-                        .as_ref()
-                        .unwrap()
-                        .borrow()
-                        .requests
-                        .is_empty(),
-                    "{phrase}"
-                );
+        for enabled in [false, true] {
+            for (_, phrases) in planner::cases::CASES {
+                for phrase in *phrases {
+                    let mut f = Fixture::new(vec![]);
+                    f.proxy.cfg.direct_recipes = true;
+                    f.proxy.cfg.planner = enabled;
+                    let result = f.chat(planner::cases::request(phrase));
+                    assert_eq!(
+                        result.status,
+                        200,
+                        "{phrase}: {}",
+                        String::from_utf8_lossy(&result.body)
+                    );
+                    assert!(
+                        f.proxy
+                            .scripted
+                            .as_ref()
+                            .unwrap()
+                            .borrow()
+                            .requests
+                            .is_empty(),
+                        "{phrase}"
+                    );
+                }
             }
         }
         let mut f = Fixture::new(vec![reply("Hello.")]);
@@ -3752,27 +3753,37 @@ mod tests {
                 .unwrap()["commands"]
                 .is_array()
         );
-        let mut f = Fixture::new(vec![reply("I'll handle the rest.")]);
-        f.proxy.cfg.direct_recipes = true;
-        assert_eq!(
-            f.chat(planner::cases::request(
-                "make a 20mm cube and explain how to export it"
-            ))
-            .status,
-            200
-        );
-        let script = f.proxy.scripted.as_ref().unwrap().borrow();
-        assert_eq!(script.requests.len(), 1);
-        let sent = script.requests[0].to_string();
-        assert!(sent.contains("Nothing has been done yet."));
-        assert!(sent.contains("must submit tool calls for the whole request"));
-        for claim in [
-            "completed",
-            "already executed",
-            "worked out in code and offered",
-            "Handle only the rest",
-        ] {
-            assert!(!sent.contains(claim), "{claim}: {sent}");
+        for enabled in [false, true] {
+            let mut f = Fixture::new(vec![reply("I'll handle the rest.")]);
+            f.proxy.cfg.direct_recipes = true;
+            f.proxy.cfg.planner = enabled;
+            assert_eq!(
+                f.chat(planner::cases::request(
+                    "make a 20mm cube and explain how to export it"
+                ))
+                .status,
+                200
+            );
+            let script = f.proxy.scripted.as_ref().unwrap().borrow();
+            assert_eq!(script.requests.len(), 1);
+            let sent = script.requests[0].to_string();
+            assert_eq!(sent.contains("Nothing has been done yet."), enabled);
+            assert_eq!(
+                sent.contains("must submit tool calls for the whole request"),
+                enabled
+            );
+            assert_eq!(
+                sent.contains("For this request, run exactly this plan:"),
+                enabled
+            );
+            for claim in [
+                "completed",
+                "already executed",
+                "worked out in code and offered",
+                "Handle only the rest",
+            ] {
+                assert!(!sent.contains(claim), "{claim}: {sent}");
+            }
         }
     }
 

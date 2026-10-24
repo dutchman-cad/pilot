@@ -14,7 +14,7 @@ Usage:
                        [--upstream-timeout SECONDS (default 300, max 3600)]
                        [--fallback-prompt auto|on|off] [--prompt-help] [--log FILE]
                        [--profile-dir DIR] [--model-settings [FILE]] [--seed INTEGER]
-                       [--no-how] [--no-hints] [--planner | --no-plan (alias --no-planner)]
+                       [--no-how] [--no-hints] [--planner] [--no-plan (alias --no-planner)]
   dutchman-pilot profile [model] [--profile-dir DIR] [--json]
   dutchman-pilot log-summary <rewrites.jsonl> [--json]
   dutchman-pilot mcp [--solidcraft-cli PATH] [--log FILE]
@@ -24,9 +24,10 @@ Usage:
 
 how uses the bundled public command catalogue and prints explicit JSON example calls.
 model serves /v1/chat/completions and /v1/models; mcp starts the SolidCraft tools proxy.
-Model plan mode uses audited recipes, matching action prose, and one completion check.
---no-plan disables these recipe features; the MCP face only suggests plans.
---direct-recipes answers exact matches without a model (conflicts with --no-plan).
+--planner enables recipe suggestions, matching action prose, and one completion check.
+These plan-text features are off by default; model --no-plan is a no-op alias for
+the default. The MCP face only suggests plans.
+--direct-recipes answers exact matches without a model; it can accompany --planner.
 Upstream defaults to Ollama; --upstream none (with --direct-recipes) runs without
 a model. Direct replies are marked, audited, and profiled separately.
 Profiles and the default rewrites.jsonl log live in the user's data dir/dutchman-pilot.

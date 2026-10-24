@@ -43,7 +43,16 @@ impl Harness {
         capabilities: Value,
         how: bool,
     ) -> Self {
-        Self::with_direct(replies, count, fallback, settings, capabilities, how, false)
+        Self::configured(
+            replies,
+            count,
+            fallback,
+            settings,
+            capabilities,
+            how,
+            false,
+            false,
+        )
     }
     fn with_direct(
         replies: Vec<(u16, String, String)>,
@@ -53,6 +62,28 @@ impl Harness {
         capabilities: Value,
         how: bool,
         direct: bool,
+    ) -> Self {
+        Self::configured(
+            replies,
+            count,
+            fallback,
+            settings,
+            capabilities,
+            how,
+            direct,
+            false,
+        )
+    }
+    #[allow(clippy::too_many_arguments)]
+    fn configured(
+        replies: Vec<(u16, String, String)>,
+        count: usize,
+        fallback: FallbackPrompt,
+        settings: Option<Value>,
+        capabilities: Value,
+        how: bool,
+        direct: bool,
+        planner: bool,
     ) -> Self {
         let dir = std::env::temp_dir().join(format!(
             "dutchman-pilot-model-{}-{}",
@@ -117,7 +148,7 @@ impl Harness {
             fallback_prompt: fallback,
             no_how: !how,
             no_hints: false,
-            planner: true,
+            planner,
             log: Some(dir.join("audit.jsonl")),
             profile_dir: Some(dir.clone()),
             model_settings: settings_path,
@@ -690,8 +721,34 @@ fn malformed_or_oversized_requests_are_rejected_before_upstream() {
 }
 
 #[test]
-fn deterministic_planner_adds_one_system_message_and_logs_rule() {
+fn default_has_no_recipe_prompt_or_prose_conversion() {
+    let text = "I will make a 20 mm cube";
     let h = Harness::new(
+        vec![ok(prose(text))],
+        1,
+        FallbackPrompt::Off,
+        None,
+        json!({"capabilities":["tools"]}),
+    );
+    let req = request("make a 20 mm cube");
+    let (status, _, response) = h.chat(&req);
+    assert_eq!(status, 200);
+    let response: Value = serde_json::from_str(&response).unwrap();
+    assert_eq!(response["choices"][0]["message"]["content"], text);
+    assert!(response["choices"][0]["message"]
+        .get("tool_calls")
+        .is_none());
+    assert_eq!(h.chats()[0], req);
+    let log = fs::read_to_string(h.dir.join("audit.jsonl")).unwrap();
+    for kind in ["plan", "recipe_prose", "recipe_continue"] {
+        assert!(!log.contains(&format!("\"kind\":\"{kind}\"")));
+    }
+    h.finish();
+}
+
+#[test]
+fn deterministic_planner_adds_one_system_message_and_logs_rule() {
+    let h = Harness::configured(
         vec![ok(call(
             "execute",
             json!({"command":"solid.box","params":{"length":20,"width":20,"height":20}}),
@@ -700,6 +757,9 @@ fn deterministic_planner_adds_one_system_message_and_logs_rule() {
         FallbackPrompt::Off,
         None,
         json!({"capabilities":["tools"]}),
+        false,
+        false,
+        true,
     );
     let (status, _, _) = h.chat(&request("make a 20 mm cube"));
     assert_eq!(status, 200);
@@ -807,12 +867,14 @@ fn unsupported_tools_retry_persists_and_flattens_client_history() {
 
 #[test]
 fn capabilities_select_text_mode_and_recipes_still_fire() {
-    let h = Harness::with_how(
+    let h = Harness::configured(
         vec![ok(prose("I will make a 20 mm cube"))],
         1,
         FallbackPrompt::Off,
         None,
         json!({"capabilities":["completion"]}),
+        true,
+        false,
         true,
     );
     let (status, _, response) = h.chat(&request("make a 20 mm cube"));

@@ -16,7 +16,7 @@ Usage:
   {pad}       [--upstream-timeout SECONDS (default 300, max 3600)]
   {pad}       [--fallback-prompt auto|on|off] [--prompt-help] [--log FILE]
   {pad}       [--profile-dir DIR] [--model-settings [FILE]] [--seed INTEGER]
-  {pad}       [--no-how] [--no-hints] [--planner | --no-plan (alias --no-planner)]
+  {pad}       [--no-how] [--no-hints] [--planner] [--no-plan (alias --no-planner)]
   {binary} profile [model] [--profile-dir DIR] [--json]
   {binary} log-summary <rewrites.jsonl> [--json]
   {binary} mcp [--solidcraft-cli PATH] [--log FILE]
@@ -26,9 +26,10 @@ Usage:
 
 how uses the bundled public command catalogue and prints explicit JSON example calls.
 model serves /v1/chat/completions and /v1/models; mcp starts the SolidCraft tools proxy.
-Model plan mode uses audited recipes, matching action prose, and one completion check.
---no-plan disables these recipe features; the MCP face only suggests plans.
---direct-recipes answers exact matches without a model (conflicts with --no-plan).
+--planner enables recipe suggestions, matching action prose, and one completion check.
+These plan-text features are off by default; model --no-plan is a no-op alias for
+the default. The MCP face only suggests plans.
+--direct-recipes answers exact matches without a model; it can accompany --planner.
 Upstream defaults to Ollama; --upstream none (with --direct-recipes) runs without
 a model. Direct replies are marked, audited, and profiled separately.
 Profiles and the default rewrites.jsonl log live in the user's data dir/{binary}.
@@ -100,8 +101,8 @@ struct ModelArgs {
     listen: SocketAddr,
     #[arg(long, value_parser = upstream)]
     upstream: Option<String>,
-    /// Answer exact recipes without a model; omitted upstream means none.
-    #[arg(long, conflicts_with = "no_plan")]
+    /// Answer exact recipes without a model, with normal SolidCraft approval.
+    #[arg(long)]
     direct_recipes: bool,
     #[arg(long, default_value = "300", value_parser = clap::value_parser!(u64).range(1..=3600))]
     upstream_timeout: u64,
@@ -121,8 +122,10 @@ struct ModelArgs {
     no_how: bool,
     #[arg(long)]
     no_hints: bool,
-    #[arg(long, conflicts_with = "no_plan")]
+    /// Enable plan-text recipe suggestions, prose conversion, and completion checks.
+    #[arg(long)]
     planner: bool,
+    /// Accepted no-op alias for the default; use --planner to enable plan-text recipes.
     #[arg(long, alias = "no-planner")]
     no_plan: bool,
 }
@@ -218,7 +221,7 @@ pub fn run_named(cmd: Command, bin: &str) -> Result<i32, Error> {
             prompt_help: args.prompt_help,
             no_how: args.no_how,
             no_hints: args.no_hints,
-            planner: !args.no_plan,
+            planner: args.planner,
         }),
         Some(Action::Mcp(args)) => mcp::serve(mcp::Config {
             solidcraft_cli: args.solidcraft_cli,
@@ -318,9 +321,10 @@ mod tests {
             model::DEFAULT_UPSTREAM_TIMEOUT.as_secs()
         );
         assert_eq!(args.fallback_prompt, model::FallbackPrompt::Auto);
-        assert!(!args.no_plan && !args.direct_recipes);
+        assert!(!args.planner && !args.no_plan && !args.direct_recipes);
         assert!(parse(&["model", "--direct-recipes", "--upstream", "none"]).is_ok());
-        assert!(parse(&["model", "--direct-recipes", "--no-plan"]).is_err());
+        assert!(parse(&["model", "--direct-recipes", "--no-plan"]).is_ok());
+        assert!(parse(&["model", "--direct-recipes", "--planner"]).is_ok());
         assert!(parse(&[
             "model",
             "--listen",
@@ -372,6 +376,25 @@ mod tests {
     }
 
     #[test]
+    fn no_plan_alias_preserves_recipe_opt_ins() {
+        for alias in ["--no-plan", "--no-planner"] {
+            for enabled in [false, true] {
+                let mut flags = vec!["model", "--direct-recipes", alias];
+                if enabled {
+                    flags.push("--planner");
+                }
+                let Some(Action::Model(args)) = parse(&flags).unwrap().action else {
+                    panic!("expected model")
+                };
+                assert_eq!(args.planner, enabled);
+                assert!(args.direct_recipes && args.no_plan);
+                assert!(!args.no_how && !args.no_hints);
+                assert_eq!(args.fallback_prompt, model::FallbackPrompt::Auto);
+            }
+        }
+    }
+
+    #[test]
     fn invalid_arguments_and_bounds() {
         for args in [
             vec!["unknown"],
@@ -388,7 +411,6 @@ mod tests {
             vec!["model", "--fallback-prompt", "yes"],
             vec!["model", "--seed", "42"],
             vec!["model", "--no-plan", "--no-planner"],
-            vec!["model", "--planner", "--no-plan"],
             vec!["model", "--log", "a", "--log", "b"],
             vec!["mcp", "--connect", "x"],
             vec!["mcp", "--solidcraft-cli"],
