@@ -1314,6 +1314,11 @@ pub(super) fn select(
         data,
         messages,
     };
+    // Measurement verbs are separate work; dimension participles (`measuring`,
+    // `that measures`) and `solid` describe the primitive instead.
+    if input.any(&["measure", "count", "report"]) {
+        return Ok(None);
+    }
     // Reject multiple action families before parsing; sketch + extrude is one recipe.
     let actions = [
         &["move", "translate", "shift", "slide"][..],

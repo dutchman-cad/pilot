@@ -17,7 +17,7 @@ back the failure to the model once; direct answering stays disabled for that
 turn so the model can recover without replaying accepted changes. With no model,
 Pilot states the failure plainly instead. Two-intent requests use the model:
 when a leading clause matches, Pilot offers that computed plan in context and
-asks the model to handle only the remaining request. Offered calls still need
+asks the model to submit calls for the whole request. Offered calls still need
 client approval and results; they are never described as already executed.
 
 Use `--upstream none`, or omit upstream with `--direct-recipes`, for a no-model
@@ -76,7 +76,7 @@ their mathematical meaning.
 
 Matching ignores case, sentence punctuation (`. , ; : ! ?`), and quotes or
 brackets around words. A question mark still invokes the question guard: action
-questions defer, except polite `can you` / `could you` requests, including after filler.
+questions defer, except polite `can you` / `could you` / `would you` requests, including after filler.
 Decimal points, fractions, `x` / `×`, and inch marks keep their numeric meaning.
 Quoted rename destinations preserve their original case and punctuation; words
 inside a complete quoted destination are name data rather than competing actions.

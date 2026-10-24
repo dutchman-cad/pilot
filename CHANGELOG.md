@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Accept polite “would you” creation requests and descriptive dimension wording
+  without treating adjectives or participles as extra intents. Compound-request
+  hand-backs explicitly require calls for the whole request and state that
+  nothing has been done yet.
+
 - Restrict plane slots to documented XY / XZ / YZ values and bound name and axis
   extraction; reject arbitrary plane text instead of leaking extrusion prose.
 - Accept plane-first circle extrusion, relative end/corner through-hole layouts,

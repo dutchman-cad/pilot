@@ -355,6 +355,8 @@ pub(super) fn labelled(t: &[String], d: Dimension, labels: &[&str]) -> bool {
 /// Phrase normalization keeps coordinates, quoted names and decimal punctuation intact.
 pub(super) fn normalize(text: &str) -> String {
     let mut lower = text.replace('’', "'");
+    // Scope the modal exception to polite requests; keep other `would` guards.
+    lower = replace_phrase(&lower, "would you", "can you");
     for contraction in [
         "can't",
         "won't",

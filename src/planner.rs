@@ -439,7 +439,8 @@ fn plan_impl(
         return Ok(None);
     }
     let polite_question = text.to_ascii_lowercase().contains("can you ")
-        || text.to_ascii_lowercase().contains("could you ");
+        || text.to_ascii_lowercase().contains("could you ")
+        || text.to_ascii_lowercase().contains("would you ");
     let normalized = slots::normalize(text);
     let text = normalized.as_str();
     let t = intent_tokens(text);

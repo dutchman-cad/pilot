@@ -3,6 +3,73 @@
 use super::*;
 
 #[test]
+fn descriptive_dimensions_and_polite_requests() {
+    let c = Catalog::bundled().unwrap();
+    for (shape, dimensions, expected) in [
+        (
+            "box",
+            "32 x 18 x 7 mm",
+            json!({"Box":{"size":[32.0,18.0,7.0]}}),
+        ),
+        (
+            "plate",
+            "32 x 18 x 7 mm",
+            json!({"Box":{"size":[32.0,18.0,7.0]}}),
+        ),
+        (
+            "cylinder",
+            "diameter 18 mm and height 7 mm",
+            json!({"Cylinder":{"radius":9.0,"height":7.0}}),
+        ),
+        (
+            "sphere",
+            "18 mm in diameter",
+            json!({"Sphere":{"radius":9.0}}),
+        ),
+    ] {
+        for (prefix, description) in [
+            ("Would you make a solid", "measuring"),
+            ("Could you create a", "that measures"),
+            ("Can you build a solid", "with a size of"),
+            ("Please make a solid", "sized"),
+        ] {
+            let text = format!("{prefix} {shape} {description} {dimensions}?");
+            // The last variant is an imperative, so omit its question mark.
+            let text = if prefix == "Please make a solid" {
+                text.trim_end_matches('?')
+            } else {
+                &text
+            };
+            let p = plan_direct(&cases::request(text), &c)
+                .unwrap()
+                .unwrap_or_else(|| panic!("{text}"));
+            assert_eq!(p.slots, expected, "{text}");
+            assert!(
+                partial_plan(&cases::request(text), &c).unwrap().is_none(),
+                "{text}"
+            );
+        }
+    }
+    for text in [
+        "Make a solid box measuring 32x18x7 and then tell me its volume",
+        "Could you create a sphere that measures 18 mm in diameter and report its volume?",
+        "Build a cylinder diameter 18 height 7 and count the bodies",
+        "Make a plate with a size of 32x18x7 then move it 4 along X",
+        "Would a sphere diameter 18 fit?",
+        "How would you make a sphere diameter 18?",
+        "Wouldn't you make a sphere diameter 18?",
+        "Make a hollow sphere diameter 18",
+        "Make a hollow box 32x18x7",
+        "Make a sphere diameter 18 and then measure it",
+    ] {
+        assert!(
+            plan_direct(&cases::request(text), &c).unwrap().is_none(),
+            "{text}"
+        );
+    }
+}
+
+#[test]
 fn principal_planes_are_bounded_slots() {
     let c = Catalog::bundled().unwrap();
     for plane in ["XY", "xy plane", "the X-Y plane", "the xy plane"] {

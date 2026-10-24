@@ -816,7 +816,7 @@ impl Proxy {
         }
         if self.cfg.direct_recipes && recipe.is_none() && !conversation.direct_failed {
             if let Some((plan, rest)) = planner::partial_plan(&original, &self.catalog)? {
-                let message = format!("The matched part was worked out in code and offered: {}. Handle only the rest of the request: {}. These calls are offered for client approval, not executed or verified.", plan.message(), rest);
+                let message = format!("Nothing has been done yet. You must submit tool calls for the whole request and verify their results before answering. For the matched leading part, you may submit these computed calls: {}. You must also handle this remaining request: {}. All calls require client approval and tool results.", plan.message(), rest);
                 body["messages"]
                     .as_array_mut()
                     .ok_or("messages must be an array")?
@@ -3626,10 +3626,16 @@ mod tests {
         let script = f.proxy.scripted.as_ref().unwrap().borrow();
         assert_eq!(script.requests.len(), 1);
         let sent = script.requests[0].to_string();
-        assert!(
-            sent.contains("worked out in code and offered")
-                && sent.contains("Handle only the rest")
-        );
+        assert!(sent.contains("Nothing has been done yet."));
+        assert!(sent.contains("must submit tool calls for the whole request"));
+        for claim in [
+            "completed",
+            "already executed",
+            "worked out in code and offered",
+            "Handle only the rest",
+        ] {
+            assert!(!sent.contains(claim), "{claim}: {sent}");
+        }
     }
 
     #[test]
