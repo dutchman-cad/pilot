@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.1.0-beta.3 (2026-10-24)
+
+- SolidCraft 98 support through its public remote protocol.
+- The shared `dutchman` launcher and installers for Linux, macOS, and Windows.
+- A Discord link and a help section in the README.
+
+### Added
+
 - Bundle the shared `dutchman` launcher so a Pilot-only install supports
   `dutchman pilot` alongside `dutchman-pilot`, with the launcher source revision recorded.
 - Add Linux, macOS, and Windows installers with custom bin directories, dry runs,
@@ -13,6 +21,7 @@
   remain disabled for this application.
 - Eleven public SolidCraft 98 benchmark tasks with references, state checks,
   do-nothing expectations, and deliberate negatives under `bench/sets/sc98`.
+- A Dutchman CAD Discord link and a "Help and community" section in the README.
 
 ## 0.1.0-beta.2 (2026-10-24)
 
