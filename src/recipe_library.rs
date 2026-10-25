@@ -8,6 +8,7 @@ pub const FIND_DESCRIPTION: &str = "Search recipes before building. Returns the 
 pub const BUILD_DESCRIPTION: &str = "Build a recipe found with pilot_find: supply its id and typed args. Lengths are mm. Legacy shape arguments also work. Inspect before selecting existing bodies or a contact joint.";
 pub const HIT_THRESHOLD: f64 = 1.8;
 pub const IDS: &[&str] = &[
+    "cross_drilled_box",
     "linear_pattern",
     "grid_pattern",
     "circular_pattern",
@@ -127,6 +128,9 @@ fn shared(s: &mut Value) {
 }
 /// Schemas derive from the typed shortcut contract, with shared scalar constraints.
 pub fn schema(id: &str) -> Result<Value, String> {
+    if id == "cross_drilled_box" {
+        return Ok(planner::cross_drilled_schema());
+    }
     if id.ends_with("_pattern") {
         return planner::pattern_schema(id);
     }

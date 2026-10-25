@@ -438,3 +438,33 @@ When three equal explicit creation/copy calls in one user turn have a constant
 position step, the model receives one short `solid.pattern.rectangular` /
 `linear_pattern` hint. The hint is audited, deduplicated per turn and disabled by
 `--no-hints`; it never executes or replaces the calls.
+## Cross-drilled boxes
+
+`pilot_find` retrieves `cross_drilled_box` for a box or cube with through holes
+on one, two or three axes, including “holes through all six faces”,
+“cross-drilled”, “a hole through each face”, and “holes along X, Y and Z”.
+Tidy English forms with a stated box size and hole diameter also match exact
+recipes, for example “Build a 24 mm cube with 6 mm holes through all six faces”.
+Missing diameters, blind holes, extra operations and ambiguous positions decline.
+
+`pilot_build` accepts `recipe:"cross_drilled_box"` and
+`args:{length:24,width:30,height:36,holes:[{axis:"X",diameter:6},{axis:"Z",diameter:4}]}`.
+Lengths are millimetres. An optional `corner:[x,y,z]` places the box; otherwise
+it starts at the origin. Each hole may supply a world `position:[x,y,z]` on
+either face normal to its axis. Without a position, the opening is centred.
+One to three distinct axes are allowed, with positive bounded dimensions and
+openings strictly inside their faces. Each axis uses one `solid.hole` with an
+explicit world position, inward direction and target body. No sketches or
+construction planes are created. Equal centred diameters use exact cylinder
+intersection volumes; other positions or diameters use measured volume.
+
+With hints enabled, requests or calls involving XZ/YZ sketches or side holes
+receive the shared, audited `SKETCH_AXES` fact once per request. Sketch (u,v)
+maps to XY (X,Y), normal +Z; XZ (X,-Z), normal +Y; YZ (Y,Z), normal +X.
+World Z=+10 therefore needs XZ v=-10. Prefer `solid.hole` for holes. A profile
+whose XZ centre falls outside every known body's Z range while reversing v
+would put it inside gets one sign hint per turn. Unreferenced construction
+planes created during the turn get one cleanup hint before finishing.
+`--no-hints` disables the facts and both hints. The public CLI smoke test
+checks all mappings and extrusion normals, hole volume/bounds/round faces,
+and the absence of auxiliary timeline features.

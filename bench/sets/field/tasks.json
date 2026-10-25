@@ -3,6 +3,21 @@
   "format": 1,
   "tasks": [
     {
+      "id": "cube-six-face-holes",
+      "prompt": "draw a 20mm cube with 8mm holes through the centre of all six faces",
+      "check": {
+        "bodies": 1,
+        "volume": 5708.148396488824,
+        "tol": 0.001,
+        "bbox_size": [20, 20, 20],
+        "round": [{"d": 8, "count": 3, "centers": [[10, 10]]}],
+        "kinds_count": {"Box": 1, "Hole": 3},
+        "timeline_max": 4
+      },
+      "reference": "references/cube-six-face-holes.json",
+      "setup_steps": 0
+    },
+    {
       "id": "cube-centre-hole",
       "prompt": "draw a 20mm cube with a 5mm hole through the center",
       "check": {

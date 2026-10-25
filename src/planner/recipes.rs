@@ -3,6 +3,7 @@ use super::*;
 use std::f64::consts::PI;
 mod closed_profile;
 mod compound_plate;
+pub(crate) mod cross_drilled;
 pub(crate) mod revolute;
 mod shell_box;
 pub(crate) mod shortcuts;
@@ -83,6 +84,7 @@ enum Slots {
     },
     ClosedProfile(closed_profile::Profile),
     CompoundPlate(compound_plate::Plate),
+    CrossDrilled(cross_drilled::BoxHoles),
     Edges {
         body: String,
         edges: Vec<Value>,
@@ -1155,6 +1157,13 @@ fn expand(slots: &Slots, catalog: &Catalog) -> Result<Expansion, String> {
     let mut name = None;
     let box_params = |s: &[f64; 3]| json!({"length":s[0],"width":s[1],"height":s[2]});
     match slots {
+        Slots::CrossDrilled(b) => {
+            for (id, params) in b.commands() {
+                add(id, params)?;
+            }
+            v = b.volume();
+            creates = true;
+        }
         Slots::CompoundPlate(plate) => {
             for (id, params) in plate.commands() {
                 add(id, params)?;
@@ -1522,6 +1531,12 @@ pub(super) fn select(
         data,
         messages,
     };
+    if cross_drilled::candidate(&input) {
+        return match cross_drilled::parse(&input) {
+            Some(b) => from_slots("cross_drilled_box", Slots::CrossDrilled(b), data, catalog),
+            None => Ok(None),
+        };
+    }
     // Measurement verbs are separate work; dimension participles (`measuring`,
     // `that measures`) and `solid` describe the primitive instead.
     if input.any(&["measure", "count", "report"])
@@ -1647,6 +1662,7 @@ fn from_slots(
             | Slots::Shell { .. }
             | Slots::CompoundPlate(_)
             | Slots::ShellBox(_)
+            | Slots::CrossDrilled(_)
     ) {
         let names: Vec<_> = data
             .and_then(|d| d["bodies"].as_array())
@@ -1667,7 +1683,10 @@ fn from_slots(
                 } else {
                     c["arguments"]["params"]["body"] = json!(created);
                 }
-            } else if matches!(slots, Slots::Holes { .. } | Slots::Tube { .. }) {
+            } else if matches!(
+                slots,
+                Slots::Holes { .. } | Slots::Tube { .. } | Slots::CrossDrilled(_)
+            ) {
                 params["targets"] = json!([created]);
             } else if matches!(slots, Slots::ShellBox(_)) {
                 match c["arguments"]["command"].as_str().unwrap_or("") {
@@ -1876,7 +1895,7 @@ pub(super) fn names() -> impl Iterator<Item = &'static str> {
     LIBRARY
         .iter()
         .map(|(name, _)| *name)
-        .chain(["revolute_joint"])
+        .chain(["revolute_joint", "cross_drilled_box"])
 }
 
 fn positive_mm(field: &str, value: f64) -> Result<(), String> {

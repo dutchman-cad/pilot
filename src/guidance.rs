@@ -3,6 +3,273 @@ use crate::catalog::Catalog;
 use serde_json::{json, Value};
 
 #[cfg(feature = "proxy")]
+pub(crate) const XZ_SIGN_HINT: &str =
+    "XZ sketch v is -world Z; use negative v for positive world Z.";
+#[cfg(feature = "proxy")]
+pub(crate) const PLANE_CLEANUP_HINT: &str = "Before finishing, delete construction planes created this turn that no later feature references.";
+
+/// Bounded evidence from successful public calls; no geometry is rewritten.
+#[cfg(feature = "proxy")]
+#[derive(Default)]
+pub(crate) struct PlaneGuidance {
+    ranges: Vec<(String, f64, f64)>,
+    xz: bool,
+    planes: Vec<Vec<String>>,
+    misplaced: bool,
+}
+#[cfg(feature = "proxy")]
+impl PlaneGuidance {
+    pub(crate) fn new_turn(&mut self) {
+        self.planes.clear();
+        self.misplaced = false;
+    }
+    pub(crate) fn hints(&self) -> [Option<&'static str>; 2] {
+        [
+            self.misplaced.then_some(XZ_SIGN_HINT),
+            (!self.planes.is_empty()).then_some(PLANE_CLEANUP_HINT),
+        ]
+    }
+    pub(crate) fn visit(&mut self, name: &str, args: &Value, result: &Value) {
+        let data = payload(result);
+        if !paging(&data).is_empty() {
+            self.ranges.clear();
+            return;
+        }
+        if name == "batch" {
+            if let Some((calls, results)) =
+                args["commands"].as_array().zip(data["results"].as_array())
+            {
+                for (call, result) in calls.iter().zip(results).take(128) {
+                    self.visit("execute", call, result);
+                }
+            }
+            return;
+        }
+        if result["isError"] == true
+            || result["result"]["isError"] == true
+            || data["isError"] == true
+            || data["ok"] == false
+            || data.get("error").is_some_and(|e| !e.is_null())
+        {
+            return;
+        }
+        if let Some(bodies) = data.get("after").unwrap_or(&data)["bodies"]
+            .as_array()
+            .filter(|a| {
+                a.len() <= 1024
+                    && a.iter().all(|b| b.is_object() && b["bbox"].is_object())
+                    && (!a.is_empty()
+                        || matches!(name, "inspect" | "inspect_design")
+                        || data.get("timeline").is_some()
+                        || data.get("after").is_some())
+            })
+        {
+            self.ranges.clear();
+            for b in bodies {
+                if let (Some(n), Some(lo), Some(hi)) = (
+                    b["name"].as_str(),
+                    b["bbox"]["min"][2].as_f64(),
+                    b["bbox"]["max"][2].as_f64(),
+                ) {
+                    if lo.is_finite() && hi.is_finite() {
+                        self.ranges.push((n.to_string(), lo, hi));
+                    }
+                }
+            }
+        }
+        if name != "execute" {
+            return;
+        }
+        if let Some(removed) = data["removed_bodies"].as_array() {
+            for name in removed.iter().take(1024).filter_map(Value::as_str) {
+                self.ranges.retain(|(old, _, _)| old != name);
+            }
+        }
+        let command = args["command"].as_str().unwrap_or("");
+        let p = &args["params"];
+        // Only structural parameter references count, never diagnostic text.
+        fn references(v: &Value, names: &[String], depth: usize) -> bool {
+            if depth > 16 {
+                return false;
+            }
+            match v {
+                Value::String(s) => names.contains(s),
+                Value::Array(a) => a.iter().take(128).any(|v| references(v, names, depth + 1)),
+                Value::Object(o) => o
+                    .values()
+                    .take(128)
+                    .any(|v| references(v, names, depth + 1)),
+                _ => false,
+            }
+        }
+        if command == "sketch.create"
+            || command.starts_with("construct.")
+            || command.starts_with("solid.")
+            || matches!(
+                command,
+                "feature.delete" | "timeline.delete" | "model.delete"
+            )
+        {
+            self.planes.retain(|names| !references(p, names, 0));
+        }
+        if command.starts_with("construct.plane.") && self.planes.len() < 128 {
+            let names: Vec<_> = [
+                p.get("name"),
+                data.get("name"),
+                data.get("id"),
+                data.get("feature"),
+            ]
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .filter(|s| !s.is_empty() && s.len() <= 256)
+            .map(str::to_string)
+            .collect();
+            if !names.is_empty() {
+                self.planes.push(names);
+            }
+        }
+        if command == "sketch.create" {
+            self.xz = p["plane"]
+                .as_str()
+                .is_some_and(|s| s.eq_ignore_ascii_case("XZ"))
+                && p.get("flip").is_none_or(|v| *v == false);
+        } else if command == "sketch.finish" || command == "sketch.edit" {
+            self.xz = false;
+        }
+        if command == "solid.box" && self.ranges.len() < 1024 {
+            if let Some(height) = p["height"]
+                .as_f64()
+                .filter(|n| n.is_finite() && *n > 0.0 && *n <= 1_000_000.0)
+            {
+                let lo = if let Some(c) = p.get("center") {
+                    c[2].as_f64().map(|z| z - height / 2.0)
+                } else {
+                    p.get("corner").map_or(Some(0.0), |c| c[2].as_f64())
+                };
+                if let (Some(lo), Some(names)) = (lo, data["created_bodies"].as_array()) {
+                    for n in names.iter().take(4).filter_map(Value::as_str) {
+                        self.ranges.retain(|(old, _, _)| old != n);
+                        self.ranges.push((n.into(), lo, lo + height));
+                    }
+                }
+            }
+        } else if matches!(
+            command,
+            "model.move"
+                | "model.rotate"
+                | "model.scale"
+                | "model.delete"
+                | "solid.move"
+                | "solid.rotate"
+                | "solid.scale"
+        ) {
+            self.ranges.clear();
+        }
+        if self.xz
+            && (command.starts_with("sketch.circle")
+                || command.starts_with("sketch.rectangle")
+                || command == "sketch.point")
+        {
+            let v = p
+                .get("center")
+                .or_else(|| p.get("point"))
+                .and_then(|c| c[1].as_f64())
+                .or_else(|| {
+                    if command.ends_with("two_point") || command.ends_with("rounded") {
+                        Some((p["p0"][1].as_f64()? + p["p1"][1].as_f64()?) / 2.0)
+                    } else {
+                        None
+                    }
+                });
+            if let Some(v) = v.filter(|v| v.is_finite() && v.abs() <= 1_000_000.0) {
+                let inside = |z: f64| self.ranges.iter().any(|(_, lo, hi)| z >= *lo && z <= *hi);
+                self.misplaced |= !inside(-v) && inside(v);
+            }
+        }
+    }
+}
+
+#[cfg(all(test, feature = "proxy"))]
+mod plane_tests {
+    use super::*;
+    fn run(s: &mut PlaneGuidance, command: &str, params: Value) {
+        s.visit(
+            "execute",
+            &json!({"command":command,"params":params}),
+            &json!({}),
+        );
+    }
+    #[test]
+    fn sign_uses_all_body_ranges_and_profile_centres() {
+        for (command, params) in [
+            ("sketch.circle.center", json!({"center":[10,10]})),
+            (
+                "sketch.rectangle.two_point",
+                json!({"p0":[8,8],"p1":[12,12]}),
+            ),
+            ("sketch.point", json!({"point":[10,10]})),
+        ] {
+            let mut s = PlaneGuidance::default();
+            s.visit(
+                "inspect",
+                &Value::Null,
+                &json!({"bodies":[{"name":"A","bbox":{"min":[0,0,0],"max":[20,20,20]}}]}),
+            );
+            run(&mut s, "sketch.create", json!({"plane":"XZ"}));
+            run(&mut s, command, params);
+            assert_eq!(s.hints()[0], Some(XZ_SIGN_HINT));
+        }
+        for (plane, v, ranges) in [
+            ("XY", 10., vec![(0., 20.)]),
+            ("YZ", 10., vec![(0., 20.)]),
+            ("XZ", -10., vec![(0., 20.)]),
+            ("XZ", 10., vec![(-20., 20.)]),
+            ("XZ", 10., vec![(0., 20.), (-20., -1.)]),
+            ("XZ", 10., vec![]),
+        ] {
+            let mut s = PlaneGuidance {
+                ranges: ranges
+                    .into_iter()
+                    .map(|(lo, hi)| ("A".into(), lo, hi))
+                    .collect(),
+                ..PlaneGuidance::default()
+            };
+            run(&mut s, "sketch.create", json!({"plane":plane}));
+            run(&mut s, "sketch.circle.center", json!({"center":[10,v]}));
+            assert_eq!(s.hints()[0], None);
+        }
+    }
+    #[test]
+    fn cleanup_counts_only_successful_unreferenced_planes() {
+        let mut s = PlaneGuidance::default();
+        run(
+            &mut s,
+            "construct.plane.offset",
+            json!({"name":"P_Z10","base":"XY","offset":10}),
+        );
+        assert_eq!(s.hints()[1], Some(PLANE_CLEANUP_HINT));
+        run(&mut s, "timeline.inspect", json!({"feature":"P_Z10"}));
+        assert_eq!(s.hints()[1], Some(PLANE_CLEANUP_HINT));
+        run(&mut s, "sketch.create", json!({"plane":"P_Z10"}));
+        assert_eq!(s.hints()[1], None);
+        s.visit(
+            "execute",
+            &json!({"command":"construct.plane.offset","params":{"name":"failed"}}),
+            &json!({"error":"bad plane"}),
+        );
+        assert_eq!(s.hints()[1], None);
+        run(
+            &mut s,
+            "construct.plane.offset",
+            json!({"name":"Unused","base":"XY","offset":4}),
+        );
+        run(&mut s, "feature.delete", json!({"feature":"Unused"}));
+        assert_eq!(s.hints()[1], None);
+    }
+}
+
+#[cfg(feature = "proxy")]
 pub(crate) const EDGE_HINT: &str = "HINT: Edges accept [x,y,z], {point:[x,y,z]}, or {body,index}; take edge midpoints from model.edges (box vertical edges: corners at mid-height).";
 
 #[cfg(feature = "proxy")]

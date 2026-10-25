@@ -1101,10 +1101,16 @@ pub fn recipe_expand(
     request: &Value,
     catalog: &Catalog,
 ) -> Result<Plan, String> {
+    if id == "cross_drilled_box" {
+        return recipes::cross_drilled::build(args, request, catalog);
+    }
     if id.ends_with("_pattern") {
         return patterns::build(id, args, request, catalog);
     }
     recipes::shortcuts::file_build(id, args, request, catalog)
+}
+pub fn cross_drilled_schema() -> Value {
+    recipes::cross_drilled::schema()
 }
 /// Legacy typed shape schema, also the source of the four original file contracts.
 pub fn shortcut_tool() -> Value {

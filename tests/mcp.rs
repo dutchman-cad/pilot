@@ -547,3 +547,52 @@ fn box_placement_hints_on_both_creation_tools_and_opt_out() {
     let audit = std::fs::read_to_string(path.parent().unwrap().join("rewrites.jsonl")).unwrap();
     assert!(audit.contains("next_step_hint"));
 }
+
+#[test]
+fn plane_guidance_is_shared_audited_and_optional() {
+    let path = fake();
+    for flags in [vec![], vec!["--no-hints"]] {
+        let mut s = Session::with_flags(&path, &["--test-arg"], &flags);
+        s.initialize();
+        s.call(
+            1,
+            "execute",
+            json!({"command":"solid.box","params":{"length":20,"width":20,"height":20}}),
+        );
+        let plane = texts(&s.call(
+            2,
+            "execute",
+            json!({"command":"sketch.create","params":{"plane":"XZ"}}),
+        ));
+        assert_eq!(
+            plane.contains(dutchman_pilot::prompting::SKETCH_AXES),
+            flags.is_empty(),
+            "{plane}"
+        );
+        let circle = texts(&s.call(
+            3,
+            "execute",
+            json!({"command":"sketch.circle.center","params":{"center":[10,10],"radius":4}}),
+        ));
+        assert_eq!(
+            circle.contains("XZ sketch v is -world Z"),
+            flags.is_empty(),
+            "{circle}"
+        );
+        let repeated = texts(&s.call(
+            4,
+            "execute",
+            json!({"command":"sketch.circle.center","params":{"center":[10,12],"radius":2}}),
+        ));
+        assert!(!repeated.contains("XZ sketch v is -world Z"));
+        let cleanup=texts(&s.call(5,"execute",json!({"command":"construct.plane.offset","params":{"base":"XY","offset":10,"name":"Unused"}})));
+        assert_eq!(
+            cleanup.contains("Before finishing, delete construction planes"),
+            flags.is_empty(),
+            "{cleanup}"
+        );
+    }
+    let audit = std::fs::read_to_string(path.parent().unwrap().join("rewrites.jsonl")).unwrap();
+    assert!(audit.contains("sketch_axes_fact"));
+    assert!(audit.contains("plane_hint"));
+}

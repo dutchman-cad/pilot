@@ -11,6 +11,130 @@ pub const PLACEMENT_FACT: &str = "solid.box puts its corner at the origin unless
 const PLACEMENT_MARKER: &str = "solid.box puts its corner at the origin";
 pub const SKETCH_FACT: &str = "Draw a closed profile in ONE sketch.line call with points, closed:true, infer:true and ids. infer adds coincident, horizontal and vertical constraints itself; do not add them by hand. Then use one sketch.dimension per driving size with entities:[\"<one line id>\"] and a number value.";
 const SKETCH_MARKER: &str = "Draw a closed profile in ONE sketch.line call";
+pub const SKETCH_AXES: &str = "Sketch (u,v) maps to world: XY (X,Y), normal +Z; XZ (X,-Z), normal +Y; YZ (Y,Z), normal +X. For holes prefer solid.hole with world position:[x,y,z] and direction over a sketch.";
+
+pub(crate) fn append_sketch_axes(body: &mut Value) -> Result<bool, String> {
+    append_fact(body, SKETCH_AXES, "Sketch (u,v) maps to world:", false)
+}
+
+pub(crate) fn axes_context(body: &Value) -> bool {
+    fn side_sketch(args: &Value, active: &mut bool) -> bool {
+        let command = args["command"].as_str().unwrap_or("");
+        if command == "sketch.create" {
+            *active = args["params"]["plane"]
+                .as_str()
+                .is_some_and(|p| p.eq_ignore_ascii_case("XZ") || p.eq_ignore_ascii_case("YZ"));
+        }
+        let relevant = *active && command.starts_with("sketch.");
+        if matches!(command, "sketch.finish" | "sketch.edit") {
+            *active = false;
+        }
+        relevant
+    }
+    fn side_hole(args: &Value) -> bool {
+        if let Some(calls) = args["commands"].as_array() {
+            return calls.iter().take(128).any(side_hole);
+        }
+        if args["command"] != "solid.hole" {
+            return false;
+        }
+        let p = &args["params"];
+        p["direction"].as_array().is_some_and(|d| {
+            d.len() == 3
+                && d[2].as_f64() == Some(0.0)
+                && d[..2]
+                    .iter()
+                    .any(|n| n.as_f64().is_some_and(|n| n.is_finite() && n != 0.0))
+        })
+    }
+    let Some(messages) = body["messages"].as_array() else {
+        return false;
+    };
+    let turn = messages
+        .iter()
+        .rposition(|m| m["role"] == "user")
+        .unwrap_or(0);
+    let mut active = false;
+    messages.iter().enumerate().take(4096).any(|(index, m)| {
+        let mut sketch_call = false;
+        if let Some(calls) = m["tool_calls"].as_array() {
+            for c in calls.iter().take(128) {
+                let a = &c["function"]["arguments"];
+                let parsed = a
+                    .as_str()
+                    .and_then(|s| serde_json::from_str::<Value>(s).ok());
+                let args = parsed.as_ref().unwrap_or(a);
+                if let Some(commands) = args["commands"].as_array() {
+                    for call in commands.iter().take(128) {
+                        sketch_call |= side_sketch(call, &mut active);
+                    }
+                } else {
+                    sketch_call |= side_sketch(args, &mut active);
+                }
+            }
+        }
+        if index < turn {
+            return false;
+        }
+        if sketch_call {
+            return true;
+        }
+        if m["tool_calls"].as_array().is_some_and(|calls| {
+            calls.iter().take(128).any(|c| {
+                let a = &c["function"]["arguments"];
+                let parsed = a
+                    .as_str()
+                    .and_then(|s| serde_json::from_str::<Value>(s).ok());
+                side_hole(parsed.as_ref().unwrap_or(a))
+            })
+        }) {
+            return true;
+        }
+        let text = if m["role"] == "user" {
+            message_text(&m["content"])
+        } else {
+            m["tool_calls"].to_string()
+        };
+        let text = text.to_ascii_lowercase();
+        let words: Vec<_> = text.split(|c: char| !c.is_alphabetic()).collect();
+        let has = |w: &str| words.contains(&w);
+        (active && (has("sketch") || has("circle") || has("rectangle") || has("point")))
+            || ((has("xz") || has("yz")) && (has("sketch") || has("plane")))
+            || ((has("hole") || has("holes") || has("cut"))
+                && (has("side")
+                    || has("faces")
+                    || has("each")
+                    || has("drilled")
+                    || has("along") && (has("x") || has("y"))))
+    })
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod axes_tests {
+    use super::*;
+    #[test]
+    fn facts_use_shared_channel_and_deduplicate() {
+        assert!(SKETCH_AXES.len() < 200);
+        for text in [
+            "Sketch a circle on XZ",
+            "Sketch a rectangle on YZ",
+            "Cut a hole on the side face",
+            "Holes through all six faces",
+        ] {
+            let mut req = json!({"messages":[{"role":"system","content":[{"type":"text","text":"Rules"}]},{"role":"user","content":text}],"tools":[{"function":{"name":"execute"}}]});
+            assert!(append_sketch_axes(&mut req).unwrap(), "{text}");
+            assert_eq!(req["messages"][0]["content"][1]["text"], SKETCH_AXES);
+            assert!(!append_sketch_axes(&mut req).unwrap());
+        }
+        let mut req = json!({"messages":[{"role":"user","content":"Continue"},{"role":"assistant","tool_calls":[{"function":{"name":"execute","arguments":"{\"command\":\"sketch.create\",\"params\":{\"plane\":\"XZ\"}}"}}]}],"tools":[{"function":{"name":"batch"}}]});
+        assert!(append_sketch_axes(&mut req).unwrap());
+        let mut req = json!({"messages":[{"role":"user","content":"Continue"},{"role":"assistant","tool_calls":[{"function":{"name":"execute","arguments":json!({"command":"solid.hole","params":{"position":[20,10,10],"direction":[-1,0,0],"diameter":8}}).to_string()}}]}],"tools":[{"function":{"name":"execute"}}]});
+        assert!(append_sketch_axes(&mut req).unwrap());
+        let mut req = json!({"messages":[{"role":"user","content":"Create a box"}],"tools":[{"function":{"name":"execute"}}]});
+        assert!(!append_sketch_axes(&mut req).unwrap());
+    }
+}
 
 /// Request help shares the system channel used by prompt-help and fallback.
 pub(crate) fn append_placement_fact(body: &mut Value) -> Result<bool, String> {
@@ -22,6 +146,8 @@ pub(crate) fn append_sketch_fact(body: &mut Value) -> Result<bool, String> {
 }
 
 fn append_fact(body: &mut Value, fact: &str, marker: &str, sketch: bool) -> Result<bool, String> {
+    let axes = fact == SKETCH_AXES;
+    let needs_axes = axes && axes_context(body);
     let offered = body["tools"].as_array().is_some_and(|tools| {
         tools
             .iter()
@@ -57,7 +183,9 @@ fn append_fact(body: &mut Value, fact: &str, marker: &str, sketch: bool) -> Resu
         .filter(|c| !c.is_whitespace() && !matches!(c, '\'' | '"'))
         .collect::<String>()
         .to_lowercase();
-    let applies = if sketch {
+    let applies = if axes {
+        needs_axes
+    } else if sketch {
         // "dimensions" alone is how people size a box; it needs a sketch.
         has(&["constrain", "constrained", "driving"])
             || (has(&["sketch"]) && has(&["profile", "dimension", "dimensions"]))

@@ -20,6 +20,7 @@ pub(super) struct Conversation {
     pub edge_hint_seen: bool,
     pub joint_hint_seen: bool,
     pub pattern_hint_seen: bool,
+    pub plane_hints_seen: [bool; 2],
     pub pattern_inspections: usize,
 }
 impl Conversation {

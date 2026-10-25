@@ -885,6 +885,7 @@ impl Proxy {
             conversation.edge_hint_seen = false;
             conversation.joint_hint_seen = false;
             conversation.pattern_hint_seen = false;
+            conversation.plane_hints_seen = [false; 2];
             conversation.pattern_inspections = 0;
         }
         if conversation
@@ -1104,6 +1105,14 @@ impl Proxy {
             if prompting::append_sketch_fact(&mut body)? {
                 audit.record("sketch_fact", &Value::Null, &json!(prompting::SKETCH_FACT))?;
             }
+            if prompting::append_sketch_axes(&mut body)? {
+                audit.record(
+                    "sketch_axes_fact",
+                    &Value::Null,
+                    &json!(prompting::SKETCH_AXES),
+                )?;
+            }
+            append_plane_hints(&mut body, &mut conversation.plane_hints_seen, audit)?;
             append_edge_hints(&mut body, &mut conversation.edge_hint_seen, audit)?;
             append_hints(
                 &mut body,
@@ -1676,6 +1685,70 @@ fn append_edge_hints(body: &mut Value, seen: &mut bool, audit: &mut Audit) -> Re
                 let content = messages[n]["content"].as_str().unwrap_or("");
                 messages[n]["content"] = json!(format!("{content}\n{}", hints.join("\n")));
                 audit.record("edge_hint", &Value::Null, &json!(guidance::EDGE_HINT))?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn append_plane_hints(
+    body: &mut Value,
+    seen: &mut [bool; 2],
+    audit: &mut Audit,
+) -> Result<(), String> {
+    let messages = body["messages"]
+        .as_array_mut()
+        .ok_or("messages must be an array")?;
+    let turn = messages
+        .iter()
+        .rposition(|m| m["role"] == "user")
+        .unwrap_or(0);
+    let mut state = guidance::PlaneGuidance::default();
+    let mut calls = BTreeMap::new();
+    for (i, m) in messages.iter().enumerate().take(4096) {
+        if i == turn {
+            state.new_turn();
+        }
+        if let Some(cs) = m["tool_calls"].as_array() {
+            for c in cs.iter().take(128) {
+                if let Some(id) = c["id"].as_str() {
+                    calls.insert(id, c);
+                }
+            }
+        }
+        if m["role"] != "tool" {
+            continue;
+        }
+        let raw = m["content"]
+            .as_str()
+            .and_then(|s| serde_json::from_str::<Value>(s).ok())
+            .unwrap_or_else(|| m["content"].clone());
+        if let Some(c) = m["tool_call_id"].as_str().and_then(|id| calls.get(id)) {
+            let args = &c["function"]["arguments"];
+            let parsed = args
+                .as_str()
+                .and_then(|s| serde_json::from_str::<Value>(s).ok());
+            state.visit(
+                c["function"]["name"].as_str().unwrap_or(""),
+                parsed.as_ref().unwrap_or(args),
+                &raw,
+            );
+        } else {
+            state.visit("inspect", &Value::Null, &raw);
+        }
+    }
+    for (index, hint) in state.hints().into_iter().enumerate() {
+        if let Some(hint) = hint {
+            if !seen[index]
+                && !messages[turn..]
+                    .iter()
+                    .any(|m| m["content"].as_str().is_some_and(|s| s.contains(hint)))
+            {
+                messages.push(
+                    json!({"role":"system","content":format!("{} {hint}",crate::identity::HINT)}),
+                );
+                seen[index] = true;
+                audit.record("plane_hint", &Value::Null, &json!(hint))?;
             }
         }
     }
@@ -3816,6 +3889,68 @@ mod tests {
             assert_eq!(system.contains(prompting::PLACEMENT_FACT), !disabled);
             let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
             assert_eq!(log.contains("\"kind\":\"sketch_fact\""), !disabled);
+        }
+    }
+
+    #[test]
+    fn plane_facts_sign_cleanup_and_turn_dedup_are_audited_and_optional() {
+        for disabled in [false, true] {
+            let mut f = Fixture::new(vec![reply("Ready."); 3]);
+            f.proxy.cfg.no_hints = disabled;
+            let mut req = request();
+            req["messages"] = json!([{"role":"user","content":"Continue the sketch on XZ"}]);
+            for step in 0..3 {
+                if step == 2 {
+                    req["messages"]
+                        .as_array_mut()
+                        .unwrap()
+                        .push(json!({"role":"user","content":"Another sketch on XZ"}));
+                }
+                if step != 1 {
+                    for (n, (command, params, result)) in [
+                        (
+                            "solid.box",
+                            json!({"length":20,"width":20,"height":20}),
+                            json!({"created_bodies":["Body1"]}),
+                        ),
+                        (
+                            "construct.plane.offset",
+                            json!({"base":"XY","offset":10,"name":"Unused"}),
+                            json!({"name":"Unused"}),
+                        ),
+                        ("sketch.create", json!({"plane":"XZ"}), json!({})),
+                        (
+                            "sketch.circle.center",
+                            json!({"center":[10,10],"radius":4}),
+                            json!({}),
+                        ),
+                    ]
+                    .into_iter()
+                    .enumerate()
+                    {
+                        let id = format!("plane_{step}_{n}");
+                        req["messages"].as_array_mut().unwrap().push(json!({"role":"assistant","tool_calls":[{"id":id,"function":{"name":"execute","arguments":json!({"command":command,"params":params}).to_string()}}]}));
+                        req["messages"].as_array_mut().unwrap().push(
+                            json!({"role":"tool","tool_call_id":id,"content":result.to_string()}),
+                        );
+                    }
+                }
+                f.chat(req.clone());
+                let sent = f.proxy.scripted.as_ref().unwrap().borrow().requests[step].clone();
+                let text = sent.to_string();
+                assert_eq!(text.contains(prompting::SKETCH_AXES), !disabled);
+                assert_eq!(
+                    text.contains(guidance::XZ_SIGN_HINT),
+                    !disabled && step != 1
+                );
+                assert_eq!(
+                    text.contains(guidance::PLANE_CLEANUP_HINT),
+                    !disabled && step != 1
+                );
+            }
+            let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+            assert_eq!(log.contains("\"kind\":\"sketch_axes_fact\""), !disabled);
+            assert_eq!(log.contains("\"kind\":\"plane_hint\""), !disabled);
         }
     }
 

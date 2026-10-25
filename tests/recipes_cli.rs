@@ -11,6 +11,142 @@ struct Session {
     output: BufReader<ChildStdout>,
     id: u64,
 }
+
+#[test]
+fn public_binary_sketch_axes_and_world_holes() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    for (plane, min, max) in [
+        ("XY", [9., 2., 0.], [11., 4., 5.]),
+        ("XZ", [9., 0., -4.], [11., 5., -2.]),
+        ("YZ", [0., 9., 2.], [5., 11., 4.]),
+    ] {
+        let mut s = Session::new(&path);
+        s.execute("sketch.create", json!({"plane":plane}));
+        s.execute("sketch.circle.center", json!({"center":[10,3],"radius":1}));
+        s.execute("sketch.finish", json!({}));
+        s.execute("solid.extrude", json!({"distance":5,"operation":"new"}));
+        check_shortcut_body(&mut s, std::f64::consts::PI * 5., min, max, false);
+    }
+    let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    for axes in [
+        vec!["X"],
+        vec!["Y"],
+        vec!["Z"],
+        vec!["X", "Y"],
+        vec!["X", "Z"],
+        vec!["Y", "Z"],
+        vec!["X", "Y", "Z"],
+    ] {
+        let holes: Vec<_> = axes
+            .iter()
+            .map(|a| json!({"axis":a,"diameter":8}))
+            .collect();
+        let p=lib.build(&json!({"recipe":"cross_drilled_box","args":{"length":20,"width":20,"height":20,"holes":holes}}),&json!({"messages":[]}),&cat).unwrap();
+        let mut s = Session::new(&path);
+        for c in &p.calls {
+            s.execute(
+                c["arguments"]["command"].as_str().unwrap(),
+                c["arguments"]["params"].clone(),
+            );
+        }
+        let r: f64 = 4.;
+        let overlap = match axes.len() {
+            2 => 16. * r.powi(3) / 3.,
+            3 => 8. * 2_f64.sqrt() * r.powi(3),
+            _ => 0.,
+        };
+        let want = 8000. - axes.len() as f64 * std::f64::consts::PI * r * r * 20. + overlap;
+        check_shortcut_body(&mut s, want, [0.; 3], [20.; 3], false);
+        let state = s.execute("document.inspect", json!({"measure":true}));
+        let timeline = state["timeline"].as_array().unwrap();
+        assert!(
+            timeline
+                .iter()
+                .all(|f| !f["type"].as_str().unwrap().contains("Sketch")
+                    && !f["type"].as_str().unwrap().contains("ConstructionPlane")),
+            "{state}"
+        );
+        assert_eq!(
+            timeline
+                .iter()
+                .filter(|f| f["type"] == "HoleFeature")
+                .count(),
+            axes.len()
+        );
+        let faces = s.execute("model.faces", json!({"body":"PilotRecipe1"}));
+        let faces = faces["faces"].as_array().unwrap();
+        let mut round_axes = std::collections::BTreeSet::new();
+        for f in faces.iter().filter(|f| f.get("cylinder").is_some()) {
+            let c = &f["cylinder"];
+            assert!((c["radius"].as_f64().unwrap() - 4.).abs() < 0.001, "{c}");
+            let axis = (0..3)
+                .find(|i| c["axis"][i].as_f64().unwrap().abs() > 0.99)
+                .unwrap();
+            for i in (0..3).filter(|i| *i != axis) {
+                assert!(
+                    (c["origin"][i].as_f64().unwrap() - 10.).abs() < 0.001,
+                    "{c}"
+                );
+            }
+            round_axes.insert(axis);
+        }
+        assert_eq!(round_axes.len(), axes.len());
+        // Each planar end face loses one circular opening. Cylindrical patch
+        // counts vary with kernel seam splitting, so count the actual openings.
+        let openings = faces
+            .iter()
+            .filter(|f| {
+                !f["plane_normal"].is_null() && f["area"].as_f64().is_some_and(|a| a < 399.)
+            })
+            .count();
+        assert_eq!(openings, 2 * axes.len(), "{state}");
+    }
+}
+
+#[test]
+fn public_binary_construction_plane_result_contract() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let mut s = Session::new(&path);
+    let plane = s.execute("construct.plane.offset", json!({"base":"XY","offset":10}));
+    assert_eq!(plane["name"], "Plane1");
+    let state = s.execute("document.inspect", json!({}));
+    assert!(state["timeline"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|f| f["type"]
+            .as_str()
+            .is_some_and(|t| t.contains("ConstructionPlane"))));
+}
+
+#[test]
+fn public_binary_offset_box_with_explicit_side_hole() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let p=dutchman_pilot::recipe_library::Library::embedded().unwrap().build(
+        &json!({"recipe":"cross_drilled_box","args":{"length":20,"width":30,"height":40,"corner":[-4,5,-6],"holes":[{"axis":"Y","diameter":6,"position":[3,35,5]}]}}),
+        &json!({"messages":[]}),&Catalog::bundled().unwrap()).unwrap();
+    let mut s = Session::new(&path);
+    for c in &p.calls {
+        s.execute(
+            c["arguments"]["command"].as_str().unwrap(),
+            c["arguments"]["params"].clone(),
+        );
+    }
+    check_shortcut_body(
+        &mut s,
+        24000. - std::f64::consts::PI * 9. * 30.,
+        [-4., 5., -6.],
+        [16., 35., 34.],
+        false,
+    );
+}
 impl Drop for Session {
     fn drop(&mut self) {
         let _ = self.child.kill();

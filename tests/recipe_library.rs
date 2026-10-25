@@ -1,7 +1,83 @@
 #![cfg(feature = "core")]
-#![allow(clippy::unwrap_used)]
+#![allow(clippy::unwrap_used, clippy::panic)]
 use dutchman_pilot::{catalog::Catalog, recipe_library::*};
 use serde_json::{json, Value};
+
+#[test]
+fn cross_drilled_boxes_exact_english_and_typed_validation() {
+    let lib = Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    for (text, count) in [
+        (
+            "Build a 24 mm cube with 6 mm holes through all six faces",
+            3,
+        ),
+        ("Make a 30 mm cube with a 4 mm hole through each face", 3),
+        (
+            "Create a 32 mm cube with 5 mm through holes along X, Y and Z",
+            3,
+        ),
+        ("Build a cross-drilled 28 mm cube with 7 mm holes", 3),
+        (
+            "Make a box 24 by 30 by 36 mm with 6 mm through holes along X and Z",
+            2,
+        ),
+        ("Create a 26 mm cube with a 3 mm through hole along Y", 1),
+        ("Make a 1 inch cube with 1/4 inch holes along X and Y", 2),
+    ] {
+        let ranked = lib.find(text, &Bm25).unwrap();
+        assert_eq!(
+            ranked["recipes"][0]["id"], "cross_drilled_box",
+            "{text}: {ranked}"
+        );
+        let p=dutchman_pilot::planner::plan(&json!({"messages":[{"role":"user","content":text}],"tools":[{"function":{"name":"execute"}}]}),&cat).unwrap().unwrap_or_else(||panic!("{text}"));
+        assert_eq!(p.rule, "cross_drilled_box");
+        assert_eq!(
+            p.calls
+                .iter()
+                .filter(|c| c["arguments"]["command"] == "solid.hole")
+                .count(),
+            count
+        );
+    }
+    let base = json!({"length":24,"width":30,"height":36,"holes":[{"axis":"Y","diameter":4,"position":[9,0,12]}]});
+    let build = |args: Value| {
+        lib.build(
+            &json!({"recipe":"cross_drilled_box","args":args}),
+            &json!({"messages":[]}),
+            &cat,
+        )
+    };
+    let p = build(base.clone()).unwrap();
+    assert_eq!(
+        p.calls[1]["arguments"]["params"]["position"],
+        json!([9., 0., 12.])
+    );
+    assert_eq!(
+        p.calls[1]["arguments"]["params"]["direction"],
+        json!([0., 1., 0.])
+    );
+    for holes in [
+        json!([]),
+        json!([{"axis":"Q","diameter":4}]),
+        json!([{"axis":"Y","diameter":0}]),
+        json!([{"axis":"Y","diameter":4},{"axis":"Y","diameter":4}]),
+        json!([{"axis":"Y","diameter":24}]),
+        json!([{"axis":"Y","diameter":4,"position":[9,1,12]}]),
+    ] {
+        let mut args = base.clone();
+        args["holes"] = holes;
+        assert!(build(args).is_err());
+    }
+    for text in [
+        "Build a 24 mm cube with holes through all six faces",
+        "Build a 24 mm cube with 6 mm blind holes along X",
+        "Build a 24 mm cube with 6 mm through holes along X then move it",
+        "Build a 24 mm cube with 6 mm through holes along X at 4 5 6",
+    ] {
+        assert!(dutchman_pilot::planner::plan(&json!({"messages":[{"role":"user","content":text}],"tools":[{"function":{"name":"execute"}}]}),&cat).unwrap().is_none(),"{text}");
+    }
+}
 #[test]
 fn independent_ranking_and_calibrated_misses() {
     let lib = Library::embedded().unwrap();
@@ -192,6 +268,9 @@ fn independent_ranking_and_calibrated_misses() {
 }
 fn sample(id: &str) -> Value {
     match id {
+        "cross_drilled_box" => {
+            json!({"length":24,"width":30,"height":36,"holes":[{"axis":"X","diameter":6},{"axis":"Y","diameter":6},{"axis":"Z","diameter":6}]})
+        }
         "linear_pattern" => json!({"target":"body","count":5,"spacing":10,"direction":"X"}),
         "grid_pattern" => {
             json!({"target":"body","rows":3,"columns":4,"spacing1":10,"spacing2":10,"plane":"XY"})
@@ -321,7 +400,7 @@ fn audit_draft_requires_review_and_round_trips() {
     assert_eq!(r.examples[0], "Make a block 41 by 23 by 17 mm");
     assert_eq!(r.expander, "sequence");
     assert_eq!(r.schema["properties"].as_object().unwrap().len(), 3);
-    assert_eq!(Library::embedded().unwrap().recipes.len(), 17);
+    assert_eq!(Library::embedded().unwrap().recipes.len(), 18);
     assert!(draft(&audit, 1, &review)
         .unwrap_err()
         .contains("cannot create"));
