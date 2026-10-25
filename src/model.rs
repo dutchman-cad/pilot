@@ -864,6 +864,10 @@ impl Proxy {
             .as_array()
             .and_then(|m| m.iter().rposition(|m| m["role"] == "user"))
             .unwrap_or(0);
+        if conversation.sketch_hint_index != user_index {
+            conversation.sketch_hint_index = user_index;
+            conversation.sketch_hints_seen = [false; 2];
+        }
         if conversation
             .recipe
             .as_ref()
@@ -1049,7 +1053,15 @@ impl Proxy {
                     &json!(prompting::PLACEMENT_FACT),
                 )?;
             }
-            append_hints(&mut body, &self.catalog, audit)?;
+            if prompting::append_sketch_fact(&mut body)? {
+                audit.record("sketch_fact", &Value::Null, &json!(prompting::SKETCH_FACT))?;
+            }
+            append_hints(
+                &mut body,
+                &self.catalog,
+                audit,
+                &mut conversation.sketch_hints_seen,
+            )?;
         }
         let mut text_mode = profile.text_tool_mode || profile.native_support == Some(false);
         if text_mode {
@@ -1470,7 +1482,12 @@ pub(crate) fn tool_data(message: &Value) -> Option<Value> {
     Some(guidance::payload(&value))
 }
 
-fn append_hints(body: &mut Value, catalog: &Catalog, audit: &mut Audit) -> Result<(), String> {
+fn append_hints(
+    body: &mut Value,
+    catalog: &Catalog,
+    audit: &mut Audit,
+    sketch_seen: &mut [bool; 2],
+) -> Result<(), String> {
     let messages = body["messages"]
         .as_array_mut()
         .ok_or("messages must be an array")?;
@@ -1480,6 +1497,15 @@ fn append_hints(body: &mut Value, catalog: &Catalog, audit: &mut Audit) -> Resul
         .map_or(0, |i| i + 1);
     let mut previous = None;
     let mut placement_count = 0;
+    let turn = messages
+        .iter()
+        .rposition(|m| m["role"] == "user")
+        .map_or(0, |i| i + 1);
+    for message in &messages[turn..] {
+        let text = message["content"].to_string();
+        sketch_seen[0] |= text.contains(&guidance::SKETCH_ENTITY_HINT.replace('"', "\\\""));
+        sketch_seen[1] |= text.contains(guidance::SKETCH_EXISTING_HINT);
+    }
     for i in 0..messages.len() {
         if messages[i]["role"] != "tool" {
             continue;
@@ -1501,15 +1527,36 @@ fn append_hints(body: &mut Value, catalog: &Catalog, audit: &mut Audit) -> Resul
         if !name.is_empty() && !change && !matches!(name, "inspect" | "inspect_design") {
             continue;
         }
-        let Some(data) = tool_data(&messages[i]) else {
-            continue;
-        };
+        let raw = &messages[i]["content"];
+        let raw = raw
+            .as_str()
+            .map(|s| serde_json::from_str::<Value>(s).unwrap_or_else(|_| json!({"error":s})))
+            .unwrap_or_else(|| {
+                if raw.is_array() {
+                    json!({"content":raw})
+                } else {
+                    raw.clone()
+                }
+            });
+        let data = tool_data(&messages[i]).unwrap_or(Value::Null);
         let after = data.get("after").unwrap_or(&data);
         let before = data.get("before").or(previous.as_ref());
         let mut hint = (i >= start)
             .then(|| guidance::state_hint(before, after, change, Some(catalog)))
             .flatten()
             .map(|h| h.split_whitespace().collect::<Vec<_>>().join(" "));
+        if i >= start {
+            if let Some(args) = call.and_then(|call| call["function"].get("arguments")) {
+                let parsed = args
+                    .as_str()
+                    .and_then(|s| serde_json::from_str::<Value>(s).ok());
+                for next in
+                    guidance::sketch_hints(name, parsed.as_ref().unwrap_or(args), &raw, sketch_seen)
+                {
+                    hint = Some(hint.map_or_else(|| next.to_string(), |h| format!("{h}\n{next}")));
+                }
+            }
+        }
         if i >= start && placement_count < 4 {
             if let Some(args) = call.and_then(|call| call["function"].get("arguments")) {
                 let parsed = args
@@ -3494,6 +3541,104 @@ mod tests {
             let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
             assert!(log.contains("prompt_help"));
             assert_eq!(log.contains("model_settings"), ollama);
+        }
+    }
+
+    #[test]
+    fn sketch_hints_remember_unmodified_client_history_until_next_user_turn() {
+        let mut f = Fixture::new(vec![reply("Ready."); 3]);
+        let mut req = request();
+        req["messages"] = json!([{"role":"user","content":"dimension it"}]);
+        for step in 0..3 {
+            let messages = req["messages"].as_array_mut().unwrap();
+            if step == 2 {
+                messages.push(json!({"role":"user","content":"dimension another profile"}));
+            }
+            let id = format!("dimension_{step}");
+            messages.push(json!({"role":"assistant","tool_calls":[{"id":id,"function":{"name":"execute","arguments":json!({"command":"sketch.dimension","params":{"entities":"l1"}}).to_string()}}]}));
+            messages.push(json!({"role":"tool","tool_call_id":id,"content":"{\"error\":\"entities must be a list\"}"}));
+            f.chat(req.clone());
+            let sent = f.proxy.scripted.as_ref().unwrap().borrow().requests[step].clone();
+            let last = sent["messages"].as_array().unwrap().last().unwrap()["content"]
+                .as_str()
+                .unwrap();
+            assert_eq!(last.contains(guidance::SKETCH_ENTITY_HINT), step != 1);
+        }
+    }
+
+    #[test]
+    fn sketch_fact_is_upfront_and_combines_with_placement_unless_disabled() {
+        for disabled in [false, true] {
+            let mut f = Fixture::new(vec![reply("Ready.")]);
+            f.proxy.cfg.no_hints = disabled;
+            let mut req = request();
+            req["messages"] = json!([{"role":"system","content":"Rules"},{"role":"user","content":"sketch a constrained plate profile with a centered hole"}]);
+            f.chat(req);
+            let sent = f.proxy.scripted.as_ref().unwrap().borrow().requests[0].clone();
+            assert_eq!(sent["messages"].as_array().unwrap().len(), 2);
+            let system = sent["messages"][0]["content"].as_str().unwrap();
+            assert_eq!(system.contains(prompting::SKETCH_FACT), !disabled);
+            assert_eq!(system.contains(prompting::PLACEMENT_FACT), !disabled);
+            let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+            assert_eq!(log.contains("\"kind\":\"sketch_fact\""), !disabled);
+        }
+    }
+
+    #[test]
+    fn sketch_facts_errors_and_existing_hints_are_audited_and_deduplicated() {
+        for disabled in [false, true] {
+            let mut f = Fixture::new(vec![reply("Ready."); 3]);
+            f.proxy.cfg.no_hints = disabled;
+            let mut req = request();
+            req["messages"] = json!([
+                {"role":"user","content":"sketch a constrained profile"},
+                {"role":"assistant","tool_calls":[{"id":"d1","function":{"name":"execute","arguments":json!({"command":"sketch.dimension","params":{"entities":["l1","l2","l3"],"value":"width"}}).to_string()}}]},
+                {"role":"tool","tool_call_id":"d1","content":json!({"error":"entities must list one or two sketch entities"}).to_string()},
+                {"role":"assistant","tool_calls":[{"id":"c1","function":{"name":"execute","arguments":json!({"command":"sketch.constraint.coincident","params":{}}).to_string()}}]},
+                {"role":"tool","tool_call_id":"c1","content":"{\"existing\":true}"},
+                {"role":"tool","tool_call_id":"c1","content":"{\"existing\":true}"}
+            ]);
+            // Only trailing results are annotated, with earlier hints remembered.
+            req["messages"][2]["content"] = json!(format!(
+                "{{\"error\":\"entities invalid\"}}\n{} {}",
+                crate::identity::HINT,
+                guidance::SKETCH_ENTITY_HINT
+            ));
+            f.chat(req.clone());
+            let sent = f.proxy.scripted.as_ref().unwrap().borrow().requests[0].clone();
+            assert_eq!(sent["messages"][0]["role"] == "system", !disabled);
+            let all = sent["messages"].to_string();
+            assert_eq!(
+                all.matches(guidance::SKETCH_EXISTING_HINT).count(),
+                usize::from(!disabled)
+            );
+            let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+            assert_eq!(log.contains("\"kind\":\"sketch_fact\""), !disabled);
+            assert_eq!(log.contains("\"kind\":\"next_step_hint\""), !disabled);
+
+            // A fresh dimension error must also reach the upstream, including plain text errors.
+            req["messages"] = json!([
+                {"role":"user","content":"dimension it"},
+                {"role":"assistant","tool_calls":[{"id":"d2","function":{"name":"execute","arguments":json!({"command":"sketch.dimension","params":{"entities":"l1","value":35}}).to_string()}}]},
+                {"role":"tool","tool_call_id":"d2","content":"Error: entities must be a list"}
+            ]);
+            f.chat(req);
+            let sent = f.proxy.scripted.as_ref().unwrap().borrow().requests[1].clone();
+            let last = sent["messages"].as_array().unwrap().last().unwrap()["content"]
+                .as_str()
+                .unwrap();
+            assert_eq!(last.contains(guidance::SKETCH_ENTITY_HINT), !disabled);
+            let mut req = request();
+            req["messages"] = sent["messages"].clone();
+            f.chat(req);
+            let sent = f.proxy.scripted.as_ref().unwrap().borrow().requests[2].clone();
+            let last = sent["messages"].as_array().unwrap().last().unwrap()["content"]
+                .as_str()
+                .unwrap();
+            assert_eq!(
+                last.matches(guidance::SKETCH_ENTITY_HINT).count(),
+                usize::from(!disabled)
+            );
         }
     }
 

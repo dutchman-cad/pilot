@@ -3,6 +3,16 @@
 use super::*;
 
 const FORMS: &[(&str, &[&str])] = &[
+    ("l_profile", &[
+        "Sketch an L profile 35mm wide, 55mm tall, both legs 5mm thick, then extrude 12mm.",
+        "On XY, draw an L-shaped profile width 35mm, height 55mm, both legs 5mm thick then extrude 12mm.",
+        "Make an angle bracket sketch 35mm wide and 55mm high with 5mm thick legs then extrude 12mm.",
+        "On XZ sketch an L bracket width 35mm and height 55mm with horizontal leg thickness 4mm and vertical leg thickness 6mm then extrude 12mm.",
+        "Draw an L profile on YZ, 35mm wide, 55mm tall, horizontal leg 4mm thick and vertical leg 6mm thick then extrude 12mm.",
+        "Build an angle profile 3.5cm wide, 5.5cm tall, both legs 0.5cm thick then extrude 1.2cm.",
+        "Sketch an L shaped bracket on XY width 35mm height 55mm both legs 5mm thick then extrude 12mm.",
+        "Create a fully constrained closed L profile 35mm wide and 55mm tall with 5mm thick legs then extrude 12mm.",
+    ]),
     ("box", &[
         "Make a 19 mm cube.", "BUILD a block 31 mm long, 22 mm wide and 4 mm thick!",
         "Create a plate length 31mm, width 22mm, thickness 4mm.",

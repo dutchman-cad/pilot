@@ -62,6 +62,7 @@ intents are left to the model. There is no benchmark wording or task-id matching
 | Plate with circular hole pattern | Plate dimensions, hole size, through, centred circular pattern radius or diameter, count, equally spaced, and explicit `starting at +X`. |
 | Drill / bore / cut a hole | Uniquely resolved existing body, explicit hole radius or diameter, `through BODY at (x,y,z)`. All three coordinates are required; uses the public hole command's Z direction. |
 | Sketch rectangle then extrude | Rectangle width × height and a principal plane, then / and extrude a distance, including “extrude it”. “Raise”, “pull it up”, and “extrude by” also work. |
+| L profile then extrude | L, L-shaped, or angle profile / bracket sketch with width, height, both leg thicknesses, and extrusion distance. XY by default, or XY / XZ / YZ explicitly. The outside corner is the origin; the horizontal leg follows sketch X. One inferred closed polyline and four driving dimensions fully constrain it. Holes, edge treatments, other geometry, and thicknesses reaching width or height defer. |
 | Sketch circle then extrude | Circle radius or diameter, principal plane before or after the profile, then / and extrude a distance, including “extrude the sketch”. An unqualified “18 mm circle” means diameter 18 mm. |
 | Fillet / round / round off all edges | Uniquely resolved current body, all edges (also “every edge” / “all the edges”), and radius, including “a 2mm round”. |
 | Chamfer / bevel all / top edges | Uniquely resolved current body, all or top edges, and distance. |

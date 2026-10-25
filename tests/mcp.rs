@@ -113,6 +113,48 @@ fn fake() -> PathBuf {
     );
     path
 }
+
+#[test]
+fn sketch_error_and_existing_hints_are_audited_once_and_opt_out() {
+    let path = fake();
+    for disabled in [false, true] {
+        let flags = if disabled { vec!["--no-hints"] } else { vec![] };
+        let mut session = Session::with_flags(&path, &["--test-arg"], &flags);
+        session.initialize();
+        for (i, args, needle) in [
+            (
+                1,
+                json!({"command":"sketch.dimension","params":{"entities":["l1","l2","l3"]}}),
+                "One line's length",
+            ),
+            (
+                2,
+                json!({"command":"sketch.constraint.coincident","params":{}}),
+                "move on to dimensions",
+            ),
+        ] {
+            let first = texts(&session.call(i, "execute", args.clone()));
+            assert_eq!(first.contains(needle), !disabled);
+            let repeated = texts(&session.call(i + 10, "execute", args));
+            assert!(!repeated.contains(needle));
+        }
+        session.call(
+            30,
+            "execute",
+            json!({"command":"sketch.create","params":{}}),
+        );
+        let next = texts(&session.call(
+            31,
+            "execute",
+            json!({"command":"sketch.dimension","params":{"entities":"l1"}}),
+        ));
+        assert_eq!(next.contains("One line's length"), !disabled);
+    }
+    let log = std::fs::read_to_string(path.parent().unwrap().join("rewrites.jsonl")).unwrap();
+    assert!(log
+        .lines()
+        .any(|line| line.contains("next_step_hint") && line.contains("One line's length")));
+}
 fn texts(v: &Value) -> String {
     v["result"]["content"]
         .as_array()
@@ -292,6 +334,15 @@ fn fake_child_end_to_end() {
         assert_eq!(
             tools.iter().any(|t| t["name"] == "plan"),
             flag != "--no-plan"
+        );
+        assert_eq!(
+            tools
+                .iter()
+                .filter(|t| t["description"]
+                    .as_str()
+                    .is_some_and(|s| s.contains(dutchman_pilot::prompting::SKETCH_FACT)))
+                .count(),
+            usize::from(flag != "--no-hints")
         );
         assert_eq!(tools.iter().any(|t| t["name"] == "how"), flag != "--no-how");
         let change =

@@ -14,6 +14,8 @@ pub(super) struct Conversation {
     pub direct_index: usize,
     pub direct_handback: Option<String>,
     pub pending_recipe: Option<planner::Plan>,
+    pub sketch_hint_index: usize,
+    pub sketch_hints_seen: [bool; 2],
 }
 impl Conversation {
     pub fn allow(&mut self, command: &str, count: usize) -> bool {

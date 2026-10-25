@@ -9,9 +9,19 @@ const MAX_RAIL_LINES: usize = 15;
 
 pub const PLACEMENT_FACT: &str = "solid.box puts its corner at the origin unless you pass center:[x,y,z]; a W×L×H box made without center has its centre at (W/2, L/2, H/2), so centre features there or pass center:[0,0,H/2]. solid.sphere defaults to the origin as centre; solid.cylinder defaults to the origin as bottom centre.";
 const PLACEMENT_MARKER: &str = "solid.box puts its corner at the origin";
+pub const SKETCH_FACT: &str = "Draw a closed profile in ONE sketch.line call with points, closed:true, infer:true and ids. infer adds coincident, horizontal and vertical constraints itself; do not add them by hand. Then use one sketch.dimension per driving size with entities:[\"<one line id>\"] and a number value.";
+const SKETCH_MARKER: &str = "Draw a closed profile in ONE sketch.line call";
 
 /// Request help shares the system channel used by prompt-help and fallback.
 pub(crate) fn append_placement_fact(body: &mut Value) -> Result<bool, String> {
+    append_fact(body, PLACEMENT_FACT, PLACEMENT_MARKER, false)
+}
+
+pub(crate) fn append_sketch_fact(body: &mut Value) -> Result<bool, String> {
+    append_fact(body, SKETCH_FACT, SKETCH_MARKER, true)
+}
+
+fn append_fact(body: &mut Value, fact: &str, marker: &str, sketch: bool) -> Result<bool, String> {
     let offered = body["tools"].as_array().is_some_and(|tools| {
         tools
             .iter()
@@ -25,15 +35,11 @@ pub(crate) fn append_placement_fact(body: &mut Value) -> Result<bool, String> {
         .ok_or("messages must be an array")?;
     if messages.iter().any(|m| {
         let content = &m["content"];
-        content
-            .as_str()
-            .is_some_and(|s| s.contains(PLACEMENT_MARKER))
+        content.as_str().is_some_and(|s| s.contains(marker))
             || content.as_array().is_some_and(|parts| {
-                parts.iter().any(|p| {
-                    p["text"]
-                        .as_str()
-                        .is_some_and(|s| s.contains(PLACEMENT_MARKER))
-                })
+                parts
+                    .iter()
+                    .any(|p| p["text"].as_str().is_some_and(|s| s.contains(marker)))
             })
     }) {
         return Ok(false);
@@ -51,35 +57,49 @@ pub(crate) fn append_placement_fact(body: &mut Value) -> Result<bool, String> {
         .filter(|c| !c.is_whitespace() && !matches!(c, '\'' | '"'))
         .collect::<String>()
         .to_lowercase();
-    if !has(&["box", "cube", "block", "plate", "brick", "slab"])
-        || !has(&[
-            "center", "centre", "centred", "centered", "middle", "through",
-        ])
-        || compact.contains("center:[")
-        || compact.contains("centre:[")
-    {
+    let applies = if sketch {
+        // "dimensions" alone is how people size a box; it needs a sketch.
+        has(&["constrain", "constrained", "driving"])
+            || (has(&["sketch"]) && has(&["profile", "dimension", "dimensions"]))
+    } else {
+        has(&["box", "cube", "block", "plate", "brick", "slab"])
+            && has(&[
+                "center", "centre", "centred", "centered", "middle", "through",
+            ])
+            && !compact.contains("center:[")
+            && !compact.contains("centre:[")
+    };
+    if !applies {
         return Ok(false);
     }
     if let Some(system) = messages.iter_mut().find(|m| m["role"] == "system") {
         if let Some(content) = system["content"].as_str() {
-            system["content"] = json!(format!("{content}\n{PLACEMENT_FACT}"));
+            system["content"] = json!(format!("{content}\n{fact}"));
         } else if let Some(parts) = system["content"].as_array_mut() {
-            parts.push(json!({"type":"text","text":PLACEMENT_FACT}));
+            parts.push(json!({"type":"text","text":fact}));
         } else {
             return Err("system content must be text or an array of parts".into());
         }
     } else {
-        messages.insert(0, json!({"role":"system","content":PLACEMENT_FACT}));
+        messages.insert(0, json!({"role":"system","content":fact}));
     }
     Ok(true)
 }
 
 /// MCP has no user conversation: offer the fact once in an action tool description.
 pub(crate) fn describe_placement(tools: &mut [Value]) -> bool {
+    describe_fact(tools, PLACEMENT_FACT, PLACEMENT_MARKER)
+}
+
+pub(crate) fn describe_sketch(tools: &mut [Value]) -> bool {
+    describe_fact(tools, SKETCH_FACT, SKETCH_MARKER)
+}
+
+fn describe_fact(tools: &mut [Value], fact: &str, marker: &str) -> bool {
     if tools.iter().any(|t| {
         t["description"]
             .as_str()
-            .is_some_and(|s| s.contains(PLACEMENT_MARKER))
+            .is_some_and(|s| s.contains(marker))
     }) {
         return false;
     }
@@ -89,7 +109,7 @@ pub(crate) fn describe_placement(tools: &mut [Value]) -> bool {
         .or_else(|| tools.iter().position(|t| t["name"] == "batch"));
     if let Some(index) = index {
         let old = tools[index]["description"].as_str().unwrap_or("");
-        tools[index]["description"] = json!(format!("{old}\n{PLACEMENT_FACT}"));
+        tools[index]["description"] = json!(format!("{old}\n{fact}"));
         return true;
     }
     false
@@ -419,5 +439,48 @@ mod tests {
             .unwrap()
             .unwrap();
         assert!(block.contains("sketch.circle.center:"));
+    }
+    #[test]
+    fn sketch_fact_relevance_shared_channel_and_descriptions() {
+        assert!(SKETCH_FACT.len() < 400);
+        for (text, applies) in [
+            ("fully constrain it", true),
+            ("constrained sketch", true),
+            ("dimension this sketch", true),
+            ("a box with dimensions 20 x 30 x 40", false),
+            ("four driving sizes", true),
+            ("sketch a profile", true),
+            ("sketch a circle", false),
+            ("profile settings", false),
+            ("unconstrained", false),
+        ] {
+            for tool in ["execute", "batch", "inspect"] {
+                let mut body = json!({"tools":[{"function":{"name":tool}}],"messages":[{"role":"user","content":[{"type":"text","text":text}]}]});
+                assert_eq!(
+                    append_sketch_fact(&mut body).unwrap(),
+                    applies && tool != "inspect"
+                );
+                let before = body.clone();
+                assert!(!append_sketch_fact(&mut body).unwrap());
+                assert_eq!(before, body);
+            }
+        }
+        let mut body = json!({"tools":[{"function":{"name":"execute"}}],"messages":[{"role":"system","content":[{"type":"text","text":"Rules"}]},{"role":"user","content":"sketch a constrained plate profile with a centered hole"}]});
+        assert!(append_placement_fact(&mut body).unwrap());
+        assert!(append_sketch_fact(&mut body).unwrap());
+        assert_eq!(body["messages"][0]["content"][1]["text"], PLACEMENT_FACT);
+        assert_eq!(body["messages"][0]["content"][2]["text"], SKETCH_FACT);
+        assert!(!append_sketch_fact(&mut body).unwrap());
+        for names in [vec!["execute", "batch"], vec!["batch"], vec!["inspect"]] {
+            let mut tools: Vec<_> = names
+                .iter()
+                .map(|n| json!({"name":n,"description":"Original"}))
+                .collect();
+            assert_eq!(describe_sketch(&mut tools), names[0] != "inspect");
+            assert!(!describe_sketch(&mut tools));
+            if names[0] != "inspect" {
+                assert_eq!(tools[0]["description"], format!("Original\n{SKETCH_FACT}"));
+            }
+        }
     }
 }

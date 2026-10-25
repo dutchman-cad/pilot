@@ -98,6 +98,7 @@ struct Proxy {
     inspect: String,
     cfg: Config,
     audit: Audit,
+    sketch_seen: [bool; 2],
 }
 impl Proxy {
     // While a call is outstanding, relay reverse requests and client replies immediately.
@@ -352,6 +353,20 @@ impl Proxy {
                     }
                     modified = true;
                 }
+                if !self.cfg.no_hints && crate::prompting::describe_sketch(tools) {
+                    if let Err(message) = self.audit.record(
+                        "sketch_fact",
+                        &Value::Null,
+                        &json!(crate::prompting::SKETCH_FACT),
+                    ) {
+                        eprintln!(
+                            "{}: {message}; passing tools/list through unchanged",
+                            crate::identity::BINARY
+                        );
+                        return write_raw(&mut self.output, &response);
+                    }
+                    modified = true;
+                }
             }
         }
         if method == "tools/call" {
@@ -364,6 +379,17 @@ impl Proxy {
                 modified |= self.append(&mut reply, &page.join("\n"), true, "paging")?;
             }
             if !self.cfg.no_hints && change {
+                let args = &v["params"]["arguments"];
+                // MCP has no turn history; a new sketch starts a new hint scope.
+                if name == "execute" && args["command"] == "sketch.create" {
+                    self.sketch_seen = [false; 2];
+                }
+                let sketch =
+                    crate::guidance::sketch_hints(name, args, &reply, &mut self.sketch_seen);
+                if !sketch.is_empty() {
+                    modified |=
+                        self.append(&mut reply, &sketch.join("\n"), false, "next_step_hint")?;
+                }
                 let hints =
                     crate::guidance::placement_hints(name, &v["params"]["arguments"], &data);
                 if !hints.is_empty() {
@@ -646,6 +672,7 @@ pub fn serve(cfg: Config) -> Result<(), String> {
         inspect: "inspect_design".into(),
         cfg,
         audit,
+        sketch_seen: [false; 2],
     }
     .run()
 }

@@ -3,6 +3,9 @@
 ## Unreleased
 
 - Retry one upstream HTTP 500 per model turn, with audit excerpts and profile counts.
+- Add an L profile recipe with one closed polyline, four driving dimensions, and extrusion.
+- Add upfront closed sketch guidance to model requests and MCP tool descriptions, respecting --no-hints.
+- Add deduplicated hints for dimension entity errors and existing inferred sketch constraints.
 - Add one bounded, audited box placement fact before the model's first call for
   centred-feature requests, and to MCP action tool descriptions. `--no-hints`
   disables it; existing conversation facts are not repeated.

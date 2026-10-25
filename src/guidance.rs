@@ -3,6 +3,79 @@ use crate::catalog::Catalog;
 use serde_json::{json, Value};
 
 #[cfg(feature = "proxy")]
+pub(crate) const SKETCH_ENTITY_HINT: &str = "HINT: One line's length: entities:[\"l1\"], value:<mm number>; distance between two lines: entities:[\"l2\",\"l5\"].";
+#[cfg(feature = "proxy")]
+pub(crate) const SKETCH_EXISTING_HINT: &str = "HINT: sketch.line with infer:true already adds coincident/horizontal/vertical constraints; move on to dimensions.";
+
+/// Two bounded hints per sketch turn, shared by both proxy faces.
+#[cfg(feature = "proxy")]
+pub(crate) fn sketch_hints(
+    name: &str,
+    args: &Value,
+    result: &Value,
+    seen: &mut [bool; 2],
+) -> Vec<&'static str> {
+    fn visit(call: &Value, result: &Value, seen: &mut [bool; 2], out: &mut Vec<&'static str>) {
+        let Some(command) = call["command"].as_str() else {
+            return;
+        };
+        let data = payload(result);
+        // Result sizes are capped by the caller; inspect only a bounded diagnostic.
+        let text: String = result
+            .to_string()
+            .chars()
+            .take(8192)
+            .collect::<String>()
+            .to_ascii_lowercase();
+        let entities = &call["params"]["entities"];
+        let bad_entities = entities.as_array().is_none_or(|a| a.len() > 2);
+        let failed = result["isError"] == true
+            || result["result"]["isError"] == true
+            || data["isError"] == true
+            || data["ok"] == false
+            || data.get("error").is_some_and(|v| !v.is_null())
+            || result.get("error").is_some_and(|v| !v.is_null());
+        let hint = if command == "sketch.dimension"
+            && failed
+            && text.contains("entities")
+            && (bad_entities
+                || text.contains("one or two")
+                || text.contains("array")
+                || text.contains("list")
+                || text.contains("two"))
+        {
+            Some((0, SKETCH_ENTITY_HINT))
+        } else if command.starts_with("sketch.constraint.") && data["existing"] == true {
+            Some((1, SKETCH_EXISTING_HINT))
+        } else {
+            None
+        };
+        if let Some((index, hint)) = hint {
+            if !seen[index] {
+                seen[index] = true;
+                out.push(hint);
+            }
+        }
+    }
+    let mut out = Vec::new();
+    match name {
+        "execute" => visit(args, result, seen, &mut out),
+        "batch" => {
+            let data = payload(result);
+            if let Some((calls, results)) =
+                args["commands"].as_array().zip(data["results"].as_array())
+            {
+                for (call, result) in calls.iter().zip(results).take(128) {
+                    visit(call, result, seen, &mut out);
+                }
+            }
+        }
+        _ => (),
+    }
+    out
+}
+
+#[cfg(feature = "proxy")]
 pub(crate) fn how_tool() -> Value {
     json!({"name":"how","description":"Find a SolidCraft command, a typed template, and a concrete example when possible. Templates must be filled from the request and current model; never executes anything.","inputSchema":{"type":"object","properties":{"task":{"type":"string","maxLength":256}},"required":["task"],"additionalProperties":false},"annotations":{"readOnlyHint":true,"destructiveHint":false}})
 }
@@ -308,6 +381,68 @@ pub(crate) fn placement_hints(name: &str, args: &Value, result: &Value) -> Vec<S
 #[allow(clippy::unwrap_used)]
 mod placement_tests {
     use super::*;
+
+    #[test]
+    fn sketch_entity_errors_existing_constraints_and_bounded_batches() {
+        for entities in [json!(["l1", "l2", "l3"]), json!("l1"), json!({"line":"l1"})] {
+            let call = json!({"command":"sketch.dimension","params":{"entities":entities}});
+            for result in [
+                json!({"error":"`entities` must list one or two sketch entities"}),
+                json!({"isError":true,"content":[{"type":"text","text":"entities must be a list"}]}),
+                json!({"error":{"message":"entities must be an array"}}),
+            ] {
+                let mut seen = [false; 2];
+                assert_eq!(
+                    sketch_hints("execute", &call, &result, &mut seen),
+                    [SKETCH_ENTITY_HINT]
+                );
+                assert!(sketch_hints("execute", &call, &result, &mut seen).is_empty());
+            }
+        }
+        let dimension = json!({"command":"sketch.dimension","params":{"entities":["l1"]}});
+        for result in [
+            json!({"ok":true,"entities":["l1"]}),
+            json!({"error":"value must be a number"}),
+            json!({"isError":false,"entities":["l1"]}),
+        ] {
+            assert!(sketch_hints("execute", &dimension, &result, &mut [false; 2]).is_empty());
+        }
+        let constraint = json!({"command":"sketch.constraint.coincident"});
+        assert_eq!(
+            sketch_hints(
+                "execute",
+                &constraint,
+                &json!({"content":[{"type":"text","text":"{\"existing\":true}"}]}),
+                &mut [false; 2]
+            ),
+            [SKETCH_EXISTING_HINT]
+        );
+        assert!(sketch_hints(
+            "execute",
+            &constraint,
+            &json!({"existing":false}),
+            &mut [false; 2]
+        )
+        .is_empty());
+        assert!(sketch_hints(
+            "execute",
+            &dimension,
+            &json!({"existing":true}),
+            &mut [false; 2]
+        )
+        .is_empty());
+        let calls = vec![constraint; 200];
+        let results = vec![json!({"existing":true}); 200];
+        assert_eq!(
+            sketch_hints(
+                "batch",
+                &json!({"commands":calls}),
+                &json!({"results":results}),
+                &mut [false; 2]
+            ),
+            [SKETCH_EXISTING_HINT]
+        );
+    }
 
     fn call(params: Value) -> Value {
         json!({"command":"solid.box", "params":params})

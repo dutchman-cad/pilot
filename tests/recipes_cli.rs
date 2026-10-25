@@ -69,6 +69,38 @@ impl Session {
     }
 }
 #[test]
+fn public_binary_l_profiles_are_closed_fully_constrained_and_extruded() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let catalog = Catalog::bundled().unwrap();
+    let tasks: Value =
+        serde_json::from_str(include_str!("../bench/sets/constraints/tasks.json")).unwrap();
+    for task in tasks["tasks"].as_array().unwrap() {
+        let mut session = Session::new(&path);
+        let req = json!({"messages":[{"role":"user","content":task["prompt"]}],"tools":[{"function":{"name":"execute"}}]});
+        let p = planner::plan(&req, &catalog).unwrap().unwrap();
+        for call in &p.calls {
+            session.execute(
+                call["arguments"]["command"].as_str().unwrap(),
+                call["arguments"]["params"].clone(),
+            );
+        }
+        let state = session.execute("document.inspect", json!({"measure":true}));
+        assert_eq!(state["sketches"][0]["dof"], 0, "{state}");
+        assert_eq!(state["sketches"][0]["profiles"], 1, "{state}");
+        assert_eq!(state["sketches"][0]["curves"], 6, "{state}");
+        assert_eq!(state["params"].as_array().unwrap().len(), 4, "{state}");
+        assert_eq!(state["bodies"].as_array().unwrap().len(), 1, "{state}");
+        let volume = state["bodies"][0]["volume_mm3"].as_f64().unwrap();
+        assert!(
+            (volume - task["check"]["volume"].as_f64().unwrap()).abs() < 0.01,
+            "{state}"
+        );
+    }
+}
+
+#[test]
 fn public_binary_recipe_geometry() {
     let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
         return;

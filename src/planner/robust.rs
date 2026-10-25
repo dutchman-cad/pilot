@@ -2,6 +2,120 @@
 #![allow(clippy::unwrap_used, clippy::panic)]
 use super::*;
 
+#[test]
+fn l_profiles_match_public_constraints_and_exact_commands() {
+    let catalog = Catalog::bundled().unwrap();
+    let tasks: Value =
+        serde_json::from_str(include_str!("../../bench/sets/constraints/tasks.json")).unwrap();
+    for task in tasks["tasks"].as_array().unwrap() {
+        let mut request = cases::request(task["prompt"].as_str().unwrap());
+        request["messages"][0]["content"] =
+            json!(json!({"bodies":[],"sketches":[],"active_sketch":null}).to_string());
+        let p = plan(&request, &catalog).unwrap().unwrap();
+        assert_eq!(p.rule, "l_profile");
+        let values = task["check"]["sketch_defined"]["values"]
+            .as_array()
+            .unwrap();
+        let w = values[0].as_f64().unwrap();
+        let h = values[1].as_f64().unwrap();
+        let t = values[2].as_f64().unwrap();
+        // Eight construction calls, followed by the shared measured verification.
+        assert_eq!(p.calls.len(), 9);
+        assert_eq!(
+            p.calls[0]["arguments"],
+            json!({"command":"sketch.create","params":{"plane":p.slots["LProfile"]["plane"],"name":"L profile"}})
+        );
+        assert_eq!(
+            p.calls[1]["arguments"],
+            json!({"command":"sketch.line","params":{"points":[[0,0],[w,0],[w,t],[t,t],[t,h],[0,h]],"closed":true,"infer":true,"ids":["l1","l2","l3","l4","l5","l6"]}})
+        );
+        for (i, (id, value)) in [("l1", w), ("l6", h), ("l2", t), ("l5", t)]
+            .iter()
+            .enumerate()
+        {
+            assert_eq!(
+                p.calls[i + 2]["arguments"],
+                json!({"command":"sketch.dimension","params":{"entities":[id],"value":value}})
+            );
+        }
+        assert_eq!(
+            p.calls[6]["arguments"],
+            json!({"command":"sketch.finish","params":{}})
+        );
+        assert_eq!(
+            p.calls[7]["arguments"],
+            json!({"command":"solid.extrude","params":{"distance":p.slots["LProfile"]["distance"]}})
+        );
+        assert_eq!(
+            p.calls[8]["arguments"],
+            json!({"command":"document.inspect","params":{"measure":true}})
+        );
+        assert_eq!(
+            p.expected.unwrap().volume_mm3,
+            task["check"]["volume"].as_f64()
+        );
+    }
+    let text = "Sketch an L profile 35mm wide, 55mm tall, both legs 5mm thick then extrude 12mm";
+    for (from, to) in [
+        ("35mm wide", ""),
+        ("55mm tall", ""),
+        ("5mm thick", "thick"),
+        ("12mm", ""),
+        ("legs 5mm", "legs 35mm"),
+        ("legs 5mm", "legs 55mm"),
+        ("legs 5mm", "legs 0mm"),
+        ("legs 5mm", "legs -1mm"),
+        ("legs 5mm", "legs 1000001mm"),
+        ("L", "T"),
+        ("L", "L on FixtureDatum"),
+        ("L", "L on XY and YZ"),
+    ] {
+        let negative = text.replace(from, to);
+        assert!(
+            plan(&cases::request(&negative), &catalog)
+                .unwrap()
+                .is_none(),
+            "{negative}"
+        );
+    }
+    for extra in [
+        "hole",
+        "fillet",
+        "chamfer",
+        "cut",
+        "revolve",
+        "slot",
+        "pocket",
+        "sweep",
+        "rotate",
+        "at (2,3)",
+        "with a circle",
+    ] {
+        let negative = format!("{text} with {extra}");
+        assert!(
+            plan(&cases::request(&negative), &catalog)
+                .unwrap()
+                .is_none(),
+            "{negative}"
+        );
+    }
+    let p = plan(&cases::request("Sketch an L profile 35mm wide, 55mm tall, horizontal leg 4mm thick and vertical leg 6mm thick then extrude 12mm"), &catalog).unwrap().unwrap();
+    assert_eq!(
+        p.calls[1]["arguments"]["params"]["points"],
+        json!([
+            [0, 0],
+            [35.0, 0],
+            [35.0, 4.0],
+            [6.0, 4.0],
+            [6.0, 55.0],
+            [0, 55.0]
+        ])
+    );
+    assert_eq!(p.slots["LProfile"]["plane"], "XY");
+    assert_eq!(p.calls[4]["arguments"]["params"]["value"], 4.0);
+    assert_eq!(p.calls[5]["arguments"]["params"]["value"], 6.0);
+}
+
 // Every row asserts the complete typed slots, not merely a non-empty plan.
 fn groups() -> Vec<(&'static str, Value, Vec<&'static str>)> {
     vec![
