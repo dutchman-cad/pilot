@@ -45,13 +45,29 @@ pub(super) fn calls(request: &Value, plan: &planner::Plan, index: usize) -> Valu
     let inspect = planned
         .last()
         .is_some_and(|c| c["arguments"]["command"] == "document.inspect");
-    if batch && planned.len() > 1 + usize::from(inspect) {
+    // The Assistant truncates each tool message at 20,000 characters. Keep
+    // topology reads separate: even two bodies can overflow a combined batch.
+    let topology = planned.iter().any(|c| {
+        matches!(
+            c["arguments"]["command"].as_str(),
+            Some("model.faces" | "model.edges")
+        )
+    });
+    if batch && !topology && planned.len() > 1 + usize::from(inspect) {
         let verification = if inspect { planned.pop() } else { None };
         let commands: Vec<_> = planned.iter().map(|c| c["arguments"].clone()).collect();
         planned = vec![json!({"tool":"batch","arguments":{"commands":commands}})];
         planned.extend(verification);
     }
-    json!(planned.iter().enumerate().map(|(i,c)| json!({"id":format!("pilot_direct_{index}_{}_{}", plan.rule, i),"type":"function","function":{"name":c["tool"],"arguments":c["arguments"].to_string()}})).collect::<Vec<_>>())
+    json!(planned.iter().enumerate().map(|(i,c)| {
+        let mut id = format!("pilot_direct_{index}_{}_{}", plan.rule, i);
+        if let Some(messages) = request["messages"].as_array() {
+            if messages.iter().any(|m| m["tool_calls"].as_array().is_some_and(|cs| cs.iter().any(|c| c["id"] == id))) {
+                id = format!("{id}_{}", messages.len());
+            }
+        }
+        json!({"id":id,"type":"function","function":{"name":c["tool"],"arguments":c["arguments"].to_string()}})
+    }).collect::<Vec<_>>())
 }
 impl Proxy {
     pub(super) fn direct_turn(
@@ -181,6 +197,7 @@ fn has_error(value: &Value) -> bool {
             (key == "error" && !value.is_null())
                 || (key == "isError" && value == true)
                 || (key == "success" && value == false)
+                || (key == "ok" && value == false)
                 || has_error(value)
         }),
         Value::Array(values) => values.iter().any(has_error),

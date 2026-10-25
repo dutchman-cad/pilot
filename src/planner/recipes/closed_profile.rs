@@ -20,7 +20,13 @@ pub(super) fn candidate(i: &Input<'_>) -> bool {
     i.any(&[
         "l", "angle", "bracket", "t", "tee", "rail", "u", "channel", "c",
     ]) || (i.any(&["rectangle", "rectangular", "plate", "block"])
-        && i.any(&["constrained", "dimensioned", "dimensions", "constrain"]))
+        && i.any(&[
+            "constrained",
+            "dimensioned",
+            "dimensions",
+            "constrain",
+            "defined",
+        ]))
 }
 
 pub(super) fn vocabulary(i: &Input<'_>) -> bool {
@@ -96,6 +102,8 @@ pub(super) fn vocabulary(i: &Input<'_>) -> bool {
                     | "extrude"
                     | "pad"
                     | "fully"
+                    | "defined"
+                    | "along"
                     | "constrain"
                     | "constrained"
                     | "dimensioned"
@@ -264,7 +272,15 @@ pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
         return None;
     };
     let mut shape = *shape;
-    if shape == "R" && !i.any(&["constrained", "dimensioned", "dimensions", "constrain"]) {
+    if shape == "R"
+        && !i.any(&[
+            "constrained",
+            "dimensioned",
+            "dimensions",
+            "constrain",
+            "defined",
+        ])
+    {
         return None;
     }
     let stem_centred = shape == "T" && i.has("stem") && i.has("under") && i.has("flange");
@@ -400,7 +416,16 @@ pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
             end += 1;
         }
         let after = end;
-        while end < i.t.len() && label_word(&i.t[end]) {
+        // A span along the bottom is the overall width, rather than the
+        // bottom leg's thickness. Consume only this explicit span phrase.
+        let bottom_span = i.t.get(after).is_some_and(|s| s == "along")
+            && (i.t.get(after + 1).is_some_and(|s| s == "bottom")
+                || (i.t.get(after + 1).is_some_and(|s| s == "the")
+                    && i.t.get(after + 2).is_some_and(|s| s == "bottom")));
+        if bottom_span {
+            end += if i.t[after + 1] == "the" { 3 } else { 2 };
+        }
+        while !bottom_span && end < i.t.len() && label_word(&i.t[end]) {
             end += 1;
         }
         // A suffix size label ends its phrase before the next size label.
@@ -413,7 +438,11 @@ pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
             }
         }
         let prefix = role(&i.t[start..v.index], shape);
-        let suffix = role(&i.t[after..end], shape);
+        let suffix = if bottom_span {
+            Some(Role::Width)
+        } else {
+            role(&i.t[after..end], shape)
+        };
         let r = match (prefix, suffix) {
             (Some(Role::Flange), Some(Role::Width))
                 if i.t.get(after).is_some_and(|s| s == "wide")

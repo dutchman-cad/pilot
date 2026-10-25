@@ -142,12 +142,16 @@ fn tool_payload(message: &Value) -> Option<Value> {
         content.clone()
     };
     repair::check_value(&data).ok()?;
-    if data.get("isError") == Some(&json!(true)) || data.get("error").is_some() {
+    if data.get("isError") == Some(&json!(true))
+        || data.get("error").is_some_and(|e| !e.is_null())
+        || data["ok"] == false
+    {
         return None;
     }
     let data = guidance::payload(&data);
     if data.get("isError") == Some(&json!(true))
-        || data.get("error").is_some()
+        || data.get("error").is_some_and(|e| !e.is_null())
+        || data["ok"] == false
         || !guidance::paging(&data).is_empty()
     {
         return None;
