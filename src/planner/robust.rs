@@ -781,3 +781,65 @@ fn closed_profile_units_labels_and_extrusion_aliases_preserve_slots() {
         assert_eq!(p.slots["ClosedProfile"]["distance"], 12.0);
     }
 }
+
+#[test]
+fn ambiguous_or_unsupported_enclosures_defer() {
+    let c = Catalog::bundled().unwrap();
+    for tail in [
+        "lip width 2mm height 3mm",
+        "lip width 3mm height 3mm",
+        "lip width 1mm",
+        "lip height 3mm",
+        "lip 1mm 3mm",
+        "lip width 1mm height 3mm groove 1mm",
+        "recess 1mm",
+        "cut a lip width 1mm height 3mm",
+        "lip width 1mm height 3mm rotate 30",
+        "lip width 1mm height 3mm at 10mm",
+        "lip width 1mm height 3mm floor 24mm",
+        "lip width 1mm height 3mm outer inner",
+        "lip width 1mm height 3mm wall 3mm",
+        "lip width 1mm height 3mm on diagonal plane",
+        "lip width 1mm height 3mm fillet 1mm",
+        "lip width 1mm height 3mm and make a sphere 5mm",
+    ] {
+        let text = format!("shell a box 64x44x24mm wall 2mm open top {tail}");
+        assert!(
+            plan(&cases::request(&text), &c).unwrap().is_none(),
+            "{text}"
+        );
+    }
+    for text in [
+        "shell a box 64x44x24mm wall 22mm open top lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open top and bottom lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open top lip width 1mm height 3mm width 4mm",
+    ] {
+        assert!(plan(&cases::request(text), &c).unwrap().is_none(), "{text}");
+    }
+}
+
+#[test]
+fn enclosure_changes_target_only_the_new_body() {
+    let c = Catalog::bundled().unwrap();
+    let p = plan(
+        &cases::request(
+            "make a box 64x44x24mm wall 2mm floor 4mm open top lip width 1mm height 3mm",
+        ),
+        &c,
+    )
+    .unwrap()
+    .unwrap();
+    let created = &p.calls[0]["arguments"]["params"]["body_name"];
+    assert!(created.as_str().unwrap().starts_with("PilotRecipe"));
+    for call in &p.calls[1..] {
+        let args = &call["arguments"];
+        match args["command"].as_str().unwrap() {
+            "solid.shell" => assert_eq!(&args["params"]["body"], created),
+            "solid.box" | "solid.extrude" => {
+                assert_eq!(args["params"]["targets"], json!([created]))
+            }
+            _ => assert!(args["params"].get("body").is_none()),
+        }
+    }
+}

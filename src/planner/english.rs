@@ -380,3 +380,72 @@ fn ordinary_closed_profile_wording() {
         assert_eq!(p.calls[1]["arguments"]["params"]["infer"],true);
     }
 }
+
+#[test]
+fn enclosures_with_locating_rings() {
+    let catalog = Catalog::bundled().unwrap();
+    let forms = [
+        "Make an enclosure, a box 64x44x24mm with one corner at the origin, hollowed out with 2mm walls and the top left open. Then add a locating lip around the top rim, 1mm wide and 3mm tall for the lid to locate on.",
+        "shell a box 64x44x24mm wall 2mm open top lip width 1mm height 3mm",
+        "build a hollow box 64x44x24mm walls 2mm open top rim 1mm wide 3mm high",
+        "make a shelled enclosure 64x44x24mm wall 2mm remove top ridge width 1mm height 3mm",
+        "make a container 64x44x24mm wall 2mm open top lid lip width 1mm height 3mm",
+        "shell a box 6.4x4.4x2.4cm wall 0.2cm open top lip width 0.1cm height 0.3cm",
+        "shell a box 0.064x0.044x0.024m wall 0.002m open top lip width 0.001m height 0.003m",
+        "shell a box 64 by 44 by 24mm wall 2mm open top lip 1mm wide and 3mm tall",
+        "shell a box 64×44×24mm wall 2mm open top lip width 1mm height 3mm",
+        "shell a box length 64mm width 44mm height 24mm wall 2mm open top lip width 1mm height 3mm",
+        "shell a box 64mm long 44mm wide 24mm high wall 2mm open top lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open top inner lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open top inside lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open top outer lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open top outside lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open bottom lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm remove bottom lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open top floor 4mm lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open top floor 4mm thick lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open top floor 1mm lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open top base thickness 4mm lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open top at the origin lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open top with one corner at the origin lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open top centred on the origin lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open top centered lip width 1mm height 3mm",
+        "shell a box 3x2x1 inches wall 1/8 inch open top lip width 1/16 inch height 1/8 inch",
+        "shell a box 64x44x24mm wall 2mm open at the top lip width 1mm height 3mm",
+        "Make a 64 by 44 by 24 mm open-top rectangular enclosure with 2 mm thick walls and an inner locating lip 1 mm wide and 3 mm tall.",
+        "Build a rectangular box 64x44x24mm with 2mm walls leaving the top open and a lid lip width 1mm height 3mm.",
+        "shell a box 64x44x24mm wall 2mm open bottom",
+        "make a hollowed out box 64x44x24mm wall 2mm open top floor 4mm",
+    ];
+    for text in forms {
+        let p = plan(&cases::request(text), &catalog)
+            .unwrap()
+            .unwrap_or_else(|| panic!("{text}"));
+        assert_eq!(p.rule, "shell", "{text}");
+        assert!(p.calls.len() <= 10, "{text}");
+        if !text.contains("inches") {
+            assert_eq!(
+                p.slots["ShellBox"]["size"],
+                json!([64.0, 44.0, 24.0]),
+                "{text}"
+            );
+            assert_eq!(p.slots["ShellBox"]["wall"], 2.0, "{text}");
+        }
+
+        if text.contains("lip") || text.contains("ridge") || text.contains("rim") {
+            assert_eq!(
+                p.calls
+                    .iter()
+                    .filter(|c| c["arguments"]["command"] == "sketch.rectangle.two_point")
+                    .count(),
+                2,
+                "{text}"
+            );
+            assert_eq!(
+                p.calls[p.calls.len() - 2]["arguments"]["params"]["operation"],
+                "join",
+                "{text}"
+            );
+        }
+    }
+}

@@ -270,3 +270,81 @@ fn public_binary_common_closed_profiles_on_every_plane() {
         }
     }
 }
+
+#[test]
+fn public_binary_shell_lips_are_joined_rings() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let c = Catalog::bundled().unwrap();
+    for centred in [false, true] {
+        for bottom in [false, true] {
+            for outer in [false, true] {
+                for floor in [1.0, 2.0, 4.0] {
+                    let text = format!("Make an enclosure, a box 80x50x30mm wall 2mm floor {floor}mm open {} {} {} lip width 1mm height 2mm", if bottom {"bottom"} else {"top"}, if centred {"centred at the origin"} else {"with one corner at the origin"}, if outer {"outer"} else {"inner"});
+                    let p = planner::plan(&json!({"messages":[{"role":"user","content":text}],"tools":[{"function":{"name":"execute"}}]}), &c).unwrap().unwrap_or_else(|| panic!("{text}"));
+                    let mut s = Session::new(&path);
+                    for call in &p.calls {
+                        s.execute(
+                            call["arguments"]["command"].as_str().unwrap(),
+                            call["arguments"]["params"].clone(),
+                        );
+                    }
+                    let state = s.execute("document.inspect", json!({"measure":true}));
+                    assert_eq!(
+                        state["bodies"].as_array().unwrap().len(),
+                        1,
+                        "{text}: {state}"
+                    );
+                    let body = &state["bodies"][0];
+                    assert_eq!(body["kernel"]["shells"], 1, "{text}: {state}");
+                    let volume =
+                        120000.0 - 76.0 * 46.0 * (30.0 - floor) + if outer { 512.0 } else { 496.0 };
+                    assert!(
+                        (body["volume_mm3"].as_f64().unwrap() - volume).abs() < 0.01,
+                        "{text}: {state}"
+                    );
+                    let offset = if centred {
+                        [-40.0, -25.0, -15.0]
+                    } else {
+                        [0.0; 3]
+                    };
+                    let min = [
+                        offset[0],
+                        offset[1],
+                        offset[2] - if bottom { 2.0 } else { 0.0 },
+                    ];
+                    let max = [
+                        offset[0] + 80.0,
+                        offset[1] + 50.0,
+                        offset[2] + 30.0 + if bottom { 0.0 } else { 2.0 },
+                    ];
+                    for axis in 0..3 {
+                        assert!(
+                            (body["bbox"]["min"][axis].as_f64().unwrap() - min[axis]).abs() < 0.001,
+                            "{text}: {state}"
+                        );
+                        assert!(
+                            (body["bbox"]["max"][axis].as_f64().unwrap() - max[axis]).abs() < 0.001,
+                            "{text}: {state}"
+                        );
+                    }
+                    assert_eq!(
+                        body["face_types"]["plane"], body["faces"],
+                        "{text}: {state}"
+                    );
+                    for kind in ["cylinder", "sphere", "cone", "torus"] {
+                        assert_eq!(
+                            body["face_types"][kind].as_u64().unwrap_or(0),
+                            0,
+                            "{text}: {state}"
+                        );
+                    }
+                    let timeline = state["timeline"].to_string();
+                    assert!(timeline.contains("Shell"), "{state}");
+                    assert!(timeline.contains("Extrude"), "{state}");
+                }
+            }
+        }
+    }
+}
