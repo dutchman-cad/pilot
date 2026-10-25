@@ -652,3 +652,132 @@ fn field_cube_hole_expansion_remains_targeted_at_top_centre() {
         json!({"command":"solid.hole","params":{"position":[10.0,10.0,20.0],"diameter":5.0,"targets":["PilotRecipe1"]}})
     );
 }
+
+#[test]
+fn closed_profiles_defer_ambiguous_sizes_and_extra_geometry() {
+    let catalog = Catalog::bundled().unwrap();
+    for text in [
+        "Make a T width 40 height 30 flange 4 stem 6 offset from the left then extrude 12",
+        "Make a T width 40 height 30 flange 4 stem 6 offset 5 then extrude 12",
+        "Make a T width 40 height 30 flange 4 stem 6 offset 39 from the left then extrude 12",
+        "Make a T width 40 height 30 flange 4 then extrude 12",
+        "Make a T width 40 height 30 flange 30 stem 6 then extrude 12",
+        "Make a U width 40 height 30 wall 20 then extrude 12",
+        "Make a U width 40 height 30 web 30 flange 4 then extrude 12",
+        "Make a T width 40 height 30 flange 4 stem 6 thickness 7 then extrude 12",
+        "Make a C width 40 height 30 wall 15 then extrude 12",
+        "Make an L width 40 height 30 thickness 30 then extrude 12",
+        "Make a U width 40 height 30 wall 3 and 7 then extrude 12",
+        "Make a C width 40 width 30 wall 3 then extrude 12",
+        "Make a U width 40 height 30 wall 3 then extrude 12 and 13",
+        "Make a U width 40 height 30 wall 3 then extrude 12 furlongs",
+        "Make a C width 40 height 30 wall 3 opening forward then extrude 12",
+        "Make a C width 40 height 30 wall 3 opening left and right then extrude 12",
+        "Make a U width 40 height 30 wall 3 opening backward then extrude 12",
+        "Make a dimensioned rectangle 40x30 on FixtureDatum then extrude 12",
+        "Make a T width 40 height 30 flange 4 stem 6 on XY and XZ then extrude 12",
+        "Make a U width 40 height 30 wall -3 then extrude 12",
+        "Make a U width 40 height 30 wall 0 then extrude 12",
+        "Make a U width 1000001 height 30 wall 3 then extrude 12",
+        "Make a U width 40 height 30 wall 3 at 2 then extrude 12",
+    ] {
+        assert!(
+            plan(&cases::request(text), &catalog).unwrap().is_none(),
+            "{text}"
+        );
+    }
+    for extra in [
+        "hole", "fillet", "chamfer", "slot", "revolve", "cut", "pattern", "mirror", "shell", "arc",
+        "radius", "rounded", "pocket", "sweep", "loft", "triangle", "circle",
+    ] {
+        let text = format!("Make a U width 40 height 30 wall 3 then extrude 12 with {extra}");
+        assert!(
+            plan(&cases::request(&text), &catalog).unwrap().is_none(),
+            "{text}"
+        );
+    }
+}
+
+#[test]
+fn closed_profiles_have_driving_sizes_and_computed_volume() {
+    let catalog = Catalog::bundled().unwrap();
+    for (shape, sizes, count, area) in [
+        ("L", "thickness 3", 4, 201.0),
+        ("T", "flange 4 stem 6", 4, 316.0),
+        (
+            "T",
+            "flange 4 stem 6 stem offset 15 from the left",
+            5,
+            316.0,
+        ),
+        ("U", "wall 3", 4, 282.0),
+        ("U", "web 3 flange 4", 5, 336.0),
+        ("U", "web 3 flange 3", 4, 282.0),
+        ("C", "wall 3", 4, 312.0),
+        ("C", "web 3 flange 4", 5, 386.0),
+        ("C", "web 3 flange 3", 4, 312.0),
+        ("dimensioned rectangle", "", 2, 1200.0),
+    ] {
+        let text = format!("Make a {shape} width 40 height 30 {sizes} then extrude 12");
+        let p = plan(&cases::request(&text), &catalog)
+            .unwrap()
+            .unwrap_or_else(|| panic!("{text}"));
+        assert_eq!(
+            p.calls
+                .iter()
+                .filter(|c| c["arguments"]["command"] == "sketch.dimension")
+                .count(),
+            count,
+            "{text}"
+        );
+        assert_eq!(
+            p.expected.unwrap().volume_mm3,
+            Some(area * 12.0 + 1000.0),
+            "{text}"
+        );
+    }
+}
+
+#[test]
+fn closed_profile_units_labels_and_extrusion_aliases_preserve_slots() {
+    let catalog = Catalog::bundled().unwrap();
+    for size in [
+        "width 2 inch height 1 inch wall 1/8 inch",
+        "2 in wide and 1 in tall with 0.125 in thick walls",
+        "2\" wide and 1\" tall wall 1/8\"",
+        "5.08 by 2.54 cm wall 0.3175 cm",
+        "width 50.8 mm height 25.4 mm wall 3.175 mm",
+    ] {
+        let text = format!("Make a U in the XZ plane {size} then pad 1/2 inch");
+        let p = plan(&cases::request(&text), &catalog)
+            .unwrap()
+            .unwrap_or_else(|| panic!("{text}"));
+        let s = &p.slots["ClosedProfile"];
+        assert_eq!(s["plane"], "XZ");
+        for (key, value) in [
+            ("width", 50.8),
+            ("height", 25.4),
+            ("web", 3.175),
+            ("flange", 3.175),
+            ("distance", 12.7),
+        ] {
+            assert!(
+                (s[key].as_f64().unwrap() - value).abs() < 1e-10,
+                "{text}: {s}"
+            );
+        }
+    }
+    for ending in [
+        "extrude it 12",
+        "pad 12",
+        "12 mm deep",
+        "12 long",
+        "extrude 12 mm",
+    ] {
+        let text = format!("Make a U width 40 height 30 wall 3 then {ending}");
+        let p = plan(&cases::request(&text), &catalog)
+            .unwrap()
+            .unwrap_or_else(|| panic!("{text}"));
+        assert_eq!(p.slots["ClosedProfile"]["distance"], 12.0);
+    }
+}

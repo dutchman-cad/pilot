@@ -310,3 +310,73 @@ fn missing_conflicting_and_ambiguous_slots_defer() {
         assert!(plan(&req, &c).unwrap().is_none(), "{text}");
     }
 }
+
+#[test]
+fn ordinary_closed_profile_wording() {
+    let catalog = Catalog::bundled().unwrap();
+    for text in [
+        "Please make me an angle 40 wide and 30 high with legs 3 thick, extrude it 12",
+        "Can you sketch an L-bracket width 40 mm height 30 mm thickness 3 mm then pad 12 mm?",
+        "I need an angle bracket 4 by 3 cm with 0.3 cm thick legs, 1.2 cm deep",
+        "Draw an L cross-section 40x30 with bottom leg 3 mm thick and upright leg 4 mm thick, 12 long",
+        "Make an L 40 mm wide 30 mm tall thickness 3 mm, extrude 12 mm",
+        "On the front plane draw an angle 40x30 mm thickness 3 mm then extrude 12 mm",
+        "Sketch an L on XZ width 40 height 30 leg thickness 3 then pad 12",
+        "Make an angle on the right plane width 40 height 30 horizontal leg thickness 3 and vertical leg thickness 4 then extrude 12",
+        "Sketch an L in the XZ plane width 2 inch height 1 inch thickness 1/8 inch then pad 1/2 inch",
+        "Make an L width 2 in height 1 in thickness 0.125 in then extrude 0.5 in",
+        "Make a T-section width 40 height 30 flange thickness 4 stem thickness 6 then extrude 12",
+        "Sketch a tee on XZ 40 mm wide and 30 mm tall with flange 4 mm and web 6 mm then pad 12 mm",
+        "Please make a rail overall width 40 overall height 30 cap thickness 4 stem thickness 6, 12 mm deep",
+        "Draw a T cross-section 40 by 30 mm with top thickness 4 mm and stem 6 mm, extrude it 12",
+        "I need a tee flange width 4 cm height 3 cm flange thickness 0.4 cm stem thickness 0.6 cm, 1.2 cm long",
+        "Make a T 40x30 mm flange 4 mm stem 6 mm then extrude 12 mm",
+        "Sketch a T on the top plane width 40 height 30 flange 4 stem 6 then pad 12",
+        "Sketch a tee on the right plane width 40 height 30 flange 4 stem 6 then extrude 12",
+        "Make a rail width 2 inch height 1 inch flange 1/8 inch web 1/4 inch then pad 1/2 inch",
+        "Make a T width 40 height 30 flange 4 stem 6 stem offset 15 mm from the left then extrude 12",
+        "Make a U width 40 height 30 wall 3 then extrude 12",
+        "Please sketch a channel 40 mm wide and 30 mm high thickness 3 mm, 12 mm deep",
+        "Can you make a U-section on XZ 40x30 mm wall 3 mm then pad 12 mm?",
+        "I need a channel on the front plane width 4 cm height 3 cm wall 0.3 cm, 1.2 cm long",
+        "Make a U on the right plane width 40 height 30 web 3 flange 4 then extrude 12",
+        "Draw a channel width 40 height 30 web thickness 3 and leg thickness 4 then pad 12",
+        "Make a U 40 by 30 mm with 3 mm thick walls then extrude 12 mm",
+        "Sketch a U width 2 inch height 1 inch wall 1/8 inch then extrude 1/2 inch",
+        "Make a C-section width 40 height 30 wall 3 then extrude 12",
+        "Please sketch a C-channel 40 mm wide and 30 mm high thickness 3 mm, 12 mm deep",
+        "Can you make a C on XZ 40x30 mm wall 3 mm then pad 12 mm?",
+        "I need a C-section on the front plane width 4 cm height 3 cm wall 0.3 cm, 1.2 cm long",
+        "Make a C on the right plane width 40 height 30 web 3 flange 4 then extrude 12",
+        "Draw a C-channel width 40 height 30 web thickness 3 and flange thickness 4 then pad 12",
+        "Make a C 40 by 30 mm with 3 mm thick walls then extrude 12 mm",
+        "Sketch a C width 2 inch height 1 inch wall 1/8 inch then extrude 1/2 inch",
+        "Make a fully constrained rectangle width 40 height 30 then extrude 12",
+        "Please sketch a dimensioned plate 40 mm wide and 30 mm high, 12 mm deep",
+        "Can you make a fully constrained bar on XZ 40x30 mm then pad 12 mm?",
+        "I need a dimensioned rectangle on the front plane width 4 cm height 3 cm, 1.2 cm long",
+        "Make a fully constrained plate on the right plane width 40 height 30 then extrude 12",
+        "Draw a dimensioned rectangle width 40 and height 30 then pad 12",
+        "Make a fully constrained rectangle 40 by 30 mm then extrude 12 mm",
+        "Sketch a dimensioned rectangle width 2 inch height 1 inch then extrude 1/2 inch",
+        "Make a fully constrained rectangle width 2\" height 1\" then pad 1/2\"",
+        "Sketch a U centred on the origin width 40 height 30 wall 3 then extrude 12",
+        "Sketch a C centered on the origin width 40 height 30 web 3 flange 4 then extrude 12",
+        "Make a T centred on the origin width 40 height 30 flange 4 stem 6 then pad 12",
+        "Make a tee width 40 height 30 flange 4 stem 6 with the stem centred under the flange then pad 12",
+        "Make a T width 40 height 30 flange 4 stem 6 stem offset 0 from the centre then extrude 12",
+        "Make a T width 40 height 30 flange 4 stem 6 stem offset -3 from the centre then extrude 12",
+        "Make a T flange 40 mm wide 30 mm high flange 4 mm thick and stem 6 mm thick then extrude 12",
+        "Make a tee with its bottom left corner at the origin width 40 height 30 flange 4 stem 6 stem offset 3 from the centre then pad 12",
+        "Sketch a fully constrained rectangular cross-section 40x30 mm then extrude 12 mm",
+        "Make a dimensioned plate width 40 height 30 and 12 deep",
+        "Make a U width 40 height 30 wall 3 opening down then extrude 12",
+        "Make a C width 40 height 30 wall 3 opening left then extrude 12",
+    ] {
+        let p = plan(&cases::request(text), &catalog).unwrap().unwrap_or_else(|| panic!("{text}"));
+        assert!(matches!(p.rule,"l_profile"|"closed_profile"),"{text}: {}",p.rule);
+        assert_eq!(p.calls[1]["arguments"]["command"],"sketch.line","{text}");
+        assert_eq!(p.calls[1]["arguments"]["params"]["closed"],true);
+        assert_eq!(p.calls[1]["arguments"]["params"]["infer"],true);
+    }
+}

@@ -156,3 +156,117 @@ fn public_binary_recipe_geometry() {
         assert_eq!(planner::completion(&req,p.expected.as_ref().unwrap()),None,"{text}: {after}");
     }
 }
+
+#[test]
+fn public_binary_common_closed_profiles_on_every_plane() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let catalog = Catalog::bundled().unwrap();
+    for plane in ["XY", "XZ", "YZ"] {
+        for (shape, sizes, count, area) in [
+            ("L", "thickness 3", 4, 201.0),
+            (
+                "L",
+                "horizontal leg 3 thick and vertical leg 4 thick",
+                4,
+                228.0,
+            ),
+            ("T", "flange 4 stem 6", 4, 316.0),
+            (
+                "T",
+                "flange 4 stem 6 stem offset 0 from the centre",
+                5,
+                316.0,
+            ),
+            (
+                "T",
+                "flange 4 stem 6 stem offset -3 from the centre",
+                5,
+                316.0,
+            ),
+            (
+                "T",
+                "flange 4 stem 6 stem offset 15 from the left",
+                5,
+                316.0,
+            ),
+            (
+                "T",
+                "flange 4 stem 6 stem offset 3 from the centre",
+                5,
+                316.0,
+            ),
+            ("U", "wall 3", 4, 282.0),
+            ("U", "web 3 flange 4", 5, 336.0),
+            ("U", "web 3 flange 3", 4, 282.0),
+            ("U", "wall 3 opening down", 4, 282.0),
+            ("U", "wall 3 opening right", 4, 312.0),
+            ("C", "wall 3", 4, 312.0),
+            ("C", "web 3 flange 4", 5, 386.0),
+            ("C", "web 3 flange 3", 4, 312.0),
+            ("C", "wall 3 opening left", 4, 312.0),
+            ("C", "wall 3 opening +X", 4, 312.0),
+            ("C", "wall 3 opening -X", 4, 312.0),
+            ("C", "wall 3 opening up", 4, 282.0),
+            ("dimensioned rectangle", "", 2, 1200.0),
+        ] {
+            for centred in [false, true] {
+                if centred && shape == "L" {
+                    continue;
+                }
+                let placement = if centred { "centred on the origin" } else { "" };
+                let text = format!("Make a {shape} on {plane} {placement} width 40 height 30 {sizes} then extrude 12");
+                let req = json!({"messages":[{"role":"user","content":text}],"tools":[{"function":{"name":"execute"}}]});
+                let p = planner::plan(&req, &catalog)
+                    .unwrap()
+                    .unwrap_or_else(|| panic!("{text}"));
+                let mut session = Session::new(&path);
+                for call in &p.calls {
+                    session.execute(
+                        call["arguments"]["command"].as_str().unwrap(),
+                        call["arguments"]["params"].clone(),
+                    );
+                }
+                let state = session.execute("document.inspect", json!({"measure":true}));
+                assert_eq!(state["sketches"][0]["dof"], 0, "{text}: {state}");
+                assert_eq!(state["sketches"][0]["profiles"], 1, "{text}: {state}");
+                assert_eq!(
+                    state["params"].as_array().unwrap().len(),
+                    count,
+                    "{text}: {state}"
+                );
+                assert_eq!(
+                    state["bodies"].as_array().unwrap().len(),
+                    1,
+                    "{text}: {state}"
+                );
+                let body = &state["bodies"][0];
+                assert!(
+                    (body["volume_mm3"].as_f64().unwrap() - area * 12.0).abs() < 0.01,
+                    "{text}: {state}"
+                );
+                let (x0, y0, x1, y1) = if centred {
+                    (-20.0, -15.0, 20.0, 15.0)
+                } else {
+                    (0.0, 0.0, 40.0, 30.0)
+                };
+                let (min, max) = match plane {
+                    "XY" => ([x0, y0, 0.0], [x1, y1, 12.0]),
+                    "XZ" => ([x0, 0.0, -y1], [x1, 12.0, -y0]),
+                    _ => ([0.0, x0, y0], [12.0, x1, y1]),
+                };
+                for axis in 0..3 {
+                    assert!(
+                        (body["bbox"]["min"][axis].as_f64().unwrap() - min[axis]).abs() < 0.001,
+                        "{text}: {state}"
+                    );
+                    assert!(
+                        (body["bbox"]["max"][axis].as_f64().unwrap() - max[axis]).abs() < 0.001,
+                        "{text}: {state}"
+                    );
+                }
+            }
+        }
+    }
+}

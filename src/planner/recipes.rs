@@ -1,6 +1,7 @@
 //! Recipe table, typed slots, and deterministic catalogue-checked expansions.
 use super::*;
 use std::f64::consts::PI;
+mod closed_profile;
 
 #[derive(Clone, Copy)]
 enum Kind {
@@ -10,7 +11,7 @@ enum Kind {
     Holes,
     Hole,
     Sketch,
-    LProfile,
+    ClosedProfile,
     Fillet,
     Chamfer,
     Move,
@@ -28,7 +29,7 @@ const LIBRARY: &[(&str, Kind)] = &[
     ("plate_holes", Kind::Holes),
     ("hole", Kind::Hole),
     ("sketch_extrude", Kind::Sketch),
-    ("l_profile", Kind::LProfile),
+    ("closed_profile", Kind::ClosedProfile),
     ("fillet", Kind::Fillet),
     ("chamfer", Kind::Chamfer),
     ("move", Kind::Move),
@@ -74,6 +75,7 @@ enum Slots {
         vertical: f64,
         distance: f64,
     },
+    ClosedProfile(closed_profile::Profile),
     Edges {
         body: String,
         edges: Vec<Value>,
@@ -254,70 +256,8 @@ pub(super) const UNSUPPORTED: &[&str] = &[
     "but",
 ];
 fn vocabulary(kind: Kind, input: &Input<'_>) -> bool {
-    if matches!(kind, Kind::LProfile) {
-        // A closed vocabulary defers additional geometry and actions.
-        return input.t.iter().all(|s| {
-            s.parse::<f64>().is_ok()
-                || s.split_once('/')
-                    .is_some_and(|(n, d)| n.parse::<f64>().is_ok() && d.parse::<f64>().is_ok())
-                || slots::scale(s).is_some()
-                || matches!(
-                    s.as_str(),
-                    "on" | "xy"
-                        | "xz"
-                        | "yz"
-                        | "plane"
-                        | "sketch"
-                        | "draw"
-                        | "make"
-                        | "create"
-                        | "build"
-                        | "add"
-                        | "a"
-                        | "an"
-                        | "l"
-                        | "-"
-                        | "shaped"
-                        | "angle"
-                        | "profile"
-                        | "closed"
-                        | "bracket"
-                        | "with"
-                        | "its"
-                        | "outside"
-                        | "corner"
-                        | "at"
-                        | "the"
-                        | "origin"
-                        | "width"
-                        | "wide"
-                        | "height"
-                        | "tall"
-                        | "high"
-                        | "both"
-                        | "legs"
-                        | "leg"
-                        | "thick"
-                        | "thickness"
-                        | "thicknesses"
-                        | "horizontal"
-                        | "vertical"
-                        | "and"
-                        | "then"
-                        | "extrude"
-                        | "fully"
-                        | "constrain"
-                        | "constrained"
-                        | "it"
-                        | "four"
-                        | "driving"
-                        | "dimensions"
-                        | "dimension"
-                        | "of"
-                        | "is"
-                        | "are"
-                )
-        });
+    if matches!(kind, Kind::ClosedProfile) {
+        return closed_profile::vocabulary(input);
     }
     // Unknown conversational words are fine. Known unsupported geometry is not.
     if input.any(UNSUPPORTED) {
@@ -438,91 +378,6 @@ fn radial(t: &[String], d: slots::Dimension) -> Option<f64> {
         _ => None,
     }
 }
-fn l_profile(input: &Input<'_>) -> Option<Slots> {
-    let t = &input.t;
-    let at = t.iter().position(|s| s == "extrude")?;
-    let profile = &t[..at];
-    let d = dimensions(profile)?;
-    let extent = dimensions(&t[at + 1..])?;
-    if !positive(&d) || extent.len() != 1 || !positive(&extent) {
-        return None;
-    }
-    let get = |labels: &[&str]| {
-        let found: Vec<_> = d
-            .iter()
-            .filter(|v| labelled(profile, **v, labels))
-            .collect();
-        match found.as_slice() {
-            [one] => Some(**one),
-            _ => None,
-        }
-    };
-    let width = get(&["width", "wide"])?;
-    let height = get(&["height", "tall", "high"])?;
-    let legs: Vec<_> = d
-        .iter()
-        .filter(|v| v.index != width.index && v.index != height.index)
-        .collect();
-    let (horizontal, vertical) = match legs.as_slice() {
-        [one] if input.has("legs") && labelled(profile, **one, &["thick", "thickness"]) => {
-            (one.value, one.value)
-        }
-        [_, _] => {
-            let leg = |label: &str| {
-                let found: Vec<_> = legs
-                    .iter()
-                    .filter(|v| {
-                        let start = profile[..v.index]
-                            .iter()
-                            .rposition(|s| s == "and")
-                            .map_or(0, |i| i + 1);
-                        let end = profile[v.index..]
-                            .iter()
-                            .position(|s| s == "and")
-                            .map_or(profile.len(), |i| v.index + i);
-                        let clause = &profile[start..end];
-                        clause.iter().any(|s| s == label)
-                            && !clause.iter().any(|s| {
-                                s == if label == "horizontal" {
-                                    "vertical"
-                                } else {
-                                    "horizontal"
-                                }
-                            })
-                            && labelled(profile, ***v, &["thick", "thickness"])
-                    })
-                    .collect();
-                match found.as_slice() {
-                    [one] => Some(one.value),
-                    _ => None,
-                }
-            };
-            (leg("horizontal")?, leg("vertical")?)
-        }
-        _ => return None,
-    };
-    if horizontal >= width.value.min(height.value) || vertical >= width.value.min(height.value) {
-        return None;
-    }
-    let planes: Vec<_> = profile
-        .iter()
-        .filter(|s| matches!(s.as_str(), "xy" | "xz" | "yz"))
-        .collect();
-    let plane = match planes.as_slice() {
-        [] if !input.has("on") && !input.has("plane") => "XY".into(),
-        [one] => one.to_ascii_uppercase(),
-        _ => return None,
-    };
-    Some(Slots::LProfile {
-        plane,
-        width: width.value,
-        height: height.value,
-        horizontal,
-        vertical,
-        distance: extent[0].value,
-    })
-}
-
 fn rename_separator(text: &str) -> Option<usize> {
     let mut quote = None;
     for (i, c) in text.char_indices() {
@@ -543,13 +398,7 @@ fn parse(kind: Kind, input: &Input<'_>) -> Option<Slots> {
     let has = |w| input.has(w);
     let t = &input.t;
     match kind {
-        Kind::LProfile
-            if has("extrude")
-                && input.any(&["l", "angle"])
-                && input.any(&["sketch", "profile", "bracket"]) =>
-        {
-            l_profile(input)
-        }
+        Kind::ClosedProfile => closed_profile::parse(input),
         Kind::Hole if input.any(&["drill", "bore", "cut"]) && has("hole") && has("through") => {
             // No inferred hole location or direction: the public command uses Z,
             // and the request must supply all three position coordinates.
@@ -883,7 +732,11 @@ fn parse(kind: Kind, input: &Input<'_>) -> Option<Slots> {
             }
             Some(Slots::Shell { size, wall })
         }
-        Kind::Sketch if has("extrude") && input.any(&["rectangle", "circle"]) => {
+        Kind::Sketch
+            if has("extrude")
+                && input.any(&["rectangle", "circle"])
+                && !closed_profile::candidate(input) =>
+        {
             if has("rectangle") && has("circle") {
                 return None;
             }
@@ -1350,6 +1203,13 @@ fn expand(slots: &Slots, catalog: &Catalog) -> Result<Expansion, String> {
                 json!({"targets":[body],"diameter":diameter,"position":position}),
             )?;
         }
+        Slots::ClosedProfile(profile) => {
+            for (id, params) in profile.commands() {
+                add(id, params)?;
+            }
+            v = Some(profile.area() * profile.distance);
+            creates = true;
+        }
         Slots::LProfile {
             plane,
             width,
@@ -1515,7 +1375,7 @@ const ACTION_FAMILIES: &[&[&str]] = &[
     &["chamfer", "bevel"],
     &["shell"],
     &["revolve"],
-    &["extrude"],
+    &["extrude", "pad"],
     &["drill", "bore", "cut"],
 ];
 fn intent_decline(input: &Input<'_>) -> Option<&'static str> {
@@ -1547,24 +1407,27 @@ fn intent_decline(input: &Input<'_>) -> Option<&'static str> {
     {
         // An explicit new primitive followed by an edit is two intents, even
         // when the creation lacks dimensions and the edit alone would parse.
-        if input.t[..edit].iter().enumerate().any(|(i, w)| {
-            matches!(
-                w.as_str(),
-                "box"
-                    | "block"
-                    | "cube"
-                    | "sphere"
-                    | "plate"
-                    | "cylinder"
-                    | "rod"
-                    | "disc"
-                    | "tube"
-            ) && (input.t[..i]
-                .iter()
-                .any(|v| matches!(v.as_str(), "make" | "draw" | "create" | "build" | "add"))
-                || i.checked_sub(1)
-                    .is_some_and(|i| input.t[i] == "a" || input.t[i] == "an"))
-        }) {
+        if !(closed_profile::candidate(input)
+            && matches!(input.t[edit].as_str(), "extrude" | "pad"))
+            && input.t[..edit].iter().enumerate().any(|(i, w)| {
+                matches!(
+                    w.as_str(),
+                    "box"
+                        | "block"
+                        | "cube"
+                        | "sphere"
+                        | "plate"
+                        | "cylinder"
+                        | "rod"
+                        | "disc"
+                        | "tube"
+                ) && (input.t[..i]
+                    .iter()
+                    .any(|v| matches!(v.as_str(), "make" | "draw" | "create" | "build" | "add"))
+                    || i.checked_sub(1)
+                        .is_some_and(|i| input.t[i] == "a" || input.t[i] == "an"))
+            })
+        {
             return Some("multiple intents");
         }
     }
@@ -1666,6 +1529,22 @@ pub(super) fn select(
     ]);
     let mut found = Vec::new();
     for (rule, kind) in LIBRARY {
+        // A dimensioned profile is a distinct creation intent, including when
+        // its extrusion is expressed as a depth instead of an action verb.
+        if closed_profile::candidate(&input)
+            && matches!(
+                kind,
+                Kind::Box
+                    | Kind::Cylinder
+                    | Kind::Sphere
+                    | Kind::Holes
+                    | Kind::Tube
+                    | Kind::Shell
+                    | Kind::Revolve
+            )
+        {
+            continue;
+        }
         let shapes: &[&str] = match kind {
             Kind::Box => &["box", "block", "plate", "cube"],
             Kind::Cylinder => &["cylinder", "rod", "disc"],
@@ -1712,6 +1591,9 @@ pub(super) fn select(
         return Ok(None);
     }
     let (mut rule, slots) = found.remove(0);
+    if matches!(slots, Slots::LProfile { .. }) {
+        rule = "l_profile";
+    }
     if matches!(&slots,Slots::Holes{centers,..} if centers.len()==1) {
         rule = "plate_hole";
     }

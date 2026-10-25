@@ -62,7 +62,7 @@ intents are left to the model. There is no benchmark wording or task-id matching
 | Plate with circular hole pattern | Plate dimensions, hole size, through, centred circular pattern radius or diameter, count, equally spaced, and explicit `starting at +X`. |
 | Drill / bore / cut a hole | Uniquely resolved existing body, explicit hole radius or diameter, `through BODY at (x,y,z)`. All three coordinates are required; uses the public hole command's Z direction. |
 | Sketch rectangle then extrude | Rectangle width × height and a principal plane, then / and extrude a distance, including “extrude it”. “Raise”, “pull it up”, and “extrude by” also work. |
-| L profile then extrude | L, L-shaped, or angle profile / bracket sketch with width, height, both leg thicknesses, and extrusion distance. XY by default, or XY / XZ / YZ explicitly. The outside corner is the origin; the horizontal leg follows sketch X. One inferred closed polyline and four driving dimensions fully constrain it. Holes, edge treatments, other geometry, and thicknesses reaching width or height defer. |
+| Closed profile then extrude / pad | L / angle / angle bracket / L-bracket: width, height, and equal leg thickness or separate bottom / horizontal and upright / vertical thicknesses (4 dimensions). T / tee / T-section / rail: overall or flange / cap width, height, flange thickness, and stem / web thickness (4 dimensions); stem centred under the flange, or an exact stem-centre offset from the left or centre (5 dimensions). U / channel and C-section / C-channel: width, height, common wall thickness (4 dimensions), or separate web and flange / leg thicknesses (5 dimensions). Rectangle / plate / bar: explicit fully constrained or dimensioned sketch, width and height (2 dimensions). Each uses one inferred closed `sketch.line` with stable ids, geometric constraints, driving dimensions, finish, and extrusion. Existing L plans retain their exact commands and `l_profile` audit name; other profiles use `closed_profile`. |
 | Sketch circle then extrude | Circle radius or diameter, principal plane before or after the profile, then / and extrude a distance, including “extrude the sketch”. An unqualified “18 mm circle” means diameter 18 mm. |
 | Fillet / round / round off all edges | Uniquely resolved current body, all edges (also “every edge” / “all the edges”), and radius, including “a 2mm round”. |
 | Chamfer / bevel all / top edges | Uniquely resolved current body, all or top edges, and distance. |
@@ -82,6 +82,33 @@ A trailing tuple unit applies to its unqualified members. Independently labelled
 lengths have independent units. Plans explicitly say that slots have been
 converted to mm and display their numeric values. Radius and diameter retain
 their mathematical meaning.
+
+Closed profiles accept label-first or value-first sizes (`width 40`, `40 mm wide`),
+and width × height pairs (`40x30`, `40 by 30 mm`). Extrusion can be `extrude it 12`,
+`extrude 12 mm`, `pad 12`, `12 mm deep`, or `12 long`. The sketch plane defaults
+to XY; `on XZ`, `in the XZ plane`, front (XZ), top (XY), and right (YZ) plane
+wording also works. Coordinates and opening directions refer to sketch axes;
+the public plane transforms determine the world bounds (XZ sketch Y maps to −Z,
+and its extrusion normal is +Y).
+
+The default origin is the lower-left bounding-box corner; L uses its outside
+corner. A T has its flange at the top and its stem below; placement uses axis
+constraints because its bounding-box corner lies outside the material. Symmetric
+T, U, C and rectangular profiles can instead be `centred on the origin`, placing
+the bounding-box centre there. U opens toward sketch +Y, C toward +X, with
+explicit up / down / left / right openings supported. Opposing flange ends and
+T shoulders are constrained collinear, and midpoint relations centre the stem.
+Named construction points support centred placement and offset dimensions;
+there is still only one closed polyline.
+
+This profile recogniser uses a closed vocabulary, including the courtesy words
+listed below. Unknown geometry (holes, fillets, arcs, radii, cuts, patterns, and
+so on), unknown planes or directions, conflicting labels, extra or unassigned
+numbers, unreadable offsets, and zero or overlapping walls defer. Each length is
+bounded by the shared 1,000,000 mm limit; profiles have at most 7 input sizes,
+8 polyline edges, and 5 driving dimensions. English tests are independently
+authored; the optional public-binary tests check zero DOF, one profile, driving
+dimension counts, volume and world bounds on XY, XZ and YZ.
 
 Matching ignores case, sentence punctuation (`. , ; : ! ?`), and quotes or
 brackets around words. A question mark still invokes the question guard: action
