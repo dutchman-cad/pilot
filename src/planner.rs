@@ -1071,9 +1071,21 @@ fn report_input_tokens(text: &str) -> Vec<String> {
 /// Typed model shortcut, using the same recipe validators and expanders.
 pub fn shortcut(args: &Value, request: &Value, catalog: &Catalog) -> Result<Plan, String> {
     repair::check_value(args)?;
+    if args.get("recipe").is_some() {
+        return crate::recipe_library::Library::embedded()?.build(args, request, catalog);
+    }
     recipes::shortcuts::build(args, request, catalog)
 }
-/// The single local model tool; never a SolidCraft tool.
+/// File-backed recipe dispatch into the existing checked expanders.
+pub fn recipe_expand(
+    id: &str,
+    args: &Value,
+    request: &Value,
+    catalog: &Catalog,
+) -> Result<Plan, String> {
+    recipes::shortcuts::file_build(id, args, request, catalog)
+}
+/// Legacy typed shape schema, also the source of the four original file contracts.
 pub fn shortcut_tool() -> Value {
     recipes::shortcuts::tool()
 }

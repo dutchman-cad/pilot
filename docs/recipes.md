@@ -278,8 +278,8 @@ Shell lips require positive explicit sizes and width smaller than the wall. Wall
 
 ## Typed model shortcut
 
-The model face offers one local `pilot_build` tool when SolidCraft's native tools are
-available. It accepts a `shape` tag: `profile` (L, T, U, C, rectangle), `plate`,
+The model face offers local `pilot_find` and `pilot_build` tools when SolidCraft's native tools are
+available. The legacy build form accepts a `shape` tag: `profile` (L, T, U, C, rectangle), `plate`,
 `enclosure`, or `revolute_joint`. Convert all lengths to mm before calling
 (1 in = 25.4 mm). Profiles use `thickness` or both `web_thickness` and
 `flange_thickness`; U uses web for its bottom and flange for its two sides.
@@ -296,5 +296,85 @@ continuations and measured completion checks. The client sees real SolidCraft ca
 for approval. Invalid fields return a local tool error and allow two retries, then
 Pilot removes the shortcut for that turn and hands back to the model. Audits record
 `shortcut` and `shortcut_rejected`. Exact English matches still run first.
-`--no-shortcuts` disables the tool independently of `--no-hints` and
-`--no-direct-recipes`; the SolidCraft 98 dialect never offers it.
+`--no-shortcuts` disables both tools independently of `--no-hints` and
+`--no-direct-recipes`; the SolidCraft 98 dialect never offers them.
+
+## Find before build
+
+The model receives `pilot_find({"request":"a mounting plate with six holes"})`
+first, then `pilot_build({"recipe":"plate","args":{...}})`. Search returns three
+ids, descriptions, parameter schemas and BM25 scores. Native SolidCraft tools
+remain available. `--no-shortcuts` disables both local tools, including text mode;
+exact English recipes retain their existing priority.
+
+Each reviewed file in `recipes/` is Markdown with `---` YAML frontmatter written
+in YAML's JSON subset (strict JSON syntax, parsed without a YAML dependency).
+Required keys are `id`, one-line `description`, `examples` (3–8 ordinary requests),
+`schema` (JSON Schema 2020-12), and `expander`. The body explains the recipe and
+expander. Each file selects one expander; ids need not equal expander names.
+The build script embeds all reviewed `.md` files. No runtime reads are required.
+`model --recipes-dir DIR` replaces the set at startup for development; it never
+reads nested directories or symlinks. Limits: 128 entries, 64 KiB per recipe,
+2,048 query bytes, three results, two searches per turn, 32 schema levels.
+
+Shared `Length` (positive mm, at most 1,000,000), `Angle` (−360…360 degrees),
+`Point3` (three signed mm coordinates), `Plane` (XY/XZ/YZ), and `Count` (1…64)
+are defined once in Rust and referenced through `$defs` in each returned schema.
+Object schemas refuse unknown keys, including nested options. File schemas for
+built-in expanders must equal the canonical typed contract: editing a file cannot
+silently weaken a validator. Geometry relationships (for example a tube's bore
+must be smaller than its outside) use the explicit `x-pilot-expander` schema
+extension: Pilot invokes that expander's pure argument validation. Standard JSON
+Schema cannot compare arbitrary numeric properties; external schema consumers
+must honor this extension to get the full geometry contract. Inspected topology
+is additionally checked by the existing expander. A parameter schema alone cannot guarantee a build in
+an arbitrary document. The tests exercise schemas and expansion on generated
+field mutations and independently authored requests.
+
+Retrieval uses BM25 (k1=1.2, b=0.75), light suffix stemming and aliases for common
+editing verbs. Numbers and length units are ignored so dimensions do not dominate
+intent. Descriptions and examples are separate small documents; the best document
+score selects each recipe, multiplied by query-term coverage in that recipe.
+Ties sort by id. `Ranker` permits a future local
+embedding implementation; this version uses no embedding or network service.
+A best score **below 1.8** is a miss. This fixed initial threshold is calibrated
+against the independent 70 positive and 12 off-topic queries in
+`tests/recipe_library.rs`; it is not a probability or a benchmark claim.
+On a miss the result says “No good recipe hit”, includes closest recipes, and
+asks the model to explain supported work or ask one question instead of
+improvising CAD. Search never blocks the model's native tools. Audit events are
+`find` (query, top ids and scores), `find_hit` and `find_miss`; profile counters
+are `finds`, `find_hits`, `find_misses`. Tool descriptions and total tool text
+have a measured regression budget in the tests; no recipe catalogue is appended
+to the system prompt.
+
+## Draft a recipe from an audit
+
+```
+dutchman-pilot recipe new --from-audit rewrites.jsonl --turn 1
+```
+
+`--turn` selects the one-based recorded recipe emission (`plan` or
+`direct_recipe_calls`), not an individual JSONL line. New audit records include
+the request and expanded calls; older logs without a request are rejected with
+an explanation. Input is limited to 64 MiB, 1,000,000 records and lines to 8 MiB. The command
+prints a new `recipe-review/draft_turn_N.md`, refuses to overwrite a draft,
+and never adds it to the embedded or development library. Review every call,
+body target, parameter name, bounds and example before moving the file into
+`recipes/` and rebuilding. The two generic examples are draft placeholders.
+
+Drafts select the `sequence` expander. Numeric leaves in call parameters become
+number parameters (shared Length, Angle or Count when the field and value fit),
+with recorded values listed in the body; command names and
+body references remain literal. Templates use `{"$param":"parameter_name"}`
+as the entire value, preserving its JSON type during substitution. There are
+at most 64 `execute` calls, 512 parameters, and 16 inference levels. Expansion
+checks commands, documented parameter names, required arguments and available
+catalogue types before returning any call. SolidCraft still validates and the
+client still approves real calls. Unsupported catalogue schema syntax fails
+closed. Sequences make no inferred volume claim.
+
+The search-before-generation pattern is inspired by the public
+[Rote README](https://github.com/wdunn001/rote) (MIT); Pilot neither depends on
+Rote nor copies its implementation. Shared types and refused unknown keys follow
+the public [typed-schema RFC](https://github.com/tangency-labs/solidcraft/issues/2829).

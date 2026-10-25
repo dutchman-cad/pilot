@@ -12,12 +12,14 @@ const HELP_TEMPLATE: &str = r#"{display} — a local helper for SolidCraft
 
 Usage:
   {binary} how "<task>"
+  {binary} recipe new --from-audit FILE --turn N
   {binary} model [--listen 127.0.0.1:11500] [--upstream URL|none] [--no-direct-recipes]
   {pad}       [--upstream-timeout SECONDS (default 300, max 3600)]
   {pad}       [--fallback-prompt auto|on|off] [--prompt-help] [--log FILE]
   {pad}       [--profile-dir DIR] [--model-settings [FILE]] [--seed INTEGER]
   {pad}       [--no-report-buffer] [--dialect solidcraft|solidcraft98]
   {pad}       [--no-how] [--no-hints] [--no-shortcuts] [--planner] [--no-plan (alias --no-planner)]
+  {pad}       [--recipes-dir DIR]
   {binary} report [--listen ADDR] [--turn N] [--include-request] [--out FILE]
   {pad}        [--from-request FILE] [--open]
   {binary} profile [model] [--profile-dir DIR] [--json]
@@ -85,6 +87,11 @@ pub struct Command {
 
 #[derive(Debug, Subcommand)]
 enum Action {
+    /// Draft a recipe for human review; never activates it.
+    Recipe {
+        #[command(subcommand)]
+        action: RecipeAction,
+    },
     /// Find commands and example calls for a task using the bundled catalogue.
     How {
         #[arg(value_parser = task)]
@@ -124,6 +131,16 @@ enum Action {
     },
 }
 
+#[derive(Debug, Subcommand)]
+enum RecipeAction {
+    New {
+        #[arg(long)]
+        from_audit: PathBuf,
+        #[arg(long, value_parser = clap::value_parser!(u32).range(1..=4096))]
+        turn: u32,
+    },
+}
+
 #[derive(Debug, clap::Args)]
 struct ModelArgs {
     #[arg(long, default_value = "solidcraft", value_parser = ["solidcraft", "solidcraft98"], help = "SolidCraft 98 uses only screen tools and repairs; disables SolidCraft catalogue plans, how, and hints")]
@@ -156,9 +173,12 @@ struct ModelArgs {
     no_how: bool,
     #[arg(long)]
     no_hints: bool,
-    /// Disable the local typed pilot_build tool.
+    /// Disable the local pilot_find and pilot_build tools.
     #[arg(long)]
     no_shortcuts: bool,
+    /// Load development recipes from this directory instead of the embedded set.
+    #[arg(long)]
+    recipes_dir: Option<PathBuf>,
     /// Enable plan-text recipe suggestions, prose conversion, and completion checks.
     #[arg(long)]
     planner: bool,
@@ -295,6 +315,16 @@ pub fn run(cmd: Command) -> Result<i32, Error> {
 pub fn run_named(cmd: Command, bin: &str) -> Result<i32, Error> {
     validate_bounds(&cmd)?;
     let result = match cmd.action {
+        Some(Action::Recipe {
+            action: RecipeAction::New { from_audit, turn },
+        }) => {
+            let path = crate::recipe_library::draft(
+                &from_audit,
+                turn,
+                std::path::Path::new("recipe-review"),
+            )?;
+            output(&format!("{}\n", path.display()))
+        }
         None => output(&help_named(bin)),
         Some(Action::Model(args)) => {
             let direct_recipes = args.direct_recipes_enabled()?;
@@ -318,6 +348,7 @@ pub fn run_named(cmd: Command, bin: &str) -> Result<i32, Error> {
                 no_how: args.no_how,
                 no_hints: args.no_hints,
                 no_shortcuts: args.no_shortcuts,
+                recipes_dir: args.recipes_dir,
                 planner: args.planner,
             })
         }
@@ -388,6 +419,9 @@ fn validate_bounds(cmd: &Command) -> Result<(), Error> {
         count = count.saturating_add(1);
     };
     match &cmd.action {
+        Some(Action::Recipe {
+            action: RecipeAction::New { from_audit, .. },
+        }) => add(from_audit.as_os_str().len()),
         Some(Action::How { task } | Action::How98 { task }) => add(task.len()),
         Some(Action::Drive98(args)) => {
             add(args.task.len());
@@ -421,6 +455,7 @@ fn validate_bounds(cmd: &Command) -> Result<(), Error> {
                 .iter()
                 .chain(args.profile_dir.iter())
                 .chain(args.model_settings.iter().flatten())
+                .chain(args.recipes_dir.iter())
             {
                 add(path.as_os_str().len());
             }

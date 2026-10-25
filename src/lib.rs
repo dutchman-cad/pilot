@@ -29,6 +29,8 @@ pub mod profile;
 #[cfg(feature = "proxy")]
 pub mod prompting;
 #[cfg(feature = "core")]
+pub mod recipe_library;
+#[cfg(feature = "core")]
 pub mod repair;
 #[cfg(feature = "core")]
 pub mod solidcraft98;

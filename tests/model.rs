@@ -197,6 +197,7 @@ impl Harness {
             no_hints: false,
             // Tool injections (how and pilot_build) are tested together.
             no_shortcuts: !how,
+            recipes_dir: None,
             planner,
             log: Some(dir.join("audit.jsonl")),
             profile_dir: Some(dir.clone()),
@@ -1049,6 +1050,7 @@ fn report_capture_endpoint_and_disabled_buffer() {
             no_how: true,
             no_hints: true,
             no_shortcuts: false,
+            recipes_dir: None,
             planner: true,
             direct_recipes: true,
             log: Some(dir.join("audit.jsonl")),
@@ -1123,6 +1125,7 @@ fn report_endpoint_rejects_non_loopback_peer() {
         no_how: true,
         no_hints: true,
         no_shortcuts: false,
+        recipes_dir: None,
         planner: true,
         direct_recipes: true,
         log: Some(dir.join("audit.jsonl")),

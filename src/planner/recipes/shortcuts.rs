@@ -407,6 +407,140 @@ pub(crate) fn tool() -> Value {
     json!({"type":"function","function":{"name":"pilot_build","description":"Build and verify a part or contact revolute joint. Lengths in mm; convert inches (1 in = 25.4 mm). Profiles start at origin; plate patterns centred; enclosure centred on all axes. Use thickness OR web_thickness and flange_thickness. Joint names: pin then hole; inspect first.","parameters":{"type":"object","oneOf":[profile,plate,enclosure,joint]}}})
 }
 
+/// The file ids select exactly one existing expander; arguments never become English.
+pub(crate) fn file_build(
+    id: &str,
+    args: &Value,
+    request: &Value,
+    catalog: &Catalog,
+) -> Result<Plan, String> {
+    crate::recipe_library::validate_structure(args, &crate::recipe_library::schema(id)?)?;
+    if matches!(id, "profile" | "plate" | "enclosure" | "revolute_joint") {
+        let mut typed = args.clone();
+        typed["shape"] = json!(id);
+        return build(&typed, request, catalog);
+    }
+    #[derive(Deserialize)]
+    #[serde(tag = "expander", deny_unknown_fields)]
+    enum Primitive {
+        #[serde(rename = "box")]
+        Box {
+            length: f64,
+            width: f64,
+            height: f64,
+        },
+        #[serde(rename = "cylinder")]
+        Cylinder { radius: f64, height: f64 },
+        #[serde(rename = "sphere")]
+        Sphere { radius: f64 },
+        #[serde(rename = "tube")]
+        Tube {
+            outer_radius: f64,
+            inner_radius: f64,
+            height: f64,
+        },
+        #[serde(rename = "fillet")]
+        Fillet { body: String, amount: f64 },
+        #[serde(rename = "chamfer")]
+        Chamfer { body: String, amount: f64 },
+        #[serde(rename = "move")]
+        Move { body: String, delta: [f64; 3] },
+        #[serde(rename = "mirror")]
+        Mirror {
+            body: String,
+            plane: String,
+            keep_original: bool,
+        },
+        #[serde(rename = "shell")]
+        Shell {
+            length: f64,
+            width: f64,
+            height: f64,
+            wall: f64,
+        },
+        #[serde(rename = "revolve")]
+        Revolve { radius: f64, height: f64 },
+    }
+    let mut typed = args.clone();
+    typed["expander"] = json!(id);
+    let p: Primitive = serde_json::from_value(typed).map_err(|e| format!("{id} arguments: {e}"))?;
+    let slots = match p {
+        Primitive::Box {
+            length,
+            width,
+            height,
+        } => Slots::Box {
+            size: [length, width, height],
+        },
+        Primitive::Cylinder { radius, height } => Slots::Cylinder { radius, height },
+        Primitive::Sphere { radius } => Slots::Sphere { radius },
+        Primitive::Tube {
+            outer_radius,
+            inner_radius,
+            height,
+        } => {
+            if inner_radius >= outer_radius {
+                return Err("inner_radius: must be less than outer_radius".into());
+            }
+            Slots::Tube {
+                outer_radius,
+                inner_radius,
+                height,
+            }
+        }
+        Primitive::Fillet { body, amount } | Primitive::Chamfer { body, amount } => Slots::Edges {
+            body,
+            amount,
+            fillet: id == "fillet",
+            top: false,
+            edges: Vec::new(),
+        },
+        Primitive::Move { body, delta } => Slots::Move { body, delta },
+        Primitive::Mirror {
+            body,
+            plane,
+            keep_original,
+        } => Slots::Mirror {
+            body,
+            plane,
+            keep_original,
+        },
+        Primitive::Shell {
+            length,
+            width,
+            height,
+            wall,
+        } => {
+            if 2.0 * wall >= length.min(width) || wall >= height {
+                return Err("wall: must leave a positive cavity".into());
+            }
+            Slots::Shell {
+                size: [length, width, height],
+                wall,
+            }
+        }
+        Primitive::Revolve { radius, height } => Slots::Revolve { radius, height },
+    };
+    let messages = request["messages"]
+        .as_array()
+        .ok_or("messages must be an array")?;
+    // Rule strings are fixed, never borrowed from a file.
+    let rule = match id {
+        "box" => "box",
+        "cylinder" => "cylinder",
+        "sphere" => "sphere",
+        "tube" => "tube",
+        "fillet" => "fillet",
+        "chamfer" => "chamfer",
+        "move" => "move",
+        "mirror" => "mirror",
+        "shell" => "shell",
+        "revolve" => "revolve",
+        _ => return Err("unknown expander".into()),
+    };
+    from_slots(rule, slots, state(messages).as_ref(), catalog)?
+        .ok_or_else(|| "recipe size or body count capacity exceeded".into())
+}
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {

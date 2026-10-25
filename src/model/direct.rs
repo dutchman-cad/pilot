@@ -166,7 +166,7 @@ impl Proxy {
         }
         let message =
             json!({"role":"assistant","content":null,"tool_calls":calls(request, plan, index)});
-        audit.record("direct_recipe_calls", &Value::Null, &json!({"rule":plan.rule,"slots":plan.slots,"expected":plan.expected,"message":message,"from_model":false}))?;
+        audit.record("direct_recipe_calls", &Value::Null, &json!({"request":last_user(request),"rule":plan.rule,"slots":plan.slots,"expected":plan.expected,"calls":plan.calls,"message":message,"from_model":false}))?;
         conversation.direct = Some((index, plan.clone(), message.clone()));
         conversation.recipe = plan.expected.clone().map(|e| (index, e));
         conversation.pending_recipe = plan.continuation.as_ref().map(|_| plan.clone());

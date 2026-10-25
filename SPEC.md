@@ -41,8 +41,12 @@ real endpoint (`--upstream http://localhost:11434/v1`, Ollama by default; any Op
 URL; an API key is passed through from the client's Authorization header, never stored).
 
 Request side:
-- With SolidCraft tools, offer one local `pilot_build` function by default (except the
-  SolidCraft 98 dialect); `--no-shortcuts` disables it. Its `shape` union accepts typed
+- With SolidCraft tools, offer local `pilot_find` and `pilot_build` functions by default (except the
+  SolidCraft 98 dialect); `--no-shortcuts` disables both. Search the embedded Markdown
+  recipe library first with `{request}`; retrieve three ids, descriptions, schemas and BM25
+  scores. A score below 1.8 returns an explicit miss and guidance to describe supported
+  recipes or ask one question, without blocking native tools. Build with `{recipe, args}`.
+  `--recipes-dir DIR` replaces the embedded library for development. Its legacy `shape` union accepts typed
   profiles, plates, enclosures and revolute joints, in mm (convert inches first).
   Shared recipe validators and catalogue-checked expanders replace a valid call with
   real client tools through the direct-recipe completion and measured verification path.
@@ -50,6 +54,11 @@ Request side:
   and rule tool error, at most two retries, then hand back with the shortcut removed.
   Audit `shortcut` (arguments and rule) and `shortcut_rejected` (reason). Local shortcut
   calls and results never reach SolidCraft and are stripped from returned client history.
+  Audit `find` (query, top ids/scores) and `find_hit`/`find_miss`; profiles count finds,
+  hits and misses. Two local searches per turn; existing wire/retry caps still apply.
+  `recipe new --from-audit FILE --turn N` drafts the Nth recorded recipe emission to
+  `recipe-review/`; it never activates a recipe. Reviewed sequences substitute typed
+  parameters in at most 64 catalogue-checked calls. See docs/recipes.md for file format.
 - Pass other request fields through unchanged unless a feature below applies.
 - `--fallback-prompt auto|on|off`: for a model that can't do native tools (detected from Ollama's
   `/api/show` capabilities, or after a turn that wrote a call as text), append ONE conditional

@@ -46,6 +46,7 @@ pub struct Config {
     pub no_how: bool,
     pub no_hints: bool,
     pub no_shortcuts: bool,
+    pub recipes_dir: Option<PathBuf>,
     pub planner: bool,
     pub direct_recipes: bool,
     pub log: Option<PathBuf>,
@@ -101,6 +102,9 @@ pub struct Profile {
     pub plans_used: u64,
     pub how_answers: u64,
     pub hints_added: u64,
+    pub finds: u64,
+    pub find_hits: u64,
+    pub find_misses: u64,
     pub capabilities_checked: bool,
     pub native_support: Option<bool>,
     /// Explicit provider rejection; independent of prose/text-call profiling.
@@ -201,6 +205,7 @@ pub struct Server {
 }
 struct Proxy {
     cfg: Config,
+    recipes: crate::recipe_library::Library,
     agent: ureq::Agent,
     catalog: Catalog,
     profiles: Profiles,
@@ -295,6 +300,7 @@ impl Server {
         Ok(Self {
             listener,
             proxy: Proxy {
+                recipes: crate::recipe_library::Library::load(cfg.recipes_dir.as_deref())?,
                 agent,
                 catalog: if cfg.solidcraft98 {
                     Catalog::from_json("[]")?
@@ -908,7 +914,11 @@ impl Proxy {
                     .as_ref()
                     .is_some_and(|(_, p, _)| p.rule == "resolve_joint")
             {
-                recipe = planner::shortcut(args, &body, &self.catalog).ok();
+                recipe = if args.get("recipe").is_some() {
+                    self.recipes.build(args, &body, &self.catalog).ok()
+                } else {
+                    planner::shortcut(args, &body, &self.catalog).ok()
+                };
             }
         }
         let mut resumed = false;
@@ -969,7 +979,7 @@ impl Proxy {
             audit.record(
                     if resumed { "recipe_continue" } else { "plan" },
                     &Value::Null,
-                    &json!({"rule":plan.rule,"slots":plan.slots,"expected":plan.expected,"calls":plan.calls,"prompt":message}),
+                    &json!({"request":last_user(&body),"rule":plan.rule,"slots":plan.slots,"expected":plan.expected,"calls":plan.calls,"prompt":message}),
                 )?;
         }
         let accepted = recovery::previous_accepted(&body);
@@ -992,7 +1002,11 @@ impl Proxy {
             && !self.cfg.solidcraft98
             && shortcuts::offer(&mut body)?;
         if shortcuts_offered {
-            audit.record("shortcut_tool", &Value::Null, &planner::shortcut_tool())?;
+            audit.record(
+                "shortcut_tool",
+                &Value::Null,
+                &crate::recipe_library::build_tool(),
+            )?;
         }
         let tools = body
             .get("tools")
@@ -1117,6 +1131,7 @@ impl Proxy {
         let mut last_reason = String::new();
         let mut mode_retry = 0;
         let mut shortcut_retries = 0;
+        let mut find_count = 0;
         for wire_attempt in 0..=4 {
             let attempt = wire_attempt - mode_retry;
             if attempt > 3 {
@@ -1234,20 +1249,43 @@ impl Proxy {
                         let mut converted = message.clone();
                         if convert_text(
                             &mut converted,
-                            &[planner::shortcut_tool()],
+                            &[
+                                crate::recipe_library::build_tool(),
+                                crate::recipe_library::find_tool(),
+                            ],
                             &self.catalog,
                             audit,
                         )? && converted["tool_calls"].as_array().is_some_and(|cs| {
-                            cs.iter().any(|c| c["function"]["name"] == "pilot_build")
+                            cs.iter().any(|c| {
+                                matches!(
+                                    c["function"]["name"].as_str(),
+                                    Some("pilot_build" | "pilot_find")
+                                )
+                            })
                         }) {
                             *message = converted;
                         }
                     }
                 }
             }
+            if shortcuts::contains_find(&response) {
+                if !shortcuts_offered || find_count >= 2 {
+                    return direct::reply(&original, "pilot_find unavailable or search limit reached; ask one question or describe supported recipes.".into(), audit.count);
+                }
+                find_count += 1;
+                if let Err(reason) = shortcuts::find(&mut body, &response, &self.recipes, audit) {
+                    shortcuts::reject(&mut body, &response, &reason)?;
+                }
+                continue;
+            }
             if shortcuts::contains(&response) {
-                let result =
-                    shortcuts::expand(&response, &original, &self.catalog, shortcuts_offered);
+                let result = shortcuts::expand(
+                    &response,
+                    &original,
+                    &self.catalog,
+                    &self.recipes,
+                    shortcuts_offered,
+                );
                 match result {
                     Ok((args, plan)) => {
                         audit.record("shortcut", &args, &json!({"args":args,"rule":plan.rule}))?;
@@ -2529,6 +2567,7 @@ mod tests {
                 .unwrap();
             Self {
                 proxy: Proxy {
+                    recipes: crate::recipe_library::Library::embedded().unwrap(),
                     cfg: Config {
                         solidcraft98: false,
                         no_report_buffer: false,
@@ -2539,6 +2578,7 @@ mod tests {
                         no_how: true,
                         no_hints: false,
                         no_shortcuts: true,
+                        recipes_dir: None,
                         planner: true,
                         direct_recipes: false,
                         log: None,
@@ -5308,5 +5348,60 @@ mod tests {
         let mut f = Fixture::with_shortcuts(vec![mixed, reply("Need dimensions.")]);
         let out = f.chat(request());
         assert!(!String::from_utf8_lossy(&out.body).contains("tool_calls"));
+    }
+
+    #[test]
+    fn find_then_build_keeps_local_history_and_audits_profile() {
+        let a = json!({"recipe":"box","args":{"length":41,"width":23,"height":17}});
+        let mut f = Fixture::with_shortcuts(vec![
+            call("pilot_find", json!({"request":"a rectangular block"})),
+            call("pilot_build", a.clone()),
+        ]);
+        f.proxy.cfg.planner = false;
+        let req = request();
+        let expected = f.proxy.recipes.build(&a, &req, &f.proxy.catalog).unwrap();
+        let out = f.chat(req.clone());
+        assert_eq!(out.status, 200);
+        let value: Value = serde_json::from_slice(&out.body).unwrap();
+        assert_eq!(
+            value["choices"][0]["message"]["tool_calls"],
+            direct::calls(&req, &expected, 0)
+        );
+        assert!(!value.to_string().contains("pilot_find"));
+        let script = f.proxy.scripted.as_ref().unwrap().borrow();
+        assert_eq!(script.requests.len(), 2);
+        let messages = script.requests[1]["messages"].as_array().unwrap();
+        let result: Value =
+            serde_json::from_str(messages.last().unwrap()["content"].as_str().unwrap()).unwrap();
+        assert_eq!(result["hit"], true);
+        assert_eq!(result["recipes"][0]["id"], "box");
+        let p = f.proxy.profiles.values().next().unwrap();
+        assert_eq!((p.finds, p.find_hits, p.find_misses), (1, 1, 0));
+        let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+        assert!(log.contains("\"kind\":\"find\""));
+    }
+
+    #[test]
+    fn find_miss_and_disabled_tools() {
+        let mut f = Fixture::with_shortcuts(vec![
+            call("pilot_find", json!({"request":"write a sonnet"})),
+            reply("Pilot builds boxes, tubes and plates. What part do you need?"),
+        ]);
+        let out = f.chat(request());
+        assert_eq!(out.status, 200);
+        let script = f.proxy.scripted.as_ref().unwrap().borrow();
+        let messages = script.requests[1]["messages"].as_array().unwrap();
+        let result: Value =
+            serde_json::from_str(messages.last().unwrap()["content"].as_str().unwrap()).unwrap();
+        assert_eq!(result["hit"], false);
+        let p = f.proxy.profiles.values().next().unwrap();
+        assert_eq!((p.finds, p.find_hits, p.find_misses), (1, 0, 1));
+        drop(script);
+        let mut disabled = Fixture::with_shortcuts(vec![reply("Need dimensions.")]);
+        disabled.proxy.cfg.no_shortcuts = true;
+        disabled.chat(request());
+        let script = disabled.proxy.scripted.as_ref().unwrap().borrow();
+        let tools = script.requests[0]["tools"].to_string();
+        assert!(!tools.contains("pilot_find") && !tools.contains("pilot_build"));
     }
 }

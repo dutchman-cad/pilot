@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Search embedded file recipes with `pilot_find` before `pilot_build`, with audited misses and bounded audit-to-review sequence drafts.
+
 - Let models build profiles, plates, enclosures and inspected revolute joints through one typed `pilot_build` tool; disable with `--no-shortcuts`.
 
 - Build compound plates with bores, bolt circles, grids and corner rounding, and guide failed edge picks.
