@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Trim older upstream tool history by default, preserve recipe evidence, and audit per-request character sizes with profile mean/max; opt out with `--no-trim`.
+
 - Build linear, grid and circular body or last-feature patterns through typed recipes, with overlap guards, measured verification and a deduplicated repeated-copy hint.
 
 - Search embedded file recipes with `pilot_find` before `pilot_build`, with audited misses and bounded audit-to-review sequence drafts.

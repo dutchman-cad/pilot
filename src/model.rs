@@ -8,6 +8,7 @@ use prompting::FALLBACK;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 mod direct;
+mod history;
 mod recovery;
 mod shortcuts;
 mod text_mode;
@@ -27,6 +28,7 @@ const MAX_CALLS: usize = 64;
 const MAX_PROFILES: usize = 256;
 pub const DEFAULT_UPSTREAM_TIMEOUT: Duration = Duration::from_secs(300);
 pub const MAX_UPSTREAM_TIMEOUT: Duration = Duration::from_secs(3600);
+pub const DEFAULT_TRIM_CAP: usize = 1500;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FallbackPrompt {
@@ -46,6 +48,8 @@ pub struct Config {
     pub no_how: bool,
     pub no_hints: bool,
     pub no_shortcuts: bool,
+    pub no_trim: bool,
+    pub trim_cap: usize,
     pub recipes_dir: Option<PathBuf>,
     pub planner: bool,
     pub direct_recipes: bool,
@@ -105,6 +109,11 @@ pub struct Profile {
     pub finds: u64,
     pub find_hits: u64,
     pub find_misses: u64,
+    #[serde(default = "trim_default")]
+    pub trim_enabled: bool,
+    pub upstream_requests: u64,
+    pub request_chars_total: BTreeMap<String, u64>,
+    pub request_chars_max: BTreeMap<String, u64>,
     pub capabilities_checked: bool,
     pub native_support: Option<bool>,
     /// Explicit provider rejection; independent of prose/text-call profiling.
@@ -114,6 +123,10 @@ pub struct Profile {
     pub recent_text_calls: Vec<bool>,
 }
 type Profiles = BTreeMap<String, Profile>;
+
+fn trim_default() -> bool {
+    true
+}
 
 pub(crate) fn data_dir(explicit: Option<&Path>) -> Result<PathBuf, String> {
     if let Some(path) = explicit {
@@ -165,10 +178,12 @@ pub(crate) fn load_profiles(
     if profiles.len() > MAX_PROFILES {
         return Err("profile file exceeds 256 models".into());
     }
-    if profiles
-        .values()
-        .any(|p| p.recent_text_calls.len() > 5 || p.repairs_by_kind.len() > 256)
-    {
+    if profiles.values().any(|p| {
+        p.recent_text_calls.len() > 5
+            || p.repairs_by_kind.len() > 256
+            || p.request_chars_total.len() > 512
+            || p.request_chars_max.len() > 512
+    }) {
         return Err("profile history exceeds five turns or repair kinds exceed 256".into());
     }
     let mut records: Vec<_> = profiles
@@ -226,6 +241,9 @@ struct Scripted {
 }
 impl Server {
     pub fn bind(mut cfg: Config) -> Result<Self, String> {
+        if !(256..=65536).contains(&cfg.trim_cap) {
+            return Err("trim-cap must be between 256 and 65536 characters".into());
+        }
         if cfg.solidcraft98 {
             cfg.planner = false;
             cfg.direct_recipes = false;
@@ -724,6 +742,7 @@ impl Proxy {
             model: audit.model.clone(),
             ..Profile::default()
         });
+        profile.trim_enabled = !self.cfg.no_trim;
         let mut captured = if self.cfg.no_report_buffer {
             None
         } else {
@@ -735,6 +754,7 @@ impl Proxy {
                     "planner":self.cfg.planner,"direct_recipes":self.cfg.direct_recipes,
                     "fallback_prompt":format!("{:?}",self.cfg.fallback_prompt),"prompt_help":self.cfg.prompt_help,
                     "no_shortcuts":self.cfg.no_shortcuts,"no_how":self.cfg.no_how,"no_hints":self.cfg.no_hints,"no_report_buffer":self.cfg.no_report_buffer,
+                    "trim_enabled":!self.cfg.no_trim,"trim_cap":self.cfg.trim_cap,
                     "model_settings_enabled":self.cfg.model_settings_enabled || self.cfg.model_settings.is_some(),
                     "seed":self.cfg.seed,"upstream_timeout":self.cfg.upstream_timeout.as_secs(),
                     "upstream":crate::capture::bounded(&self.cfg.upstream),"listen":self.cfg.listen.to_string(),
@@ -866,6 +886,8 @@ impl Proxy {
             audit.record("shortcut_history_stripped", &before_strip, &body)?;
         }
         let original = body.clone();
+        let client: Value = serde_json::from_slice(&request.body)
+            .map_err(|_| "invalid request JSON for size audit")?;
         if self.cfg.solidcraft98 {
             set_logged(
                 &mut body,
@@ -1113,19 +1135,33 @@ impl Proxy {
             )?;
             if !conversation.pattern_hint_seen {
                 if let Some(hint) = planner::repetition_hint(&body) {
-                    if let Some(messages) = body["messages"].as_array_mut() {
-                        messages.push(json!({"role":"system","content":format!("{} {hint}",crate::identity::HINT)}));
-                        conversation.pattern_hint_seen = true;
-                        audit.record("pattern_hint", &Value::Null, &json!(hint))?;
+                    conversation.pattern_hint_seen = true;
+                    let present = body["messages"].as_array().is_some_and(|messages| {
+                        messages
+                            .iter()
+                            .any(|m| prompting::message_text(&m["content"]).contains(hint))
+                    });
+                    if !present {
+                        if let Some(messages) = body["messages"].as_array_mut() {
+                            messages.push(json!({"role":"system","content":format!("{} {hint}",crate::identity::HINT)}));
+                            audit.record("pattern_hint", &Value::Null, &json!(hint))?;
+                        }
                     }
                 }
             }
             if !conversation.joint_hint_seen {
                 if let Some(hint) = planner::joint_hint(&body) {
-                    if let Some(messages) = body["messages"].as_array_mut() {
-                        messages.push(json!({"role":"system","content":format!("{} {hint}",crate::identity::HINT)}));
-                        conversation.joint_hint_seen = true;
-                        audit.record("joint_contact_hint", &Value::Null, &json!(hint))?;
+                    conversation.joint_hint_seen = true;
+                    let present = body["messages"].as_array().is_some_and(|messages| {
+                        messages
+                            .iter()
+                            .any(|m| prompting::message_text(&m["content"]).contains(hint))
+                    });
+                    if !present {
+                        if let Some(messages) = body["messages"].as_array_mut() {
+                            messages.push(json!({"role":"system","content":format!("{} {hint}",crate::identity::HINT)}));
+                            audit.record("joint_contact_hint", &Value::Null, &json!(hint))?;
+                        }
                     }
                 }
             }
@@ -1148,13 +1184,30 @@ impl Proxy {
             if attempt > 3 {
                 break;
             }
-            let wire = if text_mode {
-                json_bytes(&text_mode::wire(&body, audit)?)?
-            } else if attempt == 0 && body == original && !stripped {
-                request.body.clone()
+            // All deterministic readers above and below retain the full body. Conservatively
+            // keep the wire full too while any recipe continuation/verification is pending.
+            let protected = conversation.pending_recipe.is_some()
+                || conversation.recipe.is_some()
+                || conversation.direct.is_some();
+            let mut outgoing = body.clone();
+            let changed = if self.cfg.no_trim {
+                0
             } else {
-                json_bytes(&body)?
+                history::trim(&mut outgoing, self.cfg.trim_cap, protected)
             };
+            if text_mode {
+                outgoing = text_mode::wire(&outgoing, audit)?;
+            }
+            history::audit_request(
+                &client,
+                &body,
+                &outgoing,
+                !self.cfg.no_trim,
+                changed,
+                profile,
+                audit,
+            )?;
+            let wire = json_bytes(&outgoing)?;
             let mut upstream = match self.fetch(
                 "POST",
                 "/chat/completions",
@@ -1696,6 +1749,10 @@ fn append_hints(
         .rposition(|m| m["role"] != "tool")
         .map_or(0, |i| i + 1);
     let mut previous = None;
+    let mut prior_hints: Vec<String> = messages
+        .iter()
+        .map(|m| prompting::message_text(&m["content"]))
+        .collect();
     let mut placement_count = 0;
     let turn = messages
         .iter()
@@ -1787,6 +1844,10 @@ fn append_hints(
                     .collect::<Vec<_>>()
                     .join("\n")
             );
+            if prior_hints.iter().any(|text| text.contains(&line)) {
+                continue;
+            }
+            prior_hints.push(line.clone());
             let content = &mut messages[i]["content"];
             let before = content.clone();
             if let Some(text) = content.as_str() {
@@ -2589,6 +2650,8 @@ mod tests {
                         no_how: true,
                         no_hints: false,
                         no_shortcuts: true,
+                        no_trim: false,
+                        trim_cap: DEFAULT_TRIM_CAP,
                         recipes_dir: None,
                         planner: true,
                         direct_recipes: false,
@@ -2654,6 +2717,145 @@ mod tests {
     impl Drop for Fixture {
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.dir);
+        }
+    }
+    #[test]
+    fn long_history_fixture_replay_measures_wire_reduction_and_opt_out() {
+        let requests = history::replay_fixture();
+        let mut totals = Vec::new();
+        for no_trim in [true, false] {
+            let mut f = Fixture::new(vec![reply("Ready."); requests.len()]);
+            f.proxy.cfg.planner = false;
+            f.proxy.cfg.no_hints = true;
+            f.proxy.cfg.no_trim = no_trim;
+            let mut total = 0;
+            for (index, request) in requests.iter().enumerate() {
+                let original = request.clone();
+                assert_eq!(f.chat(request.clone()).status, 200);
+                assert_eq!(*request, original);
+                let script = f.proxy.scripted.as_ref().unwrap().borrow();
+                let wire = &script.requests[index];
+                total += wire.to_string().chars().count();
+                let latest = request["messages"].as_array().unwrap().len() - 1;
+                assert_eq!(wire["messages"][latest], request["messages"][latest]);
+                if no_trim {
+                    assert_eq!(wire, request);
+                }
+            }
+            let profile = f.proxy.profiles.values().next().unwrap();
+            assert_eq!(profile.trim_enabled, !no_trim);
+            assert_eq!(profile.upstream_requests, requests.len() as u64);
+            assert_eq!(profile.request_chars_total["upstream.total"], total as u64);
+            let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+            let events: Vec<Value> = log
+                .lines()
+                .map(|s| serde_json::from_str(s).unwrap())
+                .filter(|v: &Value| v["kind"] == "request_size")
+                .collect();
+            assert_eq!(events.len(), requests.len());
+            assert!(
+                events[0]["dutchman-pilot"]["client"]["tool_results.list_commands"]
+                    .as_u64()
+                    .unwrap()
+                    > 1500
+            );
+            let report = crate::profile::profiles(Some(&f.dir), Some("unit"), false).unwrap();
+            assert!(report.contains("mean / max per upstream request (8 requests)"));
+            totals.push(total);
+        }
+        let percent = 100.0 * (1.0 - totals[1] as f64 / totals[0] as f64);
+        eprintln!(
+            "history replay: {} -> {} upstream characters; {percent:.2}% reduction",
+            totals[0], totals[1]
+        );
+        assert!(percent > 65.0);
+    }
+
+    #[test]
+    fn request_size_audit_counts_client_and_pilot_parts_and_retries() {
+        let mut f = Fixture::with_shortcuts(vec![reply(""), reply("Ready.")]);
+        f.proxy.cfg.planner = false;
+        f.proxy.cfg.no_how = false;
+        let mut req = request();
+        req["messages"] = json!([{"role":"system","content":"éπ"},{"role":"user","content":"sketch a constrained plate profile with a centered hole"}]);
+        assert_eq!(f.chat(req).status, 200);
+        let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+        let events: Vec<Value> = log
+            .lines()
+            .map(|s| serde_json::from_str(s).unwrap())
+            .filter(|v: &Value| v["kind"] == "request_size")
+            .collect();
+        assert_eq!(events.len(), 2);
+        let sizes = &events[0]["dutchman-pilot"];
+        assert_eq!(sizes["client"]["system"], 2);
+        assert_eq!(
+            sizes["pilot"]["sketch_fact"],
+            prompting::SKETCH_FACT.chars().count()
+        );
+        assert_eq!(
+            sizes["pilot"]["placement_fact"],
+            prompting::PLACEMENT_FACT.chars().count()
+        );
+        for name in ["how_schema", "pilot_build_schema", "pilot_find_schema"] {
+            assert!(sizes["pilot"][name].as_u64().unwrap() > 0);
+        }
+        let profile = f.proxy.profiles.values().next().unwrap();
+        assert_eq!(profile.upstream_requests, 2);
+        assert_eq!(profile.request_chars_total["client.system"], 4);
+        assert_eq!(profile.request_chars_max["client.system"], 2);
+    }
+
+    #[test]
+    fn resent_facts_and_hints_are_present_once_at_latest_system() {
+        let mut f = Fixture::new(vec![reply("Ready."); 2]);
+        f.proxy.cfg.planner = false;
+        let mut req = request();
+        req["messages"] = json!([{"role":"system","content":"old rules"},{"role":"user","content":"previous turn"},{"role":"system","content":"latest rules"},{"role":"user","content":"sketch a constrained plate profile"}]);
+        f.chat(req);
+        let sent = f.proxy.scripted.as_ref().unwrap().borrow().requests[0].clone();
+        assert_eq!(sent["messages"][0]["content"], "old rules");
+        assert!(sent["messages"][2]["content"]
+            .as_str()
+            .unwrap()
+            .contains(prompting::SKETCH_FACT));
+        f.chat(sent);
+        let repeated = f.proxy.scripted.as_ref().unwrap().borrow().requests[1].clone();
+        assert_eq!(
+            repeated["messages"]
+                .to_string()
+                .matches(prompting::SKETCH_FACT.split('"').next().unwrap())
+                .count(),
+            1
+        );
+        let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+        assert_eq!(
+            log.lines()
+                .filter(|line| line.contains("\"kind\":\"sketch_fact\""))
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn solidcraft98_history_trimming_and_opt_out_use_the_same_wire_pass() {
+        for no_trim in [false, true] {
+            let mut f = Fixture::new(vec![reply("Ready.")]);
+            f.proxy.cfg.solidcraft98 = true;
+            f.proxy.cfg.planner = false;
+            f.proxy.cfg.no_hints = true;
+            f.proxy.cfg.no_trim = no_trim;
+            let mut req = request();
+            req["messages"] = json!([{"role":"user","content":"read screen"},
+                {"role":"assistant","tool_calls":[{"id":"screen1","type":"function","function":{"name":"screen","arguments":"{}"}}]},
+                {"role":"tool","tool_call_id":"screen1","content":"screen text ".repeat(500)},
+                {"role":"user","content":"hello"}]);
+            f.chat(req.clone());
+            let sent = f.proxy.scripted.as_ref().unwrap().borrow().requests[0].clone();
+            assert_eq!(sent["messages"][2] == req["messages"][2], no_trim);
+            assert_eq!(
+                f.proxy.profiles.values().next().unwrap().trim_enabled,
+                !no_trim
+            );
         }
     }
     #[test]
@@ -4608,12 +4810,23 @@ mod tests {
             };
             assert_eq!(value["choices"][0]["finish_reason"], "tool_calls");
             assert_eq!(value["model"], "pilot-recipes");
+            let result_start = req["messages"].as_array().unwrap().len();
             direct_results(
                 &mut req,
                 value["choices"][0]["message"].clone(),
                 false,
                 256.047875,
             );
+            // Completion must still read full measured evidence above the trim threshold.
+            for message in &mut req["messages"].as_array_mut().unwrap()[result_start..] {
+                if message["role"] == "tool" {
+                    let mut data: Value =
+                        serde_json::from_str(message["content"].as_str().unwrap()).unwrap();
+                    data["history_padding"] = json!((0..200).collect::<Vec<_>>());
+                    message["content"] = json!(data.to_string());
+                }
+            }
+            f.proxy.cfg.trim_cap = 256;
             let second = f.chat(req);
             assert_eq!(second.status, 200);
             let value: Value = if stream {
@@ -4886,11 +5099,13 @@ mod tests {
                 for c in cs {
                     let args: Value =
                         serde_json::from_str(c["function"]["arguments"].as_str().unwrap()).unwrap();
-                    let data = if c["function"]["name"] == "batch" {
+                    let mut data = if c["function"]["name"] == "batch" {
                         json!({"ok":true,"results":args["commands"].as_array().unwrap().iter().map(|a|result(a,stage==2)).collect::<Vec<_>>()})
                     } else {
                         result(&args, stage == 2)
                     };
+                    // Joint face/edge inspection and final verification must remain whole.
+                    data["history_padding"] = json!((0..500).collect::<Vec<_>>());
                     req["messages"].as_array_mut().unwrap().push(
                         json!({"role":"tool","tool_call_id":c["id"],"content":data.to_string()}),
                     );
@@ -5258,11 +5473,13 @@ mod tests {
                 [65., 50., 10.],
             ];
             for (i, c) in calls.iter().enumerate() {
-                let data = if i == 2 {
+                let mut data = if i == 2 {
                     json!({"body":body,"edges":mids.iter().enumerate().map(|(index, mid)|json!({"index":index,"mid":mid})).collect::<Vec<_>>()})
                 } else {
                     json!({"created_bodies":[body],"error":null})
                 };
+                // The middle edges are required, and would be lost by compaction.
+                data["history_padding"] = json!((0..500).collect::<Vec<_>>());
                 let content = if plain {
                     data
                 } else {

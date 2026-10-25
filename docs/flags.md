@@ -16,7 +16,8 @@ Usage:
                        [--fallback-prompt auto|on|off] [--prompt-help] [--log FILE]
                        [--profile-dir DIR] [--model-settings [FILE]] [--seed INTEGER]
                        [--no-report-buffer] [--dialect solidcraft|solidcraft98]
-                       [--no-how] [--no-hints] [--no-shortcuts] [--planner] [--no-plan (alias --no-planner)]
+                       [--no-how] [--no-hints] [--no-shortcuts] [--no-trim] [--trim-cap CHARS (default 1500)]
+                       [--planner] [--no-plan (alias --no-planner)]
                        [--recipes-dir DIR]
   dutchman-pilot report [--listen ADDR] [--turn N] [--include-request] [--out FILE]
                         [--from-request FILE] [--open]
@@ -79,6 +80,7 @@ Flags (including aliases):
 - `--no-planner`
 - `--no-report-buffer`
 - `--no-shortcuts`
+- `--no-trim`
 - `--open`
 - `--out`
 - `--plain`
@@ -89,6 +91,7 @@ Flags (including aliases):
 - `--recipes-dir`
 - `--seed`
 - `--solidcraft-cli`
+- `--trim-cap`
 - `--turn`
 - `--upstream`
 - `--upstream-timeout`
