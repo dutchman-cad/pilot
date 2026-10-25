@@ -1041,6 +1041,13 @@ impl Proxy {
             }
         }
         if !self.cfg.no_hints {
+            if prompting::append_placement_fact(&mut body)? {
+                audit.record(
+                    "placement_fact",
+                    &Value::Null,
+                    &json!(prompting::PLACEMENT_FACT),
+                )?;
+            }
             append_hints(&mut body, &self.catalog, audit)?;
         }
         let mut text_mode = profile.text_tool_mode || profile.native_support == Some(false);
@@ -3367,6 +3374,36 @@ mod tests {
     }
 
     #[test]
+    fn field_prompt_gets_fact_before_first_call_unless_hints_disabled() {
+        for disabled in [false, true] {
+            let mut f = Fixture::new(vec![call(
+                "execute",
+                json!({"command":"solid.box","params":{"width":20,"length":20,"height":20}}),
+            )]);
+            f.proxy.cfg.no_hints = disabled;
+            f.proxy.cfg.planner = false;
+            let mut req = request();
+            req["messages"] = json!([
+                {"role":"system","content":"Existing rules"},
+                {"role":"user","content":"draw a 20mm cube with a 5mm hole through the center"}]);
+            f.chat(req.clone());
+            let script = f.proxy.scripted.as_ref().unwrap().borrow();
+            let sent = &script.requests[0];
+            assert_eq!(sent["messages"].as_array().unwrap().len(), 2);
+            if disabled {
+                assert_eq!(sent["messages"], req["messages"]);
+            } else {
+                assert_eq!(
+                    sent["messages"][0]["content"],
+                    format!("Existing rules\n{}", prompting::PLACEMENT_FACT)
+                );
+            }
+            let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+            assert_eq!(log.contains("\"kind\":\"placement_fact\""), !disabled);
+        }
+    }
+
+    #[test]
     fn profile_fallback_and_opt_in_settings_only() {
         let mut f = Fixture::new(vec![
             reply("{inspect:{}}"),
@@ -3527,7 +3564,7 @@ mod tests {
         assert_eq!(f.chat(req.clone()).status, 200);
         assert_eq!(load_profiles(Some(&f.dir), None).unwrap()[0].hints_added, 1);
         let script = f.proxy.scripted.as_ref().unwrap().borrow();
-        assert_eq!(script.requests[0]["messages"][2]["content"], format!("{state}\n[dutchman-pilot hint] Body1 spans X 0..20, Y 0..20, Z 0..20 mm; its centre is (10, 10, 10) and its top face centre is (10, 10, 20)."));
+        assert_eq!(script.requests[0]["messages"][3]["content"], format!("{state}\n[dutchman-pilot hint] Body1 spans X 0..20, Y 0..20, Z 0..20 mm; its centre is (10, 10, 10) and its top face centre is (10, 10, 20)."));
         drop(script);
         let mut f = Fixture::new(vec![reply("Ready.")]);
         f.proxy.cfg.planner = false;

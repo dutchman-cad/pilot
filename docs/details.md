@@ -55,6 +55,20 @@ their state supports guidance; original result text is preserved. Unchanged-desi
 hints require comparable before/after states in the result or conversation history.
 Use `--no-how` and `--no-hints` independently for A/B measurements.
 
+Before the first model call, requests offering `execute` or `batch` receive a
+short box placement fact when the latest user message mentions a box, cube,
+block, plate, brick or slab and center, centre, centred, centered, middle or through.
+It shares the prompt-help system channel, appending to an existing system message
+when available. Explicit `center:[...]` / `centre:[...]` coordinates suppress it;
+an existing fact anywhere in the conversation prevents repetition across turns.
+MCP has no user conversation, so its tool list carries the same fact once in the
+`execute` description (or `batch` when `execute` is absent). Both faces audit
+`placement_fact`, add less than 400 bytes, and honour `--no-hints`.
+The 0.20 binary was checked with a 20 mm box (bbox [0,0,0] to [20,20,20]),
+a radius 5, height 20 cylinder (approximately [-5,-5,0] to [5,5,20]), and a
+radius 5 sphere ([-5,-5,-5] to [5,5,5]). Thus the sphere's centre defaults to
+the origin; the cylinder's bottom centre defaults to the origin.
+
 Plan-text recipes require `--planner` and are off by default. `--no-plan` (alias
 `--no-planner`) is accepted as a no-op alias for the default. Independent direct
 answering enables exact-match calls and measured replies by default with normal
@@ -187,7 +201,7 @@ suggestions by default; model-face plan-text recipes require `--planner`:
 | `--planner` | Enable plan-text recipe suggestions, prose conversion, continuations, and completion checks. | Not available. |
 | `--direct-recipes` | No-op alias for default exact answers with normal approval; accepts `--planner`. | Not available. |
 | `--no-direct-recipes` | Send everything to the model; conflicts with `--direct-recipes` and `--upstream none`. | Not available. |
-| `--no-hints` | Disable appended state hints in tool history. | Disable state hints and their before/after inspect probes. |
+| `--no-hints` | Disable state hints and the upfront placement fact. | Disable state hints, their inspect probes, and the placement fact in tool descriptions. |
 | `--no-how` | Disable local command discovery. | Disable the local `how` tool. |
 | `--log FILE` | JSONL rewrites, keyed by model. | Same format, keyed by `mcp`. |
 

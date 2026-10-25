@@ -281,6 +281,15 @@ fn fake_child_end_to_end() {
         let reply: Value = serde_json::from_str(&session.read()).unwrap();
         let tools = reply["result"]["tools"].as_array().unwrap();
         assert_eq!(
+            tools
+                .iter()
+                .filter(|t| t["description"]
+                    .as_str()
+                    .is_some_and(|s| s.contains(dutchman_pilot::prompting::PLACEMENT_FACT)))
+                .count(),
+            usize::from(flag != "--no-hints")
+        );
+        assert_eq!(
             tools.iter().any(|t| t["name"] == "plan"),
             flag != "--no-plan"
         );
@@ -314,6 +323,7 @@ fn fake_child_end_to_end() {
         "plan",
         "how_answer",
         "tools_list",
+        "placement_fact",
         "next_step_hint",
         "paging",
         "suggested_call",

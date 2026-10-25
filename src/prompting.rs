@@ -1,4 +1,4 @@
-//! Bounded, opt-in request help shared by the proxy and benchmark callers.
+//! Bounded request help shared by the proxy and benchmark callers.
 use crate::{catalog::Catalog, model::ModelSettings};
 use serde_json::{json, Value};
 
@@ -6,6 +6,94 @@ pub const FALLBACK: &str = "If you cannot call tools, and only then, reply with 
 const RULES: &str = "\nData about the design must come from a tool call. A message that is only a name is a search, not a request to create. When two things match, ask which one.\nAction rail:\n";
 const MAX_BLOCK_BYTES: usize = 1499;
 const MAX_RAIL_LINES: usize = 15;
+
+pub const PLACEMENT_FACT: &str = "solid.box puts its corner at the origin unless you pass center:[x,y,z]; a W×L×H box made without center has its centre at (W/2, L/2, H/2), so centre features there or pass center:[0,0,H/2]. solid.sphere defaults to the origin as centre; solid.cylinder defaults to the origin as bottom centre.";
+const PLACEMENT_MARKER: &str = "solid.box puts its corner at the origin";
+
+/// Request help shares the system channel used by prompt-help and fallback.
+pub(crate) fn append_placement_fact(body: &mut Value) -> Result<bool, String> {
+    let offered = body["tools"].as_array().is_some_and(|tools| {
+        tools
+            .iter()
+            .any(|t| matches!(t["function"]["name"].as_str(), Some("execute" | "batch")))
+    });
+    if !offered {
+        return Ok(false);
+    }
+    let messages = body["messages"]
+        .as_array_mut()
+        .ok_or("messages must be an array")?;
+    if messages.iter().any(|m| {
+        let content = &m["content"];
+        content
+            .as_str()
+            .is_some_and(|s| s.contains(PLACEMENT_MARKER))
+            || content.as_array().is_some_and(|parts| {
+                parts.iter().any(|p| {
+                    p["text"]
+                        .as_str()
+                        .is_some_and(|s| s.contains(PLACEMENT_MARKER))
+                })
+            })
+    }) {
+        return Ok(false);
+    }
+    let text = messages
+        .iter()
+        .rev()
+        .find(|m| m["role"] == "user")
+        .map_or_else(String::new, |m| message_text(&m["content"]));
+    let lowercase = text.to_lowercase();
+    let words = lowercase.split(|c: char| !c.is_alphabetic());
+    let has = |choices: &[&str]| words.clone().any(|w| choices.contains(&w));
+    let compact: String = text
+        .chars()
+        .filter(|c| !c.is_whitespace() && !matches!(c, '\'' | '"'))
+        .collect::<String>()
+        .to_lowercase();
+    if !has(&["box", "cube", "block", "plate", "brick", "slab"])
+        || !has(&[
+            "center", "centre", "centred", "centered", "middle", "through",
+        ])
+        || compact.contains("center:[")
+        || compact.contains("centre:[")
+    {
+        return Ok(false);
+    }
+    if let Some(system) = messages.iter_mut().find(|m| m["role"] == "system") {
+        if let Some(content) = system["content"].as_str() {
+            system["content"] = json!(format!("{content}\n{PLACEMENT_FACT}"));
+        } else if let Some(parts) = system["content"].as_array_mut() {
+            parts.push(json!({"type":"text","text":PLACEMENT_FACT}));
+        } else {
+            return Err("system content must be text or an array of parts".into());
+        }
+    } else {
+        messages.insert(0, json!({"role":"system","content":PLACEMENT_FACT}));
+    }
+    Ok(true)
+}
+
+/// MCP has no user conversation: offer the fact once in an action tool description.
+pub(crate) fn describe_placement(tools: &mut [Value]) -> bool {
+    if tools.iter().any(|t| {
+        t["description"]
+            .as_str()
+            .is_some_and(|s| s.contains(PLACEMENT_MARKER))
+    }) {
+        return false;
+    }
+    let index = tools
+        .iter()
+        .position(|t| t["name"] == "execute")
+        .or_else(|| tools.iter().position(|t| t["name"] == "batch"));
+    if let Some(index) = index {
+        let old = tools[index]["description"].as_str().unwrap_or("");
+        tools[index]["description"] = json!(format!("{old}\n{PLACEMENT_FACT}"));
+        return true;
+    }
+    false
+}
 
 /// One short system block. The conditional fallback shares this block when active.
 pub fn system_block(
@@ -141,6 +229,88 @@ pub fn settings_additions(
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn placement_triggers_and_explicit_coordinates() {
+        for (text, expected) in [
+            ("draw a 20mm cube with a 5mm hole through the center", true),
+            ("a centred BOX", true),
+            ("brick through middle", true),
+            ("plate with hole through", true),
+            ("block center", true),
+            ("slab centre", true),
+            ("sphere through the center", false),
+            ("draw a cube", false),
+            ("boxwood through", false),
+            ("cube centered at center: [0, 0, 10]", false),
+            ("box through with \"center\": [0,0,10]", false),
+            ("box middle with centre:[0,0,10]", false),
+        ] {
+            for tool in ["execute", "batch", "inspect"] {
+                let mut body = json!({"tools":[{"function":{"name":tool}}],
+                    "messages":[{"role":"system","content":"Existing rules."},
+                        {"role":"user","content":text}]});
+                assert_eq!(
+                    append_placement_fact(&mut body).unwrap(),
+                    expected && tool != "inspect",
+                    "{text} {tool}"
+                );
+                assert_eq!(body["messages"].as_array().unwrap().len(), 2);
+                if expected && tool != "inspect" {
+                    assert_eq!(
+                        body["messages"][0]["content"],
+                        format!("Existing rules.\n{PLACEMENT_FACT}")
+                    );
+                    let before = body.clone();
+                    assert!(!append_placement_fact(&mut body).unwrap());
+                    assert_eq!(body, before);
+                    body["messages"]
+                        .as_array_mut()
+                        .unwrap()
+                        .push(json!({"role":"user","content":"another centred cube"}));
+                    assert!(!append_placement_fact(&mut body).unwrap());
+                }
+            }
+        }
+        assert!(PLACEMENT_FACT.len() < 400);
+        let extra = PLACEMENT_FACT.split("solid.sphere").nth(1).unwrap();
+        assert!(extra.split_whitespace().count() < 25);
+    }
+
+    #[test]
+    fn placement_parts_latest_user_and_mcp_descriptions() {
+        let mut body = json!({"tools":[{"function":{"name":"batch"}}], "messages":[
+            {"role":"system","content":[{"type":"text","text":"Rules"}]},
+            {"role":"user","content":[{"type":"text","text":"cube through middle"}]}]});
+        assert!(append_placement_fact(&mut body).unwrap());
+        assert_eq!(body["messages"][0]["content"][1]["text"], PLACEMENT_FACT);
+        assert!(!append_placement_fact(&mut body).unwrap());
+        let mut parts = vec![json!({"type":"text","text":"Rules"}); 20];
+        parts.push(json!({"type":"text","text":PLACEMENT_FACT}));
+        body["messages"][0]["content"] = json!(parts);
+        assert!(!append_placement_fact(&mut body).unwrap());
+        body["messages"] = json!([{"role":"user","content":"cube through middle"},
+            {"role":"user","content":"hello"}]);
+        assert!(!append_placement_fact(&mut body).unwrap());
+        body["messages"] = json!([{"role":"user","content":"cube through middle"}]);
+        assert!(append_placement_fact(&mut body).unwrap());
+        assert_eq!(body["messages"][0]["content"], PLACEMENT_FACT);
+        for names in [vec!["batch", "execute"], vec!["batch"], vec!["inspect"]] {
+            let mut tools: Vec<_> = names
+                .iter()
+                .map(|name| json!({"name":name,"description":"Original"}))
+                .collect();
+            assert_eq!(describe_placement(&mut tools), names[0] != "inspect");
+            let expected = if names.len() == 2 { 1 } else { 0 };
+            if names[0] != "inspect" {
+                assert_eq!(
+                    tools[expected]["description"],
+                    format!("Original\n{PLACEMENT_FACT}")
+                );
+            }
+            assert!(!describe_placement(&mut tools));
+        }
+    }
 
     #[test]
     fn opt_in_short_relevant_rails_and_shared_fallback() {
