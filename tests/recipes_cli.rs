@@ -68,6 +68,100 @@ impl Session {
         }
     }
 }
+
+#[test]
+fn public_binary_contact_circle_revolute_joints() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let catalog = Catalog::bundled().unwrap();
+    let reference: Value = serde_json::from_str(include_str!(
+        "../bench/sets/v2/references/09-revolute-joint.json"
+    ))
+    .unwrap();
+    // Different sizes and an off-origin pivot exercise measured picks and translations.
+    for (scale, x, y, angle, offset) in [
+        (1., 0., 0., 45., 0.),
+        (0.5, 17., -13., 30., 0.),
+        (2.54, -23., 31., -60., 0.),
+        (1., -17., 10., 25., 0.2),
+    ] {
+        let mut session = Session::new(&path);
+        for c in &reference["commands"].as_array().unwrap()[..8] {
+            let mut params = c["params"].clone();
+            let moving = params["body_name"] == "Arm" || c["command"] == "solid.hole";
+            for key in ["length", "width", "height", "diameter"] {
+                if let Some(v) = params[key].as_f64() {
+                    params[key] = json!(v * scale);
+                }
+            }
+            for key in ["corner", "base", "position"] {
+                if let Some(v) = params[key].as_array().cloned() {
+                    params[key] = json!([
+                        v[0].as_f64().unwrap() * scale + x + if moving { offset } else { 0. },
+                        v[1].as_f64().unwrap() * scale + y,
+                        v[2].as_f64().unwrap() * scale
+                    ]);
+                }
+            }
+            session.execute(c["command"].as_str().unwrap(), params);
+        }
+        let before = session.execute("document.inspect", json!({"measure":true}));
+        let mut req = json!({"messages":[{"role":"user","content":format!("Connect Base and Arm with a revolute joint and swing Arm {angle} degrees. Keep Base fixed and Arm upright.")}],"tools":[{"function":{"name":"execute"}},{"function":{"name":"batch"}}]});
+        let mut action = None;
+        for stage in 0..3 {
+            let p = planner::plan_direct(&req, &catalog)
+                .unwrap()
+                .unwrap_or_else(|| panic!("stage {stage}: {req}"));
+            let calls:Vec<_>=p.calls.iter().enumerate().map(|(n,c)|json!({"id":format!("stage{stage}_{n}"),"function":{"name":"execute","arguments":c["arguments"].to_string()}})).collect();
+            req["messages"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({"role":"assistant","tool_calls":calls}));
+            for (n, c) in p.calls.iter().enumerate() {
+                let result = session.execute(
+                    c["arguments"]["command"].as_str().unwrap(),
+                    c["arguments"]["params"].clone(),
+                );
+                req["messages"].as_array_mut().unwrap().push(json!({"role":"tool","tool_call_id":format!("stage{stage}_{n}"),"content":result.to_string()}));
+            }
+            if p.rule == "revolute_joint" {
+                action = Some(p);
+                break;
+            }
+            assert_eq!(p.rule, "resolve_joint");
+        }
+        let p = action.unwrap();
+        assert_eq!(
+            planner::completion(&req, p.expected.as_ref().unwrap()),
+            None,
+            "{req}"
+        );
+        assert!(planner::plan_direct(&req, &catalog).unwrap().is_none());
+        let after = session.execute("document.inspect", json!({"measure":true}));
+        for body in 0..2 {
+            assert!(
+                (before["bodies"][body]["volume_mm3"].as_f64().unwrap()
+                    - after["bodies"][body]["volume_mm3"].as_f64().unwrap())
+                .abs()
+                    < 0.01
+            );
+            assert_eq!(
+                before["bodies"][body]["bbox"],
+                after["bodies"][body]["bbox"]
+            );
+            assert_eq!(after["bodies"][body]["face_types"]["cylinder"], 1);
+        }
+        let types: Vec<_> = after["timeline"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|f| f["type"].as_str())
+            .collect();
+        assert!(types.contains(&"CylinderFeature") && types.contains(&"HoleFeature"));
+        assert!((p.slots["pin_circle"][2].as_f64().unwrap() - 10. * scale).abs() < 0.001);
+    }
+}
 #[test]
 fn public_binary_l_profiles_are_closed_fully_constrained_and_extruded() {
     let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {

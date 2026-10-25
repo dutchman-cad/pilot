@@ -4,6 +4,7 @@
 
 - Build compound plates with bores, bolt circles, grids and corner rounding, and guide failed edge picks.
 - Build open shelled enclosures with optional floor thickness and joined locating lips on either wall edge.
+- Connect a hole over a pin with a verified revolute joint and angle drive, with a contact-circle hint for moved or flipped pivots.
 - Retry one upstream HTTP 500 per model turn, with audit excerpts and profile counts.
 - Build fully constrained L, T, U, C, and rectangle profiles from ordinary wording, with one closed polyline, driving dimensions, and extrusion.
 - Add upfront closed sketch guidance to model requests and MCP tool descriptions, respecting --no-hints.

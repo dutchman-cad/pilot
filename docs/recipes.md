@@ -74,6 +74,7 @@ intents are left to the model. There is no benchmark wording or task-id matching
 | Revolve rectangle | Rectangle radial `radius` and height, explicitly `from axis on XZ about Z full turn`. Other profiles, axes, offsets, and partial turns defer. |
 | Volume query | “What’s the volume”, requests mentioning volume with unit wording, or “how many cubic millimetres”. A complete measured snapshot, optionally one uniquely named body; otherwise one inspect request. A current / existing solid reference requires exactly one body. Replies use mm³ by default, or the requested cm³ / m³ / in³ / ft³ with the conversion stated. Conflicting units defer. |
 | Body count query | “How many bodies / solid bodies / parts / solids are here / in the design”, or count bodies. A complete snapshot; otherwise one inspect request. “How do I count” defers. |
+| Revolute pin joint | Inspect first (`document.inspect`, `component.list`, `joint.list`, then each body's `model.faces` / `model.edges`). Connect two named components with one cylindrical pin / hole pair on matching upright axes within 0.5 mm; pick the pin root and hole bottom contact circles, ground the pin component, use `flip:true`, optionally drive one exact angle in degrees, then verify both occurrence transforms and joint pivots with `component.list` / `joint.list`. Pin / hole diameter or radius qualifiers accept bounded metric, inch and fractional lengths. Multiple pairs, unnamed components, existing joints, nested or transformed occurrences, unclear angles, unsupported geometry and extra operations defer. |
 
 Lengths default to mm. `mm`, `cm`, `m`, `in`, `inch`, `inches`, and `"` are
 accepted, including simple fractions such as `1/4 inch`. Mixed fractions such as
@@ -198,6 +199,15 @@ responses in `tests/fixtures/inspect-single-body-0.20.json` and
 Inspect reports the edge count rather than references, so fillet and chamfer
 first request that read-only topology lookup before emitting the exact edit.
 Each edit also checks that two bodies hand back to the model without a mutation.
+
+The revolute recipe uses two bounded read-only prerequisites (`resolve_joint`) in
+both model plan mode and direct mode; missing topology never retries a lookup.
+`tests/fixtures/revolute-public-0.20.jsonl` records public MCP results from building
+the eight setup commands in `bench/sets/v2/references/09-revolute-joint.json`, then
+inspecting faces and edges and driving contact-circle picks with `flip:true`.
+The CLI test also checks scaled parts and off-origin pivots. A moved pivot or
+inverted occurrence gets one short contact-circle hint per user turn, respecting
+`--no-hints`.
 
 A fresh request fires at most one recipe. The existing `acted` check suppresses
 new recipes after an `execute` or `batch` call in that request's history, even if

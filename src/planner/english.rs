@@ -2,6 +2,46 @@
 #![allow(clippy::unwrap_used, clippy::panic)]
 use super::*;
 
+#[test]
+fn ordinary_pin_joint_requests() {
+    let c = Catalog::bundled().unwrap();
+    for text in [
+        "Connect Base and Arm with a revolute joint, then swing Arm 45 degrees.",
+        "Join Base and Arm with a pin joint and drive it to 30 degrees.",
+        "Attach Arm to Base with a hinge, then turn Arm 60 degrees.",
+        "Make Arm pivot on the pin on Base and rotate it 90 degrees.",
+        "Use a revolute joint on Base and Arm. Keep Base fixed. Swing Arm 15 degrees.",
+        "Connect the existing components with a revolute joint and drive 25 degrees.",
+        "Join the two components with a hinge and swing 70 degrees.",
+        "Add a revolute joint to Base and Arm.",
+        "Create a hinge with Base and Arm.",
+        "Connect Arm and Base with a pin joint.",
+        "Make a revolute joint with the hole on Arm over the pin on Base.",
+        "Connect Arm to Base so Arm pivots on the pin.",
+        "Join Base and Arm with a revolute joint then drive 120 deg.",
+        "Attach Arm to Base with a hinge and swing it 22.5 degrees.",
+        "Use a pin joint with Base and Arm then turn 180 degrees.",
+        "Connect Base and Arm with a revolute joint then rotate 0 degrees.",
+        "Make a hinge with Base and Arm and drive -20 degrees.",
+        "Connect Base and Arm with a revolute joint then swing 45°.",
+        "Join Arm and Base with a revolute joint. Keep Arm upright and Base stationary.",
+        "Put a hinge on Base and Arm and turn Arm 10 degrees.",
+        "Connect Base and Arm with a revolute joint. Base must not move. Arm should stay flat on top of Base. Swing Arm 35 degrees.",
+        "Use a revolute joint with Base and Arm, pin diameter 10mm and hole diameter 10.5mm, then drive 45 degrees.",
+        "Use a revolute joint with Base and Arm, pin diameter 1cm and hole diameter 1.05cm, then drive 45 degrees.",
+        "Use a revolute joint with Base and Arm, pin radius 5mm and hole radius 5.25mm, then drive 45 degrees.",
+        "Use a revolute joint with Base and Arm, pin diameter 0.3937007874 inch, then drive 45 degrees.",
+        "Please connect Base and Arm with a hinge and swing Arm 33 degrees.",
+    ] {
+        let req=cases::revolute_request(text);
+        let p=plan(&req,&c).unwrap().unwrap_or_else(|| panic!("{text}"));
+        assert_eq!(p.rule,"revolute_joint","{text}");
+        assert_eq!(p.calls[1]["arguments"]["params"]["flip"],true);
+        assert!((p.slots["pin_circle"][2].as_f64().unwrap()-10.).abs()<0.001);
+        assert!((p.slots["hole_circle"][2].as_f64().unwrap()-10.).abs()<0.001);
+    }
+}
+
 const FORMS: &[(&str, &[&str])] = &[
     ("l_profile", &[
         "Sketch an L profile 35mm wide, 55mm tall, both legs 5mm thick, then extrude 12mm.",

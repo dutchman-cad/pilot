@@ -3,6 +3,7 @@ use super::*;
 use std::f64::consts::PI;
 mod closed_profile;
 mod compound_plate;
+pub(crate) mod revolute;
 mod shell_box;
 
 #[derive(Clone, Copy)]
@@ -1734,6 +1735,7 @@ pub(super) fn select(
         _ => None,
     };
     let expected = Expected {
+        joint: None,
         feature: if let Some(fillet) = rounding_kind {
             let kind = if fillet {
                 "FilletFeature"
@@ -1861,5 +1863,8 @@ pub(super) fn resume(
 }
 
 pub(super) fn names() -> impl Iterator<Item = &'static str> {
-    LIBRARY.iter().map(|(name, _)| *name)
+    LIBRARY
+        .iter()
+        .map(|(name, _)| *name)
+        .chain(["revolute_joint"])
 }
