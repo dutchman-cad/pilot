@@ -3,6 +3,7 @@ use super::*;
 use std::f64::consts::PI;
 mod closed_profile;
 mod compound_plate;
+mod shell_box;
 
 #[derive(Clone, Copy)]
 enum Kind {
@@ -113,6 +114,7 @@ enum Slots {
         size: [f64; 3],
         wall: f64,
     },
+    ShellBox(shell_box::ShellBox),
     Revolve {
         radius: f64,
         height: f64,
@@ -265,6 +267,9 @@ fn vocabulary(kind: Kind, input: &Input<'_>) -> bool {
     }
     if matches!(kind, Kind::ClosedProfile) {
         return closed_profile::vocabulary(input);
+    }
+    if matches!(kind, Kind::Shell) {
+        return shell_box::vocabulary(input);
     }
     // Unknown conversational words are fine. Known unsupported geometry is not.
     if input.any(UNSUPPORTED) {
@@ -721,25 +726,7 @@ fn parse(kind: Kind, input: &Input<'_>) -> Option<Slots> {
         {
             holes(input)
         }
-        Kind::Shell if has("shell") && has("box") => {
-            // Explicit new box, inward wall, top removed. Other shell profiles defer.
-            if !has("top")
-                || !input.any(&["open", "remove"])
-                || input.any(&["outside", "both", "closed"])
-            {
-                return None;
-            }
-            let d = dimensions(t)?;
-            if d.len() != 4 || !positive(&d) || !labelled(t, d[3], &["wall", "thickness"]) {
-                return None;
-            }
-            let size = box_size(t, &d[..3], false)?;
-            let wall = d[3].value;
-            if wall * 2.0 >= size[0].min(size[1]) || wall >= size[2] {
-                return None;
-            }
-            Some(Slots::Shell { size, wall })
-        }
+        Kind::Shell => shell_box::parse(input),
         Kind::Sketch
             if has("extrude")
                 && input.any(&["rectangle", "circle"])
@@ -1335,6 +1322,13 @@ fn expand(slots: &Slots, catalog: &Catalog) -> Result<Expansion, String> {
             v = Some(PI * (outer_radius.powi(2) - inner_radius.powi(2)) * height);
             creates = true;
         }
+        Slots::ShellBox(shell) => {
+            for (command, params) in shell.commands() {
+                add(command, params)?;
+            }
+            v = Some(shell.volume());
+            creates = true;
+        }
         Slots::Shell { size, wall } => {
             let mut p = box_params(size);
             p["operation"] = json!("new");
@@ -1394,6 +1388,9 @@ const ACTION_FAMILIES: &[&[&str]] = &[
     &["drill", "bore", "cut"],
 ];
 fn intent_decline(input: &Input<'_>) -> Option<&'static str> {
+    if shell_box::parse(input).is_some() {
+        return None;
+    }
     // Reject multiple action families before parsing; sketch + extrude is one recipe.
     if ACTION_FAMILIES
         .iter()
@@ -1551,6 +1548,9 @@ pub(super) fn select(
             // requests either match completely or return to the model.
             continue;
         }
+        if shell_box::candidate(&input) && !matches!(kind, Kind::Shell) {
+            continue;
+        }
         // A dimensioned profile is a distinct creation intent, including when
         // its extrusion is expressed as a depth instead of an action verb.
         if closed_profile::candidate(&input)
@@ -1573,7 +1573,7 @@ pub(super) fn select(
             Kind::Sphere => &["sphere"],
             Kind::Tube => &["tube"],
             Kind::Sketch => &["rectangle", "circle"],
-            Kind::Shell => &["box"],
+            Kind::Shell => &[],
             Kind::Revolve => &["rectangle"],
             _ => &[],
         };
@@ -1632,7 +1632,11 @@ pub(super) fn select(
     // Explicit targets keep compound changes away from older overlapping bodies.
     if matches!(
         slots,
-        Slots::Holes { .. } | Slots::Tube { .. } | Slots::Shell { .. } | Slots::CompoundPlate(_)
+        Slots::Holes { .. }
+            | Slots::Tube { .. }
+            | Slots::Shell { .. }
+            | Slots::CompoundPlate(_)
+            | Slots::ShellBox(_)
     ) {
         let names: Vec<_> = data
             .and_then(|d| d["bodies"].as_array())
@@ -1655,6 +1659,14 @@ pub(super) fn select(
                 }
             } else if matches!(slots, Slots::Holes { .. } | Slots::Tube { .. }) {
                 params["targets"] = json!([created]);
+            } else if matches!(slots, Slots::ShellBox(_)) {
+                match c["arguments"]["command"].as_str().unwrap_or("") {
+                    "solid.shell" => c["arguments"]["params"]["body"] = json!(created),
+                    "solid.box" | "solid.extrude" => {
+                        c["arguments"]["params"]["targets"] = json!([created])
+                    }
+                    _ => {}
+                }
             } else {
                 params["body"] = json!(created);
             }
