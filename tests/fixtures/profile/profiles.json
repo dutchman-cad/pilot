@@ -7,6 +7,7 @@
     "native": 4, "text_written": 3, "prose": 2, "empty": 1,
     "repairs": 5, "repairs_by_kind": {"argument_repair": 3, "argument_json": 4, "argument_reconcile": 1},
     "hand_backs": 2, "provider_errors": 1, "ollama_500_recoveries": 2,
+    "provider_500_retries": 6,
     "plans_used": 3, "how_answers": 4, "hints_added": 5
   },
   "old-profile": {

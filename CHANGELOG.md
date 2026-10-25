@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Retry one upstream HTTP 500 per model turn, with audit excerpts and profile counts.
 - Add one bounded, audited box placement fact before the model's first call for
   centred-feature requests, and to MCP action tool descriptions. `--no-hints`
   disables it; existing conversation facts are not repeated.

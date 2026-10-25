@@ -95,6 +95,7 @@ pub struct Profile {
     pub repairs_by_kind: BTreeMap<String, u64>,
     pub provider_errors: u64,
     pub ollama_500_recoveries: u64,
+    pub provider_500_retries: u64,
     pub plans_used: u64,
     pub how_answers: u64,
     pub hints_added: u64,
@@ -1123,11 +1124,27 @@ impl Proxy {
                     continue;
                 }
             }
+            if upstream.status == 500 && !self.cfg.solidcraft98 && !parse_retried && attempt < 3 {
+                parse_retried = true;
+                audit.record(
+                    "provider 500 retried",
+                    &json!({"status":500,"body":String::from_utf8_lossy(&upstream.body).chars().take(300).collect::<String>()}),
+                    &json!({"retry":1}),
+                )?;
+                continue;
+            }
             if !(200..300).contains(&upstream.status) {
                 let reply = provider_error(&upstream);
+                let mut before = json!({"status":upstream.status});
+                if upstream.status == 500 {
+                    before["body"] = json!(String::from_utf8_lossy(&upstream.body)
+                        .chars()
+                        .take(300)
+                        .collect::<String>());
+                }
                 audit.record(
                     "provider_error",
-                    &json!({"status":upstream.status}),
+                    &before,
                     &serde_json::from_slice::<Value>(&reply.body)
                         .map_err(|_| "invalid internal error")?,
                 )?;
@@ -2599,6 +2616,112 @@ mod tests {
         }
     }
     #[test]
+    fn scripted_opaque_500_retries_once_and_profiles() {
+        let mut f = Fixture::new(vec![Value::Null, call("inspect", json!({}))]);
+        {
+            let mut script = f.proxy.scripted.as_ref().unwrap().borrow_mut();
+            script.replies[0].status = 500;
+            script.replies[0].body = b"opaque provider failure".to_vec();
+        }
+        let response = f.chat(request());
+        assert_eq!(response.status, 200);
+        let body: Value = serde_json::from_slice(&response.body).unwrap();
+        assert_eq!(
+            body["choices"][0]["message"]["tool_calls"][0]["function"]["name"],
+            "inspect"
+        );
+        let script = f.proxy.scripted.as_ref().unwrap().borrow();
+        assert_eq!(script.requests.len(), 2);
+        assert_eq!(script.requests[0], script.requests[1]);
+        let events: Vec<Value> = fs::read_to_string(f.dir.join("log.jsonl"))
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        let retries: Vec<_> = events
+            .iter()
+            .filter(|e| e["kind"] == "provider 500 retried")
+            .collect();
+        assert_eq!(retries.len(), 1);
+        assert_eq!(
+            retries[0]["before"],
+            json!({"status":500,"body":"opaque provider failure"})
+        );
+        assert_eq!(retries[0]["after"], json!({"retry":1}));
+        let profiles = load_profiles(Some(&f.dir), Some("unit")).unwrap();
+        assert_eq!(profiles[0].provider_500_retries, 1);
+        assert_eq!(profiles[0].provider_errors, 0);
+    }
+
+    #[test]
+    fn scripted_500_excerpts_are_lossy_and_bounded_with_one_shared_retry() {
+        for first_parse in [false, true] {
+            let mut f = Fixture::new(vec![failed_parse("bad"), Value::Null]);
+            let mut bytes = vec![0xff];
+            bytes.extend("é".repeat(350).as_bytes());
+            let excerpt = format!("�{}", "é".repeat(299));
+            {
+                let mut script = f.proxy.scripted.as_ref().unwrap().borrow_mut();
+                for response in &mut script.replies {
+                    response.status = 500;
+                }
+                if !first_parse {
+                    script.replies[0].body = bytes.clone();
+                }
+                script.replies[1].body = bytes;
+            }
+            let response = f.chat(request());
+            assert_eq!(response.status, 500);
+            let body: Value = serde_json::from_slice(&response.body).unwrap();
+            assert_eq!(body["error"]["code"], "provider_error");
+            assert_eq!(
+                f.proxy.scripted.as_ref().unwrap().borrow().requests.len(),
+                2
+            );
+            let events: Vec<Value> = fs::read_to_string(f.dir.join("log.jsonl"))
+                .unwrap()
+                .lines()
+                .map(|line| serde_json::from_str(line).unwrap())
+                .collect();
+            let retries: Vec<_> = events
+                .iter()
+                .filter(|e| e["kind"] == "provider 500 retried")
+                .collect();
+            assert_eq!(retries.len(), usize::from(!first_parse));
+            if !first_parse {
+                assert_eq!(retries[0]["before"], json!({"status":500,"body":excerpt}));
+            }
+            let errors: Vec<_> = events
+                .iter()
+                .filter(|e| e["kind"] == "provider_error")
+                .collect();
+            assert_eq!(errors.len(), 1);
+            assert_eq!(errors[0]["before"], json!({"status":500,"body":excerpt}));
+        }
+    }
+
+    #[test]
+    fn scripted_provider_retry_excludes_other_statuses_and_solidcraft98() {
+        for (status, dialect98) in [(400, false), (429, false), (503, false), (500, true)] {
+            let mut f = Fixture::new(vec![Value::Null, call("inspect", json!({}))]);
+            f.proxy.cfg.solidcraft98 = dialect98;
+            {
+                let mut script = f.proxy.scripted.as_ref().unwrap().borrow_mut();
+                script.replies[0].status = status;
+                script.replies[0].body = b"opaque provider failure".to_vec();
+            }
+            assert_eq!(f.chat(request()).status, status);
+            assert_eq!(
+                f.proxy.scripted.as_ref().unwrap().borrow().requests.len(),
+                1
+            );
+            assert!(!fs::read_to_string(f.dir.join("log.jsonl"))
+                .unwrap()
+                .contains("500 retried"));
+        }
+    }
+
+    #[test]
     fn scripted_parse_error_recovery_retry_and_refusals() {
         for stream in [false, true] {
             let mut f = Fixture::new(vec![failed_parse("{tool:'execute',args:{command:'solid.box',params:'{length:20,width:20,height:20}'}}")]);
@@ -2646,6 +2769,7 @@ mod tests {
             assert_eq!(script.requests[0], script.requests[1]);
             let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
             assert_eq!(log.matches("ollama 500 retried").count(), 1);
+            assert!(!log.contains("provider 500 retried"));
         }
         let mut f = Fixture::new(vec![failed_parse("bad"), call("inspect", json!({}))]);
         mark_errors(&f);
