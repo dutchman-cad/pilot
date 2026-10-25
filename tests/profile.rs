@@ -62,6 +62,7 @@ fn fixture_profiles_json_and_table() {
         ("hand_backs", 2),
         ("provider_errors", 1),
         ("ollama_500_recoveries", 2),
+        ("provider_500_retries", 6),
         ("plans_used", 3),
         ("how_answers", 4),
         ("hints_added", 5),
@@ -74,6 +75,7 @@ fn fixture_profiles_json_and_table() {
     assert_eq!(first["repairs_by_kind"]["argument_repair"], 3);
     assert_eq!(records[1]["native_percent"], 0.0);
     assert_eq!(records[2]["provider_errors"], 0);
+    assert_eq!(records[2]["provider_500_retries"], 0);
     assert_eq!(records[2]["repairs_by_kind"], json!({}));
     let selected = output_json(&["profile", "alpha", "--json", "--profile-dir", &dir]);
     assert_eq!(selected.as_array().unwrap().len(), 2);
@@ -92,6 +94,7 @@ fn fixture_profiles_json_and_table() {
         "20.0",
         "argument_repair=3",
         "ollama-500-recoveries",
+        "provider-500-retries",
         "plans-used",
         "how-answers",
         "hints-added",

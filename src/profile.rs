@@ -25,6 +25,7 @@ pub(crate) fn record_events(profile: &mut Profile, kinds: &BTreeMap<String, u64>
             "direct_recipe_fallback" => &mut profile.direct_recipe_fallback,
             "provider_error" => &mut profile.provider_errors,
             "ollama 500 recovered" => &mut profile.ollama_500_recoveries,
+            "provider 500 retried" => &mut profile.provider_500_retries,
             "plan" => &mut profile.plans_used,
             "how_answer" => &mut profile.how_answers,
             "next_step_hint" => &mut profile.hints_added,
@@ -93,6 +94,7 @@ pub fn profiles(dir: Option<&Path>, model: Option<&str>, json: bool) -> Result<S
             ("hand-backs", p.hand_backs.to_string()),
             ("provider-errors", p.provider_errors.to_string()),
             ("ollama-500-recoveries", p.ollama_500_recoveries.to_string()),
+            ("provider-500-retries", p.provider_500_retries.to_string()),
             ("plans-used", p.plans_used.to_string()),
             ("how-answers", p.how_answers.to_string()),
             ("hints-added", p.hints_added.to_string()),
@@ -249,6 +251,7 @@ mod tests {
             ("argument_reconcile", 3),
             ("provider_error", 1),
             ("ollama 500 recovered", 2),
+            ("provider 500 retried", 6),
             ("plan", 3),
             ("how_answer", 4),
             ("next_step_hint", 5),
@@ -260,6 +263,7 @@ mod tests {
         record_events(&mut p, &events);
         assert_eq!(p.provider_errors, u64::MAX);
         assert_eq!(p.hand_backs, 4);
+        assert_eq!(p.provider_500_retries, 6);
         assert_eq!(p.repairs_by_kind["argument_repair"], 2);
         assert_eq!(p.repairs_by_kind["argument_json"], 1);
         assert_eq!(p.repairs_by_kind["argument_reconcile"], 3);
