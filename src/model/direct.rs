@@ -37,7 +37,7 @@ fn response(
         retry_after: None,
     })
 }
-fn calls(request: &Value, plan: &planner::Plan, index: usize) -> Value {
+pub(super) fn calls(request: &Value, plan: &planner::Plan, index: usize) -> Value {
     let mut planned = plan.calls.clone();
     let batch = request["tools"]
         .as_array()

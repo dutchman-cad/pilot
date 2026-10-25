@@ -275,3 +275,26 @@ their expectations; no held-out benchmark requests are read or embedded.
 Compound plates combine a centred or corner-origin plate on XY, XZ or YZ with a centred through bore, equally spaced bolt-circle holes (diameter, radius or PCD), a centred rectangular hole grid, and fillets or chamfers on the four vertical corner edges or all edges. Sizes accept mm, cm and inches, including fractions. An unstated bolt-circle start uses +X and is disclosed in the reply. Construction creates the plate, cuts the holes, then rounds the selected edges; four-edge rounding selects only corner midpoints at half thickness. Hole tangency, overlap, plate-edge contact, corner radii at least half the smaller side, uncertain placement or unsupported wording defer to the model; holes near blends are conservatively refused. All-edge rounding includes hole rims and leaves volume verification to measured state. Edge-format and missing-edge errors receive one model-face hint per turn to use model.edges midpoints.
 
 Shell lips require positive explicit sizes and width smaller than the wall. Walls must be smaller than half the smaller planar side; wall and floor must be below the box height. Each number has exactly one role, with at most seven sizes. Unknown wording, nonprincipal directions, conflicting positions, grooves, recesses, and cuts defer. Separate floor thickness adjusts the inward shell floor without changing the specified exterior height. Centred boxes place their three-dimensional bounding-box centre at the origin before adding the lip. Existing uniform top-open shell commands remain unchanged.
+
+## Typed model shortcut
+
+The model face offers one local `pilot_build` tool when SolidCraft's native tools are
+available. It accepts a `shape` tag: `profile` (L, T, U, C, rectangle), `plate`,
+`enclosure`, or `revolute_joint`. Convert all lengths to mm before calling
+(1 in = 25.4 mm). Profiles use `thickness` or both `web_thickness` and
+`flange_thickness`; U uses web for its bottom and flange for its two sides.
+`stem_offset` is the T stem centre measured from the left edge. Profiles start
+at the sketch origin; plates use the selected plane and placement; enclosure
+centring includes Z. Hole grids and bolt circles are centred on the plate.
+`bore_diameter` sizes the centre bore; `hole_diameter` sizes pattern holes,
+while `bolt_circle.diameter` is the pitch circle diameter. Start angles default
+to zero degrees (+X). Joint names (`pin_component`, `hole_component`) are optional;
+the joint recipe inspects contact geometry first and applies optional `angle_deg`.
+
+Pilot shares the English recipes' bounds, geometry validation, catalogue checks,
+continuations and measured completion checks. The client sees real SolidCraft calls
+for approval. Invalid fields return a local tool error and allow two retries, then
+Pilot removes the shortcut for that turn and hands back to the model. Audits record
+`shortcut` and `shortcut_rejected`. Exact English matches still run first.
+`--no-shortcuts` disables the tool independently of `--no-hints` and
+`--no-direct-recipes`; the SolidCraft 98 dialect never offers it.

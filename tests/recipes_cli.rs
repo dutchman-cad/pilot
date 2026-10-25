@@ -513,3 +513,155 @@ fn public_binary_shell_lips_are_joined_rings() {
         }
     }
 }
+
+fn check_shortcut_body(
+    session: &mut Session,
+    volume: f64,
+    min: [f64; 3],
+    max: [f64; 3],
+    profile: bool,
+) {
+    let state = session.execute("document.inspect", json!({"measure":true}));
+    assert_eq!(state["bodies"].as_array().unwrap().len(), 1, "{state}");
+    let body = &state["bodies"][0];
+    assert!(
+        (body["volume_mm3"].as_f64().unwrap() - volume).abs() <= (volume.abs() * 0.001).max(0.01),
+        "{state}"
+    );
+    for axis in 0..3 {
+        assert!(
+            (body["bbox"]["min"][axis].as_f64().unwrap() - min[axis]).abs() < 0.001,
+            "{state}"
+        );
+        assert!(
+            (body["bbox"]["max"][axis].as_f64().unwrap() - max[axis]).abs() < 0.001,
+            "{state}"
+        );
+    }
+    if profile {
+        assert_eq!(state["sketches"][0]["dof"], 0, "{state}");
+    }
+}
+#[test]
+fn public_binary_typed_profile_shortcuts() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let catalog = Catalog::bundled().unwrap();
+    for plane in ["XY", "XZ", "YZ"] {
+        for (kind, area) in [
+            ("L", 201.0),
+            ("T", 201.0),
+            ("U", 282.0),
+            ("C", 312.0),
+            ("rectangle", 1200.0),
+        ] {
+            let mut args = json!({"shape":"profile","kind":kind,"plane":plane,"width":40,"height":30,"depth":12});
+            if kind != "rectangle" {
+                args["thickness"] = json!(3);
+            }
+            let p=planner::shortcut(&args,&json!({"messages":[{"role":"user","content":"Build the specified cross section"}]}),&catalog).unwrap();
+            let mut session = Session::new(&path);
+            session.run(&p);
+            let (min, max) = match plane {
+                "XZ" => ([0.0, 0.0, -30.0], [40.0, 12.0, 0.0]),
+                "YZ" => ([0.0, 0.0, 0.0], [12.0, 40.0, 30.0]),
+                _ => ([0.0; 3], [40.0, 30.0, 12.0]),
+            };
+            check_shortcut_body(&mut session, area * 12.0, min, max, true);
+        }
+    }
+}
+#[test]
+fn public_binary_typed_plate_shortcut() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let args = json!({"shape":"plate","length":80,"width":80,"thickness":8,"plane":"XY","centred":true,"bore_diameter":10,"hole_diameter":4,"bolt_circle":{"count":6,"diameter":56,"start_deg":30},"corners":{"kind":"fillet","size":5,"edges":"vertical"}});
+    let p =
+        planner::shortcut(&args, &json!({"messages":[]}), &Catalog::bundled().unwrap()).unwrap();
+    let mut s = Session::new(&path);
+    s.run(&p);
+    check_shortcut_body(
+        &mut s,
+        80.0 * 80.0 * 8.0
+            - std::f64::consts::PI * 49.0 * 8.0
+            - (4.0 - std::f64::consts::PI) * 25.0 * 8.0,
+        [-40.0, -40.0, 0.0],
+        [40.0, 40.0, 8.0],
+        false,
+    );
+}
+#[test]
+fn public_binary_typed_enclosure_shortcut() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let args = json!({"shape":"enclosure","length":80,"width":50,"height":30,"wall":2,"floor":4,"open":"bottom","centred":true,"lip":{"width":1,"height":2,"side":"inner"}});
+    let p =
+        planner::shortcut(&args, &json!({"messages":[]}), &Catalog::bundled().unwrap()).unwrap();
+    let mut s = Session::new(&path);
+    s.run(&p);
+    check_shortcut_body(
+        &mut s,
+        120000.0 - 76.0 * 46.0 * 26.0 + 496.0,
+        [-40.0, -25.0, -17.0],
+        [40.0, 25.0, 15.0],
+        false,
+    );
+}
+#[test]
+fn public_binary_typed_revolute_shortcut() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let catalog = Catalog::bundled().unwrap();
+    let reference: Value = serde_json::from_str(include_str!(
+        "../bench/sets/v2/references/09-revolute-joint.json"
+    ))
+    .unwrap();
+    let mut s = Session::new(&path);
+    for c in &reference["commands"].as_array().unwrap()[..8] {
+        s.execute(c["command"].as_str().unwrap(), c["params"].clone());
+    }
+    let before = s.execute("document.inspect", json!({"measure":true}));
+    let args = json!({"shape":"revolute_joint","pin_component":"Base","hole_component":"Arm","angle_deg":45});
+    let mut req =
+        json!({"messages":[{"role":"user","content":"Fit these two components together"}]});
+    let mut action = None;
+    for stage in 0..3 {
+        let p = planner::shortcut(&args, &req, &catalog).unwrap();
+        let calls:Vec<_>=p.calls.iter().enumerate().map(|(i,c)|json!({"id":format!("typed_{stage}_{i}"),"function":{"name":"execute","arguments":c["arguments"].to_string()}})).collect();
+        req["messages"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"role":"assistant","tool_calls":calls}));
+        for (i, c) in p.calls.iter().enumerate() {
+            let result = s.execute(
+                c["arguments"]["command"].as_str().unwrap(),
+                c["arguments"]["params"].clone(),
+            );
+            req["messages"].as_array_mut().unwrap().push(json!({"role":"tool","tool_call_id":format!("typed_{stage}_{i}"),"content":result.to_string()}));
+        }
+        if p.rule == "revolute_joint" {
+            action = Some(p);
+            break;
+        }
+        assert_eq!(p.rule, "resolve_joint");
+    }
+    let p = action.unwrap();
+    assert_eq!(
+        planner::completion(&req, p.expected.as_ref().unwrap()),
+        None
+    );
+    let after = s.execute("document.inspect", json!({"measure":true}));
+    for i in 0..2 {
+        assert_eq!(before["bodies"][i]["bbox"], after["bodies"][i]["bbox"]);
+        assert!(
+            (before["bodies"][i]["volume_mm3"].as_f64().unwrap()
+                - after["bodies"][i]["volume_mm3"].as_f64().unwrap())
+            .abs()
+                < 0.01
+        );
+    }
+}

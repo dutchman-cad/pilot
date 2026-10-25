@@ -13,6 +13,7 @@ pub(super) struct Conversation {
     pub direct_failed: bool,
     pub direct_index: usize,
     pub direct_handback: Option<String>,
+    pub shortcut_args: Option<(usize, Value)>,
     pub pending_recipe: Option<planner::Plan>,
     pub sketch_hint_index: usize,
     pub sketch_hints_seen: [bool; 2],

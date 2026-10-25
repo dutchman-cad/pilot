@@ -195,6 +195,8 @@ impl Harness {
             fallback_prompt: fallback,
             no_how: !how,
             no_hints: false,
+            // Tool injections (how and pilot_build) are tested together.
+            no_shortcuts: !how,
             planner,
             log: Some(dir.join("audit.jsonl")),
             profile_dir: Some(dir.clone()),
@@ -768,6 +770,30 @@ fn malformed_or_oversized_requests_are_rejected_before_upstream() {
 }
 
 #[test]
+fn shortcut_tool_is_offered_upstream_by_default() {
+    let h = Harness::with_dialect(
+        vec![ok(prose("Ready."))],
+        1,
+        FallbackPrompt::Off,
+        None,
+        json!({"capabilities":["tools"]}),
+        true,
+        false,
+    );
+    let (status, _, text) = h.chat(&request("hello, what can you do?"));
+    assert_eq!(status, 200, "{text}");
+    assert!(!text.contains("pilot_build"));
+    let names: Vec<String> = h.chats()[0]["tools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t["function"]["name"].as_str().unwrap_or("").to_string())
+        .collect();
+    assert!(names.iter().any(|n| n == "pilot_build"), "{names:?}");
+    h.finish();
+}
+
+#[test]
 fn default_has_no_recipe_prompt_or_prose_conversion() {
     let text = "I will make a 20 mm cube";
     let h = Harness::new(
@@ -1022,6 +1048,7 @@ fn report_capture_endpoint_and_disabled_buffer() {
             no_report_buffer: disabled,
             no_how: true,
             no_hints: true,
+            no_shortcuts: false,
             planner: true,
             direct_recipes: true,
             log: Some(dir.join("audit.jsonl")),
@@ -1095,6 +1122,7 @@ fn report_endpoint_rejects_non_loopback_peer() {
         no_report_buffer: false,
         no_how: true,
         no_hints: true,
+        no_shortcuts: false,
         planner: true,
         direct_recipes: true,
         log: Some(dir.join("audit.jsonl")),

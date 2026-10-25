@@ -5,6 +5,7 @@ mod closed_profile;
 mod compound_plate;
 pub(crate) mod revolute;
 mod shell_box;
+pub(crate) mod shortcuts;
 
 #[derive(Clone, Copy)]
 enum Kind {
@@ -1613,7 +1614,15 @@ pub(super) fn select(
     if found.len() != 1 {
         return Ok(None);
     }
-    let (mut rule, slots) = found.remove(0);
+    let (rule, slots) = found.remove(0);
+    from_slots(rule, slots, data, catalog)
+}
+fn from_slots(
+    mut rule: &'static str,
+    slots: Slots,
+    data: Option<&Value>,
+    catalog: &Catalog,
+) -> Result<Option<Plan>, String> {
     if matches!(slots, Slots::LProfile { .. }) {
         rule = "l_profile";
     }
@@ -1867,4 +1876,19 @@ pub(super) fn names() -> impl Iterator<Item = &'static str> {
         .iter()
         .map(|(name, _)| *name)
         .chain(["revolute_joint"])
+}
+
+fn positive_mm(field: &str, value: f64) -> Result<(), String> {
+    if !value.is_finite() || value <= 0.0 || value > MAX_MM {
+        return Err(format!(
+            "{field}: must be finite, positive and at most {MAX_MM} mm"
+        ));
+    }
+    Ok(())
+}
+fn valid_plane(plane: &str) -> Result<(), String> {
+    if !matches!(plane, "XY" | "XZ" | "YZ") {
+        return Err("plane: must be XY, XZ or YZ".into());
+    }
+    Ok(())
 }

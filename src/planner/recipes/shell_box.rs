@@ -3,13 +3,13 @@ use super::*;
 
 #[derive(Debug, serde::Serialize)]
 pub(super) struct ShellBox {
-    size: [f64; 3],
-    wall: f64,
-    floor: f64,
-    bottom: bool,
-    centred: bool,
-    lip: Option<[f64; 2]>,
-    outer: bool,
+    pub(super) size: [f64; 3],
+    pub(super) wall: f64,
+    pub(super) floor: f64,
+    pub(super) bottom: bool,
+    pub(super) centred: bool,
+    pub(super) lip: Option<[f64; 2]>,
+    pub(super) outer: bool,
 }
 fn lip_word(s: &str) -> bool {
     matches!(s, "lip" | "rim" | "ridge")
@@ -267,13 +267,10 @@ pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
     let wall = get(Role::Wall)?;
     let floor = get(Role::Floor).unwrap_or(wall);
     let lip = match (get(Role::Width), get(Role::Height)) {
-        (Some(w), Some(h)) if lip_start.is_some() && w < wall => Some([w, h]),
+        (Some(w), Some(h)) if lip_start.is_some() => Some([w, h]),
         (None, None) if lip_start.is_none() => None,
         _ => return None,
     };
-    if wall * 2.0 >= size[0].min(size[1]) || floor >= size[2] || wall >= size[2] {
-        return None;
-    }
     if i.has("lid") && lip.is_none() {
         return None;
     }
@@ -281,10 +278,7 @@ pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
     if outer && (lip.is_none() || i.any(&["inner", "inside"])) {
         return None;
     }
-    if !bottom && !centred && lip.is_none() && floor == wall {
-        return Some(Slots::Shell { size, wall });
-    }
-    Some(Slots::ShellBox(ShellBox {
+    ShellBox {
         size,
         wall,
         floor,
@@ -292,9 +286,43 @@ pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
         centred,
         lip,
         outer,
-    }))
+    }
+    .into_slots()
+    .ok()
 }
+
 impl ShellBox {
+    pub(super) fn into_slots(self) -> Result<Slots, String> {
+        for (field, value) in [
+            ("length", self.size[0]),
+            ("width", self.size[1]),
+            ("height", self.size[2]),
+            ("wall", self.wall),
+            ("floor", self.floor),
+        ] {
+            positive_mm(field, value)?;
+        }
+        if self.wall * 2.0 >= self.size[0].min(self.size[1]) || self.wall >= self.size[2] {
+            return Err("wall: must leave a positive interior in every dimension".into());
+        }
+        if self.floor >= self.size[2] {
+            return Err("floor: must be less than height".into());
+        }
+        if let Some([w, h]) = self.lip {
+            positive_mm("lip.width", w)?;
+            positive_mm("lip.height", h)?;
+            if w >= self.wall {
+                return Err("lip.width: must be narrower than wall".into());
+            }
+        }
+        if !self.bottom && !self.centred && self.lip.is_none() && self.floor == self.wall {
+            return Ok(Slots::Shell {
+                size: self.size,
+                wall: self.wall,
+            });
+        }
+        Ok(Slots::ShellBox(self))
+    }
     pub(super) fn volume(&self) -> f64 {
         let [x, y, z] = self.size;
         let t = self.wall;

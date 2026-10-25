@@ -28,6 +28,22 @@ pub(super) fn rejected(status: u16, body: &[u8]) -> bool {
 }
 
 fn schema(schema: &Value, depth: usize) -> String {
+    if depth > 0 {
+        if let Some(variants) = schema["oneOf"].as_array() {
+            return variants
+                .iter()
+                .take(8)
+                .map(|v| self::schema(v, depth))
+                .collect::<Vec<_>>()
+                .join(" | ");
+        }
+        if let Some(value) = schema.get("const") {
+            return value.to_string();
+        }
+        if let Some(values) = schema.get("enum") {
+            return values.to_string();
+        }
+    }
     let kind = schema["type"].as_str().unwrap_or("any");
     if depth == 0 {
         return kind.to_string();

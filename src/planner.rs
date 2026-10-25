@@ -1068,6 +1068,16 @@ fn report_input_tokens(text: &str) -> Vec<String> {
     tokens
 }
 
+/// Typed model shortcut, using the same recipe validators and expanders.
+pub fn shortcut(args: &Value, request: &Value, catalog: &Catalog) -> Result<Plan, String> {
+    repair::check_value(args)?;
+    recipes::shortcuts::build(args, request, catalog)
+}
+/// The single local model tool; never a SolidCraft tool.
+pub fn shortcut_tool() -> Value {
+    recipes::shortcuts::tool()
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {

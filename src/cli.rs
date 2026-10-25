@@ -17,7 +17,7 @@ Usage:
   {pad}       [--fallback-prompt auto|on|off] [--prompt-help] [--log FILE]
   {pad}       [--profile-dir DIR] [--model-settings [FILE]] [--seed INTEGER]
   {pad}       [--no-report-buffer] [--dialect solidcraft|solidcraft98]
-  {pad}       [--no-how] [--no-hints] [--planner] [--no-plan (alias --no-planner)]
+  {pad}       [--no-how] [--no-hints] [--no-shortcuts] [--planner] [--no-plan (alias --no-planner)]
   {binary} report [--listen ADDR] [--turn N] [--include-request] [--out FILE]
   {pad}        [--from-request FILE] [--open]
   {binary} profile [model] [--profile-dir DIR] [--json]
@@ -156,6 +156,9 @@ struct ModelArgs {
     no_how: bool,
     #[arg(long)]
     no_hints: bool,
+    /// Disable the local typed pilot_build tool.
+    #[arg(long)]
+    no_shortcuts: bool,
     /// Enable plan-text recipe suggestions, prose conversion, and completion checks.
     #[arg(long)]
     planner: bool,
@@ -314,6 +317,7 @@ pub fn run_named(cmd: Command, bin: &str) -> Result<i32, Error> {
                 prompt_help: args.prompt_help,
                 no_how: args.no_how,
                 no_hints: args.no_hints,
+                no_shortcuts: args.no_shortcuts,
                 planner: args.planner,
             })
         }
@@ -463,6 +467,19 @@ mod tests {
         Command::try_parse_from(std::iter::once("dutchman-pilot").chain(args.iter().copied()))
     }
 
+    #[test]
+    fn shortcut_flag_defaults_on_and_can_be_disabled() {
+        for (argv, disabled) in [
+            (vec!["pilot", "model"], false),
+            (vec!["pilot", "model", "--no-shortcuts"], true),
+        ] {
+            let cli = Command::try_parse_from(argv).unwrap();
+            let Some(Action::Model(args)) = cli.action else {
+                panic!("model args");
+            };
+            assert_eq!(args.no_shortcuts, disabled);
+        }
+    }
     #[test]
     fn defaults_and_all_flags() {
         let Some(Action::Model(args)) = parse(&["model"]).unwrap().action else {

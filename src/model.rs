@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 mod direct;
 mod recovery;
+mod shortcuts;
 mod text_mode;
 use recovery::Conversation;
 use std::{
@@ -44,6 +45,7 @@ pub struct Config {
     pub fallback_prompt: FallbackPrompt,
     pub no_how: bool,
     pub no_hints: bool,
+    pub no_shortcuts: bool,
     pub planner: bool,
     pub direct_recipes: bool,
     pub log: Option<PathBuf>,
@@ -224,6 +226,7 @@ impl Server {
             cfg.direct_recipes = false;
             cfg.no_how = true;
             cfg.no_hints = true;
+            cfg.no_shortcuts = true;
             cfg.prompt_help = false;
         }
         if cfg.upstream_timeout < Duration::from_secs(1)
@@ -725,7 +728,7 @@ impl Proxy {
                 json!({
                     "planner":self.cfg.planner,"direct_recipes":self.cfg.direct_recipes,
                     "fallback_prompt":format!("{:?}",self.cfg.fallback_prompt),"prompt_help":self.cfg.prompt_help,
-                    "no_how":self.cfg.no_how,"no_hints":self.cfg.no_hints,"no_report_buffer":self.cfg.no_report_buffer,
+                    "no_shortcuts":self.cfg.no_shortcuts,"no_how":self.cfg.no_how,"no_hints":self.cfg.no_hints,"no_report_buffer":self.cfg.no_report_buffer,
                     "model_settings_enabled":self.cfg.model_settings_enabled || self.cfg.model_settings.is_some(),
                     "seed":self.cfg.seed,"upstream_timeout":self.cfg.upstream_timeout.as_secs(),
                     "upstream":crate::capture::bounded(&self.cfg.upstream),"listen":self.cfg.listen.to_string(),
@@ -850,6 +853,12 @@ impl Proxy {
         deadline: Instant,
         conversation: &mut Conversation,
     ) -> Result<Reply, String> {
+        let before_strip = body.clone();
+        shortcuts::strip(&mut body);
+        let stripped = body != before_strip;
+        if stripped {
+            audit.record("shortcut_history_stripped", &before_strip, &body)?;
+        }
         let original = body.clone();
         if self.cfg.solidcraft98 {
             set_logged(
@@ -888,8 +897,22 @@ impl Proxy {
         } else {
             None
         };
+        let shortcut_active = conversation
+            .direct
+            .as_ref()
+            .is_some_and(|(i, _, _)| *i == user_index);
+        if let Some((i, args)) = &conversation.shortcut_args {
+            if *i == user_index
+                && conversation
+                    .direct
+                    .as_ref()
+                    .is_some_and(|(_, p, _)| p.rule == "resolve_joint")
+            {
+                recipe = planner::shortcut(args, &body, &self.catalog).ok();
+            }
+        }
         let mut resumed = false;
-        if (self.cfg.planner || self.cfg.direct_recipes) && recipe.is_none() {
+        if (self.cfg.planner || self.cfg.direct_recipes || shortcut_active) && recipe.is_none() {
             if let Some(pending) = &conversation.pending_recipe {
                 recipe = planner::resume(&body, pending, &self.catalog)?;
                 resumed = recipe.is_some();
@@ -898,7 +921,7 @@ impl Proxy {
         if self.cfg.direct_recipes && recipe.is_none() && !conversation.direct_failed {
             recipe = planner::inspect_for_edit(&body, &self.catalog)?;
         }
-        if self.cfg.direct_recipes {
+        if self.cfg.direct_recipes || shortcut_active {
             if let Some(reply) =
                 self.direct_turn(&original, &recipe, user_index, conversation, audit)?
             {
@@ -963,6 +986,13 @@ impl Proxy {
             }
             tools.push(json!({"type":"function","function":{"name":schema["name"],"description":schema["description"],"parameters":schema["inputSchema"]}}));
             set_logged(&mut body, "tools", json!(tools), "how_tool", audit)?;
+        }
+        let mut shortcuts_offered = !self.cfg.no_shortcuts
+            && !conversation.direct_failed
+            && !self.cfg.solidcraft98
+            && shortcuts::offer(&mut body)?;
+        if shortcuts_offered {
+            audit.record("shortcut_tool", &Value::Null, &planner::shortcut_tool())?;
         }
         let tools = body
             .get("tools")
@@ -1086,6 +1116,7 @@ impl Proxy {
         let mut how_answers = 0;
         let mut last_reason = String::new();
         let mut mode_retry = 0;
+        let mut shortcut_retries = 0;
         for wire_attempt in 0..=4 {
             let attempt = wire_attempt - mode_retry;
             if attempt > 3 {
@@ -1093,7 +1124,7 @@ impl Proxy {
             }
             let wire = if text_mode {
                 json_bytes(&text_mode::wire(&body, audit)?)?
-            } else if attempt == 0 && body == original {
+            } else if attempt == 0 && body == original && !stripped {
                 request.body.clone()
             } else {
                 json_bytes(&body)?
@@ -1187,6 +1218,66 @@ impl Proxy {
                         "upstream finish",
                         &json!({"finish_reason":choice["finish_reason"]}),
                     );
+                }
+            }
+            // Text-mode local calls need interception before ordinary call guards.
+            if let Some(choices) = response["choices"].as_array_mut() {
+                for choice in choices.iter_mut().take(8) {
+                    let message = &mut choice["message"];
+                    if message["tool_calls"]
+                        .as_array()
+                        .is_none_or(|cs| cs.is_empty())
+                        && message["content"]
+                            .as_str()
+                            .is_some_and(|s| s.contains("pilot_build"))
+                    {
+                        let mut converted = message.clone();
+                        if convert_text(
+                            &mut converted,
+                            &[planner::shortcut_tool()],
+                            &self.catalog,
+                            audit,
+                        )? && converted["tool_calls"].as_array().is_some_and(|cs| {
+                            cs.iter().any(|c| c["function"]["name"] == "pilot_build")
+                        }) {
+                            *message = converted;
+                        }
+                    }
+                }
+            }
+            if shortcuts::contains(&response) {
+                let result =
+                    shortcuts::expand(&response, &original, &self.catalog, shortcuts_offered);
+                match result {
+                    Ok((args, plan)) => {
+                        audit.record("shortcut", &args, &json!({"args":args,"rule":plan.rule}))?;
+                        conversation.shortcut_args = Some((user_index, args));
+                        if let Some(reply) = self.direct_turn(
+                            &original,
+                            &Some(plan),
+                            user_index,
+                            conversation,
+                            audit,
+                        )? {
+                            return Ok(reply);
+                        }
+                        return Err("shortcut: recipe could not emit calls".into());
+                    }
+                    Err(reason) => {
+                        audit.record("shortcut_rejected", &response, &json!({"reason":reason}))?;
+                        if attempt >= 3 || !shortcuts_offered {
+                            return direct::reply(&original, format!("pilot_build rejected: {reason}. Shortcut retry limit reached; no changes were sent."), audit.count);
+                        }
+                        if shortcut_retries >= 2 {
+                            shortcuts_offered = false;
+                            shortcuts::strip(&mut body);
+                            body["messages"].as_array_mut().ok_or("messages must be an array")?.push(json!({"role":"system","content":format!("pilot_build unavailable for this turn after two retries: {reason}. Use the real tools or explain the problem.")}));
+                            continue;
+                        }
+                        shortcut_retries += 1;
+                        shortcuts::reject(&mut body, &response, &reason)?;
+                        continue;
+                    }
                 }
             }
             let before = response.clone();
@@ -2447,6 +2538,7 @@ mod tests {
                         fallback_prompt: FallbackPrompt::Off,
                         no_how: true,
                         no_hints: false,
+                        no_shortcuts: true,
                         planner: true,
                         direct_recipes: false,
                         log: None,
@@ -2480,6 +2572,11 @@ mod tests {
                 },
                 dir,
             }
+        }
+        fn with_shortcuts(replies: Vec<Value>) -> Self {
+            let mut fixture = Self::new(replies);
+            fixture.proxy.cfg.no_shortcuts = false;
+            fixture
         }
         fn chat(&mut self, mut body: Value) -> Reply {
             body["model"] = json!("unit");
@@ -4546,13 +4643,26 @@ mod tests {
             }
             d
         };
-        for batch in [false, true] {
-            let mut f = Fixture::new(vec![]);
-            f.proxy.cfg.direct_recipes = true;
+        for (batch, shortcut) in [(false, false), (true, false), (false, true), (true, true)] {
+            let mut f = Fixture::new(if shortcut {
+                vec![call(
+                    "pilot_build",
+                    json!({"shape":"revolute_joint","pin_component":"Base","hole_component":"Arm","angle_deg":45}),
+                )]
+            } else {
+                vec![]
+            });
+            f.proxy.cfg.direct_recipes = !shortcut;
+            f.proxy.cfg.planner = !shortcut;
+            f.proxy.cfg.no_shortcuts = !shortcut;
             let mut req = planner::cases::revolute_request(
                 "Connect Base and Arm with a revolute joint then drive 45 degrees.",
             );
             req["messages"].as_array_mut().unwrap().truncate(1);
+            if shortcut {
+                req["messages"][0]["content"] = json!("Fit these components as specified.");
+                req["tools"][0] = tools()[0].clone();
+            }
             if batch {
                 req["tools"]
                     .as_array_mut()
@@ -4583,14 +4693,10 @@ mod tests {
                 .unwrap()
                 .starts_with("Exact match (no model):"));
             assert!(!response.to_string().contains("failed"), "{response}");
-            assert!(f
-                .proxy
-                .scripted
-                .as_ref()
-                .unwrap()
-                .borrow()
-                .requests
-                .is_empty());
+            assert_eq!(
+                f.proxy.scripted.as_ref().unwrap().borrow().requests.len(),
+                usize::from(shortcut)
+            );
         }
     }
 
@@ -5057,5 +5163,150 @@ mod tests {
                 "{again}"
             );
         }
+    }
+    #[test]
+    fn shortcut_turn_rewrites_real_calls_and_verifies_even_without_direct_recipes() {
+        for stream in [false, true] {
+            let a = json!({"shape":"profile","kind":"L","plane":"XY","width":40,"height":30,"thickness":3,"depth":12});
+            let mut f = Fixture::with_shortcuts(vec![call("pilot_build", a.clone())]);
+            let mut req = request();
+            req["stream"] = json!(stream);
+            let expected = planner::shortcut(&a, &req, &f.proxy.catalog).unwrap();
+            let result = f.chat(req.clone());
+            let value = if stream {
+                collect_sse(&result.body).unwrap()
+            } else {
+                serde_json::from_slice(&result.body).unwrap()
+            };
+            let message = value["choices"][0]["message"].clone();
+            assert_eq!(message["tool_calls"], direct::calls(&req, &expected, 0));
+            assert!(!message.to_string().contains("pilot_build"));
+            {
+                let script = f.proxy.scripted.as_ref().unwrap().borrow();
+                assert_eq!(
+                    script.requests[0]["tools"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .filter(|t| t["function"]["name"] == "pilot_build")
+                        .count(),
+                    1
+                );
+            }
+            req["stream"] = json!(false);
+            let calls = message["tool_calls"].as_array().unwrap().clone();
+            req["messages"].as_array_mut().unwrap().push(message);
+            for call in calls {
+                req["messages"].as_array_mut().unwrap().push(json!({"role":"tool","tool_call_id":call["id"],"content":json!({"bodies":[{"name":"New","volume_mm3":2412.0}]}).to_string()}));
+            }
+            let final_reply = f.chat(req);
+            let result: Value = serde_json::from_slice(&final_reply.body).unwrap();
+            assert!(result["choices"][0]["message"]["content"]
+                .as_str()
+                .unwrap()
+                .contains("Exact match"));
+            let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+            assert!(log.contains("\"shortcut\"") && log.contains("l_profile"));
+        }
+    }
+    #[test]
+    fn shortcut_rejection_retries_twice_then_removes_tool() {
+        let invalid = json!({"shape":"profile","kind":"L","plane":"XY","width":40,"height":30,"thickness":40,"depth":12});
+        let mut valid = invalid.clone();
+        valid["thickness"] = json!(3);
+        let mut f = Fixture::with_shortcuts(vec![
+            call("pilot_build", invalid.clone()),
+            call("pilot_build", valid),
+        ]);
+        let out = f.chat(request());
+        assert_eq!(out.status, 200);
+        let sent = f.proxy.scripted.as_ref().unwrap().borrow();
+        assert_eq!(sent.requests.len(), 2);
+        let error = sent.requests[1]["messages"]
+            .as_array()
+            .unwrap()
+            .last()
+            .unwrap();
+        assert_eq!(error["role"], "tool");
+        assert!(error["content"].as_str().unwrap().contains("web_thickness"));
+        drop(sent);
+        let mut f = Fixture::with_shortcuts(vec![
+            call("pilot_build", invalid.clone()),
+            call("pilot_build", invalid.clone()),
+            call("pilot_build", invalid),
+            reply("Please revise the wall thickness."),
+        ]);
+        let out = f.chat(request());
+        assert!(!String::from_utf8_lossy(&out.body).contains("tool_calls"));
+        let sent = f.proxy.scripted.as_ref().unwrap().borrow();
+        assert_eq!(sent.requests.len(), 4);
+        assert!(!sent.requests[3]["tools"]
+            .to_string()
+            .contains("pilot_build"));
+        assert!(!sent.requests[3]["messages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|m| m["name"] == "pilot_build"));
+        let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+        assert_eq!(log.matches("\"kind\":\"shortcut_rejected\"").count(), 3);
+    }
+    #[test]
+    fn shortcut_history_disabled_dialect_and_exact_match_guards() {
+        let mut untouched = json!({"messages":[{"role":"assistant","content":"","tool_calls":[]}]});
+        let before = untouched.clone();
+        shortcuts::strip(&mut untouched);
+        assert_eq!(untouched, before);
+        let mut req = request();
+        req["messages"] = json!([
+            {"role":"user","content":"old"},
+            {"role":"assistant","content":null,"tool_calls":[{"id":"local","function":{"name":"pilot_build","arguments":"{}"}},{"id":"real","function":{"name":"inspect","arguments":"{}"}}]},
+            {"role":"tool","tool_call_id":"local","content":"not run"},
+            {"role":"tool","tool_call_id":"real","content":"{}"},
+            {"role":"user","content":"make something"}]);
+        let mut f = Fixture::with_shortcuts(vec![reply("Need dimensions.")]);
+        f.chat(req);
+        let wire = &f.proxy.scripted.as_ref().unwrap().borrow().requests[0]["messages"];
+        assert!(!wire.to_string().contains("pilot_build"));
+        assert!(wire.to_string().contains("real"));
+        for (disabled, dialect) in [(true, false), (false, true)] {
+            let mut f = Fixture::with_shortcuts(vec![reply("Need dimensions.")]);
+            f.proxy.cfg.no_shortcuts = disabled;
+            f.proxy.cfg.solidcraft98 = dialect;
+            f.chat(request());
+            let wire = &f.proxy.scripted.as_ref().unwrap().borrow().requests[0];
+            assert!(!wire["tools"].to_string().contains("pilot_build"));
+        }
+        let mut f = Fixture::with_shortcuts(vec![]);
+        f.proxy.cfg.direct_recipes = true;
+        let mut req = request();
+        req["messages"][0]["content"] =
+            json!("Make an L profile width 40 height 30 thickness 3 extrude 12");
+        assert_eq!(f.chat(req).status, 200);
+        assert!(f
+            .proxy
+            .scripted
+            .as_ref()
+            .unwrap()
+            .borrow()
+            .requests
+            .is_empty());
+    }
+    #[test]
+    fn shortcut_text_and_mixed_calls_never_escape() {
+        let a = json!({"shape":"enclosure","length":80,"width":50,"height":30,"wall":2,"open":"top","centred":false});
+        let mut f = Fixture::with_shortcuts(vec![reply(
+            &json!({"tool":"pilot_build","args":a}).to_string(),
+        )]);
+        let out = f.chat(request());
+        assert!(!String::from_utf8_lossy(&out.body).contains("pilot_build"));
+        let mut mixed = call("pilot_build", json!({}));
+        mixed["choices"][0]["message"]["tool_calls"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"id":"other","function":{"name":"execute","arguments":"{}"}}));
+        let mut f = Fixture::with_shortcuts(vec![mixed, reply("Need dimensions.")]);
+        let out = f.chat(request());
+        assert!(!String::from_utf8_lossy(&out.body).contains("tool_calls"));
     }
 }

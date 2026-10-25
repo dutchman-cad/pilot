@@ -15,7 +15,7 @@ Usage:
                        [--fallback-prompt auto|on|off] [--prompt-help] [--log FILE]
                        [--profile-dir DIR] [--model-settings [FILE]] [--seed INTEGER]
                        [--no-report-buffer] [--dialect solidcraft|solidcraft98]
-                       [--no-how] [--no-hints] [--planner] [--no-plan (alias --no-planner)]
+                       [--no-how] [--no-hints] [--no-shortcuts] [--planner] [--no-plan (alias --no-planner)]
   dutchman-pilot report [--listen ADDR] [--turn N] [--include-request] [--out FILE]
                         [--from-request FILE] [--open]
   dutchman-pilot profile [model] [--profile-dir DIR] [--json]
@@ -75,6 +75,7 @@ Flags (including aliases):
 - `--no-plan`
 - `--no-planner`
 - `--no-report-buffer`
+- `--no-shortcuts`
 - `--open`
 - `--out`
 - `--plain`

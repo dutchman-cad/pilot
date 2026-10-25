@@ -3,16 +3,16 @@ use super::*;
 
 #[derive(Debug, serde::Serialize)]
 pub(super) struct Profile {
-    shape: String,
-    plane: String,
-    width: f64,
-    height: f64,
-    web: f64,
-    flange: f64,
-    offset: Option<f64>,
-    separate: bool,
-    centred: bool,
-    flipped: bool,
+    pub(super) shape: String,
+    pub(super) plane: String,
+    pub(super) width: f64,
+    pub(super) height: f64,
+    pub(super) web: f64,
+    pub(super) flange: f64,
+    pub(super) offset: Option<f64>,
+    pub(super) separate: bool,
+    pub(super) centred: bool,
+    pub(super) flipped: bool,
     pub(super) distance: f64,
 }
 
@@ -509,29 +509,7 @@ pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
     } else {
         None
     };
-    let invalid_wall = match shape {
-        "L" | "T" => web >= width || flange >= height,
-        "U" => web >= height || 2.0 * flange >= width,
-        "C" => web >= width || 2.0 * flange >= height,
-        _ => false,
-    };
-    if invalid_wall {
-        return None;
-    }
-    if shape == "T" && offset.is_some_and(|x| x - web / 2.0 <= 0.0 || x + web / 2.0 >= width) {
-        return None;
-    }
-    if shape == "L" {
-        return Some(Slots::LProfile {
-            plane,
-            width,
-            height,
-            horizontal: flange,
-            vertical: web,
-            distance,
-        });
-    }
-    Some(Slots::ClosedProfile(Profile {
+    Profile {
         shape: shape.into(),
         plane,
         width,
@@ -543,10 +521,60 @@ pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
         centred,
         flipped,
         distance,
-    }))
+    }
+    .into_slots()
+    .ok()
 }
 
 impl Profile {
+    pub(super) fn into_slots(self) -> Result<Slots, String> {
+        valid_plane(&self.plane)?;
+        for (field, value) in [
+            ("width", self.width),
+            ("height", self.height),
+            ("depth", self.distance),
+        ] {
+            positive_mm(field, value)?;
+        }
+        if self.shape != "R" {
+            positive_mm("web_thickness", self.web)?;
+            positive_mm("flange_thickness", self.flange)?;
+            let (web_limit, flange_limit) = match self.shape.as_str() {
+                "L" | "T" => (self.width, self.height),
+                "U" => (self.height, self.width / 2.0),
+                "C" => (self.width, self.height / 2.0),
+                _ => return Err("kind: must be L, T, U, C or rectangle".into()),
+            };
+            if self.web >= web_limit {
+                return Err("web_thickness: must be less than the side it cuts into".into());
+            }
+            if self.flange >= flange_limit {
+                return Err("flange_thickness: must leave an open interior".into());
+            }
+        }
+        if let Some(x) = self.offset {
+            if self.shape != "T"
+                || !x.is_finite()
+                || x - self.web / 2.0 <= 0.0
+                || x + self.web / 2.0 >= self.width
+            {
+                return Err(
+                    "stem_offset: T stem centre from left must keep both sides inside width".into(),
+                );
+            }
+        }
+        if self.shape == "L" {
+            return Ok(Slots::LProfile {
+                plane: self.plane,
+                width: self.width,
+                height: self.height,
+                horizontal: self.flange,
+                vertical: self.web,
+                distance: self.distance,
+            });
+        }
+        Ok(Slots::ClosedProfile(self))
+    }
     pub(super) fn area(&self) -> f64 {
         let Self {
             width: w,

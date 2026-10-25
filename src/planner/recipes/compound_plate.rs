@@ -3,10 +3,10 @@ use super::*;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub(super) struct Plate {
-    size: [f64; 3],
-    plane: String,
-    centred: bool,
-    holes: Vec<([f64; 2], f64)>,
+    pub(super) size: [f64; 3],
+    pub(super) plane: String,
+    pub(super) centred: bool,
+    pub(super) holes: Vec<([f64; 2], f64)>,
     pub(super) rounding: Option<(bool, bool, f64)>, // fillet, all edges, amount
     pub(super) default_start: bool,
 }
@@ -43,7 +43,10 @@ fn count(s: &str) -> Option<usize> {
         "twelve" => 12,
         _ => s.parse().ok()?,
     };
-    (v > 0 && v <= 64).then_some(v)
+    bounded_count(v).then_some(v)
+}
+pub(super) fn bounded_count(value: usize) -> bool {
+    (1..=64).contains(&value)
 }
 fn length(t: &[String], n: usize) -> Option<f64> {
     let v = number(t.get(n)?)? * t.get(n + 1).and_then(|s| slots::scale(s)).unwrap_or(1.0);
@@ -256,7 +259,7 @@ pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
         a.holes.extend(b.holes);
         a.rounding = b.rounding;
         a.default_start |= b.default_start;
-        return a.valid().then_some(Slots::CompoundPlate(a));
+        return a.validate().ok().map(|()| Slots::CompoundPlate(a));
     }
     let edge_start = t.iter().position(|s| {
         matches!(
@@ -309,9 +312,6 @@ pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
             return None;
         };
         let amount = length(t, *p)?;
-        if amount >= size[0].min(size[1]) / 2.0 || (all && amount >= size[2] / 2.0) {
-            return None;
-        }
         used[n..].fill(true);
         Some((
             matches!(t[n].as_str(), "fillet" | "round" | "rounded"),
@@ -509,7 +509,7 @@ pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
         rounding,
         default_start,
     };
-    plate.valid().then_some(Slots::CompoundPlate(plate))
+    plate.validate().ok().map(|()| Slots::CompoundPlate(plate))
 }
 impl Plate {
     pub(super) fn all_edges(&self, messages: &[Value], body: &str) -> Option<Vec<Value>> {
@@ -550,20 +550,45 @@ impl Plate {
         }
         (!out.is_empty()).then_some(out)
     }
-    fn valid(&self) -> bool {
+    pub(super) fn validate(&self) -> Result<(), String> {
         let Self {
             size,
             holes,
             rounding,
             ..
         } = self;
+        valid_plane(&self.plane)?;
+        for (field, value) in [
+            ("length", size[0]),
+            ("width", size[1]),
+            ("thickness", size[2]),
+        ] {
+            positive_mm(field, value)?;
+        }
+        if let Some((_, all, amount)) = rounding {
+            positive_mm("corners.size", *amount)?;
+            if *amount >= size[0].min(size[1]) / 2.0 || (*all && *amount >= size[2] / 2.0) {
+                return Err("corners.size: must be less than half the cut side".into());
+            }
+        }
+        for (p, r) in holes {
+            positive_mm("hole_diameter", 2.0 * r)?;
+            if p.iter().any(|v| !v.is_finite()) {
+                return Err("holes: positions must be finite".into());
+            }
+        }
         if holes.len() > 65 {
-            return false;
+            return Err(
+                "holes: must stay inside plate, clear corners and not overlap (maximum 65)".into(),
+            );
         }
         // Refuse tangent/overlapping holes, and conservatively keep holes out of corner blends.
         for (n, (p, r)) in holes.iter().enumerate() {
             if p[0].abs() + r >= size[0] / 2.0 || p[1].abs() + r >= size[1] / 2.0 {
-                return false;
+                return Err(
+                    "holes: must stay inside plate, clear corners and not overlap (maximum 65)"
+                        .into(),
+                );
             }
             if let Some((_, all, a)) = rounding {
                 if *all
@@ -571,20 +596,29 @@ impl Plate {
                         || p[1].abs() + r + a >= size[1] / 2.0
                         || *r <= *a)
                 {
-                    return false;
+                    return Err(
+                        "holes: must stay inside plate, clear corners and not overlap (maximum 65)"
+                            .into(),
+                    );
                 }
                 if p[0].abs() + r > size[0] / 2.0 - a && p[1].abs() + r > size[1] / 2.0 - a {
-                    return false;
+                    return Err(
+                        "holes: must stay inside plate, clear corners and not overlap (maximum 65)"
+                            .into(),
+                    );
                 }
             }
             if holes[..n]
                 .iter()
                 .any(|(q, s)| (p[0] - q[0]).hypot(p[1] - q[1]) <= r + s)
             {
-                return false;
+                return Err(
+                    "holes: must stay inside plate, clear corners and not overlap (maximum 65)"
+                        .into(),
+                );
             }
         }
-        true
+        Ok(())
     }
     fn point(&self, u: f64, v: f64, h: f64) -> [f64; 3] {
         match self.plane.as_str() {

@@ -41,7 +41,16 @@ real endpoint (`--upstream http://localhost:11434/v1`, Ollama by default; any Op
 URL; an API key is passed through from the client's Authorization header, never stored).
 
 Request side:
-- Pass the request through unchanged by default.
+- With SolidCraft tools, offer one local `pilot_build` function by default (except the
+  SolidCraft 98 dialect); `--no-shortcuts` disables it. Its `shape` union accepts typed
+  profiles, plates, enclosures and revolute joints, in mm (convert inches first).
+  Shared recipe validators and catalogue-checked expanders replace a valid call with
+  real client tools through the direct-recipe completion and measured verification path.
+  Exact English recipes still win. Reject invalid arguments inside the turn with a field
+  and rule tool error, at most two retries, then hand back with the shortcut removed.
+  Audit `shortcut` (arguments and rule) and `shortcut_rejected` (reason). Local shortcut
+  calls and results never reach SolidCraft and are stripped from returned client history.
+- Pass other request fields through unchanged unless a feature below applies.
 - `--fallback-prompt auto|on|off`: for a model that can't do native tools (detected from Ollama's
   `/api/show` capabilities, or after a turn that wrote a call as text), append ONE conditional
   block to the system prompt: "If you cannot call tools, and only then, reply with exactly one

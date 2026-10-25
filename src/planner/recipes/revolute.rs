@@ -102,7 +102,7 @@ fn angle(text: &str, names: &[&str]) -> Option<(f64, Vec<(bool, f64)>)> {
                 if n > 0 && matches!(t[n - 1].as_str(), "about" | "around") {
                     return None;
                 }
-                if !v.is_finite() || v.abs() > 360.0 {
+                if validate_angle(v).is_err() {
                     return None;
                 }
                 angles.push(v);
@@ -561,6 +561,29 @@ pub(crate) fn select(
     text: &str,
     catalog: &Catalog,
 ) -> Result<Option<Plan>, String> {
+    select_inner(request, text, catalog, None)
+}
+pub(super) fn typed(
+    request: &Value,
+    catalog: &Catalog,
+    angle: f64,
+    names: [Option<&str>; 2],
+) -> Result<Option<Plan>, String> {
+    validate_angle(angle)?;
+    select_inner(request, "", catalog, Some((angle, names)))
+}
+pub(super) fn validate_angle(value: f64) -> Result<(), String> {
+    if !value.is_finite() || value.abs() > 360.0 {
+        return Err("angle_deg: must be finite and within -360..360".into());
+    }
+    Ok(())
+}
+fn select_inner(
+    request: &Value,
+    text: &str,
+    catalog: &Catalog,
+    typed: Option<(f64, [Option<&str>; 2])>,
+) -> Result<Option<Plan>, String> {
     let Some(messages) = request["messages"].as_array() else {
         return Ok(None);
     };
@@ -608,8 +631,13 @@ pub(crate) fn select(
         .flatten()
         .collect();
     names.sort_by_key(|n| std::cmp::Reverse(n.len()));
-    let Some((angle, sizes)) = angle(text, &names) else {
-        return Ok(None);
+    let (angle, sizes) = if let Some((angle, _)) = typed {
+        (angle, Vec::new())
+    } else {
+        let Some(parsed) = angle(text, &names) else {
+            return Ok(None);
+        };
+        parsed
     };
     if data.is_empty() {
         if messages[start + 1..]
@@ -694,6 +722,30 @@ pub(crate) fn select(
     let [(base, pin, arm, hole)] = pairs.as_slice() else {
         return Ok(None);
     };
+    if let Some((_, names)) = typed {
+        for ((field, name), occurrence) in
+            [("pin_component", names[0]), ("hole_component", names[1])]
+                .into_iter()
+                .zip([base, arm])
+        {
+            if let Some(name) = name {
+                let matches = os
+                    .iter()
+                    .filter(|(c, o)| {
+                        [o["name"].as_str(), c["name"].as_str()]
+                            .into_iter()
+                            .flatten()
+                            .any(|n| n.eq_ignore_ascii_case(name))
+                    })
+                    .collect::<Vec<_>>();
+                if matches.len() != 1 || matches[0].1["id"] != occurrence["id"] {
+                    return Err(format!(
+                        "{field}: must uniquely identify the measured contact component"
+                    ));
+                }
+            }
+        }
+    }
     if sizes
         .iter()
         .any(|(p, r)| (if *p { pin.radius } else { hole.radius } - r).abs() > EPS)

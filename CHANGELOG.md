@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Let models build profiles, plates, enclosures and inspected revolute joints through one typed `pilot_build` tool; disable with `--no-shortcuts`.
+
 - Build compound plates with bores, bolt circles, grids and corner rounding, and guide failed edge picks.
 - Build open shelled enclosures with optional floor thickness and joined locating lips on either wall edge.
 - Connect a hole over a pin with a verified revolute joint and angle drive, with a contact-circle hint for moved or flipped pivots.
