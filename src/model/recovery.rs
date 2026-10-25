@@ -16,6 +16,7 @@ pub(super) struct Conversation {
     pub pending_recipe: Option<planner::Plan>,
     pub sketch_hint_index: usize,
     pub sketch_hints_seen: [bool; 2],
+    pub joint_hint_seen: bool,
 }
 impl Conversation {
     pub fn allow(&mut self, command: &str, count: usize) -> bool {

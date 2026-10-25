@@ -3,6 +3,210 @@
 use super::*;
 
 #[test]
+fn public_revolute_prompt_inspects_before_editing() {
+    let c = Catalog::bundled().unwrap();
+    let tasks: Value =
+        serde_json::from_str(include_str!("../../bench/sets/v2/tasks.json")).unwrap();
+    let task = tasks["tasks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|t| t["id"] == "09-revolute-joint")
+        .unwrap();
+    let mut req = cases::revolute_request(task["prompt"].as_str().unwrap());
+    assert_eq!(plan(&req, &c).unwrap().unwrap().rule, "revolute_joint");
+    req["messages"].as_array_mut().unwrap().truncate(1);
+    let p = plan(&req, &c).unwrap().unwrap();
+    assert_eq!(p.rule, "resolve_joint");
+    assert!(p.calls.iter().all(|c| matches!(
+        c["arguments"]["command"].as_str(),
+        Some("document.inspect" | "component.list" | "joint.list")
+    )));
+}
+
+#[test]
+fn revolute_lookup_never_retries_missing_topology() {
+    let c = Catalog::bundled().unwrap();
+    let mut req = cases::revolute_request("Connect Base and Arm with a hinge.");
+    req["messages"].as_array_mut().unwrap().retain(|m| {
+        m["role"] != "tool"
+            || serde_json::from_str::<Value>(m["content"].as_str().unwrap())
+                .unwrap()
+                .get("body")
+                .is_none()
+    });
+    let p = plan(&req, &c).unwrap().unwrap();
+    assert_eq!(p.rule, "resolve_joint");
+    req["messages"].as_array_mut().unwrap().extend([
+        json!({"role":"assistant","tool_calls":[{"id":"lookup","function":{"name":"execute","arguments":p.calls[0]["arguments"].to_string()}}]}),
+        json!({"role":"tool","tool_call_id":"lookup","content":"{}"}),
+    ]);
+    assert!(plan(&req, &c).unwrap().is_none());
+}
+
+#[cfg(feature = "proxy")]
+#[test]
+fn revolute_hints_accept_compact_occurrence_lists() {
+    for fault in 0..3 {
+        let mut req = cases::revolute_finished(
+            cases::revolute_request("Connect Base and Arm with a hinge."),
+            fault,
+        );
+        for m in req["messages"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .filter(|m| m["role"] == "tool")
+        {
+            let mut d: Value = serde_json::from_str(m["content"].as_str().unwrap()).unwrap();
+            if let Some(cs) = d.get_mut("components").and_then(Value::as_array_mut) {
+                for c in cs {
+                    c["bodies"] = json!(c["bodies"].as_array().unwrap().len());
+                    for o in c["occurrences"].as_array_mut().unwrap() {
+                        if o["transform"]
+                            == json!([
+                                [1., 0., 0., 0.],
+                                [0., 1., 0., 0.],
+                                [0., 0., 1., 0.],
+                                [0., 0., 0., 1.]
+                            ])
+                        {
+                            o.as_object_mut().unwrap().remove("transform");
+                        }
+                    }
+                }
+            }
+            m["content"] = json!(d.to_string());
+        }
+        assert_eq!(joint_hint(&req).is_some(), fault != 0);
+    }
+}
+
+#[test]
+fn revolute_verification_rejects_lift_flip_base_motion_wrong_angle_or_missing_joint() {
+    let c = Catalog::bundled().unwrap();
+    let req =
+        cases::revolute_request("Connect Base and Arm with a revolute joint and drive 45 degrees.");
+    let p = plan(&req, &c).unwrap().unwrap();
+    assert!(matches_prose(&req,&c,&p,&json!({"content":"I will connect Base and Arm with a revolute joint and drive 45 degrees."})).unwrap());
+    for fault in 0..6 {
+        let finished = cases::revolute_finished(req.clone(), fault);
+        assert_eq!(
+            completion(&finished, p.expected.as_ref().unwrap()).is_none(),
+            fault == 0,
+            "fault {fault}"
+        );
+        #[cfg(feature = "proxy")]
+        assert_eq!(
+            joint_hint(&finished).is_some(),
+            matches!(fault, 1..=3),
+            "hint fault {fault}"
+        );
+        assert!(plan(&finished, &c).unwrap().is_none());
+    }
+}
+
+#[test]
+fn revolute_refuses_ambiguous_requests_and_geometry() {
+    let c = Catalog::bundled().unwrap();
+    for text in [
+        "Connect Base and Arm with a revolute joint then swing it.",
+        "Connect Base and Arm with a hinge then drive 30 or 60 degrees.",
+        "Connect Base and Arm with a hinge then turn about 30 degrees.",
+        "Connect Base and Arm with a hinge then turn 30 radians.",
+        "Connect Base and Arm with a hinge then turn 30 mm.",
+        "Connect Base and Arm with a hinge then turn clockwise 30 degrees.",
+        "Connect Base and Arm with a hinge then drive 400 degrees.",
+        "Do not connect Base and Arm with a hinge.",
+        "Connect Base and Arm with a hinge and fillet the hole 2mm.",
+        "Connect Base and Arm with a hinge then drive 30 degrees and 60 degrees.",
+        "Connect Base and Arm with a hinge, pin diameter 9mm.",
+        "Connect Pedestal and Lever with a hinge then swing 45 degrees.",
+        "Connect Base and Arm with a hinge then turn Base 45 degrees.",
+        "Connect Base and Arm with a hinge. Keep Arm fixed and drive 45 degrees.",
+        "Connect Base and Arm with a hinge. Base must move. Drive 45 degrees.",
+    ] {
+        assert!(
+            plan(&cases::revolute_request(text), &c).unwrap().is_none(),
+            "{text}"
+        );
+    }
+    let req = cases::revolute_request(
+        "Connect Base and Arm with a revolute joint then drive 45 degrees.",
+    );
+    for change in 0..11 {
+        let mut req = req.clone();
+        for m in req["messages"].as_array_mut().unwrap().iter_mut().skip(1) {
+            let mut d: Value = serde_json::from_str(m["content"].as_str().unwrap()).unwrap();
+            let arm = d["body"] == "Arm";
+            if let Some(fs) = d.get_mut("faces").and_then(Value::as_array_mut) {
+                for f in fs.iter_mut().filter(|f| f.get("cylinder").is_some()) {
+                    match change {
+                        0 => f["cylinder"]["axis"] = json!([1, 0, 0]),
+                        1 => f["exact"] = json!(false),
+                        2 => f["cylinder"]["radius"] = json!(0),
+                        _ => (),
+                    }
+                }
+                if change == 3 {
+                    fs.clear();
+                }
+                if change == 8 && arm {
+                    let mut extra: Vec<_> = fs
+                        .iter()
+                        .filter(|f| f.get("cylinder").is_some())
+                        .cloned()
+                        .collect();
+                    for f in &mut extra {
+                        f["name"] = json!(f["name"].as_str().unwrap().replace("F8:", "F80:"));
+                        f["cylinder"]["origin"][0] =
+                            json!(f["cylinder"]["origin"][0].as_f64().unwrap() + 0.1);
+                    }
+                    fs.extend(extra);
+                }
+                if change == 9 && arm {
+                    for f in fs.iter_mut().filter(|f| f.get("cylinder").is_some()) {
+                        f["cylinder"]["origin"][0] = json!(2);
+                    }
+                }
+            }
+            if change == 8 && arm {
+                if let Some(es) = d.get_mut("edges").and_then(Value::as_array_mut) {
+                    let mut extra: Vec<_> = es
+                        .iter()
+                        .filter(|e| e["name"].as_str().unwrap().contains("F8:"))
+                        .cloned()
+                        .collect();
+                    for e in &mut extra {
+                        e["name"] = json!(e["name"].as_str().unwrap().replace("F8:", "F80:"));
+                        for key in ["start", "mid", "end"] {
+                            e[key][0] = json!(e[key][0].as_f64().unwrap() + 0.1);
+                        }
+                    }
+                    es.extend(extra);
+                }
+            }
+            if d.get("components").is_some() {
+                match change {
+                    4 => d["components"][2]["occurrences"][0]["grounded"] = json!(true),
+                    5 => d["components"][2]["name"] = json!(""),
+                    6 => d["components"][2]["occurrences"][0]["transform"][3][2] = json!(12),
+                    _ => (),
+                }
+            }
+            if change == 7 && d.get("joints").is_some() {
+                d["joints"] = json!([{"name":"Existing"}]);
+            }
+            if change == 10 {
+                d["truncated"] = json!(true);
+            }
+            m["content"] = json!(d.to_string());
+        }
+        assert!(plan(&req, &c).unwrap().is_none(), "mutation {change}");
+    }
+}
+
+#[test]
 fn l_profiles_match_public_constraints_and_exact_commands() {
     let catalog = Catalog::bundled().unwrap();
     let tasks: Value =

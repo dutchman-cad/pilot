@@ -2,6 +2,7 @@
 use super::*;
 use std::f64::consts::PI;
 mod closed_profile;
+pub(crate) mod revolute;
 
 #[derive(Clone, Copy)]
 enum Kind {
@@ -1689,6 +1690,7 @@ pub(super) fn select(
     };
     // Without a baseline, verification requests a measurement but cannot claim a total.
     let expected = Expected {
+        joint: None,
         feature: if let Slots::Edges { fillet, .. } = &slots {
             let kind = if *fillet {
                 "FilletFeature"
@@ -1798,5 +1800,8 @@ pub(super) fn resume(
 }
 
 pub(super) fn names() -> impl Iterator<Item = &'static str> {
-    LIBRARY.iter().map(|(name, _)| *name)
+    LIBRARY
+        .iter()
+        .map(|(name, _)| *name)
+        .chain(["revolute_joint"])
 }

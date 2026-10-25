@@ -1,6 +1,59 @@
 //! Original phrasings, independent of benchmark evaluation data.
 #![allow(clippy::unwrap_used, clippy::panic)]
 use super::*;
+
+pub(crate) fn revolute_request(text: &str) -> Value {
+    let mut messages = vec![json!({"role":"user","content":text})];
+    for line in include_str!("../../tests/fixtures/revolute-public-0.20.jsonl").lines() {
+        let response: Value = serde_json::from_str(line).unwrap();
+        let id = response["id"].as_u64().unwrap();
+        if (9..=14).contains(&id) {
+            messages
+                .push(json!({"role":"tool","content":response["result"]["content"][0]["text"]}));
+        }
+    }
+    messages.push(json!({"role":"tool","content":json!({"joints":[],"origins":[],"errors":[],"conflicts":[]}).to_string()}));
+    json!({"messages":messages,"tools":[{"function":{"name":"execute"}}]})
+}
+
+pub(crate) fn revolute_finished(mut req: Value, fault: usize) -> Value {
+    req["messages"].as_array_mut().unwrap().push(json!({"role":"assistant","tool_calls":[{"id":"joint","function":{"name":"execute","arguments":json!({"command":"joint.create","params":{"type":"revolute"}}).to_string()}}]}));
+    for line in include_str!("../../tests/fixtures/revolute-public-0.20.jsonl").lines() {
+        let response: Value = serde_json::from_str(line).unwrap();
+        let id = response["id"].as_u64().unwrap();
+        if [17, 18].contains(&id) {
+            let mut d: Value =
+                serde_json::from_str(response["result"]["content"][0]["text"].as_str().unwrap())
+                    .unwrap();
+            if id == 17 {
+                d["components"][1]["occurrences"][0]["grounded"] = json!(true);
+                if fault == 1 {
+                    d["components"][2]["occurrences"][0]["transform"][3][2] = json!(12);
+                }
+                if fault == 2 {
+                    d["components"][2]["occurrences"][0]["transform"][2][2] = json!(-1);
+                }
+                if fault == 3 {
+                    d["components"][1]["occurrences"][0]["transform"][3][0] = json!(5);
+                }
+            }
+            if fault == 4 && id == 18 {
+                d["joints"][0]["values"][0]["value"] = json!(30);
+            }
+            if fault == 5 && id == 18 {
+                d["joints"] = json!([]);
+            }
+            req["messages"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({"role":"tool","content":d.to_string()}));
+        }
+    }
+    // document.inspect is the final measured snapshot.
+    let inspection = req["messages"][1].clone();
+    req["messages"].as_array_mut().unwrap().push(inspection);
+    req
+}
 pub(crate) const CASES: &[(&str, &[&str])] = &[
 ("box", &[
 "build a block 17 by 23 by 6 mm", "add a plate 3×4×0.5 cm", "create a cube 1/4 inch",

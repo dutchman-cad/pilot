@@ -867,6 +867,7 @@ impl Proxy {
         if conversation.sketch_hint_index != user_index {
             conversation.sketch_hint_index = user_index;
             conversation.sketch_hints_seen = [false; 2];
+            conversation.joint_hint_seen = false;
         }
         if conversation
             .recipe
@@ -1062,6 +1063,15 @@ impl Proxy {
                 audit,
                 &mut conversation.sketch_hints_seen,
             )?;
+            if !conversation.joint_hint_seen {
+                if let Some(hint) = planner::joint_hint(&body) {
+                    if let Some(messages) = body["messages"].as_array_mut() {
+                        messages.push(json!({"role":"system","content":format!("{} {hint}",crate::identity::HINT)}));
+                        conversation.joint_hint_seen = true;
+                        audit.record("joint_contact_hint", &Value::Null, &json!(hint))?;
+                    }
+                }
+            }
         }
         let mut text_mode = profile.text_tool_mode || profile.native_support == Some(false);
         if text_mode {
@@ -4406,6 +4416,130 @@ mod tests {
                     && log.contains("direct_recipe_reply")
                     && log.contains("from_model")
             );
+        }
+    }
+
+    #[test]
+    fn direct_revolute_inspects_then_verifies_without_upstream() {
+        let recorded: Vec<Value> = include_str!("../tests/fixtures/revolute-public-0.20.jsonl")
+            .lines()
+            .map(|s| serde_json::from_str(s).unwrap())
+            .collect();
+        let result = |c: &Value, final_stage: bool| -> Value {
+            let id = match c["command"].as_str().unwrap() {
+                "document.inspect" => 9,
+                "component.list" => {
+                    if final_stage {
+                        17
+                    } else {
+                        10
+                    }
+                }
+                "joint.list" if !final_stage => {
+                    return json!({"joints":[],"origins":[],"errors":[],"conflicts":[]})
+                }
+                "joint.list" => 18,
+                "model.faces" => {
+                    if c["params"]["body"] == "Base" {
+                        11
+                    } else {
+                        13
+                    }
+                }
+                "model.edges" => {
+                    if c["params"]["body"] == "Base" {
+                        12
+                    } else {
+                        14
+                    }
+                }
+                "occurrence.ground" => return json!({}),
+                "joint.create" => 15,
+                "joint.drive" => 16,
+                other => panic!("unexpected {other}"),
+            };
+            let mut d: Value = serde_json::from_str(
+                recorded.iter().find(|v| v["id"] == id).unwrap()["result"]["content"][0]["text"]
+                    .as_str()
+                    .unwrap(),
+            )
+            .unwrap();
+            if id == 17 {
+                d["components"][1]["occurrences"][0]["grounded"] = json!(true);
+            }
+            d
+        };
+        for batch in [false, true] {
+            let mut f = Fixture::new(vec![]);
+            f.proxy.cfg.direct_recipes = true;
+            let mut req = planner::cases::revolute_request(
+                "Connect Base and Arm with a revolute joint then drive 45 degrees.",
+            );
+            req["messages"].as_array_mut().unwrap().truncate(1);
+            if batch {
+                req["tools"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(json!({"function":{"name":"batch"}}));
+            }
+            for stage in 0..3 {
+                let response: Value = serde_json::from_slice(&f.chat(req.clone()).body).unwrap();
+                let m = response["choices"][0]["message"].clone();
+                let cs = m["tool_calls"].as_array().unwrap();
+                req["messages"].as_array_mut().unwrap().push(m.clone());
+                for c in cs {
+                    let args: Value =
+                        serde_json::from_str(c["function"]["arguments"].as_str().unwrap()).unwrap();
+                    let data = if c["function"]["name"] == "batch" {
+                        json!({"ok":true,"results":args["commands"].as_array().unwrap().iter().map(|a|result(a,stage==2)).collect::<Vec<_>>()})
+                    } else {
+                        result(&args, stage == 2)
+                    };
+                    req["messages"].as_array_mut().unwrap().push(
+                        json!({"role":"tool","tool_call_id":c["id"],"content":data.to_string()}),
+                    );
+                }
+            }
+            let response: Value = serde_json::from_slice(&f.chat(req).body).unwrap();
+            assert!(response["choices"][0]["message"]["content"]
+                .as_str()
+                .unwrap()
+                .starts_with("Exact match (no model):"));
+            assert!(!response.to_string().contains("failed"), "{response}");
+            assert!(f
+                .proxy
+                .scripted
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .requests
+                .is_empty());
+        }
+    }
+
+    #[test]
+    fn joint_contact_hint_is_once_per_turn_and_respects_opt_out() {
+        for disabled in [false, true] {
+            let mut f = Fixture::new(vec![
+                reply("I will inspect the joint."),
+                reply("I will inspect the joint."),
+            ]);
+            f.proxy.cfg.direct_recipes = false;
+            f.proxy.cfg.planner = false;
+            f.proxy.cfg.no_hints = disabled;
+            let req = planner::cases::revolute_finished(
+                planner::cases::revolute_request("Connect Base and Arm with a revolute joint."),
+                1,
+            );
+            f.chat(req.clone());
+            f.chat(req);
+            let script = f.proxy.scripted.as_ref().unwrap().borrow();
+            let counts: Vec<_> = script
+                .requests
+                .iter()
+                .map(|r| r.to_string().matches("Pick the contact circles").count())
+                .collect();
+            assert_eq!(counts, if disabled { vec![0, 0] } else { vec![1, 0] });
         }
     }
     #[test]

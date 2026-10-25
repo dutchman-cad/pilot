@@ -25,6 +25,7 @@ pub struct Expected {
     pub created_volume_mm3: Option<f64>,
     pub placement: Option<Placement>,
     pub feature: Option<(String, usize)>,
+    pub joint: Option<recipes::revolute::JointExpected>,
 }
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Placement {
@@ -98,7 +99,9 @@ pub fn matches_prose(
     let Some(index) = messages.iter().rposition(|m| m["role"] == "user") else {
         return Ok(false);
     };
-    messages.truncate(index + 1);
+    if expected.rule != "revolute_joint" {
+        messages.truncate(index + 1);
+    }
     let user = &mut messages[index];
     let text = message["content"].as_str().unwrap_or("").trim();
     let lower = text.to_ascii_lowercase();
@@ -324,6 +327,11 @@ fn volume(data: &Value) -> Option<f64> {
 }
 /// Compare only a complete latest snapshot. Missing measurements request one lookup.
 pub fn completion(request: &Value, expected: &Expected) -> Option<String> {
+    if let Some(joint) = &expected.joint {
+        if let Some(reason) = joint.check(request) {
+            return Some(reason);
+        }
+    }
     let messages = request["messages"].as_array()?;
     let Some(data) = state(messages) else {
         return Some("Recipe completion is unverified: call execute document.inspect with {\"measure\":true}, then finish or explain the difference. Do not repeat accepted changes.".into());
@@ -494,6 +502,9 @@ fn plan_impl(
         || text.to_ascii_lowercase().contains("would you ");
     let normalized = slots::normalize(text);
     let text = normalized.as_str();
+    if recipes::revolute::candidate(text) {
+        return recipes::revolute::select(request, text, catalog);
+    }
     let t = intent_tokens(text);
     let has = |w: &str| t.iter().any(|s| s == w);
     let data = state(messages);
@@ -733,6 +744,10 @@ fn body_inspection(call: &Value) -> bool {
 /// Names come from the same bounded table that selects recipes.
 pub fn supported_recipes() -> Vec<&'static str> {
     recipes::names().chain(["body count", "volume"]).collect()
+}
+#[cfg(feature = "proxy")]
+pub(crate) fn joint_hint(request: &Value) -> Option<&'static str> {
+    recipes::revolute::result_hint(request).then_some(recipes::revolute::JOINT_HINT)
 }
 /// Report measured facts only after the ordinary completion check succeeds.
 pub fn direct_summary(request: &Value, plan: &Plan) -> String {
