@@ -1614,7 +1614,7 @@ pub(crate) fn tool_data(message: &Value) -> Option<Value> {
     } else {
         content.clone()
     };
-    if value.get("error").is_some()
+    if value.get("error").is_some_and(|e| !e.is_null())
         || value["isError"] == true
         || value["result"]["isError"] == true
     {
@@ -4634,6 +4634,164 @@ mod tests {
     }
 
     #[test]
+    fn real_assistant_dimensioned_profile_is_direct() {
+        let request: Value = serde_json::from_str(include_str!(
+            "../tests/fixtures/constrained-profile-assistant-0.20.json"
+        ))
+        .unwrap();
+        let mut f = Fixture::new(vec![]);
+        f.proxy.cfg.direct_recipes = true;
+        f.proxy.cfg.planner = false;
+        let response: Value = serde_json::from_slice(&f.chat(request).body).unwrap();
+        let calls = response["choices"][0]["message"]["tool_calls"]
+            .as_array()
+            .unwrap();
+        let args: Value =
+            serde_json::from_str(calls[0]["function"]["arguments"].as_str().unwrap()).unwrap();
+        let commands = args["commands"].as_array().unwrap();
+        assert_eq!(
+            commands[0],
+            json!({"command":"sketch.create","params":{"name":"L profile","plane":"XZ"}})
+        );
+        assert!(commands
+            .iter()
+            .any(|c| c["command"] == "solid.extrude" && c["params"]["distance"] == 30.));
+        assert!(commands.iter().any(|c| c["command"] == "sketch.dimension"));
+        assert!(f
+            .proxy
+            .scripted
+            .as_ref()
+            .unwrap()
+            .borrow()
+            .requests
+            .is_empty());
+    }
+
+    #[test]
+    fn real_assistant_joint_prerequisites_and_truncation() {
+        let requests: Vec<Value> = serde_json::from_str(include_str!(
+            "../tests/fixtures/revolute-assistant-0.20.json"
+        ))
+        .unwrap();
+        let mut f = Fixture::new(vec![]);
+        f.proxy.cfg.direct_recipes = true;
+        let first: Value = serde_json::from_slice(&f.chat(requests[0].clone()).body).unwrap();
+        assert_eq!(first["choices"][0]["message"], requests[1]["messages"][2]);
+        let next: Value = serde_json::from_slice(&f.chat(requests[1].clone()).body).unwrap();
+        let topology = next["choices"][0]["message"].clone();
+        let calls = topology["tool_calls"].as_array().unwrap();
+        assert_eq!(calls.len(), 4);
+        assert!(calls.iter().all(|c| c["function"]["name"] == "execute"));
+        assert_ne!(
+            calls[0]["id"],
+            requests[1]["messages"][2]["tool_calls"][0]["id"]
+        );
+
+        // Preserve the real, invalid request as evidence; never salvage partial
+        // topology in production. The new calls avoid its per-message truncation.
+        assert!(tool_data(&requests[2]["messages"][5]).is_none());
+        let mut truncated = requests[1].clone();
+        truncated["messages"]
+            .as_array_mut()
+            .unwrap()
+            .push(topology.clone());
+        for c in calls {
+            truncated["messages"].as_array_mut().unwrap().push(json!({
+                "role":"tool", "tool_call_id":c["id"],
+                "content":requests[2]["messages"][5]["content"]
+            }));
+        }
+        f.proxy.cfg.upstream = "none".into();
+        let failed = f.chat(truncated);
+        assert!(String::from_utf8(failed.body)
+            .unwrap()
+            .contains("missing or invalid"));
+
+        // The first three complete topology entries really reached Pilot. The
+        // last was cut mid-entry; use the existing public CLI recording for it.
+        let text = requests[2]["messages"][5]["content"].as_str().unwrap();
+        let mut tail = text.split_once("\"results\": [").unwrap().1;
+        let mut data = Vec::new();
+        for _ in 0..3 {
+            let mut stream = serde_json::Deserializer::from_str(tail).into_iter::<Value>();
+            data.push(stream.next().unwrap().unwrap());
+            tail = tail[stream.byte_offset()..]
+                .trim_start()
+                .strip_prefix(',')
+                .unwrap();
+        }
+        let last: Value = include_str!("../tests/fixtures/revolute-public-0.20.jsonl")
+            .lines()
+            .map(|s| serde_json::from_str::<Value>(s).unwrap())
+            .find(|v| v["id"] == 14)
+            .unwrap();
+        data.push(guidance::payload(&last));
+        for (wrapped, as_json) in [(false, false), (false, true), (true, false), (true, true)] {
+            let mut f = Fixture::new(vec![]);
+            f.proxy.cfg.direct_recipes = true;
+            f.chat(requests[0].clone());
+            f.chat(requests[1].clone());
+            let mut req = requests[1].clone();
+            req["messages"]
+                .as_array_mut()
+                .unwrap()
+                .push(topology.clone());
+            // Tool messages may arrive in reverse order; match by their ids.
+            for (c, d) in calls.iter().zip(&data).rev() {
+                let content = if wrapped {
+                    json!({"content":[{"type":"text","text":d.to_string()}],"isError":false})
+                } else {
+                    d.clone()
+                };
+                let text = serde_json::to_string_pretty(&content).unwrap();
+                assert!(text.len() < 20_000);
+                let content = if as_json { content } else { json!(text) };
+                req["messages"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(json!({"role":"tool","tool_call_id":c["id"],"content":content}));
+            }
+            let response: Value = serde_json::from_slice(&f.chat(req).body).unwrap();
+            let batch: Value = serde_json::from_str(
+                response["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"]
+                    .as_str()
+                    .unwrap(),
+            )
+            .unwrap();
+            let joint = batch["commands"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|c| c["command"] == "joint.create")
+                .unwrap();
+            assert_eq!(joint["params"]["flip"], true);
+            assert!(joint["params"]["a"]["circle"].is_array());
+            assert!(joint["params"]["b"]["circle"].is_array());
+            assert!((joint["params"]["a"]["circle"][2].as_f64().unwrap() - 10.).abs() < 0.001);
+            assert!(f
+                .proxy
+                .scripted
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .requests
+                .is_empty());
+        }
+        let mut f = Fixture::new(vec![]);
+        f.proxy.cfg.direct_recipes = true;
+        f.proxy.cfg.upstream = "none".into();
+        f.chat(requests[0].clone());
+        let mut req = requests[1].clone();
+        let mut data = tool_data(&req["messages"][3]).unwrap();
+        data["ok"] = json!(false);
+        req["messages"][3]["content"] = json!(data.to_string());
+        let response = f.chat(req);
+        assert!(String::from_utf8(response.body)
+            .unwrap()
+            .contains("missing or invalid"));
+    }
+
+    #[test]
     fn direct_revolute_inspects_then_verifies_without_upstream() {
         let recorded: Vec<Value> = include_str!("../tests/fixtures/revolute-public-0.20.jsonl")
             .lines()
@@ -4949,6 +5107,74 @@ mod tests {
         assert!(response["choices"][0]["message"]["tool_calls"].is_null());
     }
     #[test]
+    fn direct_compound_plate_reads_assistant_edge_results() {
+        for plain in [false, true] {
+            let mut f = Fixture::new(vec![]);
+            f.proxy.cfg.direct_recipes = true;
+            let mut req = planner::cases::request("Make a plate 120x100x10mm with its corner at the origin with a centred bore radius 5mm through then round all edges radius 1mm");
+            req["tools"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({"function":{"name":"batch"}}));
+            let first: Value = serde_json::from_slice(&f.chat(req.clone()).body).unwrap();
+            let message = first["choices"][0]["message"].clone();
+            let calls = message["tool_calls"].as_array().unwrap();
+            // Creation prefix followed by a separate topology lookup, as the
+            // Assistant's plain results would appear in a real request.
+            assert_eq!(calls.len(), 3);
+            let args: Value =
+                serde_json::from_str(calls[2]["function"]["arguments"].as_str().unwrap()).unwrap();
+            assert_eq!(args["command"], "model.edges");
+            let body = args["params"]["body"].clone();
+            req["messages"]
+                .as_array_mut()
+                .unwrap()
+                .push(message.clone());
+            let mids = [
+                [0., 0., 5.],
+                [120., 100., 5.],
+                [60., 0., 0.],
+                [60., 0., 10.],
+                [65., 50., 0.],
+                [65., 50., 10.],
+            ];
+            for (i, c) in calls.iter().enumerate() {
+                let data = if i == 2 {
+                    json!({"body":body,"edges":mids.iter().enumerate().map(|(index, mid)|json!({"index":index,"mid":mid})).collect::<Vec<_>>()})
+                } else {
+                    json!({"created_bodies":[body],"error":null})
+                };
+                let content = if plain {
+                    data
+                } else {
+                    json!({"content":[{"type":"text","text":data.to_string()}]})
+                };
+                req["messages"].as_array_mut().unwrap().push(
+                    json!({"role":"tool","tool_call_id":c["id"],"content":content.to_string()}),
+                );
+            }
+            let next: Value = serde_json::from_slice(&f.chat(req).body).unwrap();
+            let args: Value = serde_json::from_str(
+                next["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"]
+                    .as_str()
+                    .unwrap(),
+            )
+            .unwrap();
+            assert_eq!(args["command"], "solid.fillet");
+            assert_eq!(args["params"]["body"], body);
+            assert_eq!(args["params"]["edges"], json!(mids));
+            assert!(f
+                .proxy
+                .scripted
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .requests
+                .is_empty());
+        }
+    }
+
+    #[test]
     fn direct_natural_first_turn_edits_with_recorded_inspection() {
         let inspect: Value = serde_json::from_str(include_str!(
             "../tests/fixtures/inspect-single-body-0.20.json"
@@ -4993,7 +5219,7 @@ mod tests {
                 false,
             ),
         ] {
-            for ambiguous in [false, true] {
+            for (ambiguous, plain) in [(false, false), (true, false), (false, true), (true, true)] {
                 let mut f = Fixture::new(vec![reply("Which body should I edit?")]);
                 f.proxy.cfg.direct_recipes = true;
                 f.proxy.cfg.planner = false;
@@ -5031,6 +5257,9 @@ mod tests {
                     data["bodies"].as_array_mut().unwrap().push(second);
                     result["content"][0]["text"] = json!(data.to_string());
                 }
+                if plain {
+                    result = guidance::payload(&result);
+                }
                 req["messages"].as_array_mut().unwrap().extend([
                     message.clone(),
                     json!({"role":"tool","tool_call_id":calls[0]["id"],"content":result.to_string()}),
@@ -5062,7 +5291,7 @@ mod tests {
                     );
                     req["messages"].as_array_mut().unwrap().extend([
                         message.clone(),
-                        json!({"role":"tool","tool_call_id":calls[0]["id"],"content":topology.to_string()}),
+                        json!({"role":"tool","tool_call_id":calls[0]["id"],"content":if plain {guidance::payload(&topology).to_string()} else {topology.to_string()}}),
                     ]);
                     next = serde_json::from_slice(&f.chat(req).body).unwrap();
                 }

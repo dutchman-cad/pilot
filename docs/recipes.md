@@ -209,6 +209,25 @@ The CLI test also checks scaled parts and off-origin pivots. A moved pivot or
 inverted occurrence gets one short contact-circle hint per user turn, respecting
 `--no-hints`.
 
+`tests/fixtures/revolute-assistant-0.20.json` copies the first three public
+Assistant request bodies from the permitted v2-09 run. Unlike the CLI's JSON-RPC
+`result.content[].text` envelopes, the Assistant sends pretty-printed JSON strings
+with plain batch entries and `completed` / `ok` fields. Calls and results remain
+in order, but the two lookup stages reused one call id. The second batch string
+ends mid-entry after 20,000 characters with `…(cut)`; it cannot provide complete
+topology. Direct recipes therefore emit separate topology calls with distinct
+ids, accept either result envelope, and correlate reordered results by id. The
+regression preserves the invalid original request and uses its three complete
+topology entries plus the public CLI's final Arm edge result to exercise the
+new continuation. Truncated results still hand back without a mutation.
+
+Closed profiles also accept `fully defined`, `dimension and constrain it`, and
+an overall width expressed as `50 mm along the bottom`. Sentence punctuation and
+`then extrude it` retain their existing meaning. These forms expand to the same
+constraints and dimensions as the corresponding explicitly labelled profile.
+`tests/fixtures/constrained-profile-assistant-0.20.json` preserves the first
+request body from the permitted v2-11 run for a direct-mode regression.
+
 A fresh request fires at most one recipe. The existing `acted` check suppresses
 new recipes after an `execute` or `batch` call in that request's history, even if
 it failed. Edge recipes can first request `model.edges`, then continue that

@@ -352,6 +352,30 @@ fn missing_conflicting_and_ambiguous_slots_defer() {
 }
 
 #[test]
+fn dimensioned_bottom_span_profiles() {
+    let catalog = Catalog::bundled().unwrap();
+    let expected = plan(&cases::request("Sketch an L profile on XZ width 50mm height 40mm both legs 8mm thick then extrude 30mm"), &catalog).unwrap().unwrap();
+    for text in [
+        "Draw an L profile on XZ with its outer corner at the origin, 50mm along the bottom and 40mm high, both legs 8mm thick. Dimension it and constrain it so it is fully defined, then extrude it 30mm.",
+        "Draw an L on XZ 50mm along the bottom, 40mm high, legs 8mm thick. Fully constrain it, then extrude it 30mm.",
+        "Make a fully defined L profile on XZ 50 mm along bottom and 40 mm tall with 8 mm thick legs; extrude it 30 mm.",
+        "Create an L bracket on XZ, width 50mm height 40mm legs 8mm thick. Dimension and constrain it, then extrude 30mm.",
+        "Sketch an L on XZ 50mm wide 40mm tall both legs 8mm thick. Constrain it so it is fully defined. Extrude it 30mm.",
+        "On XZ draw an L shaped profile 50mm along the bottom, height 40mm, thickness 8mm, then pad it 30mm.",
+        "Please sketch a dimensioned L profile on XZ, 50mm along bottom, 40mm high, both legs 8mm thick, depth 30mm.",
+        "Build a closed L profile on XZ 5cm along the bottom, 4cm tall, legs 0.8cm thick. Dimension it and extrude it 3cm.",
+        "On XZ make a fully defined angle profile width 50 height 40 thickness 8 then extrude 30.",
+        "Sketch an L bracket on XZ 50 along the bottom and 40 tall with both legs 8 thick; dimension it and constrain it; then extrude it 30.",
+        "DRAW an L profile on XZ: 50mm along bottom, 40mm tall, both legs 8mm thick! Fully constrain it; extrude 30mm.",
+        "Create a fully constrained L on XZ, 50mm wide, 40mm high, 8mm thick legs, then extrude it 30mm.",
+    ] {
+        let actual = plan(&cases::request(text), &catalog).unwrap().unwrap_or_else(|| panic!("{text}"));
+        assert_eq!(actual.slots, expected.slots, "{text}");
+        assert_eq!(actual.calls, expected.calls, "{text}");
+    }
+}
+
+#[test]
 fn ordinary_closed_profile_wording() {
     let catalog = Catalog::bundled().unwrap();
     for text in [
