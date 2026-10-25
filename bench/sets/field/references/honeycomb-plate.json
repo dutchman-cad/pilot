@@ -1,0 +1,164 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "commands": [
+    {
+      "command": "solid.box",
+      "params": {
+        "body_name": "HoneycombPlate",
+        "corner": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "height": 3.0,
+        "length": 150.0,
+        "operation": "new",
+        "width": 300.0
+      }
+    },
+    {
+      "command": "sketch.create",
+      "params": {
+        "name": "HoneycombSeed0",
+        "plane": {
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "x_dir": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "y_dir": [
+            0.0,
+            1.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
+      "command": "sketch.polygon.inscribed",
+      "params": {
+        "angle": 30,
+        "center": [
+          9.125,
+          10.136897288813167
+        ],
+        "radius": 4.041451884327381,
+        "sides": 6
+      }
+    },
+    {
+      "command": "sketch.finish",
+      "params": {}
+    },
+    {
+      "command": "solid.extrude",
+      "params": {
+        "name": "HoneycombCut0",
+        "operation": "cut",
+        "targets": [
+          "HoneycombPlate"
+        ],
+        "through_all": true
+      }
+    },
+    {
+      "command": "solid.pattern.rectangular",
+      "params": {
+        "count1": 16,
+        "count2": 20,
+        "dir1": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "dir2": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "features": [
+          "HoneycombCut0"
+        ],
+        "spacing1": 8.5,
+        "spacing2": 14.722431864335457
+      }
+    },
+    {
+      "command": "sketch.create",
+      "params": {
+        "name": "HoneycombSeed1",
+        "plane": {
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "x_dir": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "y_dir": [
+            0.0,
+            1.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
+      "command": "sketch.polygon.inscribed",
+      "params": {
+        "angle": 30,
+        "center": [
+          13.375,
+          17.498113220980894
+        ],
+        "radius": 4.041451884327381,
+        "sides": 6
+      }
+    },
+    {
+      "command": "sketch.finish",
+      "params": {}
+    },
+    {
+      "command": "solid.extrude",
+      "params": {
+        "name": "HoneycombCut1",
+        "operation": "cut",
+        "targets": [
+          "HoneycombPlate"
+        ],
+        "through_all": true
+      }
+    },
+    {
+      "command": "solid.pattern.rectangular",
+      "params": {
+        "count1": 16,
+        "count2": 19,
+        "dir1": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "dir2": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "features": [
+          "HoneycombCut1"
+        ],
+        "spacing1": 8.5,
+        "spacing2": 14.722431864335457
+      }
+    }
+  ]
+}

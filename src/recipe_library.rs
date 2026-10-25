@@ -9,6 +9,7 @@ pub const BUILD_DESCRIPTION: &str = "Build a recipe found with pilot_find: suppl
 pub const HIT_THRESHOLD: f64 = 1.8;
 pub const IDS: &[&str] = &[
     "cross_drilled_box",
+    "honeycomb_pattern",
     "linear_pattern",
     "grid_pattern",
     "circular_pattern",
@@ -130,6 +131,9 @@ fn shared(s: &mut Value) {
 pub fn schema(id: &str) -> Result<Value, String> {
     if id == "cross_drilled_box" {
         return Ok(planner::cross_drilled_schema());
+    }
+    if id == "honeycomb_pattern" {
+        return Ok(planner::honeycomb_schema());
     }
     if id.ends_with("_pattern") {
         return planner::pattern_schema(id);

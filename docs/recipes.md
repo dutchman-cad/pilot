@@ -468,3 +468,30 @@ planes created during the turn get one cleanup hint before finishing.
 `--no-hints` disables the facts and both hints. The public CLI smoke test
 checks all mappings and extrusion normals, hole volume/bounds/round faces,
 and the absence of auxiliary timeline features.
+
+### Honeycomb through cuts
+
+`pilot_find` retrieves `honeycomb_pattern` for a honeycomb or staggered hexagonal
+plate. `pilot_build` takes `length`, `width`, `thickness`, `size`, `size_kind`
+(`across_flats` or `across_corners`), `web` and `border`, in mm. Optional slots:
+`plane` (XY default, XZ, YZ), `centred` (false), `orientation` (`pointy_top`
+default or `flat_top`), and `mode` (`fill` default or `exact`). Exact mode needs
+`rows` and `columns`; fill rejects explicit counts. See the
+[recipe](../recipes/honeycomb_pattern.md) for the full placement contract.
+
+Tidy English forms put plate dimensions first, then hex size, spacing and border:
+“Make a plate 120x180mm thickness 3mm with a honeycomb pattern 8mm AF spacing
+2mm border 5mm.” Also accepted: edge to edge, flat to flat, width, point to
+point and corner to corner. Add `on XZ`, `centred`, `flat-top`, or
+`exact 3 rows 4 columns`. Missing or ambiguous dimensions, extra operations,
+nonpositive web, no complete fitting hex or more than 5000 cuts defer.
+
+AF + web is centre pitch; row pitch is (AF + web) × sqrt(3)/2, with half-pitch
+odd rows. Pointy-top columns run along local X; flat-top rotates the lattice.
+Only complete hexes within the minimum border survive, and the whole field is
+centred within the plate footprint. Across-corners converts to AF by sqrt(3)/2.
+The footprint corner starts at the origin unless centred; thickness extends
+along +Z (XY), -Y (XZ), or +X (YZ). At most two seed cuts and two feature patterns
+produce one body, with no per-hex tool calls. Completion checks measured volume
+and bounds. The CLI integration test independently reconstructs finished hex
+loops to verify count, minimum web and border.

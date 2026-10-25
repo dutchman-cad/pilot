@@ -271,6 +271,9 @@ fn sample(id: &str) -> Value {
         "cross_drilled_box" => {
             json!({"length":24,"width":30,"height":36,"holes":[{"axis":"X","diameter":6},{"axis":"Y","diameter":6},{"axis":"Z","diameter":6}]})
         }
+        "honeycomb_pattern" => {
+            json!({"length":150,"width":300,"thickness":3,"size":7,"size_kind":"across_flats","web":1.5,"border":4})
+        }
         "linear_pattern" => json!({"target":"body","count":5,"spacing":10,"direction":"X"}),
         "grid_pattern" => {
             json!({"target":"body","rows":3,"columns":4,"spacing1":10,"spacing2":10,"plane":"XY"})

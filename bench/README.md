@@ -37,7 +37,7 @@ with the original replay, so migration differences identify the affected task.
 
 | Set | Tasks | Measures |
 | --- | ---: | --- |
-| field | 1 | Verbatim user field reports; centred cube hole placement |
+| field | 2 | Verbatim user field reports; centred cube hole placement and honeycomb plate cuts |
 | v1 | 11 | Primitives, sketch/extrude, holes, fillets, moving, naming, measurement and making a change |
 | v2 | 12 | More involved geometry, parameter edits, patterns, selected edges, threads, assemblies, constrained sketches and measurement |
 | v3 | 40 | Solid builds/edits, sheet metal and honest refusals; a selected subset, with no claimed difficulty calibration |

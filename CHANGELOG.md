@@ -4,6 +4,7 @@
 
 - Map sketch planes to world axes with audited hints, flag unused construction planes, and build cross-drilled boxes with world-space through holes.
 - Trim older upstream tool history by default, preserve recipe evidence, and audit per-request character sizes with profile mean/max; opt out with `--no-trim`.
+- Cut staggered honeycomb plates in one recipe, with across-flats/corners sizing, bounded fill or exact counts, web and border, and measured public CLI verification.
 
 - Build linear, grid and circular body or last-feature patterns through typed recipes, with overlap guards, measured verification and a deduplicated repeated-copy hint.
 

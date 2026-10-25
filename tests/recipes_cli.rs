@@ -180,7 +180,7 @@ impl Session {
         self.input.flush().unwrap();
         let mut line = String::new();
         self.output.read_line(&mut line).unwrap();
-        assert!(line.len() < 4 * 1024 * 1024);
+        assert!(line.len() < 16 * 1024 * 1024);
         let response: Value = serde_json::from_str(&line).unwrap();
         assert!(response.get("error").is_none(), "{command}: {response}");
         assert_ne!(response["result"]["isError"], true, "{command}: {response}");
@@ -1018,5 +1018,246 @@ fn public_binary_linear_pattern_total_length_and_edge_direction() {
     assert_eq!(
         planner::completion(&measured, p.expected.as_ref().unwrap()),
         None
+    );
+}
+
+// Reconstruct the cut loops from the public B-rep edges, independently of recipe slots.
+fn honeycomb_loops(s: &mut Session, plane: &str, base: f64, radius: f64) -> Vec<Vec<[f64; 2]>> {
+    let result = s.execute("model.edges", json!({"body":"HoneycombPlate"}));
+    let (u, v, n) = match plane {
+        "XZ" => (0, 2, 1),
+        "YZ" => (1, 2, 0),
+        _ => (0, 1, 2),
+    };
+    let mut edges: Vec<([f64; 2], [f64; 2])> = result["edges"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|e| {
+            let a = &e["start"];
+            let b = &e["end"];
+            if (a[n].as_f64()? - base).abs() > 1e-6
+                || (b[n].as_f64()? - base).abs() > 1e-6
+                || (e["length"].as_f64()? - radius).abs() > 1e-6
+            {
+                return None;
+            }
+            Some((
+                [a[u].as_f64()?, a[v].as_f64()?],
+                [b[u].as_f64()?, b[v].as_f64()?],
+            ))
+        })
+        .collect();
+    let close = |a: [f64; 2], b: [f64; 2]| (a[0] - b[0]).hypot(a[1] - b[1]) < 1e-6;
+    let mut loops = Vec::new();
+    while let Some((a, b)) = edges.pop() {
+        let mut points = vec![a, b];
+        while !close(*points.last().unwrap(), a) {
+            let end = *points.last().unwrap();
+            let i = edges
+                .iter()
+                .position(|(a, b)| close(*a, end) || close(*b, end))
+                .unwrap();
+            let (a, b) = edges.swap_remove(i);
+            points.push(if close(a, end) { b } else { a });
+            assert!(points.len() <= 7);
+        }
+        points.pop();
+        assert_eq!(points.len(), 6);
+        loops.push(points);
+    }
+    loops
+}
+fn point_segment(p: [f64; 2], a: [f64; 2], b: [f64; 2]) -> f64 {
+    let d = [b[0] - a[0], b[1] - a[1]];
+    let t =
+        (((p[0] - a[0]) * d[0] + (p[1] - a[1]) * d[1]) / (d[0] * d[0] + d[1] * d[1])).clamp(0., 1.);
+    (p[0] - a[0] - t * d[0]).hypot(p[1] - a[1] - t * d[1])
+}
+fn measured_honeycomb_clearances(
+    loops: &[Vec<[f64; 2]>],
+    length: f64,
+    width: f64,
+    offset: [f64; 2],
+    pitch: f64,
+) -> (f64, f64) {
+    let border = loops
+        .iter()
+        .flatten()
+        .map(|p| {
+            (p[0] - offset[0])
+                .min(length + offset[0] - p[0])
+                .min(p[1] - offset[1])
+                .min(width + offset[1] - p[1])
+        })
+        .fold(f64::INFINITY, f64::min);
+    let centers: Vec<[f64; 2]> = loops
+        .iter()
+        .map(|p| {
+            [
+                p.iter().map(|v| v[0]).sum::<f64>() / 6.,
+                p.iter().map(|v| v[1]).sum::<f64>() / 6.,
+            ]
+        })
+        .collect();
+    let mut web = f64::INFINITY;
+    for (i, a) in loops.iter().enumerate() {
+        for (j, b) in loops.iter().enumerate().skip(i + 1) {
+            if (centers[i][0] - centers[j][0]).hypot(centers[i][1] - centers[j][1]) > pitch * 1.1 {
+                continue;
+            }
+            for k in 0..6 {
+                for l in 0..6 {
+                    web = web
+                        .min(point_segment(a[k], b[l], b[(l + 1) % 6]))
+                        .min(point_segment(b[l], a[k], a[(k + 1) % 6]));
+                }
+            }
+        }
+    }
+    (web, border)
+}
+#[test]
+fn public_binary_honeycomb_recipe() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let cat = Catalog::bundled().unwrap();
+    let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    for (plane, flat, centred, fill) in [
+        ("XY", false, false, true),
+        ("XY", true, true, false),
+        ("XZ", false, true, false),
+        ("XZ", true, false, false),
+        ("YZ", false, false, false),
+        ("YZ", true, true, false),
+    ] {
+        let mut args = json!({"length":if fill{150}else{60},"width":if fill{300}else{50},"thickness":3,"size":7,"size_kind":"across_flats","web":1.5,"border":4,"plane":plane,"orientation":if flat{"flat_top"}else{"pointy_top"},"centred":centred});
+        if !fill {
+            args["mode"] = json!("exact");
+            args["rows"] = json!(3);
+            args["columns"] = json!(4);
+        }
+        let p = lib
+            .build(
+                &json!({"recipe":"honeycomb_pattern","args":args}),
+                &json!({"messages":[]}),
+                &cat,
+            )
+            .unwrap();
+        let mut s = Session::new(&path);
+        s.run(&p);
+        let state = s.execute("document.inspect", json!({"measure":true}));
+        let count = if fill { 624 } else { 12 };
+        let length = args["length"].as_f64().unwrap();
+        let width = args["width"].as_f64().unwrap();
+        assert_eq!(state["bodies"].as_array().unwrap().len(), 1, "{state}");
+        let volume = length * width * 3. - count as f64 * 3_f64.sqrt() / 2. * 49. * 3.;
+        assert!(
+            (state["bodies"][0]["volume_mm3"].as_f64().unwrap() - volume).abs() < 0.01,
+            "{state}"
+        );
+        assert_eq!(state["bodies"][0]["faces"].as_u64().unwrap(), 6 + 6 * count);
+        let measured = json!({"messages":[{"role":"tool","content":state.to_string()}]});
+        assert_eq!(
+            planner::completion(&measured, p.expected.as_ref().unwrap()),
+            None
+        );
+        let loops = honeycomb_loops(&mut s, plane, 0., 7. / 3_f64.sqrt());
+        assert_eq!(loops.len(), count as usize);
+        let offset = if centred {
+            [-length / 2., -width / 2.]
+        } else {
+            [0., 0.]
+        };
+        let (web, border) = measured_honeycomb_clearances(&loops, length, width, offset, 8.5);
+        assert!((web - 1.5).abs() < 1e-6, "{plane} {flat}: web {web}");
+        assert!(border >= 4. - 1e-6, "border {border}");
+        if fill {
+            assert!((border - 5.625).abs() < 1e-6);
+        }
+        eprintln!("Honeycomb {plane} flat={flat}: {count} cuts, volume {volume:.9}, measured web {web:.9}, border {border:.9}");
+    }
+}
+
+#[test]
+fn public_binary_honeycomb_single_axes_and_fill_clipping() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let cat = Catalog::bundled().unwrap();
+    let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    for (rows, cols, length, width, count) in [
+        (1, 1, 60., 50., 1),
+        (1, 4, 60., 50., 4),
+        (4, 1, 60., 50., 4),
+        (0, 0, 33., 50., 13),
+        (0, 0, 15., 50., 3),
+    ] {
+        let mut a = json!({"length":length,"width":width,"thickness":3,"size":14./3_f64.sqrt(),"size_kind":"across_corners","web":1.5,"border":4});
+        if rows > 0 {
+            a["mode"] = json!("exact");
+            a["rows"] = json!(rows);
+            a["columns"] = json!(cols);
+        }
+        let p = lib
+            .build(
+                &json!({"recipe":"honeycomb_pattern","args":a}),
+                &json!({"messages":[]}),
+                &cat,
+            )
+            .unwrap();
+        let mut s = Session::new(&path);
+        s.run(&p);
+        let state = s.execute("document.inspect", json!({"measure":true}));
+        assert_eq!(state["bodies"].as_array().unwrap().len(), 1);
+        let volume = length * width * 3. - count as f64 * 3_f64.sqrt() / 2. * 49. * 3.;
+        assert!(
+            (state["bodies"][0]["volume_mm3"].as_f64().unwrap() - volume).abs() < 0.01,
+            "{state}"
+        );
+        assert_eq!(
+            honeycomb_loops(&mut s, "XY", 0., 7. / 3_f64.sqrt()).len(),
+            count
+        );
+        assert!(p.calls.len() <= 12);
+    }
+}
+
+#[test]
+fn honeycomb_field_reference_matches_exact_recipe() {
+    let tasks: Value =
+        serde_json::from_str(include_str!("../bench/sets/field/tasks.json")).unwrap();
+    let task = tasks["tasks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|t| t["id"] == "honeycomb-plate")
+        .unwrap();
+    let reference: Value = serde_json::from_str(include_str!(
+        "../bench/sets/field/references/honeycomb-plate.json"
+    ))
+    .unwrap();
+    let req = json!({"messages":[{"role":"user","content":task["prompt"]}],"tools":[{"function":{"name":"execute"}}]});
+    let p = planner::plan(&req, &Catalog::bundled().unwrap())
+        .unwrap()
+        .unwrap();
+    let commands: Vec<_> = p.calls[..p.calls.len() - 1]
+        .iter()
+        .map(|c| c["arguments"].clone())
+        .collect();
+    // Compare both through the JSON wire decoder, including its decimal rounding.
+    let wire: Value = serde_json::from_str(&serde_json::to_string(&commands).unwrap()).unwrap();
+    assert_eq!(wire, reference["commands"]);
+    assert_eq!(p.facts.as_ref().unwrap()["hex_count"], task["hex_count"]);
+    assert!(
+        (p.expected.as_ref().unwrap().created_volume_mm3.unwrap()
+            - task["check"]["volume"].as_f64().unwrap())
+        .abs()
+            < 1e-8
+    );
+    assert_eq!(
+        task["check"]["faces"].as_u64().unwrap(),
+        6 + task["hex_count"].as_u64().unwrap() * 6
     );
 }
