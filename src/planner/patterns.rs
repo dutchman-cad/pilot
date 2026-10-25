@@ -65,6 +65,9 @@ pub fn intent(text: &str) -> Option<&'static str> {
     {
         return None;
     }
+    if super::honeycomb::candidate(text) {
+        return Some("honeycomb_pattern");
+    }
     let number = words.iter().any(|w| w.parse::<usize>().is_ok());
     let repeat = [
         "pattern",

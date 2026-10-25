@@ -192,6 +192,9 @@ fn independent_ranking_and_calibrated_misses() {
 }
 fn sample(id: &str) -> Value {
     match id {
+        "honeycomb_pattern" => {
+            json!({"length":150,"width":300,"thickness":3,"size":7,"size_kind":"across_flats","web":1.5,"border":4})
+        }
         "linear_pattern" => json!({"target":"body","count":5,"spacing":10,"direction":"X"}),
         "grid_pattern" => {
             json!({"target":"body","rows":3,"columns":4,"spacing1":10,"spacing2":10,"plane":"XY"})
@@ -321,7 +324,7 @@ fn audit_draft_requires_review_and_round_trips() {
     assert_eq!(r.examples[0], "Make a block 41 by 23 by 17 mm");
     assert_eq!(r.expander, "sequence");
     assert_eq!(r.schema["properties"].as_object().unwrap().len(), 3);
-    assert_eq!(Library::embedded().unwrap().recipes.len(), 17);
+    assert_eq!(Library::embedded().unwrap().recipes.len(), 18);
     assert!(draft(&audit, 1, &review)
         .unwrap_err()
         .contains("cannot create"));

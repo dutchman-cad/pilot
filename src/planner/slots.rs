@@ -138,7 +138,7 @@ fn rename_name_range(text: &str, t: &[String]) -> Option<std::ops::Range<usize>>
     }
     None
 }
-fn number(s: &str) -> Option<f64> {
+pub(super) fn number(s: &str) -> Option<f64> {
     if let Some((n, d)) = s.split_once('/') {
         let n = n.parse::<f64>().ok()?;
         let d = d.parse::<f64>().ok()?;

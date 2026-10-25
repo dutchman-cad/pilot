@@ -5,12 +5,14 @@ pub(crate) mod cases;
 mod english;
 #[cfg(test)]
 mod first_turn;
+mod honeycomb;
 mod patterns;
 mod recipes;
 #[cfg(test)]
 mod robust;
 mod slots;
 use crate::{catalog::Catalog, guidance, repair};
+pub use honeycomb::schema as honeycomb_schema;
 pub use patterns::{intent as pattern_intent, repetition_hint, schema as pattern_schema};
 use serde_json::{json, Value};
 use slots::{dimensions, intent_tokens, labelled, tokens};
@@ -709,6 +711,9 @@ fn plan_impl(
     if slots::has_question(text) && !polite_question {
         return Ok(None);
     }
+    if honeycomb::candidate(text) {
+        return honeycomb::select(text, request, catalog);
+    }
     recipes::select(text, data.as_ref(), messages, catalog)
 }
 /// A read-only prerequisite is offered only when every edit slot already parses.
@@ -766,7 +771,9 @@ fn body_inspection(call: &Value) -> bool {
 }
 /// Names come from the same bounded table that selects recipes.
 pub fn supported_recipes() -> Vec<&'static str> {
-    recipes::names().chain(["body count", "volume"]).collect()
+    recipes::names()
+        .chain(["honeycomb pattern", "body count", "volume"])
+        .collect()
 }
 #[cfg(feature = "proxy")]
 pub(crate) fn joint_hint(request: &Value) -> Option<&'static str> {
@@ -1101,6 +1108,9 @@ pub fn recipe_expand(
     request: &Value,
     catalog: &Catalog,
 ) -> Result<Plan, String> {
+    if id == "honeycomb_pattern" {
+        return honeycomb::build(args, request, catalog);
+    }
     if id.ends_with("_pattern") {
         return patterns::build(id, args, request, catalog);
     }

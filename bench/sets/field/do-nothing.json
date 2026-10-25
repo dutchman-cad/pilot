@@ -5,6 +5,10 @@
     {
       "id": "cube-centre-hole",
       "pass": false
+    },
+    {
+      "id": "honeycomb-plate",
+      "pass": false
     }
   ]
 }

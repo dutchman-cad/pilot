@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Cut staggered honeycomb plates in one recipe, with across-flats/corners sizing, bounded fill or exact counts, web and border, and measured public CLI verification.
+
 - Build linear, grid and circular body or last-feature patterns through typed recipes, with overlap guards, measured verification and a deduplicated repeated-copy hint.
 
 - Search embedded file recipes with `pilot_find` before `pilot_build`, with audited misses and bounded audit-to-review sequence drafts.
