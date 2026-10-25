@@ -403,7 +403,7 @@ fn audit_draft_requires_review_and_round_trips() {
     assert_eq!(r.examples[0], "Make a block 41 by 23 by 17 mm");
     assert_eq!(r.expander, "sequence");
     assert_eq!(r.schema["properties"].as_object().unwrap().len(), 3);
-    assert_eq!(Library::embedded().unwrap().recipes.len(), 18);
+    assert_eq!(Library::embedded().unwrap().recipes.len(), 19);
     assert!(draft(&audit, 1, &review)
         .unwrap_err()
         .contains("cannot create"));
