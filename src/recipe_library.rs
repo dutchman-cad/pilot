@@ -8,6 +8,9 @@ pub const FIND_DESCRIPTION: &str = "Search recipes before building. Returns the 
 pub const BUILD_DESCRIPTION: &str = "Build a recipe found with pilot_find: supply its id and typed args. Lengths are mm. Legacy shape arguments also work. Inspect before selecting existing bodies or a contact joint.";
 pub const HIT_THRESHOLD: f64 = 1.8;
 pub const IDS: &[&str] = &[
+    "linear_pattern",
+    "grid_pattern",
+    "circular_pattern",
     "profile",
     "plate",
     "enclosure",
@@ -124,6 +127,9 @@ fn shared(s: &mut Value) {
 }
 /// Schemas derive from the typed shortcut contract, with shared scalar constraints.
 pub fn schema(id: &str) -> Result<Value, String> {
+    if id.ends_with("_pattern") {
+        return planner::pattern_schema(id);
+    }
     let old = planner::shortcut_tool();
     let mut s = if let Some(v) = old["function"]["parameters"]["oneOf"]
         .as_array()
@@ -524,6 +530,7 @@ impl Ranker for Bm25 {
             .collect();
         let n = docs.iter().map(Vec::len).sum::<usize>() as f64;
         let avg = docs.iter().flatten().map(Vec::len).sum::<usize>() as f64 / n.max(1.0);
+        let pattern = planner::pattern_intent(query);
         let query: BTreeSet<_> = tokens(query).into_iter().collect();
         let idfs: BTreeMap<_, _> = query
             .iter()
@@ -555,7 +562,18 @@ impl Ranker for Bm25 {
                     .filter(|t| ds.iter().any(|d| d.contains(t)))
                     .count();
                 let coverage = matched as f64 / query.len().max(1) as f64;
-                (i, best * coverage)
+                (
+                    i,
+                    if recipes[i].id.ends_with("_pattern") {
+                        if pattern == Some(recipes[i].id.as_str()) {
+                            100.0 + best * coverage
+                        } else {
+                            0.0
+                        }
+                    } else {
+                        best * coverage
+                    },
+                )
             })
             .collect()
     }

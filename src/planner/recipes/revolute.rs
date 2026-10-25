@@ -854,6 +854,7 @@ fn select_inner(
         })
         .map_err(|e| format!("cannot audit revolute joint slots: {e}"))?,
         expected: Some(Expected {
+            volume_range_mm3: None,
             bodies: Some(2),
             volume_mm3: volume(baseline),
             name: None,

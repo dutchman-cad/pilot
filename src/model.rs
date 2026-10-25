@@ -884,6 +884,8 @@ impl Proxy {
             conversation.sketch_hints_seen = [false; 2];
             conversation.edge_hint_seen = false;
             conversation.joint_hint_seen = false;
+            conversation.pattern_hint_seen = false;
+            conversation.pattern_inspections = 0;
         }
         if conversation
             .recipe
@@ -912,7 +914,7 @@ impl Proxy {
                 && conversation
                     .direct
                     .as_ref()
-                    .is_some_and(|(_, p, _)| p.rule == "resolve_joint")
+                    .is_some_and(|(_, p, _)| matches!(p.rule, "resolve_joint" | "resolve_pattern"))
             {
                 recipe = if args.get("recipe").is_some() {
                     self.recipes.build(args, &body, &self.catalog).ok()
@@ -1109,6 +1111,15 @@ impl Proxy {
                 audit,
                 &mut conversation.sketch_hints_seen,
             )?;
+            if !conversation.pattern_hint_seen {
+                if let Some(hint) = planner::repetition_hint(&body) {
+                    if let Some(messages) = body["messages"].as_array_mut() {
+                        messages.push(json!({"role":"system","content":format!("{} {hint}",crate::identity::HINT)}));
+                        conversation.pattern_hint_seen = true;
+                        audit.record("pattern_hint", &Value::Null, &json!(hint))?;
+                    }
+                }
+            }
             if !conversation.joint_hint_seen {
                 if let Some(hint) = planner::joint_hint(&body) {
                     if let Some(messages) = body["messages"].as_array_mut() {
@@ -4898,6 +4909,114 @@ mod tests {
         }
     }
 
+    #[test]
+    fn selected_pattern_inspection_continues_and_verifies_without_model_replay() {
+        for feature in [false, true] {
+            let mut f = Fixture::with_shortcuts(vec![call(
+                "pilot_build",
+                json!({"recipe":"linear_pattern","args":{"target":if feature {"last_feature"}else{"body"},"count":3,"spacing":10,"direction":"X"}}),
+            )]);
+            f.proxy.cfg.direct_recipes = false;
+            f.proxy.cfg.planner = false;
+            let mut req = planner::cases::request("Repeat the seed with my selected recipe");
+            req["messages"] =
+                json!([{"role":"user","content":"Repeat the seed with my selected recipe"}]);
+            req["tools"][0] = tools()[0].clone();
+            let before = json!({"bodies":[{"name":"Seed","volume_mm3":24,"bbox":{"min":[0,0,0],"max":[2,3,4]}}],"timeline":[{"id":1,"name":"Box1","type":"BoxFeature","error":null}]});
+            let mut after = before.clone();
+            after["bodies"] = json!([
+                before["bodies"][0].clone(),
+                before["bodies"][0].clone(),
+                before["bodies"][0].clone()
+            ]);
+            after["timeline"].as_array_mut().unwrap().push(json!({"name":"RectangularPattern1","type":"RectangularPatternFeature","error":null}));
+            let mut patterns = 0;
+            for stage in 0..5 {
+                let response: Value = serde_json::from_slice(&f.chat(req.clone()).body).unwrap();
+                let message = response["choices"][0]["message"].clone();
+                let Some(calls) = message["tool_calls"].as_array() else {
+                    assert!(stage >= 2, "{message}");
+                    assert!(
+                        message["content"]
+                            .as_str()
+                            .unwrap()
+                            .contains("Exact match (no model):"),
+                        "{message}"
+                    );
+                    assert_eq!(patterns, 1);
+                    break;
+                };
+                req["messages"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(message.clone());
+                for call in calls {
+                    let args: Value =
+                        serde_json::from_str(call["function"]["arguments"].as_str().unwrap())
+                            .unwrap();
+                    let data = match args["command"].as_str().unwrap() {
+                        "document.inspect" => {
+                            if patterns == 0 {
+                                before.clone()
+                            } else {
+                                after.clone()
+                            }
+                        }
+                        "timeline.inspect" => {
+                            json!({"id":1,"name":"Box1","type":"BoxFeature","error":null,"definition":{"body_names":["Seed"],"corner":[0,0,0],"length":"2","width":"3","height":"4","operation":"new_body"}})
+                        }
+                        "solid.pattern.rectangular" => {
+                            patterns += 1;
+                            json!({"created_bodies":["Seed (2)","Seed (3)"]})
+                        }
+                        other => panic!("unexpected {other}"),
+                    };
+                    req["messages"].as_array_mut().unwrap().push(
+                        json!({"role":"tool","tool_call_id":call["id"],"content":data.to_string()}),
+                    );
+                }
+            }
+            assert_eq!(patterns, 1);
+            assert_eq!(
+                f.proxy.scripted.as_ref().unwrap().borrow().requests.len(),
+                1
+            );
+        }
+    }
+    #[test]
+    fn pattern_hint_is_once_per_turn_and_respects_opt_out() {
+        for disabled in [false, true] {
+            let mut f = Fixture::new(vec![reply("Checking."), reply("Checking.")]);
+            f.proxy.cfg.direct_recipes = false;
+            f.proxy.cfg.planner = false;
+            f.proxy.cfg.no_hints = disabled;
+            let calls:Vec<_>=(0..3).map(|i| json!({"id":format!("box{i}"),"type":"function","function":{"name":"execute","arguments":json!({"command":"solid.box","params":{"length":2,"width":3,"height":4,"corner":[i*10,0,0]}}).to_string()}})).collect();
+            let mut req = planner::cases::request("Build these repeated blocks");
+            req["messages"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({"role":"assistant","tool_calls":calls}));
+            for i in 0..3 {
+                req["messages"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(json!({"role":"tool","tool_call_id":format!("box{i}"),"content":"{}"}));
+            }
+            f.chat(req.clone());
+            f.chat(req);
+            let script = f.proxy.scripted.as_ref().unwrap().borrow();
+            let counts: Vec<_> = script
+                .requests
+                .iter()
+                .map(|r| {
+                    r.to_string()
+                        .matches("Use solid.pattern.rectangular with recipe linear_pattern")
+                        .count()
+                })
+                .collect();
+            assert_eq!(counts, if disabled { vec![0, 0] } else { vec![1, 0] });
+        }
+    }
     #[test]
     fn joint_contact_hint_is_once_per_turn_and_respects_opt_out() {
         for disabled in [false, true] {

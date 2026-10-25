@@ -665,3 +665,222 @@ fn public_binary_typed_revolute_shortcut() {
         );
     }
 }
+
+#[test]
+fn public_binary_pattern_recipes() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let cat = Catalog::bundled().unwrap();
+    let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    for feature in [false, true] {
+        for (id, args, count, kind) in [
+            (
+                "linear_pattern",
+                json!({"count":5,"spacing":10,"direction":"X"}),
+                5,
+                "RectangularPatternFeature",
+            ),
+            (
+                "grid_pattern",
+                json!({"columns":4,"rows":3,"spacing1":10,"spacing2":12,"plane":"XY"}),
+                12,
+                "RectangularPatternFeature",
+            ),
+            (
+                "circular_pattern",
+                json!({"count":8,"axis":"Z","angle_deg":360}),
+                8,
+                "CircularPatternFeature",
+            ),
+            (
+                "circular_pattern",
+                json!({"count":4,"axis":"Z","angle_deg":180}),
+                4,
+                "CircularPatternFeature",
+            ),
+        ] {
+            let mut session = Session::new(&path);
+            session.execute(
+                "solid.box",
+                json!({"length":2,"width":3,"height":4,"corner":[20,0,0],"body_name":"Seed"}),
+            );
+            let mut args = args;
+            args["target"] = json!(if feature { "last_feature" } else { "body" });
+            let mut req = json!({"messages":[{"role":"user","content":"Repeat this seed with the selected pattern"}]});
+            let mut expected = None;
+            for _ in 0..4 {
+                let p = lib
+                    .build(&json!({"recipe":id,"args":args}), &req, &cat)
+                    .unwrap();
+                for c in &p.calls {
+                    let result = session.execute(
+                        c["arguments"]["command"].as_str().unwrap(),
+                        c["arguments"]["params"].clone(),
+                    );
+                    req["messages"]
+                        .as_array_mut()
+                        .unwrap()
+                        .push(json!({"role":"tool","content":result.to_string()}));
+                }
+                if p.expected.is_some() {
+                    expected = p.expected;
+                    break;
+                }
+            }
+            assert!(expected.is_some());
+            assert_eq!(
+                planner::completion(&req, expected.as_ref().unwrap()),
+                None,
+                "{req}"
+            );
+            let state = session.execute("document.inspect", json!({"measure":true}));
+            assert_eq!(state["bodies"].as_array().unwrap().len(), count, "{state}");
+            let volume: f64 = state["bodies"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|b| b["volume_mm3"].as_f64().unwrap())
+                .sum();
+            assert!((volume - count as f64 * 24.).abs() < 0.01, "{state}");
+            assert_eq!(
+                state["timeline"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .filter(|f| f["type"] == kind && f["error"].is_null())
+                    .count(),
+                1,
+                "{state}"
+            );
+        }
+    }
+}
+
+#[test]
+fn public_binary_patterns_inherit_join_and_cut() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let cat = Catalog::bundled().unwrap();
+    let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    for cut in [true, false] {
+        for (id, mut args, count) in [
+            (
+                "linear_pattern",
+                json!({"count":3,"spacing":12,"direction":"X"}),
+                3,
+            ),
+            (
+                "grid_pattern",
+                json!({"columns":3,"rows":2,"spacing1":12,"spacing2":15,"plane":"XY"}),
+                6,
+            ),
+            (
+                "circular_pattern",
+                json!({"count":8,"axis":"Z","angle_deg":360}),
+                8,
+            ),
+        ] {
+            let mut session = Session::new(&path);
+            session.execute("solid.box",json!({"length":120,"width":120,"height":5,"corner":[-60,-60,0],"body_name":"Plate"}));
+            if cut {
+                session.execute(
+                    "solid.hole",
+                    json!({"position":[20,0,5],"diameter":4,"targets":["Plate"]}),
+                );
+            } else {
+                session.execute("solid.cylinder",json!({"base":[20,0,5],"radius":2,"height":5,"operation":"join","targets":["Plate"]}));
+            }
+            args["target"] = json!("last_feature");
+            args["body"] = json!("Plate");
+            let mut req =
+                json!({"messages":[{"role":"user","content":"Pattern the last feature"}]});
+            let mut expected = None;
+            for _ in 0..4 {
+                let p = lib
+                    .build(&json!({"recipe":id,"args":args}), &req, &cat)
+                    .unwrap();
+                for c in &p.calls {
+                    let result = session.execute(
+                        c["arguments"]["command"].as_str().unwrap(),
+                        c["arguments"]["params"].clone(),
+                    );
+                    req["messages"]
+                        .as_array_mut()
+                        .unwrap()
+                        .push(json!({"role":"tool","content":result.to_string()}));
+                }
+                if p.expected.is_some() {
+                    expected = p.expected;
+                    break;
+                }
+            }
+            assert!(expected.is_some());
+            assert_eq!(
+                planner::completion(&req, expected.as_ref().unwrap()),
+                None,
+                "{req}"
+            );
+            let state = session.execute("document.inspect", json!({"measure":true}));
+            assert_eq!(state["bodies"].as_array().unwrap().len(), 1, "{state}");
+            let want =
+                72000. + if cut { -1. } else { 1. } * count as f64 * std::f64::consts::PI * 20.;
+            assert!(
+                (state["bodies"][0]["volume_mm3"].as_f64().unwrap() - want).abs()
+                    < ((want - 72000.).abs() * 0.001).max(0.01),
+                "{state}"
+            );
+            assert!(
+                state["timeline"].as_array().unwrap().last().unwrap()["type"]
+                    .as_str()
+                    .unwrap()
+                    .ends_with("PatternFeature")
+            );
+        }
+    }
+}
+
+#[test]
+fn public_binary_linear_pattern_total_length_and_edge_direction() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let cat = Catalog::bundled().unwrap();
+    let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    let mut s = Session::new(&path);
+    s.execute(
+        "solid.box",
+        json!({"length":2,"width":3,"height":4,"body_name":"Seed"}),
+    );
+    let state = s.execute("document.inspect", json!({"measure":true}));
+    let edges = s.execute("model.edges", json!({"body":"Seed"}));
+    let edge = edges["edges"][0]["name"].clone();
+    let req = json!({"messages":[{"role":"user","content":"Make fifty in a row along this edge"},{"role":"tool","content":state.to_string()},{"role":"tool","content":edges.to_string()}]});
+    let p=lib.build(&json!({"recipe":"linear_pattern","args":{"target":"body","count":50,"total_length":490,"edge":edge}}),&req,&cat).unwrap();
+    assert_eq!(p.calls[0]["arguments"]["params"]["spacing1"], 10.);
+    for c in &p.calls {
+        s.execute(
+            c["arguments"]["command"].as_str().unwrap(),
+            c["arguments"]["params"].clone(),
+        );
+    }
+    let state = s.execute("document.inspect", json!({"measure":true}));
+    assert_eq!(state["bodies"].as_array().unwrap().len(), 50);
+    let volume: f64 = state["bodies"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|b| b["volume_mm3"].as_f64().unwrap())
+        .sum();
+    assert!((volume - 1200.).abs() < 0.01);
+    assert_eq!(
+        state["timeline"].as_array().unwrap().last().unwrap()["type"],
+        "RectangularPatternFeature"
+    );
+    let measured = json!({"messages":[{"role":"tool","content":state.to_string()}]});
+    assert_eq!(
+        planner::completion(&measured, p.expected.as_ref().unwrap()),
+        None
+    );
+}

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Build linear, grid and circular body or last-feature patterns through typed recipes, with overlap guards, measured verification and a deduplicated repeated-copy hint.
+
 - Search embedded file recipes with `pilot_find` before `pilot_build`, with audited misses and bounded audit-to-review sequence drafts.
 
 - Keep inspect-first recipes working within the Assistant's tool-message size limit, and accept "fully defined" profile wording.

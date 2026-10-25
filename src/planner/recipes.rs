@@ -1744,6 +1744,7 @@ fn from_slots(
         _ => None,
     };
     let expected = Expected {
+        volume_range_mm3: None,
         joint: None,
         feature: if let Some(fillet) = rounding_kind {
             let kind = if fillet {

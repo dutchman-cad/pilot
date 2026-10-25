@@ -5,22 +5,26 @@ pub(crate) mod cases;
 mod english;
 #[cfg(test)]
 mod first_turn;
+mod patterns;
 mod recipes;
 #[cfg(test)]
 mod robust;
 mod slots;
 use crate::{catalog::Catalog, guidance, repair};
+pub use patterns::{intent as pattern_intent, repetition_hint, schema as pattern_schema};
 use serde_json::{json, Value};
 use slots::{dimensions, intent_tokens, labelled, tokens};
 
 const MAX_TEXT: usize = 4096;
-const MAX_BODIES: usize = 256;
+const MAX_BODIES: usize = 1024;
 const MAX_MM: f64 = 1_000_000.0;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Expected {
     pub bodies: Option<usize>,
     pub volume_mm3: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub volume_range_mm3: Option<(f64, f64)>,
     pub name: Option<String>,
     pub created_volume_mm3: Option<f64>,
     pub placement: Option<Placement>,
@@ -361,6 +365,13 @@ pub fn completion(request: &Value, expected: &Expected) -> Option<String> {
             None => differences.push("volume measurement is missing".into()),
         }
     }
+    if let Some((min, max)) = expected.volume_range_mm3 {
+        if volume(&data).is_none_or(|v| v < min || v > max) {
+            differences.push(format!(
+                "pattern volume must be measured within {min:.6}..{max:.6} mm³"
+            ));
+        }
+    }
     if let Some(want) = expected.created_volume_mm3 {
         let bodies = data["bodies"].as_array()?;
         let selected: Vec<_> = bodies
@@ -417,6 +428,9 @@ pub fn completion(request: &Value, expected: &Expected) -> Option<String> {
         }
     }
     if let Some((kind, want)) = &expected.feature {
+        if kind.ends_with("PatternFeature") && volume(&data).is_none_or(|v| v <= 0.0) {
+            differences.push("pattern volume measurement is missing or nonpositive".into());
+        }
         let actual = data["timeline"]
             .as_array()
             .filter(|t| t.len() <= 4096)
@@ -1087,6 +1101,9 @@ pub fn recipe_expand(
     request: &Value,
     catalog: &Catalog,
 ) -> Result<Plan, String> {
+    if id.ends_with("_pattern") {
+        return patterns::build(id, args, request, catalog);
+    }
     recipes::shortcuts::file_build(id, args, request, catalog)
 }
 /// Legacy typed shape schema, also the source of the four original file contracts.

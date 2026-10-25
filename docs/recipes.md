@@ -397,3 +397,44 @@ The search-before-generation pattern is inspired by the public
 [Rote README](https://github.com/wdunn001/rote) (MIT); Pilot neither depends on
 Rote nor copies its implementation. Shared types and refused unknown keys follow
 the public [typed-schema RFC](https://github.com/tangency-labs/solidcraft/issues/2829).
+
+## Pattern recipes
+
+Use `pilot_find` before `pilot_build` for repetition: “make 50 of these in a row”,
+“12 copies of this boss 15 mm apart”, “array it 4 by 6”, “repeat the hole every
+20 mm”, or “put 8 around the centre”. Copies with a count and spacing mean a
+pattern. Retrieval supplies the typed schema; ask for missing count, spacing,
+axis, or target instead of issuing primitive calls repeatedly.
+
+| Recipe | Example `pilot_build` arguments |
+| --- | --- |
+| `linear_pattern` | `{"target":"body","count":50,"spacing":15,"direction":"X"}` |
+| `grid_pattern` | `{"target":"body","rows":4,"columns":6,"spacing1":15,"spacing2":20,"plane":"XY"}` |
+| `circular_pattern` | `{"target":"last_feature","body":"Plate","count":8,"axis":"Z","angle_deg":360}` |
+
+Wrap these as `{"recipe":"linear_pattern","args":{...}}`. Linear patterns accept
+exactly one of `spacing` or `total_length` (first to last), and exactly one of
+`direction` X/Y/Z or `edge` (an inspected straight edge name). Grids use the two
+axes of XY/XZ/YZ. Circular axes pass through the origin; partial arcs include both
+ends, while full turns do not duplicate the original at 360 degrees. Lengths are
+positive millimetres, angles are degrees, and counts include the original.
+Each dimension is at least two; the total is capped at 500 instances and extents
+at 1,000,000 mm. Missing or ambiguous targets defer.
+
+The expander first requests measured `document.inspect`, then resolves one body
+(optionally selected by `body`) or inspects the last feature with `timeline.inspect`.
+An edge direction adds a `model.edges` read. It emits one
+`solid.pattern.rectangular` or `solid.pattern.circular` plus measured inspection.
+Completion checks the successful timeline pattern feature, body count and volume.
+Body patterns create separate bodies and have a computed disjoint volume. Feature
+patterns inherit their source operation: new bodies, joined bosses, or cuts.
+Joined/cut volumes are checked against the measured baseline and conservative
+volume bounds, since partial intersections cannot be computed from bounds. Unresolved feature geometry defers; overlap checks use conservative
+bounding boxes and may ask for clarification. `join:true` explicitly permits
+feature overlaps; it does not change a source operation or invent a pattern
+command argument. Body patterns cannot request a join.
+
+When three equal explicit creation/copy calls in one user turn have a constant
+position step, the model receives one short `solid.pattern.rectangular` /
+`linear_pattern` hint. The hint is audited, deduplicated per turn and disabled by
+`--no-hints`; it never executes or replaces the calls.

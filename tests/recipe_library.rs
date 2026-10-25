@@ -192,6 +192,11 @@ fn independent_ranking_and_calibrated_misses() {
 }
 fn sample(id: &str) -> Value {
     match id {
+        "linear_pattern" => json!({"target":"body","count":5,"spacing":10,"direction":"X"}),
+        "grid_pattern" => {
+            json!({"target":"body","rows":3,"columns":4,"spacing1":10,"spacing2":10,"plane":"XY"})
+        }
+        "circular_pattern" => json!({"target":"body","count":8,"axis":"Z","angle_deg":360}),
         "profile" => {
             json!({"kind":"L","plane":"XY","width":40,"height":30,"thickness":3,"depth":12})
         }
@@ -316,7 +321,7 @@ fn audit_draft_requires_review_and_round_trips() {
     assert_eq!(r.examples[0], "Make a block 41 by 23 by 17 mm");
     assert_eq!(r.expander, "sequence");
     assert_eq!(r.schema["properties"].as_object().unwrap().len(), 3);
-    assert_eq!(Library::embedded().unwrap().recipes.len(), 14);
+    assert_eq!(Library::embedded().unwrap().recipes.len(), 17);
     assert!(draft(&audit, 1, &review)
         .unwrap_err()
         .contains("cannot create"));
@@ -428,4 +433,179 @@ fn development_override_is_explicit_and_rejects_duplicates_or_schema_drift() {
     std::fs::write(dir.join("duplicate.md"), r.markdown().unwrap()).unwrap();
     assert!(Library::load(Some(&dir)).unwrap_err().contains("duplicate"));
     std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn pattern_retrieval_independent_requests_and_negatives() {
+    let lib = Library::embedded().unwrap();
+    for (id, queries) in [
+        (
+            "linear_pattern",
+            vec![
+                "make 50 of these in a row",
+                "I need 12 copies of this boss 15 mm apart",
+                "repeat the hole every 20 mm",
+                "linear pattern along Y",
+                "duplicate this block 9 times along X",
+                "7 instances in a row",
+                "repeat the last feature along an edge",
+                "pattern this cylinder at 18 mm spacing",
+                "make 16 copies spaced 6 mm apart",
+                "make 30 of these",
+                "array the boss along Z",
+            ],
+        ),
+        (
+            "grid_pattern",
+            vec![
+                "array it 4 by 6",
+                "rectangular pattern 3 rows 8 columns",
+                "repeat this in a grid",
+                "grid of 5 by 9 bodies",
+                "pattern 4 rows at 15 mm spacing",
+                "copies in 2 rows and 7 columns",
+                "array 8 by 3 on YZ",
+                "repeat the last feature in columns and rows",
+            ],
+        ),
+        (
+            "circular_pattern",
+            vec![
+                "put 8 around the centre",
+                "arrange 11 around Z",
+                "circular pattern this body",
+                "repeat 7 bosses around the axis",
+                "radial array of 13 cylinders",
+                "pattern this hole around Y through 180 degrees",
+                "12 copies around the circumference",
+                "circular array of last feature",
+                "repeat 6 instances around X",
+            ],
+        ),
+    ] {
+        for query in queries {
+            let result = lib.find(query, &Bm25).unwrap();
+            assert_eq!(result["recipes"][0]["id"], id, "{query}: {result}");
+            assert_eq!(result["hit"], true, "{query}");
+        }
+    }
+    for query in [
+        "copy this to the clipboard",
+        "make a copy of the file",
+        "copy 50 files 15 mm apart",
+        "repeat the poem 12 times",
+        "make a box 4 by 6 by 8",
+        "mirror this body",
+        "move this cylinder 20 mm along X",
+        "what is the volume of this body",
+        "copy this text into a spreadsheet",
+    ] {
+        let result = lib.find(query, &Bm25).unwrap();
+        assert!(
+            !result["recipes"][0]["id"]
+                .as_str()
+                .unwrap()
+                .ends_with("_pattern"),
+            "{query}: {result}"
+        );
+    }
+}
+
+#[test]
+fn pattern_expansion_defers_and_verifies() {
+    let lib = Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    let args = json!({"target":"body","count":50,"spacing":10,"direction":"X"});
+    let build =
+        |a: &Value, r: &Value| lib.build(&json!({"recipe":"linear_pattern","args":a}), r, &cat);
+    assert_eq!(
+        build(&args, &json!({"messages":[]})).unwrap().calls[0]["arguments"]["command"],
+        "document.inspect"
+    );
+    let data = json!({"bodies":[{"name":"Seed","volume_mm3":24,"bbox":{"min":[0,0,0],"max":[2,3,4]}}],"timeline":[]});
+    let req = json!({"messages":[{"role":"tool","content":data.to_string()}]});
+    let p = build(&args, &req).unwrap();
+    assert_eq!(p.calls.len(), 2);
+    assert_eq!(
+        p.calls[0]["arguments"]["command"],
+        "solid.pattern.rectangular"
+    );
+    assert_eq!(p.expected.as_ref().unwrap().bodies, Some(50));
+    assert_eq!(p.expected.as_ref().unwrap().volume_mm3, Some(1200.));
+    assert!(dutchman_pilot::planner::completion(&req, p.expected.as_ref().unwrap()).is_some());
+    for changed in [
+        json!({"count":501}),
+        json!({"spacing":1}),
+        json!({"direction":"unknown"}),
+        json!({"total_length":100}),
+    ] {
+        let mut a = args.clone();
+        for (k, v) in changed.as_object().unwrap() {
+            a[k] = v.clone();
+        }
+        assert!(build(&a, &req).is_err(), "{a}");
+    }
+    let mut ambiguous = data.clone();
+    ambiguous["bodies"]
+        .as_array_mut()
+        .unwrap()
+        .push(data["bodies"][0].clone());
+    assert!(build(
+        &args,
+        &json!({"messages":[{"role":"tool","content":ambiguous.to_string()}]})
+    )
+    .is_err());
+    let mut total = args.clone();
+    total.as_object_mut().unwrap().remove("spacing");
+    total["total_length"] = json!(490);
+    assert_eq!(
+        build(&total, &req).unwrap().calls[0]["arguments"]["params"]["spacing1"],
+        10.
+    );
+}
+
+#[test]
+fn repeated_creation_hint_uses_sizes_and_step_in_current_turn() {
+    use dutchman_pilot::planner::repetition_hint;
+    let calls:Vec<_>=(0..3).map(|i|json!({"function":{"name":"execute","arguments":json!({"command":"solid.box","params":{"length":2,"width":3,"height":4,"corner":[i*10,0,0]}}).to_string()}})).collect();
+    let req = json!({"messages":[{"role":"user","content":"make a row"},{"role":"assistant","tool_calls":calls}]});
+    assert!(repetition_hint(&req)
+        .unwrap()
+        .contains("solid.pattern.rectangular"));
+    let mut changed = req.clone();
+    changed["messages"][1]["tool_calls"][2]["function"]["arguments"] =
+        json!({"command":"solid.box","params":{"length":5,"width":3,"height":4,"corner":[20,0,0]}})
+            .to_string()
+            .into();
+    assert!(repetition_hint(&changed).is_none());
+    changed["messages"][1]["tool_calls"][2]["function"]["arguments"] =
+        json!({"command":"solid.box","params":{"length":2,"width":3,"height":4,"corner":[27,0,0]}})
+            .to_string()
+            .into();
+    assert!(repetition_hint(&changed).is_none());
+    let mut next = req;
+    next["messages"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"role":"user","content":"next turn"}));
+    assert!(repetition_hint(&next).is_none());
+}
+
+#[test]
+fn pattern_hint_for_cylinders_copies_and_copied_sketch_extrusions() {
+    use dutchman_pilot::planner::repetition_hint;
+    for command in ["solid.cylinder", "occurrence.copy", "timeline.paste"] {
+        let calls:Vec<_>=(0..3).map(|i| {
+            let params=match command {"solid.cylinder"=>json!({"radius":2,"height":4,"base":[0,i*12,0]}),"occurrence.copy"=>json!({"component":"Part","translate":[0,i*12,0]}),_=>json!({"translate":[0,i*12,0]})};
+            json!({"function":{"name":"execute","arguments":json!({"command":command,"params":params}).to_string()}})
+        }).collect();
+        assert!(repetition_hint(&json!({"messages":[{"role":"user","content":"repeat these"},{"role":"assistant","tool_calls":calls}]})).is_some(),"{command}");
+    }
+    let mut commands = vec![json!({"command":"sketch.copy","params":{"entities":[1,2,3,4]}})];
+    for i in 0..3 {
+        commands.push(json!({"command":"sketch.paste","params":{"translate":[i*12,0],"sketch":format!("Copy{i}")}}));
+        commands.push(json!({"command":"solid.extrude","params":{"sketch":format!("Copy{i}"),"distance":4,"operation":"new"}}));
+    }
+    let req = json!({"messages":[{"role":"user","content":"repeat these extrusions"},{"role":"assistant","tool_calls":[{"function":{"name":"batch","arguments":json!({"commands":commands}).to_string()}}]}]});
+    assert!(repetition_hint(&req).is_some());
 }

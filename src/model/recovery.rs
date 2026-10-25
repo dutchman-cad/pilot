@@ -19,6 +19,8 @@ pub(super) struct Conversation {
     pub sketch_hints_seen: [bool; 2],
     pub edge_hint_seen: bool,
     pub joint_hint_seen: bool,
+    pub pattern_hint_seen: bool,
+    pub pattern_inspections: usize,
 }
 impl Conversation {
     pub fn allow(&mut self, command: &str, count: usize) -> bool {

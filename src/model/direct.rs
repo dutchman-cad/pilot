@@ -111,6 +111,8 @@ impl Proxy {
                 });
                 let difference = if !valid {
                     Some("Recipe completion failed: a tool returned an error, or the expected tool results are missing or invalid. Inspect the design and recover; do not repeat accepted changes.".to_string())
+                } else if previous.rule == "resolve_pattern" {
+                    recipe.is_none().then(|| "Pattern target is unresolved: inspect a single body or last feature and clarify count or overlap. No pattern was created.".into())
                 } else if previous.rule == "resolve_joint" {
                     recipe.is_none().then(|| "Joint target is unresolved: inspect exactly one matching pin and hole pair. No joint was created.".into())
                 } else if previous.rule == "resolve_body" {
@@ -151,7 +153,10 @@ impl Proxy {
                     return Ok(None);
                 }
                 if previous.continuation.is_none()
-                    && !matches!(previous.rule, "resolve_body" | "resolve_joint")
+                    && !matches!(
+                        previous.rule,
+                        "resolve_body" | "resolve_joint" | "resolve_pattern"
+                    )
                 {
                     let summary_plan = if previous.expected.is_none() {
                         recipe.as_ref().unwrap_or(&previous)
@@ -179,6 +184,12 @@ impl Proxy {
                 &json!({"rule":plan.rule,"from_model":false,"text":text}),
             )?;
             return Ok(Some(reply(request, text, audit.count)?));
+        }
+        if plan.rule == "resolve_pattern" {
+            if conversation.pattern_inspections >= 4 {
+                return Ok(Some(reply(request, "Pattern inspection limit reached; clarify the target or geometry. No pattern was created.".into(), audit.count)?));
+            }
+            conversation.pattern_inspections += 1;
         }
         let message =
             json!({"role":"assistant","content":null,"tool_calls":calls(request, plan, index)});
