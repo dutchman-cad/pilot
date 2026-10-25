@@ -18,7 +18,8 @@ Usage:
   {pad}       [--fallback-prompt auto|on|off] [--prompt-help] [--log FILE]
   {pad}       [--profile-dir DIR] [--model-settings [FILE]] [--seed INTEGER]
   {pad}       [--no-report-buffer] [--dialect solidcraft|solidcraft98]
-  {pad}       [--no-how] [--no-hints] [--no-shortcuts] [--planner] [--no-plan (alias --no-planner)]
+  {pad}       [--no-how] [--no-hints] [--no-shortcuts] [--no-trim] [--trim-cap CHARS (default 1500)]
+  {pad}       [--planner] [--no-plan (alias --no-planner)]
   {pad}       [--recipes-dir DIR]
   {binary} report [--listen ADDR] [--turn N] [--include-request] [--out FILE]
   {pad}        [--from-request FILE] [--open]
@@ -176,6 +177,12 @@ struct ModelArgs {
     /// Disable the local pilot_find and pilot_build tools.
     #[arg(long)]
     no_shortcuts: bool,
+    /// Preserve older tool results on the upstream wire (trimming is on by default).
+    #[arg(long)]
+    no_trim: bool,
+    /// Character threshold for older tool results; JSON keeps keys and scalar fields.
+    #[arg(long, default_value_t = model::DEFAULT_TRIM_CAP as u32, value_parser = clap::value_parser!(u32).range(256..=65536))]
+    trim_cap: u32,
     /// Load development recipes from this directory instead of the embedded set.
     #[arg(long)]
     recipes_dir: Option<PathBuf>,
@@ -348,6 +355,8 @@ pub fn run_named(cmd: Command, bin: &str) -> Result<i32, Error> {
                 no_how: args.no_how,
                 no_hints: args.no_hints,
                 no_shortcuts: args.no_shortcuts,
+                no_trim: args.no_trim,
+                trim_cap: args.trim_cap as usize,
                 recipes_dir: args.recipes_dir,
                 planner: args.planner,
             })

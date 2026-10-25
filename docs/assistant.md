@@ -4,6 +4,28 @@ Start your model server, then Pilot, then add an API agent in SolidCraft's
 Assistant. Pilot is the agent's base URL; the real model endpoint is Pilot's
 upstream. Select the same model id that the upstream serves.
 
+Pilot trims older tool results on the upstream copy of each request by default.
+The latest user turn stays whole, and client-visible results and local recipe
+readers retain the original history. While a recipe continuation or completion
+check is pending, the upstream history also stays whole. Earlier catalogue and
+command descriptions become command ids; identical tool/arguments/results keep
+their latest full copy and leave a reference in earlier result envelopes.
+Other results over `--trim-cap 1500` characters keep JSON keys, scalar fields and
+the first/last two array entries, with an explicit recall note. Long strings and
+deep nesting are bounded. This is a trigger threshold, not a strict summary size:
+preserving keys and scalar fields can require more characters. `--no-trim`
+disables history reduction. These flags also apply to `model --dialect solidcraft98`;
+the separate `drive98` history limits are unchanged.
+
+Each upstream attempt (including retries) logs a `dutchman-pilot` size field:
+client system/tools/user/assistant content, results by tool name, Pilot facts,
+hints and local schemas, and final upstream character sizes. These are Unicode
+character counts, not tokenizer estimates; JSON totals include envelopes and
+escaping. `profile` reports mean/max per attempt and whether trimming is enabled.
+Facts already present in client history are reused; missing facts are inserted
+once at the latest system position for that request. Pilot never relies on the
+client retaining an upstream-only fact.
+
 ## Ollama
 
 Pull a model that fits your machine and keep Ollama running. For example:

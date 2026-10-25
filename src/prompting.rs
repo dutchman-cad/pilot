@@ -200,7 +200,7 @@ fn append_fact(body: &mut Value, fact: &str, marker: &str, sketch: bool) -> Resu
     if !applies {
         return Ok(false);
     }
-    if let Some(system) = messages.iter_mut().find(|m| m["role"] == "system") {
+    if let Some(system) = messages.iter_mut().rev().find(|m| m["role"] == "system") {
         if let Some(content) = system["content"].as_str() {
             system["content"] = json!(format!("{content}\n{fact}"));
         } else if let Some(parts) = system["content"].as_array_mut() {
@@ -321,7 +321,7 @@ pub fn system_block(
 }
 
 /// Text of a message's content: a string, or the text parts of a content array.
-fn message_text(content: &Value) -> String {
+pub(crate) fn message_text(content: &Value) -> String {
     if let Some(text) = content.as_str() {
         return text.to_string();
     }
