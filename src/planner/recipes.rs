@@ -2,6 +2,7 @@
 use super::*;
 use std::f64::consts::PI;
 mod closed_profile;
+mod compound_plate;
 
 #[derive(Clone, Copy)]
 enum Kind {
@@ -12,6 +13,7 @@ enum Kind {
     Hole,
     Sketch,
     ClosedProfile,
+    CompoundPlate,
     Fillet,
     Chamfer,
     Move,
@@ -23,6 +25,7 @@ enum Kind {
     Revolve,
 }
 const LIBRARY: &[(&str, Kind)] = &[
+    ("compound_plate", Kind::CompoundPlate),
     ("box", Kind::Box),
     ("cylinder", Kind::Cylinder),
     ("sphere", Kind::Sphere),
@@ -76,6 +79,7 @@ enum Slots {
         distance: f64,
     },
     ClosedProfile(closed_profile::Profile),
+    CompoundPlate(compound_plate::Plate),
     Edges {
         body: String,
         edges: Vec<Value>,
@@ -256,6 +260,9 @@ pub(super) const UNSUPPORTED: &[&str] = &[
     "but",
 ];
 fn vocabulary(kind: Kind, input: &Input<'_>) -> bool {
+    if matches!(kind, Kind::CompoundPlate) {
+        return true;
+    }
     if matches!(kind, Kind::ClosedProfile) {
         return closed_profile::vocabulary(input);
     }
@@ -398,6 +405,7 @@ fn parse(kind: Kind, input: &Input<'_>) -> Option<Slots> {
     let has = |w| input.has(w);
     let t = &input.t;
     match kind {
+        Kind::CompoundPlate => compound_plate::parse(input),
         Kind::ClosedProfile => closed_profile::parse(input),
         Kind::Hole if input.any(&["drill", "bore", "cut"]) && has("hole") && has("through") => {
             // No inferred hole location or direction: the public command uses Z,
@@ -1158,6 +1166,13 @@ fn expand(slots: &Slots, catalog: &Catalog) -> Result<Expansion, String> {
     let mut name = None;
     let box_params = |s: &[f64; 3]| json!({"length":s[0],"width":s[1],"height":s[2]});
     match slots {
+        Slots::CompoundPlate(plate) => {
+            for (id, params) in plate.commands() {
+                add(id, params)?;
+            }
+            v = plate.volume();
+            creates = true;
+        }
         Slots::Box { size } => {
             add("solid.box", box_params(size))?;
             v = Some(size.iter().product());
@@ -1510,7 +1525,9 @@ pub(super) fn select(
     };
     // Measurement verbs are separate work; dimension participles (`measuring`,
     // `that measures`) and `solid` describe the primitive instead.
-    if input.any(&["measure", "count", "report"]) || intent_decline(&input).is_some() {
+    if input.any(&["measure", "count", "report"])
+        || (!compound_plate::candidate(&input) && intent_decline(&input).is_some())
+    {
         return Ok(None);
     }
     let create = input.any(&[
@@ -1529,6 +1546,11 @@ pub(super) fn select(
     ]);
     let mut found = Vec::new();
     for (rule, kind) in LIBRARY {
+        if compound_plate::candidate(&input) && !matches!(kind, Kind::CompoundPlate) {
+            // Keep the original recipes and their calls untouched. Compound
+            // requests either match completely or return to the model.
+            continue;
+        }
         // A dimensioned profile is a distinct creation intent, including when
         // its extrusion is expressed as a depth instead of an action verb.
         if closed_profile::candidate(&input)
@@ -1610,7 +1632,7 @@ pub(super) fn select(
     // Explicit targets keep compound changes away from older overlapping bodies.
     if matches!(
         slots,
-        Slots::Holes { .. } | Slots::Tube { .. } | Slots::Shell { .. }
+        Slots::Holes { .. } | Slots::Tube { .. } | Slots::Shell { .. } | Slots::CompoundPlate(_)
     ) {
         let names: Vec<_> = data
             .and_then(|d| d["bodies"].as_array())
@@ -1625,7 +1647,13 @@ pub(super) fn select(
         calls[0]["arguments"]["params"]["body_name"] = json!(created);
         for c in &mut calls[1..] {
             let params = &mut c["arguments"]["params"];
-            if matches!(slots, Slots::Holes { .. } | Slots::Tube { .. }) {
+            if matches!(slots, Slots::CompoundPlate(_)) {
+                if c["arguments"]["command"] == "solid.hole" {
+                    c["arguments"]["params"]["targets"] = json!([created]);
+                } else {
+                    c["arguments"]["params"]["body"] = json!(created);
+                }
+            } else if matches!(slots, Slots::Holes { .. } | Slots::Tube { .. }) {
                 params["targets"] = json!([created]);
             } else {
                 params["body"] = json!(created);
@@ -1688,9 +1716,14 @@ pub(super) fn select(
         None
     };
     // Without a baseline, verification requests a measurement but cannot claim a total.
+    let rounding_kind = match &slots {
+        Slots::Edges { fillet, .. } => Some(*fillet),
+        Slots::CompoundPlate(p) => p.rounding.map(|(fillet, _, _)| fillet),
+        _ => None,
+    };
     let expected = Expected {
-        feature: if let Slots::Edges { fillet, .. } = &slots {
-            let kind = if *fillet {
+        feature: if let Some(fillet) = rounding_kind {
+            let kind = if fillet {
                 "FilletFeature"
             } else {
                 "ChamferFeature"
@@ -1733,6 +1766,15 @@ pub(super) fn select(
         name,
     };
     let continuation = match &slots {
+        Slots::CompoundPlate(p) if p.rounding.is_some_and(|(_, all, _)| all) => p
+            .rounding
+            .zip(expected.name.as_ref())
+            .map(|((fillet, _, amount), body)| EdgeContinuation {
+                body: body.clone(),
+                amount,
+                fillet,
+                top: false,
+            }),
         Slots::Edges {
             body,
             edges,
@@ -1777,7 +1819,14 @@ pub(super) fn resume(
         data: None,
         messages,
     };
-    let Some(edges) = topology(&input, &c.body, c.top) else {
+    let selected = if previous.rule == "compound_plate" {
+        // Recover the typed geometry from its audited slots, without replaying
+        // the accepted creation prefix.
+        compound_plate::all_edges(&previous.slots, messages, &c.body)
+    } else {
+        topology(&input, &c.body, c.top)
+    };
+    let Some(edges) = selected else {
         return Ok(None);
     };
     let slots = Slots::Edges {
@@ -1792,8 +1841,10 @@ pub(super) fn resume(
     let mut next = previous.clone();
     next.calls = calls;
     next.continuation = None;
-    next.slots =
-        serde_json::to_value(slots).map_err(|e| format!("cannot audit edge slots: {e}"))?;
+    if previous.rule != "compound_plate" {
+        next.slots =
+            serde_json::to_value(slots).map_err(|e| format!("cannot audit edge slots: {e}"))?;
+    }
     Ok(Some(next))
 }
 

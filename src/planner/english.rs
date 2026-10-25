@@ -380,3 +380,56 @@ fn ordinary_closed_profile_wording() {
         assert_eq!(p.calls[1]["arguments"]["params"]["infer"],true);
     }
 }
+
+#[test]
+fn compound_plates_match_ordinary_phrasings() {
+    let catalog = Catalog::bundled().unwrap();
+    let bases = [
+        "Make a square mounting plate 80 x 80 x 8 mm, centred on the origin and lying on the XY plane",
+        "Build a plate 80 by 80 by 8 mm centered at the origin on XZ",
+        "Create a plate 8x8x0.8 cm centred on the origin on YZ",
+        "Make a plate 4x4x0.5 inch with its bottom left corner at the origin",
+        "Please build a rectangular plate 80x90x8mm centered on the origin",
+    ];
+    let features = [
+        "with a centred bore diameter 12mm through",
+        "with one centred 12mm hole through",
+        "with six 4mm holes equally spaced on a 48mm bolt circle",
+        "with a centred 12mm bore through and six 4mm holes evenly spaced on PCD 48mm",
+        "then fillet the four vertical edges radius 4mm",
+        "with a centred bore diameter 12mm through then chamfer the four side edges distance 2mm",
+        "with holes diameter 4mm in a centred grid 2 rows 3 columns pitch 20x20mm",
+        "with holes diameter 4mm in a centred 2 x 3 grid pitch 20mm",
+    ];
+    for base in bases {
+        for feature in features {
+            let text = format!("{base} {feature}");
+            let p = plan(&cases::request(&text), &catalog)
+                .unwrap()
+                .unwrap_or_else(|| panic!("{text}"));
+            assert_eq!(p.rule, "compound_plate", "{text}");
+            assert_eq!(p.calls[0]["arguments"]["command"], "solid.box");
+        }
+    }
+}
+
+#[test]
+fn compound_bolt_circle_sizes_and_default_start_are_explicit() {
+    let catalog = Catalog::bundled().unwrap();
+    for text in [
+        "Make a square mounting plate 80 x 80 x 8 mm, centred on the origin and lying on the XY plane. Put a 30 mm bore through the middle and six 8 mm bolt holes evenly spaced on a 56 mm bolt circle around it, then round the four vertical corner edges with a 10 mm radius.",
+        "Build a plate 100x100x10mm centered on the origin with a centred hole diameter 10mm through and eight 4mm holes equally spaced on a bolt circle radius 30mm then fillet the four side edges radius 6mm",
+        "Build a plate 10x10x1cm centered on the origin with eight 0.4cm holes evenly spaced on a bolt circle diameter 6cm starting at +X",
+        "Make a plate 4x4x1/2 inch centered on the origin with six 1/8 inch holes evenly spaced on a 2 inch bolt circle then chamfer all edges distance 1/32 inch",
+        "Make a plate 120x100x10mm with its corner at the origin with a centred bore radius 5mm through then round all edges radius 1mm",
+        "Make a plate 160x160x10mm centred on the origin with six 4mm holes evenly spaced on PCD 40mm and holes diameter 4mm in a centred grid 2 rows 2 columns pitch 80x80mm then round the four vertical edges radius 8mm",
+    ] {
+        let req=cases::request(text);
+        let p=plan(&req,&catalog).unwrap().unwrap_or_else(||panic!("{text}"));
+        assert_eq!(p.rule,"compound_plate");
+        if p.slots["CompoundPlate"]["default_start"]==true {
+            assert!(direct_summary(&req,&p).contains("starts at +X"));
+            assert!(p.message().contains("no start angle"));
+        }
+    }
+}

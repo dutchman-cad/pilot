@@ -867,6 +867,7 @@ impl Proxy {
         if conversation.sketch_hint_index != user_index {
             conversation.sketch_hint_index = user_index;
             conversation.sketch_hints_seen = [false; 2];
+            conversation.edge_hint_seen = false;
         }
         if conversation
             .recipe
@@ -1056,6 +1057,7 @@ impl Proxy {
             if prompting::append_sketch_fact(&mut body)? {
                 audit.record("sketch_fact", &Value::Null, &json!(prompting::SKETCH_FACT))?;
             }
+            append_edge_hints(&mut body, &mut conversation.edge_hint_seen, audit)?;
             append_hints(
                 &mut body,
                 &self.catalog,
@@ -1480,6 +1482,54 @@ pub(crate) fn tool_data(message: &Value) -> Option<Value> {
         return None;
     }
     Some(guidance::payload(&value))
+}
+
+fn append_edge_hints(body: &mut Value, seen: &mut bool, audit: &mut Audit) -> Result<(), String> {
+    let messages = body["messages"]
+        .as_array_mut()
+        .ok_or("messages must be an array")?;
+    let start = messages
+        .iter()
+        .rposition(|m| m["role"] == "user")
+        .map_or(0, |n| n + 1);
+    *seen |= messages[start..]
+        .iter()
+        .any(|m| m["content"].to_string().contains(guidance::EDGE_HINT));
+    for n in start..messages.len() {
+        if messages[n]["role"] != "tool" {
+            continue;
+        }
+        let id = messages[n]["tool_call_id"].as_str();
+        let call = messages[..n]
+            .iter()
+            .rev()
+            .filter_map(|m| m["tool_calls"].as_array())
+            .flatten()
+            .find(|c| c["id"].as_str() == id);
+        if let Some(call) = call {
+            let args = &call["function"]["arguments"];
+            let args = args
+                .as_str()
+                .and_then(|s| serde_json::from_str::<Value>(s).ok())
+                .unwrap_or_else(|| args.clone());
+            let result = messages[n]["content"]
+                .as_str()
+                .and_then(|s| serde_json::from_str::<Value>(s).ok())
+                .unwrap_or_else(|| json!({"error":messages[n]["content"]}));
+            let hints = guidance::edge_hints(
+                call["function"]["name"].as_str().unwrap_or(""),
+                &args,
+                &result,
+                seen,
+            );
+            if !hints.is_empty() {
+                let content = messages[n]["content"].as_str().unwrap_or("");
+                messages[n]["content"] = json!(format!("{content}\n{}", hints.join("\n")));
+                audit.record("edge_hint", &Value::Null, &json!(guidance::EDGE_HINT))?;
+            }
+        }
+    }
+    Ok(())
 }
 
 fn append_hints(
@@ -3541,6 +3591,33 @@ mod tests {
             let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
             assert!(log.contains("prompt_help"));
             assert_eq!(log.contains("model_settings"), ollama);
+        }
+    }
+
+    #[test]
+    fn edge_hints_persist_per_turn_and_respect_no_hints() {
+        for disabled in [false, true] {
+            let mut f = Fixture::new(vec![reply("Ready."); 3]);
+            f.proxy.cfg.no_hints = disabled;
+            let mut req = request();
+            req["messages"] = json!([{"role":"user","content":"round it"}]);
+            for step in 0..3 {
+                let messages = req["messages"].as_array_mut().unwrap();
+                if step == 2 {
+                    messages.push(json!({"role":"user","content":"round another body"}));
+                }
+                let id = format!("edge_{step}");
+                messages.push(json!({"role":"assistant","tool_calls":[{"id":id,"function":{"name":"execute","arguments":json!({"command":"solid.fillet","params":{"edges":[[0,0,0]],"radius":2}}).to_string()}}]}));
+                messages.push(json!({"role":"tool","tool_call_id":id,"content":"{\"error\":\"no edge at [0,0,0]\"}"}));
+                f.chat(req.clone());
+                let sent = f.proxy.scripted.as_ref().unwrap().borrow().requests[step].clone();
+                let last = sent["messages"].as_array().unwrap().last().unwrap()["content"]
+                    .as_str()
+                    .unwrap();
+                assert_eq!(last.contains(guidance::EDGE_HINT), !disabled && step != 1);
+            }
+            let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+            assert_eq!(log.contains("\"kind\":\"edge_hint\""), !disabled);
         }
     }
 

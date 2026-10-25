@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Build compound plates with bores, bolt circles, grids and corner rounding, and guide failed edge picks.
+
 - Retry one upstream HTTP 500 per model turn, with audit excerpts and profile counts.
 - Build fully constrained L, T, U, C, and rectangle profiles from ordinary wording, with one closed polyline, driving dimensions, and extrusion.
 - Add upfront closed sketch guidance to model requests and MCP tool descriptions, respecting --no-hints.

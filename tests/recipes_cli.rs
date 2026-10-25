@@ -270,3 +270,74 @@ fn public_binary_common_closed_profiles_on_every_plane() {
         }
     }
 }
+
+#[test]
+fn public_binary_compound_plates() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let catalog = Catalog::bundled().unwrap();
+    for plane in ["XY", "XZ", "YZ"] {
+        for (features,holes,rounds,volume,kind) in [
+            ("with a centred 30mm bore through and six 8mm holes evenly spaced on a 56mm bolt circle then round the four vertical corner edges radius 10mm",7,11,80.0*80.0*8.0-std::f64::consts::PI*(225.0+96.0)*8.0-(4.0-std::f64::consts::PI)*100.0*8.0,"FilletFeature"),
+            ("with six 8mm holes equally spaced on PCD 56mm then chamfer the four side edges distance 5mm",6,6,80.0*80.0*8.0-std::f64::consts::PI*96.0*8.0-2.0*25.0*8.0,"ChamferFeature"),
+            ("with holes diameter 4mm in a centred grid 2 rows 3 columns pitch 20x20mm then fillet the four corner edges radius 5mm",6,10,80.0*80.0*8.0-std::f64::consts::PI*24.0*8.0-(4.0-std::f64::consts::PI)*25.0*8.0,"FilletFeature"),
+        ] {
+            let text=format!("Make a plate 80x80x8mm centred on the origin on {plane} {features}");
+            let req=json!({"messages":[{"role":"user","content":text}],"tools":[{"function":{"name":"execute"}}]});
+            let p=planner::plan(&req,&catalog).unwrap().unwrap_or_else(||panic!("{text}"));
+            let mut s=Session::new(&path);
+            for c in &p.calls {s.execute(c["arguments"]["command"].as_str().unwrap(),c["arguments"]["params"].clone());}
+            let state=s.execute("document.inspect",json!({"measure":true}));
+            assert_eq!(state["bodies"].as_array().unwrap().len(),1,"{state}");
+            assert!((state["bodies"][0]["volume_mm3"].as_f64().unwrap()-volume).abs()<volume*0.001,"{text}: {state}");
+            let timeline=state["timeline"].as_array().unwrap();
+            assert_eq!(timeline.iter().filter(|f|f["type"]=="HoleFeature").count(),holes,"{state}");
+            assert_eq!(timeline.iter().filter(|f|f["type"]==kind).count(),1,"{state}");
+            let (min,max)=match plane {"XZ"=>([-40.0,0.0,-40.0],[40.0,8.0,40.0]),"YZ"=>([0.0,-40.0,-40.0],[8.0,40.0,40.0]),_=>([-40.0,-40.0,0.0],[40.0,40.0,8.0])};
+            for axis in 0..3 {
+                assert!((state["bodies"][0]["bbox"]["min"][axis].as_f64().unwrap()-min[axis]).abs()<0.001,"{state}");
+                assert!((state["bodies"][0]["bbox"]["max"][axis].as_f64().unwrap()-max[axis]).abs()<0.001,"{state}");
+            }
+            let faces=s.execute("model.faces",json!({"body":"PilotRecipe1"}));
+            assert_eq!(state["bodies"][0]["face_types"]["cylinder"],rounds,"{state}");
+            let blends=faces["faces"].as_array().unwrap().iter().filter(|f|f["cylinder"].is_object() && f["name"].as_str().unwrap().contains(":blend:")).count();
+            assert_eq!(blends,if kind=="FilletFeature" {4}else{0},"{faces}");
+        }
+    }
+}
+
+#[test]
+fn public_binary_compound_all_edges_and_combined_patterns() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let catalog = Catalog::bundled().unwrap();
+    for (text,count,rounding) in [
+        ("Make a plate 80x80x8mm with its corner at the origin with a centred 10mm bore through then fillet all edges radius 1mm",1,true),
+        ("Make a plate 80x80x8mm centred on the origin with six 4mm holes equally spaced on a bolt circle radius 20mm then chamfer all edges distance 1mm",6,true),
+        ("Make a plate 160x160x10mm centred on the origin with a centred 8mm bore through and six 4mm holes evenly spaced on PCD 40mm and holes diameter 4mm in a centred grid 2 rows 2 columns pitch 80x80mm then round the four vertical edges radius 8mm",11,true),
+        ("Make a plate 4x4x1/2 inch centred on the origin with six 1/8 inch holes equally spaced on a 2 inch bolt circle",6,false),
+    ] {
+        let mut s=Session::new(&path);
+        let mut req=json!({"messages":[{"role":"user","content":text}],"tools":[{"function":{"name":"execute"}}]});
+        let p=planner::plan(&req,&catalog).unwrap().unwrap_or_else(||panic!("{text}"));
+        let mut last=Value::Null;
+        for c in &p.calls {last=s.execute(c["arguments"]["command"].as_str().unwrap(),c["arguments"]["params"].clone());}
+        if p.continuation.is_some() {
+            req["messages"].as_array_mut().unwrap().push(json!({"role":"tool","content":last.to_string()}));
+            let next=planner::resume(&req,&p,&catalog).unwrap().unwrap_or_else(||panic!("{text}: {last}"));
+            assert_eq!(next.calls[0]["arguments"]["command"],if text.contains("chamfer") {"solid.chamfer"}else{"solid.fillet"});
+            for c in &next.calls {s.execute(c["arguments"]["command"].as_str().unwrap(),c["arguments"]["params"].clone());}
+        }
+        let state=s.execute("document.inspect",json!({"measure":true}));
+        let timeline=state["timeline"].as_array().unwrap();
+        assert!(timeline.iter().all(|f|f["error"].is_null()),"{text}: {state}");
+        assert_eq!(timeline.iter().filter(|f|f["type"]=="HoleFeature").count(),count,"{state}");
+        assert_eq!(timeline.iter().filter(|f|f["type"]=="FilletFeature" || f["type"]=="ChamferFeature").count(),usize::from(rounding),"{state}");
+        assert_eq!(state["bodies"].as_array().unwrap().len(),1);
+        assert!(state["bodies"][0]["volume_mm3"].as_f64().unwrap()>0.0);
+        req["messages"].as_array_mut().unwrap().push(json!({"role":"tool","content":state.to_string()}));
+        assert_eq!(planner::completion(&req,p.expected.as_ref().unwrap()),None,"{text}: {state}");
+    }
+}

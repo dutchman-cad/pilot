@@ -51,6 +51,11 @@ pub struct EdgeContinuation {
 impl Plan {
     pub fn message(&self) -> String {
         let mut message = format!("For this request, run exactly this plan: {}. Don't change it; then reply using the tool results. Slots are converted to mm (including inches and fractions): {}.", json!(self.calls), self.slots);
+        if self.slots["CompoundPlate"]["default_start"] == true {
+            message.push_str(
+                " Tell the user the bolt circle starts at +X because no start angle was specified.",
+            );
+        }
         if let Some(facts) = &self.facts {
             message.push_str(&format!(
                 " Computed from the latest tool result: {facts}. Use these exact facts."
@@ -765,6 +770,9 @@ pub fn direct_summary(request: &Value, plan: &Plan) -> String {
         "Exact match (no model): {} completed.",
         plan.rule.replace('_', " ")
     );
+    if plan.slots["CompoundPlate"]["default_start"] == true {
+        text.push_str(" Bolt circle starts at +X (no start angle was specified).");
+    }
     if let Some(data) = request["messages"].as_array().and_then(|m| state(m)) {
         if let Some(bodies) = data["bodies"].as_array() {
             text.push_str(&format!(" Measured {} bodies.", bodies.len()));

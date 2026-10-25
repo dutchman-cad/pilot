@@ -3,6 +3,56 @@ use crate::catalog::Catalog;
 use serde_json::{json, Value};
 
 #[cfg(feature = "proxy")]
+pub(crate) const EDGE_HINT: &str = "HINT: Edges accept [x,y,z], {point:[x,y,z]}, or {body,index}; take edge midpoints from model.edges (box vertical edges: corners at mid-height).";
+
+#[cfg(feature = "proxy")]
+pub(crate) fn edge_hints(
+    name: &str,
+    args: &Value,
+    result: &Value,
+    seen: &mut bool,
+) -> Vec<&'static str> {
+    if *seen {
+        return Vec::new();
+    }
+    let data = payload(result);
+    let pairs: Vec<(&Value, &Value)> = match name {
+        "execute" => vec![(args, result)],
+        "batch" => args["commands"]
+            .as_array()
+            .zip(data["results"].as_array())
+            .map(|(a, b)| a.iter().zip(b).take(128).collect())
+            .unwrap_or_default(),
+        _ => Vec::new(),
+    };
+    for (call, result) in pairs {
+        if !matches!(
+            call["command"].as_str(),
+            Some("solid.fillet" | "solid.chamfer")
+        ) {
+            continue;
+        }
+        let text = result
+            .to_string()
+            .chars()
+            .take(8192)
+            .collect::<String>()
+            .to_ascii_lowercase();
+        if text.contains("no edge at")
+            || text.contains("an edge is a point")
+            || (text.contains("edge")
+                && text.contains("{body")
+                && text.contains("index")
+                && text.contains("error"))
+        {
+            *seen = true;
+            return vec![EDGE_HINT];
+        }
+    }
+    Vec::new()
+}
+
+#[cfg(feature = "proxy")]
 pub(crate) const SKETCH_ENTITY_HINT: &str = "HINT: One line's length: entities:[\"l1\"], value:<mm number>; distance between two lines: entities:[\"l2\",\"l5\"].";
 #[cfg(feature = "proxy")]
 pub(crate) const SKETCH_EXISTING_HINT: &str = "HINT: sketch.line with infer:true already adds coincident/horizontal/vertical constraints; move on to dimensions.";
@@ -521,6 +571,56 @@ mod placement_tests {
             "execute",
             &json!({"command":"solid.sphere","params":{"radius":5}}),
             &created("Body1")
+        )
+        .is_empty());
+    }
+}
+
+#[cfg(all(test, feature = "proxy"))]
+mod edge_tests {
+    use super::*;
+    #[test]
+    fn edge_errors_are_scoped_bounded_and_deduplicated() {
+        for command in ["solid.fillet", "solid.chamfer"] {
+            for error in [
+                "an edge is a point [x,y,z], {point} or {body, index}",
+                "no edge at [0, 0, 0]: the nearest edge is 40.000 mm away",
+            ] {
+                let args = json!({"command":command});
+                for result in [
+                    json!({"error":error}),
+                    json!({"isError":true,"content":[{"type":"text","text":error}]}),
+                ] {
+                    let mut seen = false;
+                    assert_eq!(
+                        edge_hints("execute", &args, &result, &mut seen),
+                        [EDGE_HINT]
+                    );
+                    assert!(edge_hints("execute", &args, &result, &mut seen).is_empty());
+                    assert_eq!(
+                        edge_hints(
+                            "batch",
+                            &json!({"commands":[args,args]}),
+                            &json!({"results":[result,result]}),
+                            &mut false
+                        ),
+                        [EDGE_HINT]
+                    );
+                }
+            }
+        }
+        assert!(edge_hints(
+            "execute",
+            &json!({"command":"solid.box"}),
+            &json!({"error":"no edge at [0,0,0]"}),
+            &mut false
+        )
+        .is_empty());
+        assert!(edge_hints(
+            "execute",
+            &json!({"command":"solid.fillet"}),
+            &json!({"ok":true}),
+            &mut false
         )
         .is_empty());
     }

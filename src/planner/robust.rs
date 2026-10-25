@@ -781,3 +781,34 @@ fn closed_profile_units_labels_and_extrusion_aliases_preserve_slots() {
         assert_eq!(p.slots["ClosedProfile"]["distance"], 12.0);
     }
 }
+
+#[test]
+fn compound_plates_defer_unsafe_or_unclear_requests() {
+    let catalog = Catalog::bundled().unwrap();
+    for feature in [
+        "with six 8mm holes on a 56mm bolt circle",
+        "with six 8mm holes evenly spaced on a 100mm bolt circle",
+        "with six 40mm holes evenly spaced on a 56mm bolt circle",
+        "with a centred 50mm bore and six 8mm holes evenly spaced on a 56mm bolt circle",
+        "then round the four vertical edges radius 40mm",
+        "then fillet the top edges radius 2mm",
+        "then chamfer some edges distance 2mm",
+        "with a blind bore diameter 8mm",
+        "with six 8mm holes evenly spaced on PCD 56mm starting at -X",
+        "with six 8mm holes evenly spaced on PCD 56mm and a slot",
+        "with holes diameter 8mm in a grid 2 rows 3 columns pitch 2x2mm centred",
+        "with a centred 8mm bore and a centred 12mm bore",
+        "with holes diameter 4mm in a grid 2 rows 3 columns pitch 20x20mm",
+        "with holes diameter 4mm in a centred grid 2 rows 3 columns pitch -20x20mm",
+        "with a centred 8mm cm bore",
+        "with 1000 2mm holes equally spaced on PCD 40mm",
+        "with six 4mm holes equally spaced on a bolt circle radius diameter 28mm",
+        "with a centred 30mm bore through and six 8mm holes evenly spaced on PCD 36mm",
+    ] {
+        let text = format!("Make a plate 80x80x8mm centred on the origin on XY {feature}");
+        assert!(
+            plan(&cases::request(&text), &catalog).unwrap().is_none(),
+            "{text}"
+        );
+    }
+}
