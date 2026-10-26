@@ -39,6 +39,4 @@ cargo run --locked --example generate_flags
 The display name lives in src/identity.rs. Keep the crate, executable, data-directory,
 and protocol names stable when updating product wording.
 
-To release, set the package version, commit, and push the matching `vVERSION`
-tag. The four platform archives and checksum files are attached to a draft
-GitHub release for review before publication.
+To release, follow [Releasing Pilot](docs/releasing.md).
