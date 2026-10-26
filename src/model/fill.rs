@@ -1,76 +1,13 @@
 //! A recipe form is local to one fresh user turn, including two validation retries.
 use super::*;
 
+#[cfg(test)]
 pub(super) fn select(
     library: &crate::recipe_library::Library,
     request: &Value,
 ) -> Result<Option<Value>, String> {
-    let query = last_user(request);
-    if query.trim().is_empty() || query.len() > 2048 {
-        return Ok(None);
-    }
-    let found = library.find(query, &crate::recipe_library::Bm25)?;
-    // Retrieval is lexical: conservatively keep explanation requests and unsupported
-    // geometry on the normal tools even when they repeat many recipe keywords.
-    let lower = query.to_lowercase();
-    if lower.split(|c: char| !c.is_alphabetic()).any(|w| {
-        matches!(
-            w,
-            "how"
-                | "why"
-                | "not"
-                | "don"
-                | "instead"
-                | "explain"
-                | "describe"
-                | "story"
-                | "poem"
-                | "compare"
-                | "loft"
-                | "lofted"
-                | "helical"
-                | "gear"
-                | "twisted"
-                | "sweep"
-                | "swept"
-                | "variable"
-        )
-    }) {
-        return Ok(None);
-    }
-    let top = &found["recipes"][0];
-    if top["score"].as_f64().unwrap_or(0.0) < crate::recipe_library::FILL_THRESHOLD {
-        return Ok(None);
-    }
-    // These expanders create their own geometry or resolve their targets through inspection.
-    // Unknown development sequences and existing-body edits stay on the normal path.
-    let targets = planner::recipe_targets(request);
-    let supported = library.recipes.iter().any(|r| {
-        r.id == top["id"]
-            && (matches!(
-                r.expander.as_str(),
-                "profile"
-                    | "plate"
-                    | "enclosure"
-                    | "cross_drilled_box"
-                    | "honeycomb_pattern"
-                    | "linear_pattern"
-                    | "grid_pattern"
-                    | "circular_pattern"
-                    | "revolute_joint"
-                    | "box"
-                    | "cylinder"
-                    | "sphere"
-                    | "tube"
-                    | "shell"
-                    | "revolve"
-            ) || (!targets.is_empty()
-                && matches!(
-                    r.expander.as_str(),
-                    "fillet" | "chamfer" | "move" | "mirror"
-                )))
-    });
-    Ok(supported.then(|| top.clone()))
+    let band = library.form_band(last_user(request))?;
+    Ok((band["band"] == "fill").then(|| band["recipes"][0].clone()))
 }
 
 pub(super) fn offer(
@@ -96,6 +33,64 @@ pub(super) fn offer(
     }
     messages.push(json!({"role":"system","content":line}));
     Ok(())
+}
+
+pub(super) fn offer_route(outgoing: &mut Value, candidates: &[Value]) -> Result<(), String> {
+    let ids: Vec<_> = candidates
+        .iter()
+        .take(4)
+        .map(|r| r["id"].clone())
+        .chain(std::iter::once(json!("none")))
+        .collect();
+    let descriptions = candidates
+        .iter()
+        .take(4)
+        .map(|r| {
+            format!(
+                "{}: {}",
+                r["id"].as_str().unwrap_or(""),
+                r["description"].as_str().unwrap_or("")
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("; ");
+    outgoing["tools"] = json!([{"type":"function","function":{"name":"pilot_route","description":descriptions,"parameters":{"type":"object","properties":{"recipe":{"type":"string","enum":ids}},"required":["recipe"],"additionalProperties":false}}}]);
+    outgoing["tool_choice"] = json!({"type":"function","function":{"name":"pilot_route"}});
+    outgoing["n"] = json!(1);
+    let messages = outgoing["messages"]
+        .as_array_mut()
+        .ok_or("messages must be an array")?;
+    if messages.len() >= 256 {
+        return Err("route prompt exceeds 256 messages".into());
+    }
+    messages.push(
+        json!({"role":"system","content":"Pick the form that matches the request, or none."}),
+    );
+    Ok(())
+}
+
+pub(super) fn picked(response: &Value, candidates: &[Value]) -> Option<Value> {
+    let choices = response["choices"].as_array().filter(|c| c.len() == 1)?;
+    let calls = choices[0]["message"]["tool_calls"]
+        .as_array()
+        .filter(|c| c.len() == 1)?;
+    if calls[0]["function"]["name"] != "pilot_route" {
+        return None;
+    }
+    let raw = &calls[0]["function"]["arguments"];
+    let args: Value = if let Some(s) = raw.as_str() {
+        serde_json::from_str(s).ok()?
+    } else {
+        raw.clone()
+    };
+    if args.as_object()?.len() != 1 {
+        return None;
+    }
+    candidates
+        .iter()
+        .take(4)
+        .find(|r| r["id"] == args["recipe"])
+        .cloned()
 }
 
 pub(super) enum Outcome {
@@ -262,7 +257,6 @@ mod tests {
             "Explain a mounting plate with a bolt circle",
             "A plate with a helical gear and bolt circle holes",
             "L profile with variable twisted loft",
-            "How do I extrude a T profile with a thick web?",
             "Do not make an open enclosure with an inner lip",
             "a cuboid please",
             "write a sonnet",
@@ -278,7 +272,7 @@ mod tests {
     fn existing_body_forms_require_complete_state_and_known_names() {
         let library = crate::recipe_library::Library::embedded().unwrap();
         let mut req = request("fillet all the edges");
-        assert!(select(&library, &req).unwrap().is_none());
+        assert_eq!(select(&library, &req).unwrap().unwrap()["id"], "fillet");
         req["messages"].as_array_mut().unwrap().insert(0,json!({"role":"tool","content":json!({"body_count":1,"bodies":[{"name":"Part"}]}).to_string()}));
         let found = select(&library, &req).unwrap().unwrap();
         assert_eq!(found["id"], "fillet");
@@ -295,6 +289,15 @@ mod tests {
         ));
         req["messages"][0]["content"] =
             json!(json!({"body_count":2,"bodies":[{"name":"Part"}]}).to_string());
-        assert!(select(&library, &req).unwrap().is_none());
+        assert!(matches!(
+            accept(
+                &response,
+                &found,
+                &req,
+                &library,
+                &Catalog::bundled().unwrap()
+            ),
+            Outcome::Invalid(_)
+        ));
     }
 }

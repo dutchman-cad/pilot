@@ -1,6 +1,7 @@
 ---
 {
   "id": "enclosure",
+  "synonyms": ["housing case tray box lid lip floor wall open"],
   "description": "Open enclosure with floor, walls and optional inner or outer lip.",
   "examples": [
     "Make an enclosure with an inner lip",

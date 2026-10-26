@@ -1,6 +1,7 @@
 ---
 {
   "id": "box",
+  "synonyms": ["cuboid block slab brick rectangular solid"],
   "description": "Solid rectangular box, block or cube with length width and height.",
   "examples": [
     "Make a solid box 32 by 24 by 16 mm",

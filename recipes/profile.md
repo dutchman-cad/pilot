@@ -1,6 +1,7 @@
 ---
 {
   "id": "profile",
+  "synonyms": ["bracket angle iron L", "tee T section", "channel U C", "hollow rectangle section"],
   "description": "Extrude L T U C or rectangular profiles with web and flange thickness.",
   "examples": [
     "Extrude an L profile twenty mm deep",

@@ -1,6 +1,7 @@
 ---
 {
   "id": "cross_drilled_box",
+  "synonyms": ["cross drilled cube block crossing bores axes faces"],
   "description": "Box or cube cross-drilled with centred through holes along one, two or three world axes; holes through all six faces. No sketches or construction planes.",
   "examples": [
     "Make a cube with holes through all six faces",

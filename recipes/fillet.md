@@ -1,6 +1,7 @@
 ---
 {
   "id": "fillet",
+  "synonyms": ["round over all edges radius fillet"],
   "description": "Fillet all edges of an existing body with a radius, after topology lookup.",
   "examples": [
     "Round all edges of this body",

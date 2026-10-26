@@ -1,6 +1,7 @@
 ---
 {
   "id": "shell",
+  "synonyms": ["hollow open top shelled box uniform thickness bin planter"],
   "description": "Shell a rectangular box with uniform wall thickness and an open top.",
   "examples": [
     "Shell a box with a two mm wall",

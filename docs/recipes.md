@@ -500,7 +500,7 @@ loops to verify count, minimum web and border.
 ## Fill a found recipe first
 
 On a fresh user turn that reaches the model, Pilot runs the `pilot_find` BM25 ranker
-itself. At **4.5 or higher**, the first request offers exactly one `pilot_fill`
+itself. At **8.0 or higher**, the first request offers exactly one `pilot_fill`
 function, with the selected typed schema plus boolean `decline`, and forces that
 function with `tool_choice`. The line naming the recipe asks the model to use the
 user's words, convert inches to mm, omit unstated optional fields and decline a
@@ -524,22 +524,34 @@ continuations or SolidCraft 98. `--no-fill` skips forms while keeping find/build
 `--no-shortcuts` also removes forms and the upfront find-first line. Exact direct
 matches retain priority; use `--no-direct-recipes` to exercise forms for those requests.
 
-The find hit/miss threshold remains **1.8**. Independent calibration lives in
-`tests/recipe_library.rs::fill_calibration`: an L extrusion scores 11.80, a
-mounting plate with bore and bolt circle 14.01, and an open lipped enclosure 15.31.
-“A cuboid please” scores 4.44 and stays a search hit without a forced form;
-“Write a story about an enclosure with a lip” scores 3.27. French poetry scores
-1.17 and a sonnet scores 0, both misses. These are lexical retrieval scores, not
-probabilities. General section cues help an L sketch without the word “profile”;
-a new plate's hole circle or an enclosure rim does not select an existing-body
-pattern unless repetition is explicitly requested. Explanation, negation and
-unsupported geometry cues (including loft, sweep and gear) conservatively skip
-forms even with high lexical overlap. Tests cover those near misses as well.
+The find hit/miss threshold remains **1.8**. Retrieval uses bounded per-recipe
+`synonyms` groups (at most 32 strings of 128 bytes), light stemming, and field
+names in addition to descriptions and examples. Number and unit tokens do not
+affect scores. Scores are lexical relevance, not probabilities. Unsupported
+geometry and explanation cues skip forms.
+
+Scores from **1.5** up to **8.0** offer only `pilot_route`, with one required
+`recipe` enum containing the top four ids plus `none`. Its system note is
+“Pick the form that matches the request, or none.” A single valid selection
+offers that recipe’s fill form on the next upstream request in the same turn.
+`none`, unknown ids, malformed arguments, text, or mixed calls restore normal
+tools. Scores below **1.5** use normal tools immediately. Both forms are
+skipped by `--no-fill`, on continuations and for SolidCraft 98. Routes never
+execute geometry. Custom sequence recipes stay on the explicit find/build path.
+
+Tune data is preserved in `tests/fixtures/dev-route-tune.json` (127 independent
+requests); `tests/route_calibration.rs` reports precision and recall separately
+for direct fill, top-four route coverage, and normal-tool rejection. Thresholds
+are selected only on tune data. The separate development check is read once
+after implementation; its results belong in the commit body, never recipe files
+or test sentences. The ignored `live_gemma_route_tune` sends at most six tune
+requests to gemma4:latest on 127.0.0.1:11435 and prints route picks without CAD.
 
 Creation recipes need no existing target; patterns and joints inspect first.
-Existing-body edit forms require a complete latest recipe snapshot and accept
-only body names from it. Unknown development sequence state requirements stay on
-the normal path. Three verbatim public Assistant requests are replayed from
+Existing-body edit fills accept only names from a complete latest inspected
+recipe snapshot; absent evidence produces a field error and bounded fallback.
+Unknown development sequence state requirements stay on the normal path.
+Three verbatim public Assistant requests are replayed from
 `tests/fixtures/fill-*.json` with direct recipes disabled, selecting profile,
 plate and enclosure. They were not used as recipe examples. The optional ignored
 `live_gemma_fill_public_probes` test sends at most three requests to Ollama on
@@ -547,8 +559,10 @@ plate and enclosure. They were not used as recipe examples. The optional ignored
 
 Audit kinds: `fill_offered` records recipe and score; `fill_accepted` records the
 validated envelope and rule; `fill_declined`, `fill_invalid` and `fill_fallback`
-record why the normal path resumes. Existing wire, size, search and retry caps
-still apply; three fill attempts are additional to the bounded normal retry budget.
+record why the normal path resumes. `route_offered`, `route_picked`, and
+`route_none` audit routing. A route and its fills share at most four upstream
+requests, including provider retries, before normal tools resume. The fill itself
+still has at most three validation attempts. Existing size and search caps apply.
 The wire cap is eight requests, including provider-mode recovery and normal retries.
 
 ### Flat fill forms

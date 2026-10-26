@@ -9,8 +9,9 @@ pub mod forms;
 pub const FIND_DESCRIPTION: &str = "Search recipes before building. Returns the closest three schemas. On no good hit, do not improvise CAD: tell the user what Pilot can build or ask one question. Then use pilot_build with recipe and args. Lengths are mm.";
 pub const BUILD_DESCRIPTION: &str = "Build a recipe found with pilot_find: supply its id and typed args. Lengths are mm. Legacy shape arguments also work. Inspect before selecting existing bodies or a contact joint.";
 pub const HIT_THRESHOLD: f64 = 1.8;
-/// Conservative forced-form gate; calibrated independently in tests.
-pub const FILL_THRESHOLD: f64 = 4.5;
+/// Development tune calibration: high confidence fill, otherwise top-four routing.
+pub const FILL_THRESHOLD: f64 = 8.0;
+pub const ROUTE_THRESHOLD: f64 = 1.5;
 pub const IDS: &[&str] = &[
     "cross_drilled_box",
     "honeycomb_pattern",
@@ -39,6 +40,8 @@ pub struct Recipe {
     pub id: String,
     pub description: String,
     pub examples: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub synonyms: Vec<String>,
     pub schema: Value,
     pub expander: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -62,6 +65,11 @@ impl Recipe {
             forms::check_definition(fill)?;
         }
         if !identifier(&recipe.id)
+            || recipe.synonyms.len() > 32
+            || recipe
+                .synonyms
+                .iter()
+                .any(|s| s.trim().is_empty() || s.len() > 128)
             || recipe.description.is_empty()
             || recipe.description.len() > 256
             || recipe.description.contains(['\n', '\r'])
@@ -477,6 +485,14 @@ impl Library {
         planner::recipe_expand(&r.expander, &args, request, catalog)
     }
     pub fn find(&self, request: &str, ranker: &dyn Ranker) -> Result<Value, String> {
+        self.find_limit(request, ranker, 3)
+    }
+    fn find_limit(
+        &self,
+        request: &str,
+        ranker: &dyn Ranker,
+        limit: usize,
+    ) -> Result<Value, String> {
         if request.trim().is_empty() || request.len() > 2048 {
             return Err("request must contain 1..2048 bytes".into());
         }
@@ -486,7 +502,7 @@ impl Library {
             b.1.total_cmp(&a.1)
                 .then_with(|| self.recipes[a.0].id.cmp(&self.recipes[b.0].id))
         });
-        ranked.truncate(3);
+        ranked.truncate(limit.min(4));
         let hit = ranked.first().is_some_and(|(_, s)| *s >= HIT_THRESHOLD);
         let recipes: Vec<_> = ranked
             .iter()
@@ -498,6 +514,61 @@ impl Library {
         Ok(
             json!({"hit":hit,"message":if hit {"Choose a recipe and fill its schema through pilot_build."} else {"No good recipe hit. Do not improvise CAD; explain what Pilot can build or ask one question. Closest recipes follow."},"recipes":recipes}),
         )
+    }
+    /// One bounded decision shared by the proxy and development calibration.
+    pub fn form_band(&self, request: &str) -> Result<Value, String> {
+        if request.trim().is_empty() || request.len() > 2048 {
+            return Ok(json!({"band":"low","recipes":[]}));
+        }
+        let mut found = self.find_limit(request, &Bm25, 4)?;
+        if let Some(rs) = found["recipes"].as_array_mut() {
+            rs.retain(|r| {
+                self.recipes
+                    .iter()
+                    .any(|source| source.id == r["id"] && source.expander != "sequence")
+            });
+        }
+        let words = tokens(request);
+        let lower = request.to_lowercase();
+        let blocked = [
+            "do not make",
+            "do not build",
+            "do not create",
+            "don't make",
+            "don't build",
+            "don't create",
+        ]
+        .iter()
+        .any(|s| lower.contains(s))
+            || words.iter().any(|w| {
+                matches!(
+                    w.as_str(),
+                    "explain"
+                        | "describe"
+                        | "poem"
+                        | "sonnet"
+                        | "illustration"
+                        | "story"
+                        | "compare"
+                        | "loft"
+                        | "lofted"
+                        | "helical"
+                        | "gear"
+                        | "twisted"
+                        | "sweep"
+                        | "swept"
+                        | "variable"
+                )
+            });
+        let score = found["recipes"][0]["score"].as_f64().unwrap_or(0.0);
+        found["band"] = json!(if blocked || score < ROUTE_THRESHOLD {
+            "low"
+        } else if score >= FILL_THRESHOLD {
+            "fill"
+        } else {
+            "route"
+        });
+        Ok(found)
     }
 }
 pub fn find_tool() -> Value {
@@ -518,16 +589,33 @@ pub trait Ranker {
 pub struct Bm25;
 fn tokens(text: &str) -> Vec<String> {
     text.to_lowercase()
-        .split(|c: char| !c.is_alphabetic())
+        .split(|c: char| !c.is_alphanumeric())
         .filter_map(|t| {
             if t.is_empty()
+                || t.chars().any(|c| c.is_numeric())
                 || t.parse::<f64>().is_ok()
                 || matches!(
                     t,
                     "mm" | "millimeter"
                         | "millimeters"
+                        | "millimetre"
                         | "millimetres"
                         | "cm"
+                        | "centimeter"
+                        | "centimeters"
+                        | "centimetre"
+                        | "centimetres"
+                        | "m"
+                        | "meter"
+                        | "meters"
+                        | "metre"
+                        | "metres"
+                        | "ft"
+                        | "foot"
+                        | "feet"
+                        | "deg"
+                        | "degree"
+                        | "degrees"
                         | "inch"
                         | "inches"
                         | "in"
@@ -575,6 +663,7 @@ fn tokens(text: &str) -> Vec<String> {
             let s = s
                 .strip_suffix("ing")
                 .filter(|_| s.len() > 6)
+                .or_else(|| s.strip_suffix("ed").filter(|_| s.len() > 5))
                 .or_else(|| s.strip_suffix('s').filter(|_| s.len() > 4))
                 .unwrap_or(s);
             Some(s.into())
@@ -589,7 +678,14 @@ impl Ranker for Bm25 {
             .map(|r| {
                 std::iter::once(r.description.as_str())
                     .chain(r.examples.iter().map(String::as_str))
+                    .chain(r.synonyms.iter().map(String::as_str))
                     .map(tokens)
+                    .chain(std::iter::once(tokens(
+                        &r.schema["properties"]
+                            .as_object()
+                            .map(|o| o.keys().cloned().collect::<Vec<_>>().join(" "))
+                            .unwrap_or_default(),
+                    )))
                     .collect()
             })
             .collect();
@@ -597,6 +693,9 @@ impl Ranker for Bm25 {
         let avg = docs.iter().flatten().map(Vec::len).sum::<usize>() as f64 / n.max(1.0);
         let words = tokens(query);
         let has = |word: &str| words.iter().any(|w| w == word);
+        let non_pattern = ["clipboard", "file", "poem", "text", "spreadsheet", "volume"]
+            .iter()
+            .any(|w| has(w));
         // A hole circle in a new plate and a rim around an enclosure are compound
         // creations, not repetition of an existing body. Explicit pattern requests win.
         let creation = (has("plate") || has("enclosure"))
@@ -608,13 +707,19 @@ impl Ranker for Bm25 {
         } else {
             planner::pattern_intent(query)
         };
-        let lipped = has("enclosure") && has("lip") && (has("open") || has("wall"));
+        let lipped =
+            (has("enclosure") || has("wall")) && has("lip") && (has("open") || has("wall"));
         let section = ["l", "t", "u", "c"].iter().any(|w| has(w))
             && (has("profile")
                 || ((has("sketch") || has("extrude"))
                     && ["width", "height", "wide", "tall", "leg", "thickness"]
                         .iter()
                         .any(|w| has(w))));
+        let named: BTreeSet<_> = query
+            .to_lowercase()
+            .split(|c: char| !c.is_alphabetic())
+            .map(str::to_owned)
+            .collect();
         let query: BTreeSet<_> = tokens(query).into_iter().collect();
         let idfs: BTreeMap<_, _> = query
             .iter()
@@ -646,24 +751,32 @@ impl Ranker for Bm25 {
                     .filter(|t| ds.iter().any(|d| d.contains(t)))
                     .count();
                 let coverage = matched as f64 / query.len().max(1) as f64;
+                let id_hit = if !recipes[i].id.contains('_') && named.contains(&recipes[i].id) {
+                    2.0
+                } else {
+                    0.0
+                };
                 (
                     i,
-                    if recipes[i].id.ends_with("_pattern") {
-                        if pattern == Some(recipes[i].id.as_str()) {
-                            100.0 + best * coverage
-                        } else {
-                            0.0
-                        }
-                    } else {
-                        best * coverage
-                            + if recipes[i].id == "profile" && section {
-                                6.0
-                            } else if recipes[i].id == "enclosure" && lipped {
-                                3.0
-                            } else {
+                    id_hit
+                        + if recipes[i].id.ends_with("_pattern") {
+                            if non_pattern {
                                 0.0
+                            } else if pattern == Some(recipes[i].id.as_str()) {
+                                3.0 + best * coverage
+                            } else {
+                                best * coverage
                             }
-                    },
+                        } else {
+                            best * coverage
+                                + if recipes[i].id == "profile" && section {
+                                    6.0
+                                } else if recipes[i].id == "enclosure" && lipped {
+                                    3.0
+                                } else {
+                                    0.0
+                                }
+                        },
                 )
             })
             .collect()
@@ -875,6 +988,7 @@ pub fn draft(
             description.push(ch);
         }
         let r = Recipe {
+            synonyms: vec![],
             id: format!("draft_turn_{turn}"),
             description,
             examples: vec![

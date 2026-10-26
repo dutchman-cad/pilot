@@ -352,6 +352,7 @@ fn prompt_budget_includes_descriptions_and_tools() {
 fn sequence_is_typed_bounded_and_catalogue_checked() {
     let cat = Catalog::bundled().unwrap();
     let mut r = Recipe {
+        synonyms: vec![],
         id: "sequence_test".into(),
         description: "A box sequence".into(),
         examples: vec!["box".into(); 3],
@@ -729,7 +730,11 @@ fn fill_calibration() {
         let found = lib.find(query, &Bm25).unwrap();
         let score = found["recipes"][0]["score"].as_f64().unwrap();
         assert_eq!(found["recipes"][0]["id"], id, "{query}");
-        assert_eq!(score >= FILL_THRESHOLD, fill, "{query}: {score}");
+        assert_eq!(
+            lib.form_band(query).unwrap()["band"] == "fill",
+            fill,
+            "{query}: {score}"
+        );
         assert_eq!(found["hit"], hit, "{query}");
     }
 }

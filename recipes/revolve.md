@@ -1,6 +1,7 @@
 ---
 {
   "id": "revolve",
+  "synonyms": ["revolve revolved rectangle sketch spin turn axis"],
   "description": "Revolve a rectangular sketch about Z through 360 degrees.",
   "examples": [
     "Revolve a rectangle about the Z axis",

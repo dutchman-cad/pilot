@@ -1,6 +1,7 @@
 ---
 {
   "id": "sphere",
+  "synonyms": ["ball globe sphere"],
   "description": "Solid sphere or ball with a radius.",
   "examples": [
     "Make a sphere of radius 9 mm",

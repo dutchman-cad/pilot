@@ -1,6 +1,7 @@
 ---
 {
   "id": "move",
+  "synonyms": ["nudge relocate translate move delta dx dy dz"],
   "description": "Move or translate an existing body by an XYZ displacement vector.",
   "examples": [
     "Move the body twenty mm along X",

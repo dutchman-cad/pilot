@@ -1,6 +1,7 @@
 ---
 {
   "id": "plate",
+  "synonyms": ["bolt pattern PCD flange mounting plate", "perforated panel circular holes grid pitch"],
   "description": "Flat plate with holes: centre bore, bolt circle or rectangular grid and optional corners.",
   "examples": [
     "Make a plate with a grid of holes",

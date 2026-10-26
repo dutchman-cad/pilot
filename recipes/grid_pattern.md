@@ -1,6 +1,7 @@
 ---
 {
   "id": "grid_pattern",
+  "synonyms": ["array matrix rows columns cols grid spacing"],
   "description": "Repeat an existing body or last feature in a rectangular grid: rows, columns, plane and spacing in both directions.",
   "examples": [
     "array it 4 by 6",

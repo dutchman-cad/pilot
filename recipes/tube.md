@@ -1,6 +1,7 @@
 ---
 {
   "id": "tube",
+  "synonyms": ["pipe conduit bushing sleeve hollow cylinder OD ID"],
   "description": "Hollow round tube or pipe with outer radius inner radius and height.",
   "examples": [
     "Make a hollow tube twenty mm long",

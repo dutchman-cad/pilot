@@ -1,6 +1,7 @@
 ---
 {
   "id": "cylinder",
+  "synonyms": ["rod puck solid round cylinder"],
   "description": "Solid cylinder, round rod or disc with radius and height.",
   "examples": [
     "Make a cylinder 6 mm radius and 24 tall",

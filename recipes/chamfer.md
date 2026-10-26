@@ -1,6 +1,7 @@
 ---
 {
   "id": "chamfer",
+  "synonyms": ["bevel chamfer all edges corners"],
   "description": "Chamfer all edges of an existing body by a distance, after topology lookup.",
   "examples": [
     "Bevel all edges of this body",

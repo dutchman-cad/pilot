@@ -1201,16 +1201,30 @@ impl Proxy {
         let fresh = original["messages"]
             .as_array()
             .is_some_and(|ms| ms[user_index + 1..].iter().all(|m| m["role"] == "system"));
-        let mut fill_recipe = if shortcuts_offered
+        let band = if shortcuts_offered
             && !self.cfg.no_fill
             && fresh
             && recipe.is_none()
             && conversation.fill_index != Some(user_index)
         {
-            fill::select(&self.recipes, &original)?
+            self.recipes.form_band(last_user(&original))?
         } else {
-            None
+            json!({"band":"low"})
         };
+        let mut fill_recipe = (band["band"] == "fill").then(|| band["recipes"][0].clone());
+        let mut route_candidates = if band["band"] == "route" {
+            band["recipes"].as_array().cloned().unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+        if !route_candidates.is_empty() {
+            conversation.fill_index = Some(user_index);
+            let choices: Vec<_> = route_candidates
+                .iter()
+                .map(|r| json!({"id":r["id"],"score":r["score"]}))
+                .collect();
+            audit.record("route_offered", &Value::Null, &json!({"recipes":choices}))?;
+        }
         if let Some(found) = &fill_recipe {
             conversation.fill_index = Some(user_index);
             audit.record(
@@ -1219,11 +1233,13 @@ impl Proxy {
                 &json!({"recipe":found["id"],"score":found["score"]}),
             )?;
         }
-        if text_mode && fill_recipe.is_none() {
+        if text_mode && fill_recipe.is_none() && route_candidates.is_empty() {
             text_mode::activate(&mut body, &tools, "profile_or_capabilities", audit)?;
         }
         let mut fill_error: Option<String> = None;
         let mut fill_attempts = 0;
+        let mut route_attempts = 0;
+        let mut form_attempts = 0;
         let mut empty_retried = false;
         let mut parse_retried = false;
         let mut hand_backs = 0;
@@ -1237,7 +1253,19 @@ impl Proxy {
         // assistant/user messages; those nudges must not make its evidence old.
         let answering = history::answering_start(&body);
         for wire_attempt in 0..=7 {
-            let attempt = wire_attempt - mode_retry - fill_attempts;
+            if form_attempts >= 4 && (fill_recipe.is_some() || !route_candidates.is_empty()) {
+                fill_recipe = None;
+                route_candidates.clear();
+                audit.record(
+                    "fill_fallback",
+                    &Value::Null,
+                    &json!({"reason":"four upstream form calls exhausted"}),
+                )?;
+                if text_mode {
+                    text_mode::activate(&mut body, &tools, "form_cap", audit)?;
+                }
+            }
+            let attempt = wire_attempt - mode_retry - fill_attempts - route_attempts;
             if attempt > 3 {
                 break;
             }
@@ -1246,7 +1274,8 @@ impl Proxy {
             let protected = conversation.pending_recipe.is_some()
                 || conversation.recipe.is_some()
                 || conversation.direct.is_some()
-                || fill_recipe.is_some();
+                || fill_recipe.is_some()
+                || !route_candidates.is_empty();
             let mut outgoing = body.clone();
             let changed = if self.cfg.no_trim {
                 0
@@ -1260,7 +1289,9 @@ impl Proxy {
                 )
             };
             let trimmed_chars = history::chars(&body).saturating_sub(history::chars(&outgoing));
-            if let Some(found) = &fill_recipe {
+            if !route_candidates.is_empty() {
+                fill::offer_route(&mut outgoing, &route_candidates)?;
+            } else if let Some(found) = &fill_recipe {
                 fill::offer(&mut outgoing, found, fill_error.as_deref())?;
             } else if text_mode {
                 outgoing = text_mode::wire(&outgoing, audit)?;
@@ -1275,6 +1306,9 @@ impl Proxy {
                 audit,
             )?;
             let wire = json_bytes(&outgoing)?;
+            if fill_recipe.is_some() || !route_candidates.is_empty() {
+                form_attempts += 1;
+            }
             let mut upstream = match self.fetch(
                 "POST",
                 "/chat/completions",
@@ -1294,13 +1328,21 @@ impl Proxy {
                     return Ok(reply);
                 }
             };
-            if (!text_mode || fill_recipe.is_some())
+            if (!text_mode || fill_recipe.is_some() || !route_candidates.is_empty())
                 && !tools.is_empty()
                 && text_mode::rejected(upstream.status, &upstream.body)
             {
                 if fill_recipe.take().is_some() {
                     audit.record(
                         "fill_fallback",
+                        &Value::Null,
+                        &json!({"reason":"provider rejected tools"}),
+                    )?;
+                }
+                if !route_candidates.is_empty() {
+                    route_candidates.clear();
+                    audit.record(
+                        "route_none",
                         &Value::Null,
                         &json!({"reason":"provider rejected tools"}),
                     )?;
@@ -1365,6 +1407,29 @@ impl Proxy {
                     .map_err(|_| "upstream did not return completion JSON")?
             };
             repair::check_value(&response)?;
+            if !route_candidates.is_empty() {
+                route_attempts += 1;
+                fill_recipe = fill::picked(&response, &route_candidates);
+                route_candidates.clear();
+                if let Some(found) = &fill_recipe {
+                    audit.record("route_picked", &response, &json!({"recipe":found["id"]}))?;
+                    audit.record(
+                        "fill_offered",
+                        &Value::Null,
+                        &json!({"recipe":found["id"],"score":found["score"]}),
+                    )?;
+                } else {
+                    audit.record(
+                        "route_none",
+                        &response,
+                        &json!({"reason":"none or invalid selection"}),
+                    )?;
+                    if text_mode {
+                        text_mode::activate(&mut body, &tools, "route_none", audit)?;
+                    }
+                }
+                continue;
+            }
             if let Some(choices) = response["choices"].as_array() {
                 for choice in choices.iter().take(8) {
                     audit.capture(
@@ -1418,7 +1483,7 @@ impl Proxy {
                             &response,
                             &json!({"recipe":found["id"],"reason":reason,"attempt":fill_attempts,"max_attempts":3}),
                         )?;
-                        if fill_attempts < 3 {
+                        if form_attempts < 4 && fill_attempts < 3 {
                             fill_error = Some(reason);
                             continue;
                         }
@@ -2854,7 +2919,7 @@ mod tests {
                         no_how: true,
                         no_hints: false,
                         no_shortcuts: true,
-                        no_fill: false,
+                        no_fill: true,
                         no_trim: false,
                         trim_cap: DEFAULT_TRIM_CAP,
                         trim_keep: DEFAULT_TRIM_KEEP,
@@ -6372,6 +6437,218 @@ mod tests {
             json!({"kind":"L","plane":"XZ","width":47,"height":33,"thickness":5,"depth":22,"decline":false}),
         )
     }
+
+    fn route_request() -> Value {
+        let mut req = fill_request();
+        req["messages"] = json!([{"role":"user","content":"hinge pivot two parts"}]);
+        req
+    }
+
+    #[test]
+    fn route_pick_valid_fill_emits_client_calls() {
+        let data: Vec<Value> =
+            serde_json::from_str(include_str!("../tests/fixtures/dev-route-tune.json")).unwrap();
+        let library = crate::recipe_library::Library::embedded().unwrap();
+        let row = data
+            .iter()
+            .find(|r| {
+                r["recipe"] == "box"
+                    && library.form_band(r["text"].as_str().unwrap()).unwrap()["band"] == "route"
+            })
+            .unwrap();
+        let mut req = fill_request();
+        req["messages"] = json!([{"role":"user","content":row["text"]}]);
+        let mut f = fill_fixture(vec![
+            call("pilot_route", json!({"recipe":"box"})),
+            call("pilot_fill", row["args"].clone()),
+        ]);
+        let out = f.chat(req);
+        assert_eq!(out.status, 200);
+        let response: Value = serde_json::from_slice(&out.body).unwrap();
+        assert!(response["choices"][0]["message"]["tool_calls"]
+            .as_array()
+            .is_some_and(|c| !c.is_empty()));
+        let script = f.proxy.scripted.as_ref().unwrap().borrow();
+        assert_eq!(script.requests.len(), 2);
+        assert_eq!(
+            script.requests[1]["tools"][0]["function"]["name"],
+            "pilot_fill"
+        );
+        let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+        assert!(log.contains("route_picked") && log.contains("fill_accepted"));
+    }
+
+    #[test]
+    fn route_pick_then_fill_and_four_call_cap() {
+        for streaming in [false, true] {
+            let mut replies = vec![call("pilot_route", json!({"recipe":"revolute_joint"}))];
+            // Joint forms require real component evidence, so invalid fields exercise
+            // all three validation retries without executing a fabricated joint.
+            replies.extend((0..3).map(|_| call("pilot_fill", json!({"bogus":1}))));
+            replies.push(reply("Which parts should be joined?"));
+            let mut f = fill_fixture(replies);
+            let mut req = route_request();
+            if streaming {
+                req["stream"] = json!(true);
+            }
+            assert_eq!(f.chat(req).status, 200);
+            let script = f.proxy.scripted.as_ref().unwrap().borrow();
+            assert_eq!(script.requests.len(), 5);
+            assert_eq!(script.requests[0]["tools"].as_array().unwrap().len(), 1);
+            let tool = &script.requests[0]["tools"][0]["function"];
+            assert_eq!(tool["name"], "pilot_route");
+            assert_eq!(tool["parameters"]["required"], json!(["recipe"]));
+            assert_eq!(tool["parameters"]["additionalProperties"], false);
+            let ids = tool["parameters"]["properties"]["recipe"]["enum"]
+                .as_array()
+                .unwrap();
+            assert_eq!(ids.len(), 5);
+            assert_eq!(ids[4], "none");
+            assert!(ids.contains(&json!("revolute_joint")));
+            assert_eq!(
+                script.requests[0]["tool_choice"]["function"]["name"],
+                "pilot_route"
+            );
+            assert_eq!(
+                script.requests[0]["messages"]
+                    .as_array()
+                    .unwrap()
+                    .last()
+                    .unwrap()["content"],
+                "Pick the form that matches the request, or none."
+            );
+            for wire in &script.requests[1..4] {
+                assert_eq!(wire["tools"][0]["function"]["name"], "pilot_fill");
+            }
+            assert!(!script.requests[4]["tools"]
+                .to_string()
+                .contains("pilot_route"));
+            assert!(!script.requests[4]["tools"]
+                .to_string()
+                .contains("pilot_fill"));
+            let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+            assert!(
+                log.contains("route_offered")
+                    && log.contains("route_picked")
+                    && log.contains("fill_offered")
+            );
+        }
+    }
+
+    #[test]
+    fn route_provider_retry_consumes_form_cap() {
+        let mut f = fill_fixture(vec![
+            json!({"error":"temporary failure"}),
+            call("pilot_route", json!({"recipe":"revolute_joint"})),
+            call("pilot_fill", json!({"bogus":1})),
+            call("pilot_fill", json!({"bogus":1})),
+            reply("Which parts?"),
+        ]);
+        mark_errors(&f);
+        assert_eq!(f.chat(route_request()).status, 200);
+        let script = f.proxy.scripted.as_ref().unwrap().borrow();
+        assert_eq!(script.requests.len(), 5);
+        assert_eq!(
+            script.requests[0]["tools"][0]["function"]["name"],
+            "pilot_route"
+        );
+        assert_eq!(
+            script.requests[1]["tools"][0]["function"]["name"],
+            "pilot_route"
+        );
+        for wire in &script.requests[2..4] {
+            assert_eq!(wire["tools"][0]["function"]["name"], "pilot_fill");
+        }
+        assert!(!script.requests[4]["tools"]
+            .to_string()
+            .contains("pilot_fill"));
+        assert!(!script.requests[4]["tools"]
+            .to_string()
+            .contains("pilot_route"));
+    }
+
+    #[test]
+    fn route_none_or_invalid_restores_normal_tools() {
+        for selection in [
+            call("pilot_route", json!({"recipe":"none"})),
+            call("pilot_route", json!({"recipe":"invented"})),
+            reply("Maybe a hinge."),
+            call(
+                "pilot_route",
+                json!({"recipe":"revolute_joint","extra":true}),
+            ),
+        ] {
+            let mut f = fill_fixture(vec![selection, reply("Which parts?")]);
+            assert_eq!(f.chat(route_request()).status, 200);
+            let script = f.proxy.scripted.as_ref().unwrap().borrow();
+            assert_eq!(script.requests.len(), 2);
+            assert_eq!(
+                script.requests[0]["tools"][0]["function"]["name"],
+                "pilot_route"
+            );
+            assert!(!script.requests[1]["tools"]
+                .to_string()
+                .contains("pilot_route"));
+            assert!(!script.requests[1]["tools"]
+                .to_string()
+                .contains("pilot_fill"));
+            let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+            assert!(log.contains("route_none"));
+        }
+    }
+
+    #[test]
+    #[ignore = "live development routing only: at most six Ollama requests, no CAD execution"]
+    fn live_gemma_route_tune() {
+        let agent = ureq::AgentBuilder::new()
+            .timeout_connect(Duration::from_secs(2))
+            .timeout(Duration::from_secs(45))
+            .build();
+        let library = crate::recipe_library::Library::embedded().unwrap();
+        let data: Vec<Value> =
+            serde_json::from_str(include_str!("../tests/fixtures/dev-route-tune.json")).unwrap();
+        let mut sent = 0;
+        for row in data {
+            let band = library.form_band(row["text"].as_str().unwrap()).unwrap();
+            if band["band"] != "route" {
+                continue;
+            }
+            let mut req = json!({"model":"gemma4:latest","messages":[{"role":"user","content":row["text"]}],"stream":false,"temperature":0,"max_tokens":768});
+            let candidates = band["recipes"].as_array().unwrap();
+            fill::offer_route(&mut req, candidates).unwrap();
+            sent += 1;
+            match agent
+                .post("http://127.0.0.1:11435/v1/chat/completions")
+                .set("Content-Type", "application/json")
+                .send_string(&req.to_string())
+            {
+                Ok(r) => {
+                    let mut bytes = Vec::new();
+                    r.into_reader()
+                        .take(1048577)
+                        .read_to_end(&mut bytes)
+                        .unwrap();
+                    assert!(bytes.len() <= 1048576);
+                    let response: Value = serde_json::from_slice(&bytes).unwrap();
+                    let pick = fill::picked(&response, candidates);
+                    eprintln!(
+                        "LIVE {sent} text={} expected={} picked={} response={}",
+                        row["text"],
+                        row["recipe"],
+                        pick.map(|r| r["id"].clone()).unwrap_or(json!("none")),
+                        response["choices"][0]["message"]
+                    );
+                }
+                Err(e) => {
+                    eprintln!("LIVE unavailable: {e}");
+                    break;
+                }
+            }
+            if sent >= 6 {
+                break;
+            }
+        }
+    }
     #[test]
     fn every_fill_coercion_is_audited_before_validation() {
         let mut f = fill_fixture(vec![call(
@@ -6405,12 +6682,20 @@ mod tests {
             vec![cases[1]["args"].clone()],
             vec![json!({}), cases[2]["args"].clone(), corrected],
         ] {
-            let count = args.len();
-            let mut f = fill_fixture(args.into_iter().map(|a| call("pilot_fill", a)).collect());
-            let req = serde_json::from_str(include_str!(
+            let fill_count = args.len();
+            let req: Value = serde_json::from_str(include_str!(
                 "../tests/fixtures/fill-v2-01-bolt-circle-bracket.json"
             ))
             .unwrap();
+            let library = crate::recipe_library::Library::embedded().unwrap();
+            let routed = library.form_band(last_user(&req)).unwrap()["band"] == "route";
+            let mut replies = Vec::new();
+            if routed {
+                replies.push(call("pilot_route", json!({"recipe":"plate"})));
+            }
+            replies.extend(args.into_iter().map(|a| call("pilot_fill", a)));
+            let count = replies.len();
+            let mut f = fill_fixture(replies);
             let out = f.chat(req);
             assert_eq!(out.status, 200);
             assert_eq!(
@@ -6419,7 +6704,7 @@ mod tests {
             );
             let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
             assert!(log.contains("fill_accepted"));
-            if count == 1 {
+            if fill_count == 1 {
                 assert_eq!(log.matches("\"kind\":\"fill_defaulted\"").count(), 2);
             } else {
                 assert!(log.contains("four corner edges through the thickness"));
@@ -6611,15 +6896,19 @@ mod tests {
                 "enclosure",
             ),
         ] {
-            let mut f = fill_fixture(vec![
-                call("pilot_fill", json!({"decline":true})),
-                reply("Ready."),
-            ]);
             let req: Value = serde_json::from_str(text).unwrap();
+            let library = crate::recipe_library::Library::embedded().unwrap();
+            let routed = library.form_band(last_user(&req)).unwrap()["band"] == "route";
+            let mut replies = Vec::new();
+            if routed {
+                replies.push(call("pilot_route", json!({"recipe":id})));
+            }
+            replies.extend([call("pilot_fill", json!({"decline":true})), reply("Ready.")]);
+            let mut f = fill_fixture(replies);
             assert_eq!(f.chat(req).status, 200);
             let script = f.proxy.scripted.as_ref().unwrap().borrow();
             assert_eq!(script.requests[0]["tools"].as_array().unwrap().len(), 1);
-            let line = script.requests[0]["messages"]
+            let line = script.requests[usize::from(routed)]["messages"]
                 .as_array()
                 .unwrap()
                 .last()
@@ -6646,7 +6935,11 @@ mod tests {
             include_str!("../tests/fixtures/fill-v2-03-shell-lip.json"),
         ] {
             let mut req: Value = serde_json::from_str(text).unwrap();
-            let found = fill::select(&library, &req).unwrap().unwrap();
+            // This legacy probe measures filling only; routing is measured separately.
+            let found = library
+                .find(last_user(&req), &crate::recipe_library::Bm25)
+                .unwrap()["recipes"][0]
+                .clone();
             req["model"] = json!("gemma4:latest");
             req["stream"] = json!(false);
             req["max_tokens"] = json!(768);

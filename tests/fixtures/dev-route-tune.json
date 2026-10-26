@@ -1,0 +1,1065 @@
+[
+ {
+  "text": "box 45x30x12",
+  "recipe": "box",
+  "args": {
+   "length": 45,
+   "width": 30,
+   "height": 12
+  }
+ },
+ {
+  "text": "I'm making a shelf spacer, just need a plain rectangular block 8 cm by 3 cm by 1.5 cm",
+  "recipe": "box",
+  "args": {
+   "length": 80,
+   "width": 30,
+   "height": 15
+  }
+ },
+ {
+  "text": "pls create cuboid L=210 W=95 H=44",
+  "recipe": "box",
+  "args": {
+   "length": 210,
+   "width": 95,
+   "height": 44
+  }
+ },
+ {
+  "text": "make a blcok 66 by 18 by 9",
+  "recipe": "box",
+  "args": {
+   "length": 66,
+   "width": 18,
+   "height": 9
+  }
+ },
+ {
+  "text": "Anyone know how to get a simple slab? 300mm x 150mm, 6mm thick, nothing else on it",
+  "recipe": "box",
+  "args": {
+   "length": 300,
+   "width": 150,
+   "height": 6
+  }
+ },
+ {
+  "text": "chamfer all edges of Body1 by 0.8",
+  "recipe": "chamfer",
+  "args": {
+   "body": "Body1",
+   "amount": 0.8
+  }
+ },
+ {
+  "text": "can u bevel all the edges of block_2, 2.2mm",
+  "recipe": "chamfer",
+  "args": {
+   "body": "block_2",
+   "amount": 2.2
+  }
+ },
+ {
+  "text": "chamfer everything 3mm on Base",
+  "recipe": "chamfer",
+  "args": {
+   "body": "Base",
+   "amount": 3
+  }
+ },
+ {
+  "text": "knock off all the corners/edges of the spacer with a 1/16 inch chamfer",
+  "recipe": "chamfer",
+  "args": {
+   "body": "spacer",
+   "amount": 1.5875
+  }
+ },
+ {
+  "text": "bevel all edges 4.5",
+  "recipe": "chamfer",
+  "args": {
+   "amount": 4.5
+  }
+ },
+ {
+  "text": "polar array Body3, 8 copies around the Y axis",
+  "recipe": "circular_pattern",
+  "args": {
+   "target": "body",
+   "body": "Body3",
+   "count": 8,
+   "axis": "Y",
+   "angle_deg": 360
+  }
+ },
+ {
+  "text": "rotate-copy the fin body 12x about X axis over 360 deg and join them",
+  "recipe": "circular_pattern",
+  "args": {
+   "target": "body",
+   "body": "fin",
+   "count": 12,
+   "axis": "X",
+   "angle_deg": 360,
+   "join": true
+  }
+ },
+ {
+  "text": "Make a radial pattern of tooth, 24 instances about Z",
+  "recipe": "circular_pattern",
+  "args": {
+   "target": "body",
+   "body": "tooth",
+   "count": 24,
+   "axis": "Z",
+   "angle_deg": 360
+  }
+ },
+ {
+  "text": "need 10 copies of blade arranged around the Z axis, spread over 270\u00b0",
+  "recipe": "circular_pattern",
+  "args": {
+   "target": "body",
+   "body": "blade",
+   "count": 10,
+   "axis": "Z",
+   "angle_deg": 270
+  }
+ },
+ {
+  "text": "40mm cube with a 10mm hole straight through on all three axes",
+  "recipe": "cross_drilled_box",
+  "args": {
+   "length": 40,
+   "width": 40,
+   "height": 40,
+   "hole_x_diameter": 10,
+   "hole_y_diameter": 10,
+   "hole_z_diameter": 10
+  }
+ },
+ {
+  "text": "I need a cross-drilled block: 50 by 50 by 25, 8mm holes through X and Y",
+  "recipe": "cross_drilled_box",
+  "args": {
+   "length": 50,
+   "width": 50,
+   "height": 25,
+   "hole_x_diameter": 8,
+   "hole_y_diameter": 8
+  }
+ },
+ {
+  "text": "dice-like test cube 22mm with centred holes thru all six faces, 7 dia",
+  "recipe": "cross_drilled_box",
+  "args": {
+   "length": 22,
+   "width": 22,
+   "height": 22,
+   "hole_x_diameter": 7,
+   "hole_y_diameter": 7,
+   "hole_z_diameter": 7
+  }
+ },
+ {
+  "text": "Pipe junction block for my project, 3cm cube, 1.4cm bores crossing in the middle along x y and z",
+  "recipe": "cross_drilled_box",
+  "args": {
+   "length": 30,
+   "width": 30,
+   "height": 30,
+   "hole_x_diameter": 14,
+   "hole_y_diameter": 14,
+   "hole_z_diameter": 14
+  }
+ },
+ {
+  "text": "blok 35x35x70 with throug hole 5mm along the long Z direction and another along X",
+  "recipe": "cross_drilled_box",
+  "args": {
+   "length": 35,
+   "width": 35,
+   "height": 70,
+   "hole_z_diameter": 5,
+   "hole_x_diameter": 5
+  }
+ },
+ {
+  "text": "make a round rod 8mm diameter, 150 long",
+  "recipe": "cylinder",
+  "args": {
+   "diameter": 8,
+   "height": 150
+  }
+ },
+ {
+  "text": "I'm building a table leg mockup, need a solid cylinder 5 cm across and 72 cm tall",
+  "recipe": "cylinder",
+  "args": {
+   "diameter": 50,
+   "height": 720
+  }
+ },
+ {
+  "text": "can i get a puck? like 3 inch dia 1 inch thick",
+  "recipe": "cylinder",
+  "args": {
+   "diameter": 76.2,
+   "height": 25.4
+  }
+ },
+ {
+  "text": "Please make for me one cylinder, height is 47 mm and radius is 11 mm",
+  "recipe": "cylinder",
+  "args": {
+   "radius": 11,
+   "height": 47
+  }
+ },
+ {
+  "text": "enclosure 100x60x35, 2mm walls, 2.5 floor, open top",
+  "recipe": "enclosure",
+  "args": {
+   "length": 100,
+   "width": 60,
+   "height": 35,
+   "wall": 2,
+   "floor": 2.5,
+   "open": "top"
+  }
+ },
+ {
+  "text": "housing 140 by 90, 50 deep, walls 3, outer lip 2x4",
+  "recipe": "enclosure",
+  "args": {
+   "length": 140,
+   "width": 90,
+   "height": 50,
+   "wall": 3,
+   "lip_side": "outer",
+   "lip_width": 2,
+   "lip_height": 4
+  }
+ },
+ {
+  "text": "electronics case open at the bottom, 64x42x19, wall 1.6, floor 1.4, centred on origin",
+  "recipe": "enclosure",
+  "args": {
+   "length": 64,
+   "width": 42,
+   "height": 19,
+   "wall": 1.6,
+   "floor": 1.4,
+   "open": "bottom",
+   "centred": true
+  }
+ },
+ {
+  "text": "make a tray-style housing with floor 3.2, wall 2.8, 180 by 110 by 26",
+  "recipe": "enclosure",
+  "args": {
+   "length": 180,
+   "width": 110,
+   "height": 26,
+   "wall": 2.8,
+   "floor": 3.2
+  }
+ },
+ {
+  "text": "open top case w/ floor and walls, 48x48x22, 1.3 wall",
+  "recipe": "enclosure",
+  "args": {
+   "length": 48,
+   "width": 48,
+   "height": 22,
+   "wall": 1.3
+  }
+ },
+ {
+  "text": "round over every edge on the knob with a 3.5 radius",
+  "recipe": "fillet",
+  "args": {
+   "body": "knob",
+   "amount": 3.5
+  }
+ },
+ {
+  "text": "fillet everything on block_1 by 0.6mm",
+  "recipe": "fillet",
+  "args": {
+   "body": "block_1",
+   "amount": 0.6
+  }
+ },
+ {
+  "text": "pls fillit all edges of Cover 1/8 inch",
+  "recipe": "fillet",
+  "args": {
+   "body": "Cover",
+   "amount": 3.175
+  }
+ },
+ {
+  "text": "all edges radius 7.5 on Body2",
+  "recipe": "fillet",
+  "args": {
+   "body": "Body2",
+   "amount": 7.5
+  }
+ },
+ {
+  "text": "grid pattern the last feature 4 rows x 6 columns, 10mm by 12mm spacing",
+  "recipe": "grid_pattern",
+  "args": {
+   "target": "last_feature",
+   "rows": 4,
+   "columns": 6,
+   "spacing1": 10,
+   "spacing2": 12
+  }
+ },
+ {
+  "text": "I cut one vent slot, now repeat it in a 2x8 grid, 6 and 15 apart",
+  "recipe": "grid_pattern",
+  "args": {
+   "target": "last_feature",
+   "rows": 2,
+   "columns": 8,
+   "spacing1": 6,
+   "spacing2": 15
+  }
+ },
+ {
+  "text": "matrix copy of Body4 in XZ plane: 5 rows 3 cols, spacing 40 x 22",
+  "recipe": "grid_pattern",
+  "args": {
+   "target": "body",
+   "body": "Body4",
+   "rows": 5,
+   "columns": 3,
+   "spacing1": 40,
+   "spacing2": 22,
+   "plane": "XZ"
+  }
+ },
+ {
+  "text": "For an ice cube tray, take the cavity I just made and array it 2 rows by 6, 35mm and 38mm centers",
+  "recipe": "grid_pattern",
+  "args": {
+   "target": "last_feature",
+   "rows": 2,
+   "columns": 6,
+   "spacing1": 35,
+   "spacing2": 38
+  }
+ },
+ {
+  "text": "rows 9 columns 4 of last feature, step 5.5 / 11, YZ plane",
+  "recipe": "grid_pattern",
+  "args": {
+   "target": "last_feature",
+   "rows": 9,
+   "columns": 4,
+   "spacing1": 5.5,
+   "spacing2": 11,
+   "plane": "YZ"
+  }
+ },
+ {
+  "text": "make a perforated sheet with hexagon holes: 200 by 120, 2.5 thick, hexes 14 across corners, webs 1.8, border 8",
+  "recipe": "honeycomb_pattern",
+  "args": {
+   "length": 200,
+   "width": 120,
+   "thickness": 2.5,
+   "size": 14,
+   "size_kind": "across_corners",
+   "web": 1.8,
+   "border": 8
+  }
+ },
+ {
+  "text": "hex mesh panel, exactly 5 rows 8 columns of 12mm (across flats) hexes, 3mm web, 5 border, plate 4mm thick, 130 by 75",
+  "recipe": "honeycomb_pattern",
+  "args": {
+   "length": 130,
+   "width": 75,
+   "thickness": 4,
+   "size": 12,
+   "size_kind": "across_flats",
+   "web": 3,
+   "border": 5,
+   "mode": "exact",
+   "rows": 5,
+   "columns": 8
+  }
+ },
+ {
+  "text": "hony comb vent plate 60x40 t2, cells 5 AF, walls 0.9, edge 3",
+  "recipe": "honeycomb_pattern",
+  "args": {
+   "length": 60,
+   "width": 40,
+   "thickness": 2,
+   "size": 5,
+   "size_kind": "across_flats",
+   "web": 0.9,
+   "border": 3
+  }
+ },
+ {
+  "text": "lightweighting: fill a 110x70x6 plate with hex pockets thru, 9 across flats, 2.4 web, 7 border",
+  "recipe": "honeycomb_pattern",
+  "args": {
+   "length": 110,
+   "width": 70,
+   "thickness": 6,
+   "size": 9,
+   "size_kind": "across_flats",
+   "web": 2.4,
+   "border": 7,
+   "mode": "fill"
+  }
+ },
+ {
+  "text": "linear pattern last feature 5x along X, 20mm spacing",
+  "recipe": "linear_pattern",
+  "args": {
+   "target": "last_feature",
+   "count": 5,
+   "direction": "X",
+   "spacing": 20
+  }
+ },
+ {
+  "text": "I'm making a comb. repeat the tooth I just cut 30 times along X with 1.8 spacing",
+  "recipe": "linear_pattern",
+  "args": {
+   "target": "last_feature",
+   "count": 30,
+   "direction": "X",
+   "spacing": 1.8
+  }
+ },
+ {
+  "text": "linar pattern the hole 6 times, 1/2 inch apart along x",
+  "recipe": "linear_pattern",
+  "args": {
+   "target": "last_feature",
+   "count": 6,
+   "direction": "X",
+   "spacing": 12.7
+  }
+ },
+ {
+  "text": "3 copies of peg in a line in Y, 4.5cm between, join to one body",
+  "recipe": "linear_pattern",
+  "args": {
+   "target": "body",
+   "body": "peg",
+   "count": 3,
+   "direction": "Y",
+   "spacing": 45,
+   "join": true
+  }
+ },
+ {
+  "text": "repeat bump 13 times along Z each 3.3 mm",
+  "recipe": "linear_pattern",
+  "args": {
+   "target": "body",
+   "body": "bump",
+   "count": 13,
+   "direction": "Z",
+   "spacing": 3.3
+  }
+ },
+ {
+  "text": "flip the left_bracket over the XZ plane, I don't need the original",
+  "recipe": "mirror",
+  "args": {
+   "body": "left_bracket",
+   "plane": "XZ",
+   "keep_original": false
+  }
+ },
+ {
+  "text": "mirorr Housing on XY plane keep the source",
+  "recipe": "mirror",
+  "args": {
+   "body": "Housing",
+   "plane": "XY",
+   "keep_original": true
+  }
+ },
+ {
+  "text": "make a mirror image of Body6 over YZ (replace it)",
+  "recipe": "mirror",
+  "args": {
+   "body": "Body6",
+   "plane": "YZ",
+   "keep_original": false
+  }
+ },
+ {
+  "text": "reflect wing across XZ keep original",
+  "recipe": "mirror",
+  "args": {
+   "body": "wing",
+   "plane": "XZ",
+   "keep_original": true
+  }
+ },
+ {
+  "text": "move Body1 by 10, 0, -5",
+  "recipe": "move",
+  "args": {
+   "body": "Body1",
+   "delta_x": 10,
+   "delta_y": 0,
+   "delta_z": -5
+  }
+ },
+ {
+  "text": "translate bracket x+45 y-12 z0",
+  "recipe": "move",
+  "args": {
+   "body": "bracket",
+   "delta_x": 45,
+   "delta_y": -12,
+   "delta_z": 0
+  }
+ },
+ {
+  "text": "The knob is clipping the panel, nudge knob back -0.7 in X and up 1.1 in Z",
+  "recipe": "move",
+  "args": {
+   "body": "knob",
+   "delta_x": -0.7,
+   "delta_y": 0,
+   "delta_z": 1.1
+  }
+ },
+ {
+  "text": "relocate base: dx=-100 dy=-60 dz=0",
+  "recipe": "move",
+  "args": {
+   "body": "base",
+   "delta_x": -100,
+   "delta_y": -60,
+   "delta_z": 0
+  }
+ },
+ {
+  "text": "move cover 0 0 17.25",
+  "recipe": "move",
+  "args": {
+   "body": "cover",
+   "delta_x": 0,
+   "delta_y": 0,
+   "delta_z": 17.25
+  }
+ },
+ {
+  "text": "mounting flange: 120 square, 8 thick, 6 holes M6 clearance (6.6) on 95 PCD, 40 bore",
+  "recipe": "plate",
+  "args": {
+   "length": 120,
+   "width": 120,
+   "thickness": 8,
+   "bolt_hole_count": 6,
+   "bolt_hole_diameter": 6.6,
+   "bolt_circle_diameter": 95,
+   "bore_diameter": 40
+  }
+ },
+ {
+  "text": "motor plate for NEMA17: 42x42x3, 4 holes 3.4 on 43.84 PCD starting at 45 deg, 22.5 center hole",
+  "recipe": "plate",
+  "args": {
+   "length": 42,
+   "width": 42,
+   "thickness": 3,
+   "bolt_hole_count": 4,
+   "bolt_hole_diameter": 3.4,
+   "bolt_circle_diameter": 43.84,
+   "bolt_start_deg": 45,
+   "bore_diameter": 22.5
+  }
+ },
+ {
+  "text": "perforated panel 200x200x2, holes 5 dia in 10 rows 10 cols, pitch 18 both directions, centred",
+  "recipe": "plate",
+  "args": {
+   "length": 200,
+   "width": 200,
+   "thickness": 2,
+   "grid_rows": 10,
+   "grid_columns": 10,
+   "grid_pitch_x": 18,
+   "grid_pitch_y": 18,
+   "grid_hole_diameter": 5,
+   "centred": true
+  }
+ },
+ {
+  "text": "bolt pattern plate 160x160 t10, 8 bolt holes \u00d811 on 130 bolt circle",
+  "recipe": "plate",
+  "args": {
+   "length": 160,
+   "width": 160,
+   "thickness": 10,
+   "bolt_hole_count": 8,
+   "bolt_hole_diameter": 11,
+   "bolt_circle_diameter": 130
+  }
+ },
+ {
+  "text": "L angle 40x40x3, 500 long",
+  "recipe": "profile",
+  "args": {
+   "kind": "L",
+   "width": 40,
+   "height": 40,
+   "thickness": 3,
+   "depth": 500
+  }
+ },
+ {
+  "text": "tee section 60 wide flange, 45 tall, flange 5 web 4, extrude 250",
+  "recipe": "profile",
+  "args": {
+   "kind": "T",
+   "width": 60,
+   "height": 45,
+   "flange_thickness": 5,
+   "web_thickness": 4,
+   "depth": 250
+  }
+ },
+ {
+  "text": "C-channel: web 76, flanges 35, web thk 5.2, flange thk 6.9, length 600",
+  "recipe": "profile",
+  "args": {
+   "kind": "C",
+   "height": 76,
+   "width": 35,
+   "web_thickness": 5.2,
+   "flange_thickness": 6.9,
+   "depth": 600
+  }
+ },
+ {
+  "text": "make extrusion of T profile, 25 x 25, thikness 3, length 140, stem shifted 4 off centre",
+  "recipe": "profile",
+  "args": {
+   "kind": "T",
+   "width": 25,
+   "height": 25,
+   "thickness": 3,
+   "depth": 140,
+   "stem_offset": 4
+  }
+ },
+ {
+  "text": "hollow rectangle section 80x40x3, 320 long",
+  "recipe": "profile",
+  "args": {
+   "kind": "rectangle",
+   "width": 80,
+   "height": 40,
+   "thickness": 3,
+   "depth": 320
+  }
+ },
+ {
+  "text": "add a revolute joint between pin and arm",
+  "recipe": "revolute_joint",
+  "args": {
+   "pin_component": "pin",
+   "hole_component": "arm"
+  }
+ },
+ {
+  "text": "I want the wheel to spin on axle - rotational joint please",
+  "recipe": "revolute_joint",
+  "args": {
+   "pin_component": "axle",
+   "hole_component": "wheel"
+  }
+ },
+ {
+  "text": "revolut joint bolt in bracket hole, rotate to 90",
+  "recipe": "revolute_joint",
+  "args": {
+   "pin_component": "bolt",
+   "hole_component": "bracket",
+   "angle_deg": 90
+  }
+ },
+ {
+  "text": "hinge the two parts together",
+  "recipe": "revolute_joint",
+  "args": {}
+ },
+ {
+  "text": "rotating joint so crank turns on the spindle",
+  "recipe": "revolute_joint",
+  "args": {
+   "pin_component": "spindle",
+   "hole_component": "crank"
+  }
+ },
+ {
+  "text": "make a revolved solid from a rectangular sketch, 360 deg, r 55 h 9",
+  "recipe": "revolve",
+  "args": {
+   "radius": 55,
+   "height": 9
+  }
+ },
+ {
+  "text": "I want to learn revolves: rectangle 13 wide, 31 high, spin it about Z",
+  "recipe": "revolve",
+  "args": {
+   "radius": 13,
+   "height": 31
+  }
+ },
+ {
+  "text": "by revolve feature (not extrude) please make cylinder dia 1.25 inch height 3 inch",
+  "recipe": "revolve",
+  "args": {
+   "diameter": 31.75,
+   "height": 76.2
+  }
+ },
+ {
+  "text": "turn a rectangular profile round the Z axis to get a round slug 82 dia x 14",
+  "recipe": "revolve",
+  "args": {
+   "diameter": 82,
+   "height": 14
+  }
+ },
+ {
+  "text": "hollow out a 120 x 120 x 60 block, wall 3.5, top open",
+  "recipe": "shell",
+  "args": {
+   "length": 120,
+   "width": 120,
+   "height": 60,
+   "wall": 3.5
+  }
+ },
+ {
+  "text": "I'm making a planter: open-top shelled box 25cm x 15cm x 12cm, 4mm thick",
+  "recipe": "shell",
+  "args": {
+   "length": 250,
+   "width": 150,
+   "height": 120,
+   "wall": 4
+  }
+ },
+ {
+  "text": "Please make box with uniform thickness 2.6 and open on top, size 99 x 77 x 55",
+  "recipe": "shell",
+  "args": {
+   "length": 99,
+   "width": 77,
+   "height": 55,
+   "wall": 2.6
+  }
+ },
+ {
+  "text": "hollow rectangular bin 300 long 200 wide 150 deep 5 wall",
+  "recipe": "shell",
+  "args": {
+   "length": 300,
+   "width": 200,
+   "height": 150,
+   "wall": 5
+  }
+ },
+ {
+  "text": "make a ball 40mm diameter",
+  "recipe": "sphere",
+  "args": {
+   "diameter": 40
+  }
+ },
+ {
+  "text": "solid sphere radius 2.6 inch",
+  "recipe": "sphere",
+  "args": {
+   "radius": 66.04
+  }
+ },
+ {
+  "text": "Please create one ball, the diameter is 7.2 mm",
+  "recipe": "sphere",
+  "args": {
+   "diameter": 7.2
+  }
+ },
+ {
+  "text": "give me a 96mm dia globe, solid",
+  "recipe": "sphere",
+  "args": {
+   "diameter": 96
+  }
+ },
+ {
+  "text": "tube OD 20 ID 16 length 100",
+  "recipe": "tube",
+  "args": {
+   "outer_diameter": 20,
+   "inner_diameter": 16,
+   "height": 100
+  }
+ },
+ {
+  "text": "I'm making a bushing, hollow cylinder 12 OD, 8 bore, 15 long",
+  "recipe": "tube",
+  "args": {
+   "outer_diameter": 12,
+   "inner_diameter": 8,
+   "height": 15
+  }
+ },
+ {
+  "text": "spacer sleeve od 9.5 id 5.2 h 4",
+  "recipe": "tube",
+  "args": {
+   "outer_diameter": 9.5,
+   "inner_diameter": 5.2,
+   "height": 4
+  }
+ },
+ {
+  "text": "tub with outer r 41 and inner r 37, height 88",
+  "recipe": "tube",
+  "args": {
+   "outer_radius": 41,
+   "inner_radius": 37,
+   "height": 88
+  }
+ },
+ {
+  "text": "PVC-like conduit 32 OD 2.4 wall 750 length",
+  "recipe": "tube",
+  "args": {
+   "outer_diameter": 32,
+   "inner_diameter": 27.2,
+   "height": 750
+  }
+ },
+ {
+  "text": "put a bolt pattern of 5 M3 holes on the round face of Body1 at 28 PCD",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "make a lofted transition from rectangle 60x20 to circle dia 25, 70 long",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "revolve this sketch with the curved edge to get a bowl 110 wide",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "round only one edge on Body2, r 1.3",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "add an M8 thread to the shaft",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "model a 1/4-20 bolt 2 inch long with threads",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "emboss my logo text 'RK' on the side, 1.1mm high",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "rigid joint the cover to the base",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "ball joint between the arm and the socket",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "how do I export this to STL?",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "why does my extrude fail?",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "is 0.4 mm nozzle ok for 1.2 walls?",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "hi there",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "ok cool, nice",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "delete Body11",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "change the color of the lid to blue",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "scale the whole part by 1.25",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "what's the volume of the part?",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "add a draft angle of 4 degrees to the walls",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "sweep a 5.8mm circle along this path",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "create a torus major radius 30 minor 6",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "make a hexagonal prism 17 across flats 9 tall",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "split the body along the XY plane",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "subtract the cylinder from the box",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "counterbore the 4 holes for M4 socket heads",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "make a snap fit hook 1.7mm thick",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "put a living hinge between the two halves, 0.35 thick",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "make a drawing with dimensions",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "press pull that face 2.3mm",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "pattern the holes along a curve",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "I want a star shaped extrusion, 5 points, 40 across",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "spline curve vase, revolve it",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "keyhole slot for wall hanging",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "rotate Body1 45 degrees about Z",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "align the bottom of the lid with the top of the box",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "add a fillet where the boss meets the plate",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "I need an STL of a phone stand, any ideas?",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "make a hexagon pocket 12.5 deep in the block",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "ellipsoid 40 x 30 x 20",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "sorry, I meant millimeters not inches",
+  "recipe": "none",
+  "args": null
+ },
+ {
+  "text": "emboss braille dots on the label",
+  "recipe": "none",
+  "args": null
+ }
+]

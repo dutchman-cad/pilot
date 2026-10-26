@@ -1,6 +1,7 @@
 ---
 {
   "id": "mirror",
+  "synonyms": ["flip reflect mirror image plane original source"],
   "description": "Mirror an existing body across XY XZ or YZ, keeping or discarding the original.",
   "examples": [
     "Mirror this body across the XY plane",

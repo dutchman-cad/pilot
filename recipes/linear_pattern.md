@@ -1,6 +1,7 @@
 ---
 {
   "id": "linear_pattern",
+  "synonyms": ["array row line copies repeat spacing along"],
   "description": "Repeat an existing body or last feature in a linear row with count and spacing or total length; use one pattern, never repeated copies.",
   "examples": [
     "make 50 of these in a row",

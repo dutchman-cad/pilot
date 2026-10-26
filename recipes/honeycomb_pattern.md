@@ -1,6 +1,7 @@
 ---
 {
   "id": "honeycomb_pattern",
+  "synonyms": ["perforated lattice honeycomb hex mesh hexagon cells web border"],
   "description": "Cut a plate with a staggered honeycomb of hexagonal through holes, bounded web and border; fill or exact rows and columns.",
   "examples": [
     "plate with honeycomb hexagonal through cuts",

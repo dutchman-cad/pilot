@@ -1,6 +1,7 @@
 ---
 {
   "id": "revolute_joint",
+  "synonyms": ["hinge pivot rotational rotating joint axle spindle"],
   "description": "Contact revolute joint between a pin component and a hole component, after inspection.",
   "examples": [
     "Join the pin and hole with a revolute joint",

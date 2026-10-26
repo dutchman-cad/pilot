@@ -1,6 +1,7 @@
 ---
 {
   "id": "circular_pattern",
+  "synonyms": ["polar radial array copies around axis"],
   "description": "Repeat an existing body or last feature around an axis in a circular pattern with count and full or partial angle.",
   "examples": [
     "put 8 around the centre",
