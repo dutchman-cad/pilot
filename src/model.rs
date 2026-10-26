@@ -6691,6 +6691,59 @@ mod tests {
     }
 
     #[test]
+    fn mid_score_fills_directly_and_decline_restores_normal_tools() {
+        let data: Vec<Value> =
+            serde_json::from_str(include_str!("../tests/fixtures/dev-route-tune.json")).unwrap();
+        let library = crate::recipe_library::Library::embedded().unwrap();
+        let row = data
+            .iter()
+            .find(|r| {
+                let found = library.form_band(r["text"].as_str().unwrap()).unwrap();
+                let score = found["recipes"][0]["score"].as_f64().unwrap_or(0.0);
+                matches!(
+                    r["recipe"].as_str(),
+                    Some("box" | "cylinder" | "profile" | "plate")
+                ) && found["recipes"][0]["id"] == r["recipe"]
+                    && (4.5..8.0).contains(&score)
+            })
+            .unwrap();
+        for decline in [false, true] {
+            let mut req = fill_request();
+            req["messages"] = json!([{"role":"user","content":row["text"]}]);
+            let replies = if decline {
+                vec![
+                    call("pilot_fill", json!({"decline":true})),
+                    reply("Use ordinary tools."),
+                ]
+            } else {
+                vec![call("pilot_fill", row["args"].clone())]
+            };
+            let mut f = fill_fixture(replies);
+            assert_eq!(f.chat(req.clone()).status, 200);
+            let script = f.proxy.scripted.as_ref().unwrap().borrow();
+            assert_eq!(script.requests.len(), if decline { 2 } else { 1 });
+            assert_eq!(script.requests[0]["tools"].as_array().unwrap().len(), 1);
+            assert_eq!(
+                script.requests[0]["tool_choice"]["function"]["name"],
+                "pilot_fill"
+            );
+            if decline {
+                assert_eq!(script.requests[1]["tools"], req["tools"]);
+                assert!(!script.requests[1]["tools"]
+                    .to_string()
+                    .contains("pilot_route"));
+            }
+            let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+            assert!(!log.contains("route_offered"));
+            assert!(log.contains(if decline {
+                "fill_declined"
+            } else {
+                "fill_accepted"
+            }));
+        }
+    }
+
+    #[test]
     fn route_pick_valid_fill_emits_client_calls() {
         let data: Vec<Value> =
             serde_json::from_str(include_str!("../tests/fixtures/dev-route-tune.json")).unwrap();

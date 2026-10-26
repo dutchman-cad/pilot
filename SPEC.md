@@ -65,6 +65,8 @@ Request side:
   `decline`, with forced function `tool_choice`. A short system line names the recipe,
   requests fields from the user's words, inch-to-mm conversion, omitted unstated
   optionals, and decline for mismatches. Reuse build validation and expansion.
+  Scores from 1.5 inclusive to 4.5 exclusive offer a top-four `pilot_route`
+  question first; lower scores use ordinary tools. A declined fill never routes.
   Invalid fills get at most two field-error retries (three attempts); decline, text, another tool or third
   invalid fill restores the ordinary tools for the rest of the turn. Local forms never
   reach the client. Audit `fill_offered` (recipe, score), `fill_accepted`, `fill_declined`,

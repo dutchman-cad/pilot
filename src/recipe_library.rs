@@ -9,8 +9,8 @@ pub mod forms;
 pub const FIND_DESCRIPTION: &str = "Search recipes before building. Returns the closest three schemas. On no good hit, do not improvise CAD: tell the user what Pilot can build or ask one question. Then use pilot_build with recipe and args. Lengths are mm.";
 pub const BUILD_DESCRIPTION: &str = "Build a recipe found with pilot_find: supply its id and typed args. Lengths are mm. Legacy shape arguments also work. Inspect before selecting existing bodies or a contact joint.";
 pub const HIT_THRESHOLD: f64 = 1.8;
-/// Development tune calibration: high confidence fill, otherwise top-four routing.
-pub const FILL_THRESHOLD: f64 = 8.0;
+/// Offer a direct form at the earlier fill gate; route only below it.
+pub const FILL_THRESHOLD: f64 = 4.5;
 pub const ROUTE_THRESHOLD: f64 = 1.5;
 pub const IDS: &[&str] = &[
     "cross_drilled_box",

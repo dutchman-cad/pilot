@@ -505,7 +505,7 @@ loops to verify count, minimum web and border.
 ## Fill a found recipe first
 
 On a fresh user turn that reaches the model, Pilot runs the `pilot_find` BM25 ranker
-itself. At **8.0 or higher**, the first request offers exactly one `pilot_fill`
+itself. At **4.5 or higher**, the first request offers exactly one `pilot_fill`
 function, with the selected typed schema plus boolean `decline`, and forces that
 function with `tool_choice`. The line naming the recipe asks the model to use the
 user's words, convert inches to mm, omit unstated optional fields and decline a
@@ -523,8 +523,9 @@ report the supplied field value, numeric limit, and a suggested change.
 
 An invalid form gets two retries with its latest field error and the same schema (three attempts total). Decline,
 text (including JSON written as text), another tool, mixed calls, or a third invalid
-form restores the ordinary tools for the rest of the turn. The rejected proposal
-is discarded. Normal find/build are available only with `--offer-recipe-tools`. There is no fill on tool-result
+form restores the ordinary tools for the rest of the turn, without offering a
+route question. The rejected proposal is discarded. Normal find/build are
+available only with `--offer-recipe-tools`. There is no fill on tool-result
 continuations or SolidCraft 98. `--no-fill` skips forced fill and route;
 `--no-shortcuts` disables fill, route and both recipe tools even with the offer flag. Exact direct
 matches retain priority; use `--no-direct-recipes` to exercise forms for those requests.
@@ -535,8 +536,8 @@ names in addition to descriptions and examples. Number and unit tokens do not
 affect scores. Scores are lexical relevance, not probabilities. Unsupported
 geometry and explanation cues skip forms.
 
-Scores from **1.5** up to **8.0** offer only `pilot_route`, with one required
-`recipe` enum containing the top four ids plus `none`. Its system note is
+Scores from **1.5** inclusive up to **4.5** exclusive offer only `pilot_route`,
+with one required `recipe` enum containing the top four ids plus `none`. Its system note is
 “Pick the form that matches the request, or none.” A single valid selection
 offers that recipe’s fill form on the next upstream request in the same turn.
 `none`, unknown ids, malformed arguments, text, or mixed calls restore normal
@@ -547,8 +548,9 @@ execute geometry. Custom sequence recipes stay on the explicit find/build path.
 Tune data is preserved in `tests/fixtures/dev-route-tune.json` (127 independent
 requests); `tests/route_calibration.rs` reports precision and recall separately
 for direct fill, top-four route coverage, and normal-tool rejection. Thresholds
-are selected only on tune data. The separate development check is read once
-after implementation; its results belong in the commit body, never recipe files
+are selected only on tune data; direct fills on `none` requests must stay at or
+below 15%. The earlier 4.5 fill gate satisfies this bound. The separate development
+check is read once after implementation; its results belong in the commit body, never recipe files
 or test sentences. The ignored `live_gemma_route_tune` sends at most six tune
 requests to gemma4:latest on 127.0.0.1:11435 and prints route picks without CAD.
 

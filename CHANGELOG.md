@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Restore direct recipe fills at score 4.5, route only scores from 1.5 to below 4.5, and keep declined fills on normal tools.
+
 - Keep recipe tools opt-in with `--offer-recipe-tools`, always send relevant facts/hints once per conversation, and shorten the `how` schema.
 
 - Lay out honeycomb rows along the plate's longer side by default, preserving explicit orientations and matching swapped dimensions by rotation.
