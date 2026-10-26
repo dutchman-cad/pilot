@@ -2,45 +2,53 @@
 
 ## Unreleased
 
+## 0.1.0-beta.5 (2026-10-26)
+
+- Recipe forms: Pilot finds the recipe that fits a request and asks the model only to
+  fill in its typed form, in a short separate request. Pilot builds the part from the
+  form with checked SolidCraft commands. Small local models now build many common
+  parts they could not build before.
+- Uncertain requests get one short question: which of a few forms fits, or none.
+- New parts: L, T, U, C, and rectangle profiles; plates with bores, bolt circles, hole
+  grids, and rounded or chamfered corners; open enclosures with a locating lip; boxes
+  with holes through one, two, or three axes; honeycomb hole patterns; and a revolute
+  joint on a pin.
+- Patterns of an existing body or feature (in a row, a grid, or around a circle), with
+  a hint when a model types many equal copies instead.
+- Sketch planes: a one-line fact on how sketch coordinates map to world axes (on XZ,
+  the sketch's second axis is world −Z), and a hint when a profile lands outside the part.
+- Fewer input tokens: older tool results are trimmed inside a long task (the newest two
+  stay whole), and unused tool schemas are no longer sent. A 24-call task sends 64%
+  fewer characters. `--no-trim` and `--trim-keep` control it; `--offer-recipe-tools`
+  sends the find and build tools on every call again.
+- One retry for an Ollama HTTP 500 that arrives after a full reply.
+- Facts and hints are sent once per conversation.
+- `--no-fill` keeps the recipe tools but skips the forms; `--no-shortcuts` turns off
+  forms, routing, and recipe tools.
+
+### Details
+
 - Offer forms on every fresh user turn, including repeated text across conversations, using history without retaining turn identities.
-
 - Inspect existing geometry before clean fill/route requests, include bounded design context and selection, resolve implicit targets, and shell existing rectangular bodies without rebuilding them.
-
 - Ask for fill and route forms in clean extraction requests, retry off-form/text replies once, and audit each request’s size.
-
 - Discard off-form fill/route calls and prevent repeated form offers after retries, history trimming, or tool execution in the same user turn.
-
 - Restore direct recipe fills at score 4.5, route only scores from 1.5 to below 4.5, and keep declined fills on normal tools.
-
 - Keep recipe tools opt-in with `--offer-recipe-tools`, always send relevant facts/hints once per conversation, and shorten the `how` schema.
-
 - Lay out honeycomb rows along the plate's longer side by default, preserving explicit orientations and matching swapped dimensions by rotation.
-
 - Calibrate recipe retrieval with bounded synonyms, stemming and field hits, and route uncertain requests through one audited recipe choice before filling.
-
 - Embed recipes directly with include_str! so checkouts sharing a build directory each use their own recipe files; test the file list for omissions.
-
 - Trim older tool results within the current user turn, keep the newest two (`--trim-keep`), summarize command docs, and audit per-request `trimmed_chars`.
-
 - Accept consistent redundant fill fields, audit unambiguous corner defaults, explain enum container errors, and allow two bounded fill retries.
-
 - Flatten every recipe fill form into scalar fields with audited coercions and explicit partial-feature errors; preserve nested build arguments.
-
 - Explain fill fields and numeric validation fixes, default unstated placement and inner lips, and cap each recipe form at 1,200 characters.
-
 - Find recipes automatically and ask the model to fill one typed form first, with one validation retry, audited fallback, and `--no-fill`.
-
 - Map sketch planes to world axes with audited hints, flag unused construction planes, and build cross-drilled boxes with world-space through holes.
 - Trim older upstream tool history by default, preserve recipe evidence, and audit per-request character sizes with profile mean/max; opt out with `--no-trim`.
 - Cut staggered honeycomb plates in one recipe, with across-flats/corners sizing, bounded fill or exact counts, web and border, and measured public CLI verification.
-
 - Build linear, grid and circular body or last-feature patterns through typed recipes, with overlap guards, measured verification and a deduplicated repeated-copy hint.
-
 - Search embedded file recipes with `pilot_find` before `pilot_build`, with audited misses and bounded audit-to-review sequence drafts.
-
 - Keep inspect-first recipes working within the Assistant's tool-message size limit, and accept "fully defined" profile wording.
 - Let models build profiles, plates, enclosures and inspected revolute joints through one typed `pilot_build` tool; disable with `--no-shortcuts`.
-
 - Build compound plates with bores, bolt circles, grids and corner rounding, and guide failed edge picks.
 - Build open shelled enclosures with optional floor thickness and joined locating lips on either wall edge.
 - Connect a hole over a pin with a verified revolute joint and angle drive, with a contact-circle hint for moved or flipped pivots.
