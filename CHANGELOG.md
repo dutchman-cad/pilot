@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Offer forms on every fresh user turn, including repeated text across conversations, using history without retaining turn identities.
+
 - Inspect existing geometry before clean fill/route requests, include bounded design context and selection, resolve implicit targets, and shell existing rectangular bodies without rebuilding them.
 
 - Ask for fill and route forms in clean extraction requests, retry off-form/text replies once, and audit each request’s size.

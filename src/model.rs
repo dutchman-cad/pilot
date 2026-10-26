@@ -240,7 +240,6 @@ struct Proxy {
     settings: BTreeMap<String, ModelSettings>,
     log: File,
     conversations: Vec<Conversation>,
-    form_turns: std::cell::RefCell<fill::Turns>,
     turns: crate::capture::Ring,
     #[cfg(test)]
     scripted: Option<std::cell::RefCell<Scripted>>,
@@ -348,7 +347,6 @@ impl Server {
                 settings,
                 log,
                 conversations: Vec::new(),
-                form_turns: std::cell::RefCell::default(),
                 turns: crate::capture::Ring::default(),
                 #[cfg(test)]
                 scripted: None,
@@ -909,7 +907,7 @@ impl Proxy {
         deadline: Instant,
         conversation: &mut Conversation,
     ) -> Result<Reply, String> {
-        let form_allowed = self.form_turns.borrow_mut().claim(&body)?;
+        let form_allowed = fill::fresh_turn(&body)?;
         let before_strip = body.clone();
         shortcuts::strip(&mut body);
         let stripped = body != before_strip;
@@ -932,6 +930,19 @@ impl Proxy {
             .as_array()
             .and_then(|m| m.iter().rposition(|m| m["role"] == "user"))
             .unwrap_or(0);
+        // Prefix matching can reuse state from an identical fresh conversation.
+        // Without post-user history, none of its pending form/build state belongs
+        // to this request. Preserve conversation-wide facts and hints only.
+        if form_allowed {
+            conversation.form_pending = None;
+            conversation.recipe = None;
+            conversation.completion_checked = false;
+            conversation.pending_recipe = None;
+            conversation.direct = None;
+            conversation.direct_failed = false;
+            conversation.direct_handback = None;
+            conversation.shortcut_args = None;
+        }
         let pending_form = conversation
             .form_pending
             .take()
@@ -3101,7 +3112,6 @@ mod tests {
                     settings: BTreeMap::new(),
                     log,
                     conversations: Vec::new(),
-                    form_turns: std::cell::RefCell::default(),
                     turns: crate::capture::Ring::default(),
                     scripted: Some(RefCell::new(Scripted {
                         model: None,
@@ -6944,7 +6954,7 @@ mod tests {
             f.proxy.conversations.clear();
             assert_eq!(f.chat(req.clone()).status, 200);
         }
-        let mut resend = data["requests"][0].clone();
+        let mut resend = data["requests"][1].clone();
         resend["messages"].as_array_mut().unwrap().remove(0);
         f.proxy.conversations.clear();
         assert_eq!(f.chat(resend).status, 200);
@@ -6987,10 +6997,10 @@ mod tests {
                 .push(json!({"role":"tool","tool_call_id":call["id"],"content":"{\"ok\":true}"}));
         }
         f.proxy.conversations.clear();
-        assert_eq!(f.chat(req).status, 200);
-        // A re-send with the tool history removed still cannot re-offer.
+        assert_eq!(f.chat(req.clone()).status, 200);
+        // Resending the in-progress history still cannot re-offer.
         f.proxy.conversations.clear();
-        assert_eq!(f.chat(data["requests"][0].clone()).status, 200);
+        assert_eq!(f.chat(req).status, 200);
         let script = f.proxy.scripted.as_ref().unwrap().borrow();
         assert_eq!(script.requests.len(), 3);
         assert!(script
@@ -7489,18 +7499,50 @@ mod tests {
         }
     }
     #[test]
+    fn three_fresh_conversations_with_identical_text_each_accept_a_form() {
+        let mut f = fill_fixture(vec![filled(), filled(), filled()]);
+        for _ in 0..3 {
+            // Keep the same proxy, model, text and prefix-based conversation state.
+            let mut req = fill_request();
+            req["messages"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({"role":"system","content":"Current client instructions"}));
+            let out = f.chat(req);
+            assert_eq!(out.status, 200);
+            let body: Value = serde_json::from_slice(&out.body).unwrap();
+            assert!(body["choices"][0]["message"]["tool_calls"].is_array());
+            assert!(!body.to_string().contains("pilot_fill"));
+        }
+        let script = f.proxy.scripted.as_ref().unwrap().borrow();
+        assert_eq!(script.requests.len(), 3);
+        assert!(script
+            .requests
+            .iter()
+            .all(|r| r["tools"][0]["function"]["name"] == "pilot_fill"));
+        let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+        assert_eq!(log.matches("\"kind\":\"fill_accepted\"").count(), 3);
+    }
+
+    #[test]
     fn fill_is_offered_once_and_normal_fact_respects_flags() {
         let mut f = fill_fixture(vec![
             reply("no form"),
             reply("Ready."),
             reply("Ready again."),
             reply("Ready after resend."),
+            reply("Ready after second resend."),
         ]);
-        let req = fill_request();
+        let mut req = fill_request();
+        assert_eq!(f.chat(req.clone()).status, 200);
+        req["messages"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"role":"assistant","content":"Ready."}));
         assert_eq!(f.chat(req.clone()).status, 200);
         assert_eq!(f.chat(req).status, 200);
         let script = f.proxy.scripted.as_ref().unwrap().borrow();
-        assert_eq!(script.requests.len(), 4);
+        assert_eq!(script.requests.len(), 5);
         assert_eq!(
             script
                 .requests

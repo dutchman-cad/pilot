@@ -1,41 +1,17 @@
 //! A recipe form is local to one fresh user turn, including two validation retries.
 use super::*;
-use std::hash::{Hash, Hasher};
-
-/// Independent of prefix-based conversation identification. At capacity, stop
-/// offering forms rather than forget a turn and risk replaying a creation.
-#[derive(Default)]
-pub(super) struct Turns(Vec<(String, usize, u64)>);
-
-impl Turns {
-    pub fn claim(&mut self, body: &Value) -> Result<bool, String> {
-        let messages = body["messages"]
-            .as_array()
-            .ok_or("messages must be an array")?;
-        let Some(index) = messages.iter().rposition(|m| m["role"] == "user") else {
-            return Ok(false);
-        };
-        let mut hash = std::collections::hash_map::DefaultHasher::new();
-        json_bytes(&messages[index]["content"])?.hash(&mut hash);
-        let hash = hash.finish();
-        let model = body["model"].as_str().unwrap_or("");
-        let position = messages[..index]
-            .iter()
-            .filter(|m| m["role"] != "system")
-            .count();
-        // A shorter prefix can move the same user message backwards. Keep the
-        // content identity as well as its original position across such trims.
-        if self.0.len() >= 4096
-            || self
-                .0
-                .iter()
-                .any(|(m, i, h)| m == model && *h == hash && position <= *i)
-        {
-            return Ok(false);
-        }
-        self.0.push((model.to_string(), position, hash));
-        Ok(messages[index + 1..].iter().all(|m| m["role"] == "system"))
-    }
+/// Client history is the turn boundary: only system messages may follow a fresh
+/// user message. Check before stripping local tools or trimming history. Keeping
+/// no turn identities avoids cross-conversation collisions and retains no entries
+/// after a turn finishes (or while it is in progress).
+pub(super) fn fresh_turn(body: &Value) -> Result<bool, String> {
+    let messages = body["messages"]
+        .as_array()
+        .ok_or("messages must be an array")?;
+    let Some(index) = messages.iter().rposition(|m| m["role"] == "user") else {
+        return Ok(false);
+    };
+    Ok(messages[index + 1..].iter().all(|m| m["role"] == "system"))
 }
 
 /// Inspect every choice and call before accepting any local form. Mixed replies
@@ -442,34 +418,32 @@ mod tests {
     }
 
     #[test]
-    fn turn_identity_survives_trim_and_system_changes_but_allows_new_users() {
-        let mut turns = Turns::default();
+    fn freshness_depends_only_on_history_after_the_latest_user() {
         let mut req = request("make a profile");
+        for _ in 0..3 {
+            assert!(fresh_turn(&req).unwrap());
+        }
         req["messages"]
             .as_array_mut()
             .unwrap()
-            .insert(0, json!({"role":"user","content":"earlier task"}));
-        assert!(turns.claim(&req).unwrap());
-        assert!(!turns.claim(&req).unwrap());
-        req["messages"].as_array_mut().unwrap().remove(0);
+            .push(json!({"role":"system","content":"updated instructions"}));
+        assert!(fresh_turn(&req).unwrap());
         req["messages"]
             .as_array_mut()
             .unwrap()
-            .insert(0, json!({"role":"system","content":"new prompt"}));
-        assert!(!turns.claim(&req).unwrap());
+            .push(json!({"role":"assistant","content":"Working on it"}));
+        for _ in 0..3 {
+            assert!(!fresh_turn(&req).unwrap());
+        }
+        // A repeated user message finishes the prior turn, even at the same text.
         req["messages"]
             .as_array_mut()
             .unwrap()
-            .push(json!({"role":"user","content":"a different profile"}));
-        assert!(turns.claim(&req).unwrap());
-        req["messages"]
-            .as_array_mut()
-            .unwrap()
-            .push(json!({"role":"user","content":"a different profile"}));
-        assert!(turns.claim(&req).unwrap());
-        // Capacity is fail-closed, including for unseen content.
-        turns.0.resize(4096, (String::new(), 0, 0));
-        assert!(!turns.claim(&request("another task")).unwrap());
+            .push(json!({"role":"user","content":"make a profile"}));
+        assert!(fresh_turn(&req).unwrap());
+        assert!(!fresh_turn(&json!({"messages":[]})).unwrap());
+        assert!(!fresh_turn(&json!({"messages":[{"role":"system"}]})).unwrap());
+        assert!(fresh_turn(&json!({})).is_err());
     }
 
     #[test]
@@ -483,10 +457,10 @@ mod tests {
         ] {
             let mut req = request("make a profile");
             req["messages"].as_array_mut().unwrap().push(json!({"role":"assistant","tool_calls":[{"function":{"name":name,"arguments":"{}"}}]}));
-            let mut turns = Turns::default();
-            assert!(!turns.claim(&req).unwrap());
-            req["messages"].as_array_mut().unwrap().pop();
-            assert!(!turns.claim(&req).unwrap());
+            assert!(!fresh_turn(&req).unwrap());
+            // Trimming the assistant call still leaves a tool result in progress.
+            req["messages"][1] = json!({"role":"tool","content":"{}"});
+            assert!(!fresh_turn(&req).unwrap());
         }
         let response = json!({"choices":[{"message":{"tool_calls":[{"function":{"name":"pilot_fill"}},{"function":{"name":"batch"}}]}}]});
         assert_eq!(off_form(&response, "pilot_fill"), vec!["batch"]);
