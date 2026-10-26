@@ -20,13 +20,6 @@ published once its notes are written.
    the `Unreleased` heading in [CHANGELOG.md](../CHANGELOG.md) to
    `## <version> (<date>)`. The workflow refuses a tag that does not match
    `Cargo.toml`.
-4. **Image.** Every release shows at least one new image of what is new: a
-   screenshot of SolidCraft's Assistant building something the release
-   enables, or a render of the part (`solidcraft-cli snapshot` or `render` of
-   the commands Pilot sent). Save it as
-   `docs/images/releases/<version>/<name>.png`, under 1 MB, with no private
-   designs, names, or paths in view. The release notes show it, and
-   announcements reuse the same file.
 
 ## The release notes
 
@@ -34,7 +27,12 @@ published once its notes are written.
   requests.
 - The measured numbers from step 1: before and after, with the model, mode,
   and task set.
-- The image from step 4, with a one-line caption saying what it shows.
+- For a milestone release only (for example, a class of design Pilot can now
+  build end to end), one image of the new result: a screenshot of SolidCraft's
+  Assistant or a render of the part (`solidcraft-cli snapshot` or `render`),
+  saved as `docs/images/releases/<version>/<name>.png`, under 1 MB, with no
+  private designs, names, or paths in view. Announcements reuse the same file.
+  Other releases need no image.
 - Upgrade notes for any changed flag or default.
 
 ## After publishing
@@ -44,5 +42,5 @@ published once its notes are written.
 2. Bump the pinned Pilot revision in projects that depend on it, such as
    [dutchman-cad/plugins](https://github.com/dutchman-cad/plugins), and check
    that they still build.
-3. Answer field reports that the release fixes, with the release link, the
-   measured number, and the image.
+3. Answer field reports that the release fixes, with the release link and the
+   measured number.
