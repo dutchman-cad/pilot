@@ -18,11 +18,14 @@ pub struct Config {
     pub endpoint: Endpoint,
     pub log: Option<PathBuf>,
 }
+pub const DIALOG_FACT: &str = "SolidCraft 98 dialogs: fill every field, then OK; typing affects only the focused field, so select each intended field first (fill_dialog fills named fields and presses OK, preserving other displayed defaults).";
+
 pub fn tools() -> Vec<Value> {
     let string = json!({"type":"string","maxLength":256,"minLength":1});
     let integer = json!({"type":"integer","minimum":0,"maximum":16383});
     let point = json!({"type":"object","properties":{"x":integer,"y":integer},"required":["x","y"],"additionalProperties":false});
     [
+        ("fill_dialog",json!({"fields":{"type":"array","minItems":1,"maxItems":16,"items":{"type":"object","properties":{"name":string,"value":{"type":"string","maxLength":256}},"required":["name","value"],"additionalProperties":false}}}),vec!["fields"]),
         ("look",json!({}),vec![]), ("yes",json!({}),vec![]),
         ("click",json!({"name":string,"point":point}),vec![]),
         ("doubleclick",json!({"name":string,"point":point}),vec![]),
@@ -68,6 +71,17 @@ pub(crate) fn validate(value: &Value, schema: &Value) -> Result<(), String> {
             }
             if schema.get("oneOf").is_some() && obj.len() != 1 {
                 return Err("provide exactly one of name or point".into());
+            }
+        }
+        Some("array") => {
+            let items = value.as_array().ok_or("argument must be an array")?;
+            if items.len() < schema["minItems"].as_u64().unwrap_or(0) as usize
+                || items.len() > schema["maxItems"].as_u64().unwrap_or(16) as usize
+            {
+                return Err("array count outside tool limits".into());
+            }
+            for item in items {
+                validate(item, &schema["items"])?;
             }
         }
         Some("string") => {
@@ -408,7 +422,7 @@ impl Server {
                         .into(),
                 );
             }
-            if self.actions >= self.action_limit {
+            if canonical != "look" && self.actions >= self.action_limit {
                 return Err(format!(
                     "{} action turns exhausted; start an explicit new session",
                     self.action_limit
@@ -433,6 +447,15 @@ impl Server {
                     self.record("syntax", &change.before, &change.after)?;
                 }
             }
+            if !self.plain && canonical == "key" {
+                if let Some(keys) = repaired["keys"].as_str() {
+                    let normalized = keys.to_ascii_lowercase();
+                    if normalized != keys {
+                        self.record("syntax", &json!(keys), &json!(normalized))?;
+                        repaired["keys"] = json!(normalized);
+                    }
+                }
+            }
             self.record(
                 "native",
                 &json!({"name":name,"arguments":args}),
@@ -442,7 +465,16 @@ impl Server {
         })();
         match preparation.and_then(|()| self.execute(canonical, &repaired, start)) {
             Ok(v) => v,
-            Err(error) => {
+            Err(mut error) => {
+                if !self.plain {
+                    match self.recover_dialog() {
+                        Ok(true) => {
+                            error.push_str(" Unfinished dialog cancelled; edits were not applied.")
+                        }
+                        Ok(false) => {}
+                        Err(e) => error.push_str(&format!(" Dialog recovery failed: {e}")),
+                    }
+                }
                 let nearest =
                     if !self.plain && matches!(canonical, "click" | "doubleclick" | "rightclick") {
                         self.screen
@@ -475,6 +507,76 @@ impl Server {
             }
         }
     }
+    /// Cancel uncommitted edits, never guess missing values or approve them on exit.
+    pub(crate) fn recover_dialog(&mut self) -> Result<bool, String> {
+        if self.plain || self.screen.as_ref().is_none_or(|s| s.dialog.is_none()) {
+            return Ok(false);
+        }
+        self.record("dialog_recovery", &json!(self.screen), &json!("key esc"))?;
+        let answer = self.send("key esc")?;
+        self.look()?;
+        if answer.to_lowercase().starts_with("error:")
+            || self.screen.as_ref().is_none_or(|s| s.dialog.is_some())
+        {
+            return Err("could not cancel unfinished dialog; inspect before continuing".into());
+        }
+        Ok(true)
+    }
+    fn fill_dialog(&mut self, args: &Value, before_count: usize) -> Result<Value, String> {
+        let screen = self.screen.as_ref().ok_or("screen unavailable")?;
+        let dialog = screen
+            .dialog
+            .clone()
+            .ok_or("fill_dialog requires an open dialog")?;
+        let fields = args["fields"].as_array().ok_or("fields must be an array")?;
+        let mut commands = Vec::new();
+        let mut seen = std::collections::BTreeSet::new();
+        // Validate every target and encoded command before sending the first edit.
+        for field in fields {
+            let requested = field["name"].as_str().ok_or("missing field name")?;
+            let name = if self.plain {
+                requested.to_owned()
+            } else {
+                screen.resolve(requested)?
+            };
+            if !self
+                .last_text
+                .lines()
+                .any(|l| l.trim_start().starts_with(&format!("field \"{name}\":")))
+            {
+                return Err(format!("{name} is not a displayed dialog field"));
+            }
+            if !seen.insert(name.clone()) {
+                return Err(format!("duplicate field {name}"));
+            }
+            let value = field["value"].as_str().ok_or("missing field value")?;
+            commands.push(format!("click {name}"));
+            // Moving away and back selects all, including a previously edited field.
+            commands.push("key tab shift+tab".into());
+            commands.push(format!("type {value}"));
+        }
+        commands.push(format!("click {}", screen.resolve("OK")?));
+        for command in &commands {
+            protocol::encode(command)?;
+        }
+        self.record("dialog_fill", args, &json!(commands))?;
+        for command in commands {
+            if self.screen.as_ref().and_then(|s| s.dialog.as_ref()) != Some(&dialog) {
+                return Err("dialog changed during fill; remaining edits were not sent".into());
+            }
+            let answer = self.send(&command)?;
+            self.look()?;
+            if answer.to_lowercase().starts_with("error:") {
+                return Err(format!("dialog fill stopped: {answer}"));
+            }
+        }
+        if self.screen.as_ref().is_some_and(|s| s.dialog.is_some()) {
+            return Err("OK left a dialog open; inspect its validation error".into());
+        }
+        let result = json!({"content":[{"type":"text","text":format!("Dialog filled and OK pressed.\n{}",self.last_text)}],"isError":false,"structuredContent":{"screen":self.screen,"rewrites":self.audit.count-before_count}});
+        self.record("result", &Value::Null, &result)?;
+        Ok(result)
+    }
     fn execute(&mut self, name: &str, args: &Value, before_count: usize) -> Result<Value, String> {
         let schema = tools()
             .into_iter()
@@ -483,6 +585,9 @@ impl Server {
         validate(args, &schema["inputSchema"])?;
         if name != "look" {
             self.look()?;
+        }
+        if name == "fill_dialog" {
+            return self.fill_dialog(args, before_count);
         }
         let command = self.command(name, args)?;
         let answer = if name == "look" {

@@ -8,7 +8,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-pub const SYSTEM: &str = "You are using SolidCraft 98 through a screen reader. Execute one explicit call per turn. Reply with exactly one COMMAND: line, optionally preceded by THOUGHT: commentary, or one tool JSON object {\"tool\":\"name\",\"args\":{}}. Native tool calls are also accepted, exactly one per turn. Commands: look; click <displayed name or x y>; doubleclick <name or x y>; rightclick <name or x y>; menu <title> > <item>; key <keys>; type <literal text>; drag <x1> <y1> <x2> <y2> [right]; wait <0-5000 ms>; how <words>; yes. COMMAND: done <message> finishes locally. Read the screen after each action. Prose is never executed; several calls and unknown verbs are format errors.";
+pub const SYSTEM: &str = "You are using SolidCraft 98 through a screen reader. Execute one explicit call per turn. Reply with exactly one COMMAND: line, optionally preceded by THOUGHT: commentary, or one tool JSON object {\"tool\":\"name\",\"args\":{}}. Native tool calls are also accepted, exactly one per turn. Use fill_dialog with fields [{name, value}] to fill a dialog and press OK in one action. Commands: look; click <displayed name or x y>; doubleclick <name or x y>; rightclick <name or x y>; menu <title> > <item>; key <keys>; type <literal text>; drag <x1> <y1> <x2> <y2> [right]; wait <0-5000 ms>; how <words>; yes. COMMAND: done <message> finishes locally. Each action result includes the refreshed screen; use look only when another observation is needed. Prose is never executed; several calls and unknown verbs are format errors.";
 #[derive(Debug)]
 pub struct Config {
     pub endpoint: Endpoint,
@@ -222,6 +222,21 @@ fn response(
     repair::check_value(&v)?;
     Ok(v)
 }
+/// Keep the latest screen once; old tool results retain status, errors and offers.
+fn feedback_text(result: &Value) -> String {
+    let mut compact = result.clone();
+    if let Some(object) = compact["structuredContent"].as_object_mut() {
+        object.remove("screen");
+    }
+    if let Some(content) = compact["content"].as_array_mut() {
+        for item in content {
+            if let Some(text) = item["text"].as_str() {
+                item["text"] = json!(text.split("SolidCraft 98, ").next().unwrap_or(text).trim());
+            }
+        }
+    }
+    compact.to_string()
+}
 pub fn run(cfg: Config) -> Result<Value, String> {
     let agent = ureq::AgentBuilder::new()
         .try_proxy_from_env(false)
@@ -283,7 +298,11 @@ pub fn run_in_session(
     session.driver_options(cfg.plain, cfg.budget, &cfg.model)?;
     let mut system = SYSTEM.to_owned();
     if !cfg.plain {
-        let addition = format!("\nPilot help (application help wins): {}\nIn a dialog, typing replaces the focused field; Tab advances, Enter confirms. Read fields before changing values. Never infer that a described action ran.",guidance::help(&cfg.task));
+        let addition = format!(
+            "\nPilot help (application help wins): {}\n{} Never infer that a described action ran.",
+            guidance::help(&cfg.task),
+            mcp::DIALOG_FACT
+        );
         session.record(
             "prompt",
             &json!(system),
@@ -315,7 +334,7 @@ pub fn run_in_session(
     let mut consecutive_errors = 0;
     let mut empty_retry = false;
     let mut previous: Option<(String, usize)> = None;
-    while final_error.is_none() && steps < cfg.budget {
+    while final_error.is_none() && actions < cfg.budget && steps < cfg.budget + 3 {
         let remaining = deadline.saturating_duration_since(Instant::now());
         if remaining.is_zero() {
             stop = "wall_budget".into();
@@ -382,7 +401,7 @@ pub fn run_in_session(
         } else {
             Err("exactly one completion choice required".into())
         };
-        let mut group = vec![current];
+        let mut group = Vec::new();
         let action_key = match &parsed {
             Ok(call) => format!("{call:?}"),
             Err(e) => format!("format: {e}"),
@@ -424,10 +443,10 @@ pub fn run_in_session(
                 group.push(message.clone());
                 if let Some(id) = message["tool_calls"][0]["id"].as_str() {
                     group.push(
-                        json!({"role":"tool","tool_call_id":id,"content":result.to_string()}),
+                        json!({"role":"tool","tool_call_id":id,"content":feedback_text(&result)}),
                     );
                 } else {
-                    group.push(json!({"role":"user","content":result.to_string()}));
+                    group.push(json!({"role":"user","content":feedback_text(&result)}));
                 }
                 result
             }
@@ -453,7 +472,7 @@ pub fn run_in_session(
             _ => 1,
         };
         previous = Some((key, count));
-        feedback = result.to_string();
+        feedback = feedback_text(&result);
         if count >= 3 || feedback.contains("three identical") {
             stop = "repeated_result".into();
             errors += u64::from(is_error);
@@ -505,6 +524,17 @@ pub fn run_in_session(
             history.remove(0);
         }
     }
+    let dialog_cancelled = match session.recover_dialog() {
+        Ok(cancelled) => cancelled,
+        Err(e) => {
+            errors += 1;
+            final_error = Some(e);
+            false
+        }
+    };
+    if dialog_cancelled && !done.is_empty() {
+        done.push_str(" Unfinished dialog cancelled; its edits were not applied.");
+    }
     let final_screen = match session.final_look() {
         Ok(text) => text,
         Err(e) => {
@@ -513,7 +543,7 @@ pub fn run_in_session(
             String::new()
         }
     };
-    let summary = json!({"task":cfg.task,"model":cfg.model,"plain":cfg.plain,"steps":steps,"actions":actions,"errors":errors,"rewrites":session.rewrite_count(),"tokens":tokens,"latency":started.elapsed().as_secs_f64(),"stop_reason":stop,"done_message":done,"final_screen_text":final_screen,"error":final_error,"native":native,"text":text_calls,"retries":retries,"hand_backs":hand_backs,"repairs":session.repair_count()});
+    let summary = json!({"task":cfg.task,"model":cfg.model,"plain":cfg.plain,"dialog_cancelled":dialog_cancelled,"steps":steps,"actions":actions,"errors":errors,"rewrites":session.rewrite_count(),"tokens":tokens,"latency":started.elapsed().as_secs_f64(),"stop_reason":stop,"done_message":done,"final_screen_text":final_screen,"error":final_error,"native":native,"text":text_calls,"retries":retries,"hand_backs":hand_backs,"repairs":session.repair_count()});
     session.record("summary", &Value::Null, &summary)?;
     Ok(summary)
 }

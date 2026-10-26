@@ -107,7 +107,7 @@ enum Action {
     Mcp98(Mcp98Args),
     /// Drive SolidCraft 98 through a bounded model/session loop.
     #[command(
-        long_about = "Drive SolidCraft 98 through the same validated session as mcp98. One explicit COMMAND: line, complete tool JSON object, or native tool call per turn. Plain mode disables Pilot repairs, name matching, suggestions, hints, and offline help. Default limits: 40 model turns, 900 seconds, 131072 total tokens, 512 output tokens per request, eight history turns / 1 MiB. At most two error hand-backs and one empty retry per turn; every request counts against --budget. done reads a final screen and detaches; it never quits the app. JSON summary on stdout; transcript and all rewrites in --log (default data-directory rewrites.jsonl)."
+        long_about = "Drive SolidCraft 98 through the same validated session as mcp98. One explicit COMMAND: line, complete tool JSON object, or native tool call per turn. Plain mode disables Pilot repairs, name matching, suggestions, hints, and offline help. Default limits: 40 model actions, 900 seconds, 131072 total tokens, 512 output tokens per request, eight history turns / 1 MiB. At most two error hand-backs and one empty retry per turn; only explicit model tool actions count against --budget (including errors and look); format/empty retries have a separate three-request allowance. Pilot observations, repairs, and dialog cleanup do not spend model actions. done cancels an unfinished dialog, reads a final screen and detaches; it never quits the app. JSON summary on stdout; transcript and all rewrites in --log (default data-directory rewrites.jsonl)."
     )]
     Drive98(Drive98Args),
     /// Offline Pilot help for SolidCraft 98.

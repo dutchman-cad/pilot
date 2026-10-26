@@ -1196,7 +1196,7 @@ fn solidcraft98_dialect_has_only_screen_tools_and_no_catalogue_plans() {
         "doubleclick"
     );
     let chats = h.chats();
-    assert_eq!(chats[0]["tools"].as_array().unwrap().len(), 11);
+    assert_eq!(chats[0]["tools"].as_array().unwrap().len(), 12);
     assert!(!chats[0]["tools"].to_string().contains("execute"));
     assert_eq!(chats[0]["messages"].as_array().unwrap().len(), 1);
     let log = fs::read_to_string(h.dir.join("audit.jsonl")).unwrap();

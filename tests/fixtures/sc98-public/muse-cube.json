@@ -1,0 +1,212 @@
+{
+  "source": "muse-glimmer_u-q3-k-xl/m0-t01-r1-A/transcript.jsonl",
+  "summary": {
+    "actions": 10,
+    "steps": 11,
+    "stop_reason": "format_or_action_errors",
+    "errors": 6,
+    "hand_backs": 5,
+    "repairs": 0
+  },
+  "steps": [
+    {
+      "message": {
+        "content": "",
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "function": {
+              "arguments": "{}",
+              "name": "look"
+            },
+            "id": "call_p4javjdk",
+            "index": 0,
+            "type": "function"
+          }
+        ]
+      },
+      "screen": null,
+      "error": "Outcome unknown after write started; command was not replayed. remote answer incomplete: Resource temporarily unavailable (os error 11)"
+    },
+    {
+      "message": {
+        "content": "",
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "function": {
+              "arguments": "{\"name\":\"Sketch Rectangle\",\"point\":{\"x\":250,\"y\":50}}",
+              "name": "click"
+            },
+            "id": "call_srep7tn3",
+            "index": 0,
+            "type": "function"
+          }
+        ]
+      },
+      "screen": null,
+      "error": "provide exactly one of name or point"
+    },
+    {
+      "message": {
+        "content": "",
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "function": {
+              "arguments": "{\"name\":\"Sketch Rectangle\"}",
+              "name": "click"
+            },
+            "id": "call_bbfhyp5c",
+            "index": 0,
+            "type": "function"
+          }
+        ]
+      },
+      "screen": "SolidCraft 98, 800 x 600. Turbo off (the LED says 66 MHz).\nDialog \"Sketch Rectangle\", on top: it takes every click and key until it closes\n  field \"Width (mm)\": [40] (has the focus), all selected: typing replaces it\n  field \"Height (mm)\": [30]\n  field \"Corner X (mm)\": [0]\n  field \"Corner Y (mm)\": [0]\n  field \"Corner radius (mm)\": [0]\n  field \"On feature # (0 = ground)\": [0]\n  field \"Height above that (mm)\": [0]\n  button [OK] (default: Enter presses it)\n  button [Cancel] (Esc presses it)\n  button [Help]\n  title bar close box [x]\nUnderneath: the main window, which can't be used until the dialog closes.\nStatus bar: Sketch Rectangle (R)\nTutor: This dialog wants numbers. The field with the focus is all selected, so typing replaces it. key tab goes to the next field, key enter is OK, key esc is Cancel. Numbers only, no units.\n",
+      "error": null
+    },
+    {
+      "message": {
+        "content": "",
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "function": {
+              "arguments": "{\"text\":\"20\"}",
+              "name": "type"
+            },
+            "id": "call_j6ablxrm",
+            "index": 0,
+            "type": "function"
+          }
+        ]
+      },
+      "screen": "SolidCraft 98, 800 x 600. Turbo off (the LED says 66 MHz).\nDialog \"Sketch Rectangle\", on top: it takes every click and key until it closes\n  field \"Width (mm)\": [20] (has the focus)\n  field \"Height (mm)\": [30]\n  field \"Corner X (mm)\": [0]\n  field \"Corner Y (mm)\": [0]\n  field \"Corner radius (mm)\": [0]\n  field \"On feature # (0 = ground)\": [0]\n  field \"Height above that (mm)\": [0]\n  button [OK] (default: Enter presses it)\n  button [Cancel] (Esc presses it)\n  button [Help]\n  title bar close box [x]\nUnderneath: the main window, which can't be used until the dialog closes.\nStatus bar: Sketch Rectangle (R)\nTutor: This dialog wants numbers. \"Width (mm)\" says 20 and isn't selected, so more typing adds to the end. If 20 is right, key tab goes on; to retype it, key shift+tab tab first (away and back selects it all). key tab goes to the next field, key enter is OK, key esc is Cancel. Numbers only, no units.\n",
+      "error": null
+    },
+    {
+      "message": {
+        "content": "",
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "function": {
+              "arguments": "{\"keys\":\"Tab\"}",
+              "name": "key"
+            },
+            "id": "call_uqbp40nw",
+            "index": 0,
+            "type": "function"
+          }
+        ]
+      },
+      "screen": null,
+      "error": "unsupported key chord Tab"
+    },
+    {
+      "message": {
+        "content": "",
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "function": {
+              "arguments": "{\"name\":\"Height (mm)\"}",
+              "name": "click"
+            },
+            "id": "call_molcayng",
+            "index": 0,
+            "type": "function"
+          }
+        ]
+      },
+      "screen": "SolidCraft 98, 800 x 600. Turbo off (the LED says 66 MHz).\nDialog \"Sketch Rectangle\", on top: it takes every click and key until it closes\n  field \"Width (mm)\": [20]\n  field \"Height (mm)\": [30] (has the focus)\n  field \"Corner X (mm)\": [0]\n  field \"Corner Y (mm)\": [0]\n  field \"Corner radius (mm)\": [0]\n  field \"On feature # (0 = ground)\": [0]\n  field \"Height above that (mm)\": [0]\n  button [OK] (default: Enter presses it)\n  button [Cancel] (Esc presses it)\n  button [Help]\n  title bar close box [x]\nUnderneath: the main window, which can't be used until the dialog closes.\nStatus bar: Sketch Rectangle (R)\nTutor: This dialog wants numbers. \"Height (mm)\" says 30 and isn't selected, so more typing adds to the end. If 30 is right, key tab goes on; to retype it, key shift+tab tab first (away and back selects it all). key tab goes to the next field, key enter is OK, key esc is Cancel. Numbers only, no units.\n",
+      "error": null
+    },
+    {
+      "message": {
+        "content": "",
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "function": {
+              "arguments": "{\"name\":\"Width (mm)\"}",
+              "name": "click"
+            },
+            "id": "call_obw9ho8l",
+            "index": 0,
+            "type": "function"
+          }
+        ]
+      },
+      "screen": "SolidCraft 98, 800 x 600. Turbo off (the LED says 66 MHz).\nDialog \"Sketch Rectangle\", on top: it takes every click and key until it closes\n  field \"Width (mm)\": [20] (has the focus)\n  field \"Height (mm)\": [30]\n  field \"Corner X (mm)\": [0]\n  field \"Corner Y (mm)\": [0]\n  field \"Corner radius (mm)\": [0]\n  field \"On feature # (0 = ground)\": [0]\n  field \"Height above that (mm)\": [0]\n  button [OK] (default: Enter presses it)\n  button [Cancel] (Esc presses it)\n  button [Help]\n  title bar close box [x]\nUnderneath: the main window, which can't be used until the dialog closes.\nStatus bar: Sketch Rectangle (R)\nTutor: This dialog wants numbers. \"Width (mm)\" says 20 and isn't selected, so more typing adds to the end. If 20 is right, key tab goes on; to retype it, key shift+tab tab first (away and back selects it all). key tab goes to the next field, key enter is OK, key esc is Cancel. Numbers only, no units.\n",
+      "error": null
+    },
+    {
+      "message": {
+        "content": "",
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "function": {
+              "arguments": "{\"name\":\"Height (mm)\"}",
+              "name": "click"
+            },
+            "id": "call_wk2204ma",
+            "index": 0,
+            "type": "function"
+          }
+        ]
+      },
+      "screen": "SolidCraft 98, 800 x 600. Turbo off (the LED says 66 MHz).\nDialog \"Sketch Rectangle\", on top: it takes every click and key until it closes\n  field \"Width (mm)\": [20]\n  field \"Height (mm)\": [30] (has the focus)\n  field \"Corner X (mm)\": [0]\n  field \"Corner Y (mm)\": [0]\n  field \"Corner radius (mm)\": [0]\n  field \"On feature # (0 = ground)\": [0]\n  field \"Height above that (mm)\": [0]\n  button [OK] (default: Enter presses it)\n  button [Cancel] (Esc presses it)\n  button [Help]\n  title bar close box [x]\nUnderneath: the main window, which can't be used until the dialog closes.\nStatus bar: Sketch Rectangle (R)\nTutor: This dialog wants numbers. \"Height (mm)\" says 30 and isn't selected, so more typing adds to the end. If 30 is right, key tab goes on; to retype it, key shift+tab tab first (away and back selects it all). key tab goes to the next field, key enter is OK, key esc is Cancel. Numbers only, no units.\n",
+      "error": null
+    },
+    {
+      "message": {
+        "content": "",
+        "role": "assistant"
+      },
+      "screen": null,
+      "error": "missing COMMAND: line"
+    },
+    {
+      "message": {
+        "content": "",
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "function": {
+              "arguments": "{\"name\":\"Height (mm)\"}",
+              "name": "doubleclick"
+            },
+            "id": "call_ac9b9y1w",
+            "index": 0,
+            "type": "function"
+          }
+        ]
+      },
+      "screen": null,
+      "error": "Outcome unknown after write started; command was not replayed. remote answer incomplete: Resource temporarily unavailable (os error 11)"
+    },
+    {
+      "message": {
+        "content": "",
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "function": {
+              "arguments": "{\"keys\":\"Backspace\"}",
+              "name": "key"
+            },
+            "id": "call_d4d9fh2j",
+            "index": 0,
+            "type": "function"
+          }
+        ]
+      },
+      "screen": null,
+      "error": "unsupported key chord Backspace"
+    }
+  ],
+  "initial_screen": "SolidCraft 98, 800 x 600. Turbo off (the LED says 66 MHz).\nMenu bar: File, Edit, Sketch, Features, View, Window, Help\nToolbar buttons: New Part, Open Part, Save Part, Sketch Rectangle, Sketch Circle, Extrude, Revolve, Hole, Isometric View, Shaded, Zoom to Fit, Regenerate, Turbo\nPart window \"Part1\" (the active one)\n  Feature tree:\n    Part1\n      Origin\n  Timeline: empty. Nothing has been made yet.\n  View (x 170 to 793, y 73 to 451; drag in it to orbit, right-drag to pan): an empty grid. Seen from yaw 135, pitch 35\nStatus bar: Ready   Clock: 10:53 AM\nTutor: This part is empty. Every solid starts as a flat sketch: menu Sketch > Rectangle... or menu Sketch > Circle..., and then menu Features > Extrude... makes it solid. \"how <words>\" looks things up, e.g. how hole.\n"
+}

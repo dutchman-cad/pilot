@@ -1167,6 +1167,20 @@ impl Proxy {
                 body[key] = value;
             }
         }
+        if self.cfg.solidcraft98 && !self.cfg.no_hints && !conversation.sc98_dialog_fact_seen {
+            let fact = crate::solidcraft98::mcp::DIALOG_FACT;
+            let messages = body["messages"]
+                .as_array_mut()
+                .ok_or("messages must be an array")?;
+            if !messages
+                .iter()
+                .any(|m| prompting::message_text(&m["content"]).contains(fact))
+            {
+                messages.push(json!({"role":"system","content":fact}));
+                audit.record("solidcraft98_dialog_fact", &Value::Null, &json!(fact))?;
+            }
+            conversation.sc98_dialog_fact_seen = true;
+        }
         if !self.cfg.no_hints {
             if !conversation.facts_seen[0] && prompting::append_placement_fact(&mut body)? {
                 audit.record(
@@ -6246,6 +6260,45 @@ mod tests {
         assert!(prose_guard(&req, &json!({"content":"20"}), &catalog).is_none());
     }
     #[test]
+    fn solidcraft98_dialog_fact_once_with_client_history_and_existing_fact() {
+        let fact = crate::solidcraft98::mcp::DIALOG_FACT;
+        for existing in [false, true] {
+            let mut f = Fixture::new(vec![reply("Ready."); 3]);
+            f.proxy.cfg.solidcraft98 = true;
+            f.proxy.cfg.planner = false;
+            let mut req = request();
+            req["messages"] = json!([{"role":"user","content":"Make a 20 mm cube."}]);
+            if existing {
+                req["messages"]
+                    .as_array_mut()
+                    .unwrap()
+                    .insert(0, json!({"role":"system","content":fact}));
+            }
+            for _ in 0..3 {
+                f.chat(req.clone());
+                req["messages"].as_array_mut().unwrap().extend([
+                    json!({"role":"assistant","content":"Ready."}),
+                    json!({"role":"user","content":"Continue the dialog."}),
+                ]);
+            }
+            let script = f.proxy.scripted.as_ref().unwrap().borrow();
+            let occurrences = script
+                .requests
+                .iter()
+                .flat_map(|r| r["messages"].as_array().unwrap())
+                .filter(|m| prompting::message_text(&m["content"]).contains(fact))
+                .count();
+            assert_eq!(occurrences, if existing { 3 } else { 1 });
+            let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+            assert_eq!(
+                log.lines()
+                    .filter(|l| l.contains("\"kind\":\"solidcraft98_dialog_fact\""))
+                    .count(),
+                usize::from(!existing)
+            );
+        }
+    }
+    #[test]
     fn scripted_solidcraft98_dialect_repair_and_catalogue_isolation() {
         let mut f = Fixture::new(vec![
             json!({"choices":[{"message":{"role":"assistant","content":"{tool:'dblclick',args:{name:'Sketch1'}}"},"finish_reason":"stop"}]}),
@@ -6263,7 +6316,7 @@ mod tests {
         );
         let script = f.proxy.scripted.as_ref().unwrap().borrow();
         let body = &script.requests[0];
-        assert_eq!(body["tools"].as_array().unwrap().len(), 11);
+        assert_eq!(body["tools"].as_array().unwrap().len(), 12);
         assert!(!body["tools"].to_string().contains("execute"));
         assert_eq!(body["messages"].as_array().unwrap().len(), 1);
         let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
