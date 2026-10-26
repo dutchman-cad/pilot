@@ -575,10 +575,10 @@ impl Profile {
                 _ => return Err("kind: must be L, T, U, C or rectangle".into()),
             };
             if self.web >= web_limit {
-                return Err("web_thickness: must be less than the side it cuts into".into());
+                return Err(format!("web_thickness {} must be below {web_limit} (cut side); reduce thickness or web_thickness", self.web));
             }
             if self.flange >= flange_limit {
-                return Err("flange_thickness: must leave an open interior".into());
+                return Err(format!("flange_thickness {} must be below {flange_limit} (open interior limit); reduce thickness or flange_thickness", self.flange));
             }
         }
         if let Some(x) = self.offset {
@@ -587,9 +587,7 @@ impl Profile {
                 || x - self.web / 2.0 <= 0.0
                 || x + self.web / 2.0 >= self.width
             {
-                return Err(
-                    "stem_offset: T stem centre from left must keep both sides inside width".into(),
-                );
+                return Err(format!("stem_offset {x} requires kind T and must be above {} and below {}; move the stem centre inside the width or omit stem_offset", self.web / 2.0, self.width - self.web / 2.0));
             }
         }
         if self.shape == "L" {

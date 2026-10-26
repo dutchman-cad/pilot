@@ -7,6 +7,7 @@ use serde::Deserialize;
 enum Build {
     Profile {
         kind: String,
+        #[serde(default = "xy")]
         plane: String,
         width: f64,
         height: f64,
@@ -20,7 +21,9 @@ enum Build {
         length: f64,
         width: f64,
         thickness: f64,
+        #[serde(default = "xy")]
         plane: String,
+        #[serde(default)]
         centred: bool,
         bore_diameter: Option<f64>,
         hole_diameter: Option<f64>,
@@ -33,8 +36,10 @@ enum Build {
         width: f64,
         height: f64,
         wall: f64,
+        #[serde(default = "top")]
         open: String,
         floor: Option<f64>,
+        #[serde(default)]
         centred: bool,
         lip: Option<Lip>,
     },
@@ -63,13 +68,27 @@ struct Grid {
 struct Corners {
     kind: String,
     size: f64,
+    #[serde(default = "vertical")]
     edges: String,
 }
 #[derive(Deserialize)]
 struct Lip {
     width: f64,
     height: f64,
+    #[serde(default = "inner")]
     side: String,
+}
+fn xy() -> String {
+    "XY".into()
+}
+fn top() -> String {
+    "top".into()
+}
+fn vertical() -> String {
+    "vertical".into()
+}
+fn inner() -> String {
+    "inner".into()
 }
 
 pub(crate) fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<Plan, String> {
@@ -80,7 +99,7 @@ pub(crate) fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<
     let variant = variants
         .iter()
         .find(|s| s["properties"]["shape"]["const"] == args["shape"])
-        .ok_or("shape: must be profile, plate, enclosure or revolute_joint")?;
+        .ok_or_else(|| format!("shape {} must be 1 of profile, plate, enclosure, revolute_joint; choose the matching shape", args["shape"]))?;
     check(args, variant, "arguments")?;
     let input: Build =
         serde_json::from_value(args.clone()).map_err(|e| format!("arguments: {e}"))?;
@@ -99,14 +118,14 @@ pub(crate) fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<
             let shape = if kind == "rectangle" { "R" } else { &kind };
             let (web, flange) = if shape == "R" {
                 if thickness.is_some() || web_thickness.is_some() || flange_thickness.is_some() {
-                    return Err("thickness: rectangle uses width and height only".into());
+                    return Err(format!("thickness {} web_thickness {} flange_thickness {} allow 0 entries for rectangle; omit thickness fields and use width and height", args["thickness"], args["web_thickness"], args["flange_thickness"]));
                 }
                 (0.0, 0.0)
             } else {
                 match (thickness, web_thickness, flange_thickness) {
                     (Some(t), None, None) => (t,t),
                     (None, Some(w), Some(f)) => (w,f),
-                    _ => return Err("thickness: supply uniform thickness or both web_thickness and flange_thickness".into()),
+                    _ => return Err(format!("thickness {} web_thickness {} flange_thickness {} require 1 uniform or 2 separate leg sizes; supply thickness alone or both web_thickness and flange_thickness", args["thickness"], args["web_thickness"], args["flange_thickness"])),
                 }
             };
             let slots = closed_profile::Profile {
@@ -169,13 +188,13 @@ pub(crate) fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<
             }
             if bolt_circle.is_some() || grid.is_some() {
                 let d =
-                    hole_diameter.ok_or("hole_diameter: required for bolt_circle or grid holes")?;
+                    hole_diameter.ok_or("hole_diameter <missing> requires 1 diameter for bolt_circle or grid; supply the pattern hole diameter in mm")?;
                 positive_mm("hole_diameter", d)?;
                 if let Some(c) = bolt_circle {
                     count("bolt_circle.count", c.count)?;
                     positive_mm("bolt_circle.diameter", c.diameter)?;
                     revolute::validate_angle(c.start_deg).map_err(|_| {
-                        "bolt_circle.start_deg: must be finite and within -360..360"
+                        format!("bolt_circle.start_deg {} must be within -360..360 degrees; use 0 for a start on +X", c.start_deg)
                     })?;
                     for k in 0..c.count {
                         let a = c.start_deg.to_radians() + 2.0 * PI * k as f64 / c.count as f64;
@@ -189,7 +208,7 @@ pub(crate) fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<
                     count("grid.rows", g.rows)?;
                     count("grid.columns", g.columns)?;
                     if g.rows * g.columns > 64 {
-                        return Err("grid: at most 64 holes".into());
+                        return Err(format!("grid.rows * grid.columns {} * {} = {} must be at most 64 holes; reduce rows or columns", g.rows, g.columns, g.rows * g.columns));
                     }
                     positive_mm("grid.pitch_x", g.pitch_x)?;
                     positive_mm("grid.pitch_y", g.pitch_y)?;
@@ -206,7 +225,7 @@ pub(crate) fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<
                     }
                 }
             } else if hole_diameter.is_some() {
-                return Err("hole_diameter: requires bolt_circle or grid".into());
+                return Err(format!("hole_diameter {} requires 1 pattern; add bolt_circle or grid, or use bore_diameter for a centre hole", args["hole_diameter"]));
             }
             let rounding = corners.map(|c| (c.kind == "fillet", c.edges == "all", c.size));
             let plate = compound_plate::Plate {
@@ -232,22 +251,24 @@ pub(crate) fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<
                 if name.as_ref().is_some_and(|n| {
                     n.trim().is_empty() || n.len() > 128 || n.chars().any(char::is_control)
                 }) {
-                    return Err(format!("{field}: must be a nonempty name of at most 128 bytes without control characters"));
+                    return Err(format!("{field} {name:?} must contain 1..128 bytes and 0 control characters; use the exact inspected component name"));
                 }
             }
             return revolute::typed(request,catalog,angle_deg,[pin_component.as_deref(),hole_component.as_deref()])?
-                .ok_or_else(|| "revolute_joint: inspection must resolve exactly one matching contact pin and hole pair".into());
+                .ok_or_else(|| format!("revolute_joint: inspection must resolve exactly 1 contact pair for pin_component {pin_component:?} and hole_component {hole_component:?}; inspect and supply the matching component names"));
         }
     };
     let messages = request["messages"]
         .as_array()
         .ok_or("messages must be an array")?;
     from_slots(rule, slots, state(messages).as_ref(), catalog)?
-        .ok_or_else(|| "shape: recipe size or body count capacity exceeded".into())
+        .ok_or_else(|| format!("shape {} with dimensions {args} exceeds capacity of {MAX_BODIES} bodies or {MAX_MM} mm; reduce sizes or remove bodies", args["shape"]))
 }
 fn count(field: &str, n: usize) -> Result<(), String> {
     if !compound_plate::bounded_count(n) {
-        return Err(format!("{field}: must be between 1 and 64"));
+        return Err(format!(
+            "{field} {n} must be between 1 and 64; reduce the count to this range"
+        ));
     }
     Ok(())
 }
@@ -256,7 +277,9 @@ fn object(fields: &[(&str, Value)], required: &[&str]) -> Value {
         .iter()
         .map(|(k, v)| (k.to_string(), v.clone()))
         .collect();
-    json!({"type":"object","properties":properties,"required":required,"additionalProperties":false})
+    let mut schema = json!({"type":"object","properties":properties,"required":required,"additionalProperties":false});
+    crate::recipe_library::forms::describe(&mut schema);
+    schema
 }
 fn choice(values: &[&str]) -> Value {
     json!({"type":"string","enum":values})
@@ -271,27 +294,38 @@ fn check(value: &Value, schema: &Value, field: &str) -> Result<(), String> {
         _ => true,
     };
     if !valid {
-        return Err(format!("{field}: must be {}", schema["type"]));
+        return Err(format!(
+            "{field} {value} requires 1 {} value; use that JSON type",
+            schema["type"]
+        ));
     }
     if schema.get("const").is_some_and(|c| c != value)
         || schema["enum"]
             .as_array()
             .is_some_and(|vs| !vs.contains(value))
     {
-        return Err(format!("{field}: must match {}", schema));
+        return Err(format!(
+            "{field} {value} must match 1 allowed choice from {}; use a listed value",
+            schema
+                .get("enum")
+                .or_else(|| schema.get("const"))
+                .unwrap_or(&Value::Null)
+        ));
     }
     if let Some(v) = value.as_object() {
         if let Some(required) = schema["required"].as_array() {
             for key in required.iter().filter_map(Value::as_str) {
                 if !v.contains_key(key) {
-                    return Err(format!("{field}.{key}: required"));
+                    return Err(format!(
+                        "{field}.{key} <missing> requires 1 value; supply {key} from the request"
+                    ));
                 }
             }
         }
         for (key, v) in v {
             let s = schema["properties"]
                 .get(key)
-                .ok_or_else(|| format!("{field}.{key}: unknown field"))?;
+                .ok_or_else(|| format!("{field}.{key} {v} allows 0 unknown fields; remove {key} and use a listed field"))?;
             check(v, s, &format!("{field}.{key}"))?;
         }
     }
@@ -404,7 +438,7 @@ pub(crate) fn tool() -> Value {
         ],
         &["shape"],
     );
-    json!({"type":"function","function":{"name":"pilot_build","description":"Build and verify a part or contact revolute joint. Lengths in mm; convert inches (1 in = 25.4 mm). Profiles start at origin; plate patterns centred; enclosure centred on all axes. Use thickness OR web_thickness and flange_thickness. Joint names: pin then hole; inspect first.","parameters":{"type":"object","oneOf":[profile,plate,enclosure,joint]}}})
+    json!({"type":"function","function":{"name":"pilot_build","description":"Build typed shapes in mm; omit unstated optionals; inspect joints first.","parameters":{"type":"object","oneOf":[profile,plate,enclosure,joint]}}})
 }
 
 /// The file ids select exactly one existing expander; arguments never become English.
@@ -480,7 +514,7 @@ pub(crate) fn file_build(
             height,
         } => {
             if inner_radius >= outer_radius {
-                return Err("inner_radius: must be less than outer_radius".into());
+                return Err(format!("inner_radius {inner_radius} must be below outer_radius {outer_radius}; reduce inner_radius"));
             }
             Slots::Tube {
                 outer_radius,
@@ -512,7 +546,10 @@ pub(crate) fn file_build(
             wall,
         } => {
             if 2.0 * wall >= length.min(width) || wall >= height {
-                return Err("wall: must leave a positive cavity".into());
+                return Err(format!(
+                    "wall {wall} must be below {} (half length/width or height); reduce wall",
+                    (length.min(width) / 2.0).min(height)
+                ));
             }
             Slots::Shell {
                 size: [length, width, height],
@@ -539,7 +576,7 @@ pub(crate) fn file_build(
         _ => return Err("unknown expander".into()),
     };
     from_slots(rule, slots, state(messages).as_ref(), catalog)?
-        .ok_or_else(|| "recipe size or body count capacity exceeded".into())
+        .ok_or_else(|| format!("args {args} exceeds capacity of {MAX_BODIES} bodies or {MAX_MM} mm; reduce sizes or remove bodies"))
 }
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::panic)]
@@ -759,7 +796,9 @@ mod tests {
             }
         }
         let chars = descriptions(&tool());
-        assert!(chars < 900, "{chars} description characters");
+        // Legacy union documents all four shapes; each forced form has its own
+        // stricter 1,200-character schema + system-line budget.
+        assert!(chars < 1400, "{chars} description characters");
         for mut a in [
             profile("L"),
             plate(),

@@ -10,7 +10,6 @@
     "Extrude a constrained rectangular profile"
   ],
   "schema": {
-    "x-pilot-expander": "profile",
     "$defs": {
       "Angle": {
         "description": "Degrees",
@@ -30,6 +29,7 @@
         "type": "number"
       },
       "Plane": {
+        "description": "Sketch plane; extrude along its normal",
         "enum": [
           "XY",
           "XZ",
@@ -53,15 +53,18 @@
     "additionalProperties": false,
     "properties": {
       "depth": {
-        "$ref": "#/$defs/Length"
+        "$ref": "#/$defs/Length",
+        "description": "Extrusion distance normal to plane"
       },
       "flange_thickness": {
-        "$ref": "#/$defs/Length"
+        "$ref": "#/$defs/Length",
+        "description": "Horizontal leg/flange; U sides; omit with thickness"
       },
       "height": {
         "$ref": "#/$defs/Length"
       },
       "kind": {
+        "description": "Cross-section outline",
         "enum": [
           "L",
           "T",
@@ -72,18 +75,23 @@
         "type": "string"
       },
       "plane": {
-        "$ref": "#/$defs/Plane"
+        "$ref": "#/$defs/Plane",
+        "default": "XY",
+        "description": "Sketch plane"
       },
       "stem_offset": {
+        "description": "T stem centre from left; omitted: centred",
         "maximum": 1000000,
         "minimum": 0,
         "type": "number"
       },
       "thickness": {
-        "$ref": "#/$defs/Length"
+        "$ref": "#/$defs/Length",
+        "description": "Plate thickness or uniform profile legs"
       },
       "web_thickness": {
-        "$ref": "#/$defs/Length"
+        "$ref": "#/$defs/Length",
+        "description": "Vertical leg/stem/web; U bottom; omit with thickness"
       },
       "width": {
         "$ref": "#/$defs/Length"
@@ -91,15 +99,15 @@
     },
     "required": [
       "kind",
-      "plane",
       "width",
       "height",
       "depth"
     ],
-    "type": "object"
+    "type": "object",
+    "x-pilot-expander": "profile"
   },
   "expander": "profile"
 }
 ---
 
-Extrude an L, T, U, C or rectangular section on a principal plane. Built by the `profile` expander.
+Extrude L T U C or rectangular profiles with web and flange thickness. Built by the `profile` expander.

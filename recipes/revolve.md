@@ -10,7 +10,6 @@
     "Sweep a rectangle around Z by 360 degrees"
   ],
   "schema": {
-    "x-pilot-expander": "revolve",
     "$defs": {
       "Angle": {
         "description": "Degrees",
@@ -30,6 +29,7 @@
         "type": "number"
       },
       "Plane": {
+        "description": "Sketch plane; extrude along its normal",
         "enum": [
           "XY",
           "XZ",
@@ -63,10 +63,11 @@
       "radius",
       "height"
     ],
-    "type": "object"
+    "type": "object",
+    "x-pilot-expander": "revolve"
   },
   "expander": "revolve"
 }
 ---
 
-Revolve a rectangular sketch around Z through a full turn. Built by the `revolve` expander.
+Revolve a rectangular sketch about Z through 360 degrees. Built by the `revolve` expander.

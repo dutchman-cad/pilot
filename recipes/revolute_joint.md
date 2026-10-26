@@ -10,7 +10,6 @@
     "Add a revolute joint at thirty degrees"
   ],
   "schema": {
-    "x-pilot-expander": "revolute_joint",
     "$defs": {
       "Angle": {
         "description": "Degrees",
@@ -30,6 +29,7 @@
         "type": "number"
       },
       "Plane": {
+        "description": "Sketch plane; extrude along its normal",
         "enum": [
           "XY",
           "XZ",
@@ -53,15 +53,19 @@
     "additionalProperties": false,
     "properties": {
       "angle_deg": {
-        "$ref": "#/$defs/Angle"
+        "$ref": "#/$defs/Angle",
+        "default": 0,
+        "description": "Rotation in degrees; omitted: 0"
       },
       "hole_component": {
+        "description": "Inspected hole component; omit if unique",
         "maxLength": 128,
         "minLength": 1,
         "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
         "type": "string"
       },
       "pin_component": {
+        "description": "Inspected pin component; omit if unique",
         "maxLength": 128,
         "minLength": 1,
         "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
@@ -69,10 +73,11 @@
       }
     },
     "required": [],
-    "type": "object"
+    "type": "object",
+    "x-pilot-expander": "revolute_joint"
   },
   "expander": "revolute_joint"
 }
 ---
 
-Inspect contact geometry and connect the matching pin and hole components. Built by the `revolute_joint` expander.
+Contact revolute joint between a pin component and a hole component, after inspection. Built by the `revolute_joint` expander.

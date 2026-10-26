@@ -731,3 +731,114 @@ fn fill_calibration() {
         assert_eq!(found["hit"], hit, "{query}");
     }
 }
+
+#[test]
+fn fill_forms_are_short_and_documented() {
+    use dutchman_pilot::recipe_library::forms::{compact, line};
+    fn documented(v: &Value) {
+        match v {
+            Value::Object(o) => {
+                if o.contains_key("enum") {
+                    assert!(
+                        o.get("description")
+                            .and_then(Value::as_str)
+                            .is_some_and(|d| !d.is_empty()),
+                        "{v}"
+                    );
+                }
+                if let Some(d) = o.get("description").and_then(Value::as_str) {
+                    assert!(d.chars().count() <= 80, "{d}");
+                }
+                for child in o.values() {
+                    documented(child);
+                }
+            }
+            Value::Array(a) => {
+                for child in a {
+                    documented(child);
+                }
+            }
+            _ => {}
+        }
+    }
+    for r in Library::embedded().unwrap().recipes {
+        documented(&r.schema);
+        let mut form = compact(&r.schema);
+        form["properties"]["decline"] = json!({"type":"boolean"});
+        let size = form.to_string().chars().count() + line(&r.id).chars().count();
+        eprintln!("{}: {size} characters", r.id);
+        assert!(size <= 1200, "{}: {size}", r.id);
+    }
+    documented(&dutchman_pilot::planner::shortcut_tool());
+}
+
+#[test]
+fn probe_plate_error_and_omitted_defaults() {
+    let lib = Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    let req = json!({"messages":[]});
+    let mut plate = json!({"length":80,"width":80,"thickness":8,"centred":true,"bore_diameter":30,"hole_diameter":8,"bolt_circle":{"count":6,"diameter":56},"corners":{"kind":"fillet","size":10,"edges":"all"}});
+    let error = lib
+        .build(&json!({"recipe":"plate","args":plate}), &req, &cat)
+        .unwrap_err();
+    assert_eq!(error, "corners.size 10 with edges \"all\" must be below 4 (half the 8 mm thickness); for the four corner edges through the thickness use edges \"vertical\"");
+    plate["corners"].as_object_mut().unwrap().remove("edges");
+    let defaults = lib
+        .build(&json!({"recipe":"plate","args":plate}), &req, &cat)
+        .unwrap();
+    plate["plane"] = json!("XY");
+    plate["corners"]["edges"] = json!("vertical");
+    assert_eq!(
+        defaults.calls,
+        lib.build(&json!({"recipe":"plate","args":plate}), &req, &cat)
+            .unwrap()
+            .calls
+    );
+    let mut enclosure =
+        json!({"length":80,"width":50,"height":30,"wall":2,"lip":{"width":1,"height":2}});
+    let defaults = lib
+        .build(&json!({"recipe":"enclosure","args":enclosure}), &req, &cat)
+        .unwrap();
+    enclosure["lip"]["side"] = json!("inner");
+    enclosure["centred"] = json!(false);
+    enclosure["open"] = json!("top");
+    assert_eq!(
+        defaults.calls,
+        lib.build(&json!({"recipe":"enclosure","args":enclosure}), &req, &cat)
+            .unwrap()
+            .calls
+    );
+    let mut plate = json!({"length":12,"width":14,"thickness":2});
+    let defaults = lib
+        .build(&json!({"recipe":"plate","args":plate}), &req, &cat)
+        .unwrap();
+    plate["plane"] = json!("XY");
+    plate["centred"] = json!(false);
+    assert_eq!(
+        defaults.calls,
+        lib.build(&json!({"recipe":"plate","args":plate}), &req, &cat)
+            .unwrap()
+            .calls
+    );
+}
+
+#[test]
+fn field_errors_include_values_numeric_limits_and_fixes() {
+    let lib = Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    let req = json!({"messages":[]});
+    for (id, args, expected) in [
+        ("box", json!({"length":1000001,"width":4,"height":3}), "args.length 1000001 must be above 0 and at most 1000000; change args.length to a number in this range"),
+        ("box", json!({"width":4,"height":3}), "args.length <missing> requires 1 value; supply length from the request"),
+        ("enclosure", json!({"length":80,"width":50,"height":30,"wall":2,"lip":{"width":2,"height":2}}), "lip.width 2 must be below wall 2; reduce lip.width"),
+        ("profile", json!({"kind":"L","width":20,"height":30,"thickness":20,"depth":5}), "web_thickness 20 must be below 20 (cut side); reduce thickness or web_thickness"),
+        ("tube", json!({"outer_radius":5,"inner_radius":6,"height":4}), "inner_radius 6 must be below outer_radius 5; reduce inner_radius"),
+    ] {
+        let error = lib.build(&json!({"recipe":id,"args":args}), &req, &cat).unwrap_err();
+        assert_eq!(error, expected);
+    }
+    let error = lib.build(&json!({"recipe":"plate","args":{"length":20,"width":30,"thickness":2,"corners":{"kind":"fillet","size":1,"edges":"corners"}}}), &req, &cat).unwrap_err();
+    assert!(error.contains("args.corners.edges \"corners\""));
+    assert!(error.contains("vertical"));
+    assert!(error.contains("use a listed value"));
+}

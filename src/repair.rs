@@ -313,18 +313,24 @@ pub(crate) fn check_value(value: &Value) -> Result<(), String> {
     while let Some((value, depth)) = pending.pop() {
         nodes += 1;
         if nodes > MAX_NODES || depth > MAX_DEPTH {
-            return Err("JSON node or nesting limit exceeded".into());
+            return Err(format!("JSON nodes {nodes} and depth {depth} must be at most {MAX_NODES} nodes and {MAX_DEPTH} levels; remove entries or flatten nesting"));
         }
         match value {
             Value::Array(items) => {
                 if items.len() > MAX_NODES {
-                    return Err("JSON array limit exceeded".into());
+                    return Err(format!(
+                        "JSON array count {} must be at most {MAX_NODES}; remove array items",
+                        items.len()
+                    ));
                 }
                 pending.extend(items.iter().map(|v| (v, depth + 1)));
             }
             Value::Object(items) => {
                 if items.len() > MAX_NODES {
-                    return Err("JSON object limit exceeded".into());
+                    return Err(format!(
+                        "JSON object count {} must be at most {MAX_NODES}; remove object fields",
+                        items.len()
+                    ));
                 }
                 for (key, value) in items {
                     bytes = bytes.saturating_add(key.len());
@@ -335,7 +341,7 @@ pub(crate) fn check_value(value: &Value) -> Result<(), String> {
             _ => bytes = bytes.saturating_add(8),
         }
         if bytes > MAX_BYTES {
-            return Err("JSON value size limit exceeded".into());
+            return Err(format!("JSON value size {bytes} must be at most {MAX_BYTES} bytes; shorten text or remove entries"));
         }
     }
     Ok(())

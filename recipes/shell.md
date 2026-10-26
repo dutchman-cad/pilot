@@ -10,7 +10,6 @@
     "A shell box with a thin wall"
   ],
   "schema": {
-    "x-pilot-expander": "shell",
     "$defs": {
       "Angle": {
         "description": "Degrees",
@@ -30,6 +29,7 @@
         "type": "number"
       },
       "Plane": {
+        "description": "Sketch plane; extrude along its normal",
         "enum": [
           "XY",
           "XZ",
@@ -71,10 +71,11 @@
       "height",
       "wall"
     ],
-    "type": "object"
+    "type": "object",
+    "x-pilot-expander": "shell"
   },
   "expander": "shell"
 }
 ---
 
-Create an open rectangular box with a uniform wall thickness. Built by the `shell` expander.
+Shell a rectangular box with uniform wall thickness and an open top. Built by the `shell` expander.

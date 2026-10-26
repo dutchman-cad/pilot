@@ -10,7 +10,6 @@
     "Create an enclosure centred on the origin"
   ],
   "schema": {
-    "x-pilot-expander": "enclosure",
     "$defs": {
       "Angle": {
         "description": "Degrees",
@@ -30,6 +29,7 @@
         "type": "number"
       },
       "Plane": {
+        "description": "Sketch plane; extrude along its normal",
         "enum": [
           "XY",
           "XZ",
@@ -53,10 +53,13 @@
     "additionalProperties": false,
     "properties": {
       "centred": {
+        "default": false,
+        "description": "True only for centred/centered/on the origin",
         "type": "boolean"
       },
       "floor": {
-        "$ref": "#/$defs/Length"
+        "$ref": "#/$defs/Length",
+        "description": "Base thickness; omitted: wall"
       },
       "height": {
         "$ref": "#/$defs/Length"
@@ -66,11 +69,15 @@
       },
       "lip": {
         "additionalProperties": false,
+        "description": "Raised locating ring at opening",
         "properties": {
           "height": {
-            "$ref": "#/$defs/Length"
+            "$ref": "#/$defs/Length",
+            "description": "Rise above the opening"
           },
           "side": {
+            "default": "inner",
+            "description": "inner: flush with inner wall face; outer: outer face",
             "enum": [
               "inner",
               "outer"
@@ -78,17 +85,19 @@
             "type": "string"
           },
           "width": {
-            "$ref": "#/$defs/Length"
+            "$ref": "#/$defs/Length",
+            "description": "Ring width across wall; below wall thickness"
           }
         },
         "required": [
           "width",
-          "height",
-          "side"
+          "height"
         ],
         "type": "object"
       },
       "open": {
+        "default": "top",
+        "description": "Face to remove",
         "enum": [
           "top",
           "bottom"
@@ -106,14 +115,13 @@
       "length",
       "width",
       "height",
-      "wall",
-      "open",
-      "centred"
+      "wall"
     ],
-    "type": "object"
+    "type": "object",
+    "x-pilot-expander": "enclosure"
   },
   "expander": "enclosure"
 }
 ---
 
-Build an open enclosure with a floor and optional locating lip. Built by the `enclosure` expander.
+Open enclosure with floor, walls and optional inner or outer lip. Built by the `enclosure` expander.

@@ -10,7 +10,6 @@
     "A circular cylinder forty millimetres high"
   ],
   "schema": {
-    "x-pilot-expander": "cylinder",
     "$defs": {
       "Angle": {
         "description": "Degrees",
@@ -30,6 +29,7 @@
         "type": "number"
       },
       "Plane": {
+        "description": "Sketch plane; extrude along its normal",
         "enum": [
           "XY",
           "XZ",
@@ -63,10 +63,11 @@
       "radius",
       "height"
     ],
-    "type": "object"
+    "type": "object",
+    "x-pilot-expander": "cylinder"
   },
   "expander": "cylinder"
 }
 ---
 
-Build a solid round rod or disc from its radius and height. Built by the `cylinder` expander.
+Solid cylinder, round rod or disc with radius and height. Built by the `cylinder` expander.

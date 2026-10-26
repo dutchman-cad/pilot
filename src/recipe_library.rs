@@ -3,6 +3,7 @@ use crate::{catalog::Catalog, planner, repair};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
+pub mod forms;
 
 pub const FIND_DESCRIPTION: &str = "Search recipes before building. Returns the closest three schemas. On no good hit, do not improvise CAD: tell the user what Pilot can build or ask one question. Then use pilot_build with recipe and args. Lengths are mm.";
 pub const BUILD_DESCRIPTION: &str = "Build a recipe found with pilot_find: supply its id and typed args. Lengths are mm. Legacy shape arguments also work. Inspect before selecting existing bodies or a contact joint.";
@@ -104,7 +105,7 @@ pub fn definitions() -> Value {
         "Length":{"type":"number","exclusiveMinimum":0,"maximum":1000000,"description":"Positive millimetres"},
         "Angle":{"type":"number","minimum":-360,"maximum":360,"description":"Degrees"},
         "Point3":{"type":"array","items":{"type":"number","minimum":-1000000,"maximum":1000000},"minItems":3,"maxItems":3,"description":"[x,y,z] millimetres"},
-        "Plane":{"type":"string","enum":["XY","XZ","YZ"]},
+        "Plane":{"type":"string","enum":["XY","XZ","YZ"],"description":"Sketch plane; extrude along its normal"},
         "Count":{"type":"integer","minimum":1,"maximum":64}
     })
 }
@@ -124,7 +125,15 @@ fn field_type(name: &str, s: &Value) -> Value {
 fn shared(s: &mut Value) {
     if let Some(props) = s.get_mut("properties").and_then(Value::as_object_mut) {
         for (name, child) in props {
+            let description = child.get("description").cloned();
+            let default = child.get("default").cloned();
             *child = field_type(name, child);
+            if let Some(d) = description {
+                child["description"] = d;
+            }
+            if let Some(d) = default {
+                child["default"] = d;
+            }
             shared(child);
         }
     }
@@ -201,6 +210,7 @@ pub fn schema(id: &str) -> Result<Value, String> {
     s["$schema"] = json!("https://json-schema.org/draft/2020-12/schema");
     s["$defs"] = definitions();
     s["x-pilot-expander"] = json!(id);
+    forms::describe(&mut s);
     Ok(s)
 }
 /// Validate the small JSON Schema vocabulary emitted by Pilot. Unknown keywords fail closed.
@@ -222,7 +232,7 @@ pub fn validate(value: &Value, schema: &Value) -> Result<(), String> {
     Ok(())
 }
 pub(crate) fn validate_structure(value: &Value, schema: &Value) -> Result<(), String> {
-    repair::check_value(value)?;
+    repair::check_value(value).map_err(|e| format!("args {e}"))?;
     validate_at(value, schema, schema, "args", 0)
 }
 fn validate_at(v: &Value, s: &Value, root: &Value, path: &str, depth: usize) -> Result<(), String> {
@@ -246,6 +256,7 @@ fn validate_at(v: &Value, s: &Value, root: &Value, path: &str, depth: usize) -> 
             "$defs",
             "$ref",
             "description",
+            "default",
             "properties",
             "required",
             "additionalProperties",
@@ -275,7 +286,10 @@ fn validate_at(v: &Value, s: &Value, root: &Value, path: &str, depth: usize) -> 
             branch["type"] = t.clone();
             validate_at(v, &branch, root, path, depth + 1).is_ok()
         }) {
-            return Err(format!("{path}: wrong type"));
+            return Err(format!(
+                "{path} {v} must match 1 of {}; use a listed JSON type",
+                s["type"]
+            ));
         }
         return Ok(());
     }
@@ -287,7 +301,7 @@ fn validate_at(v: &Value, s: &Value, root: &Value, path: &str, depth: usize) -> 
             .iter()
             .any(|b| validate_at(v, b, root, path, depth + 1).is_ok())
         {
-            return Err(format!("{path}: no schema alternative matches"));
+            return Err(format!("{path} {v} must match at least 1 of {} alternatives; supply the required fields for one alternative", branches.len()));
         }
     }
     let good = match s["type"].as_str() {
@@ -306,14 +320,25 @@ fn validate_at(v: &Value, s: &Value, root: &Value, path: &str, depth: usize) -> 
         || s.get("const").is_some_and(|c| c != v)
         || s["enum"].as_array().is_some_and(|e| !e.contains(v))
     {
-        return Err(format!("{path}: wrong type or choice"));
+        return Err(format!("{path} {v} must match 1 value of type {} with choices {}; use a listed value of that type", s["type"], s.get("enum").or_else(|| s.get("const")).unwrap_or(&json!("any"))));
     }
     if let Some(n) = v.as_f64() {
         if s["minimum"].as_f64().is_some_and(|b| n < b)
             || s["maximum"].as_f64().is_some_and(|b| n > b)
             || s["exclusiveMinimum"].as_f64().is_some_and(|b| n <= b)
         {
-            return Err(format!("{path}: number outside bounds"));
+            return Err(format!(
+                "{path} {v} must be {}{} and at most {}; change {path} to a number in this range",
+                if s.get("exclusiveMinimum").is_some() {
+                    "above "
+                } else {
+                    "at least "
+                },
+                s.get("exclusiveMinimum")
+                    .or_else(|| s.get("minimum"))
+                    .unwrap_or(&json!("unbounded")),
+                s.get("maximum").unwrap_or(&json!("unbounded"))
+            ));
         }
     }
     if let Some(t) = v.as_str() {
@@ -332,7 +357,7 @@ fn validate_at(v: &Value, s: &Value, root: &Value, path: &str, depth: usize) -> 
                 && (t.chars().any(char::is_control) || t.trim().is_empty()))
         {
             return Err(format!(
-                "{path}: invalid string length or control character"
+                "{path} {v} must contain {}..{} characters and 0 control characters; use a short nonempty plain name", s["minLength"].as_u64().unwrap_or(0), s["maxLength"].as_u64().unwrap_or(128)
             ));
         }
     }
@@ -340,7 +365,11 @@ fn validate_at(v: &Value, s: &Value, root: &Value, path: &str, depth: usize) -> 
         if s["minItems"].as_u64().is_some_and(|b| (a.len() as u64) < b)
             || s["maxItems"].as_u64().is_some_and(|b| a.len() as u64 > b)
         {
-            return Err(format!("{path}: wrong array length"));
+            return Err(format!(
+                "{path} {v} must contain {}..{} items; add or remove items to fit",
+                s["minItems"].as_u64().unwrap_or(0),
+                s["maxItems"].as_u64().unwrap_or(65536)
+            ));
         }
         if let Some(items) = s.get("items") {
             for (i, v) in a.iter().enumerate() {
@@ -356,14 +385,18 @@ fn validate_at(v: &Value, s: &Value, root: &Value, path: &str, depth: usize) -> 
             .filter_map(Value::as_str)
         {
             if !o.contains_key(r) {
-                return Err(format!("{path}.{r}: required"));
+                return Err(format!(
+                    "{path}.{r} <missing> requires 1 value; supply {r} from the request"
+                ));
             }
         }
         for (k, v) in o {
             if let Some(child) = s["properties"].get(k) {
                 validate_at(v, child, root, &format!("{path}.{k}"), depth + 1)?;
             } else if s["additionalProperties"] == false {
-                return Err(format!("{path}.{k}: unknown field"));
+                return Err(format!(
+                    "{path}.{k} {v} allows 0 unknown fields; remove {k} and use a listed field"
+                ));
             }
         }
     }
@@ -401,20 +434,24 @@ impl Library {
         request: &Value,
         catalog: &Catalog,
     ) -> Result<planner::Plan, String> {
-        let o = envelope
-            .as_object()
-            .ok_or("build arguments must be an object")?;
+        let o = envelope.as_object().ok_or_else(|| {
+            format!("arguments {envelope} requires 1 object; supply {{recipe,args}}")
+        })?;
         if o.len() != 2 || !o.contains_key("args") {
-            return Err("pilot_build requires only recipe and args".into());
+            return Err(format!("arguments {envelope} requires exactly 2 fields recipe and args; supply only those fields"));
         }
-        let id = envelope["recipe"]
-            .as_str()
-            .ok_or("recipe must be a string")?;
-        let r = self
-            .recipes
-            .iter()
-            .find(|r| r.id == id)
-            .ok_or_else(|| format!("unknown recipe: {id}; call pilot_find"))?;
+        let id = envelope["recipe"].as_str().ok_or_else(|| {
+            format!(
+                "recipe {} requires 1 string; use an id from pilot_find",
+                envelope["recipe"]
+            )
+        })?;
+        let r = self.recipes.iter().find(|r| r.id == id).ok_or_else(|| {
+            format!(
+                "recipe {id:?} must match 1 of {} loaded ids; call pilot_find and use its id",
+                self.recipes.len()
+            )
+        })?;
         validate(&envelope["args"], &r.schema)?;
         if r.expander == "sequence" {
             return sequence(r, &envelope["args"], catalog);

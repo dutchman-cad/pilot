@@ -6242,9 +6242,9 @@ mod tests {
                     .as_str()
                     .unwrap();
                 assert!(
-                    line.contains("Recipe profile:")
+                    line.contains("profile:")
                         && line.contains("inches to mm")
-                        && line.contains("optional fields")
+                        && line.contains("omit unstated")
                 );
             }
             if invalid_first {
@@ -6378,9 +6378,16 @@ mod tests {
             assert_eq!(f.chat(req).status, 200);
             let script = f.proxy.scripted.as_ref().unwrap().borrow();
             assert_eq!(script.requests[0]["tools"].as_array().unwrap().len(), 1);
-            assert_eq!(
-                script.requests[0]["tools"][0]["function"]["parameters"]["x-pilot-expander"],
-                id
+            let line = script.requests[0]["messages"]
+                .as_array()
+                .unwrap()
+                .last()
+                .unwrap()["content"]
+                .as_str()
+                .unwrap();
+            assert!(line.starts_with(&format!("{id}:")), "{line}");
+            assert!(
+                script.requests[0]["tools"][0]["function"]["parameters"]["properties"].is_object()
             );
         }
     }

@@ -10,7 +10,6 @@
     "I want all the edges rounded"
   ],
   "schema": {
-    "x-pilot-expander": "fillet",
     "$defs": {
       "Angle": {
         "description": "Degrees",
@@ -30,6 +29,7 @@
         "type": "number"
       },
       "Plane": {
+        "description": "Sketch plane; extrude along its normal",
         "enum": [
           "XY",
           "XZ",
@@ -53,9 +53,11 @@
     "additionalProperties": false,
     "properties": {
       "amount": {
-        "$ref": "#/$defs/Length"
+        "$ref": "#/$defs/Length",
+        "description": "Fillet radius or chamfer distance"
       },
       "body": {
+        "description": "Exact inspected body name; omit only if unambiguous",
         "maxLength": 128,
         "minLength": 1,
         "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
@@ -66,10 +68,11 @@
       "body",
       "amount"
     ],
-    "type": "object"
+    "type": "object",
+    "x-pilot-expander": "fillet"
   },
   "expander": "fillet"
 }
 ---
 
-Look up the body's topology, then round all of its edges. Built by the `fillet` expander.
+Fillet all edges of an existing body with a radius, after topology lookup. Built by the `fillet` expander.

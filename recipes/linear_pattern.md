@@ -19,6 +19,7 @@
         "type": "number"
       },
       "Axis": {
+        "description": "World axis",
         "enum": [
           "X",
           "Y",
@@ -38,6 +39,7 @@
         "type": "number"
       },
       "Plane": {
+        "description": "Sketch plane; extrude along its normal",
         "enum": [
           "XY",
           "XZ",
@@ -61,6 +63,7 @@
     "additionalProperties": false,
     "properties": {
       "body": {
+        "description": "Exact inspected body name; omit only if unambiguous",
         "maxLength": 128,
         "minLength": 1,
         "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
@@ -70,21 +73,26 @@
         "$ref": "#/$defs/Count"
       },
       "direction": {
-        "$ref": "#/$defs/Axis"
+        "$ref": "#/$defs/Axis",
+        "description": "World axis"
       },
       "edge": {
+        "description": "Inspected straight edge; use instead of direction",
         "maxLength": 128,
         "minLength": 1,
         "type": "string"
       },
       "join": {
-        "description": "Explicit permission for overlapping joined feature instances; body patterns always create new bodies",
+        "default": false,
+        "description": "Allow overlap of joined last features only",
         "type": "boolean"
       },
       "spacing": {
-        "$ref": "#/$defs/Length"
+        "$ref": "#/$defs/Length",
+        "description": "Centre spacing between instances"
       },
       "target": {
+        "description": "body: whole solid; last_feature: latest feature",
         "enum": [
           "body",
           "last_feature"
@@ -92,7 +100,8 @@
         "type": "string"
       },
       "total_length": {
-        "$ref": "#/$defs/Length"
+        "$ref": "#/$defs/Length",
+        "description": "First to last centre; use instead of spacing"
       }
     },
     "required": [
@@ -107,9 +116,3 @@
 ---
 
 Repeat an existing body or last feature in a linear row with count and spacing or total length; use one pattern, never repeated copies. Built by the `linear_pattern` expander.
-
-Counts include the original and total instances are capped at 500. Use target `body` (optionally name `body`) or `last_feature`. Inspect with document.inspect measure:true first. A feature pattern also inspects the last feature definition and inherits its new-body, join, or cut behavior. Body patterns create separate bodies; join is only explicit permission for overlapping joined features, not an invented command parameter. Ambiguous targets, unresolved geometry and possible unrequested overlaps defer. Conservative bounding boxes may require clarification.
-
-Run one solid.pattern.rectangular (linear/grid) or solid.pattern.circular, then document.inspect measure:true. Verify the successful pattern timeline entry, body count and measured volume. Body volume is predicted exactly for disjoint instances; joined/cut feature volume is measured because intersections depend on geometry.
-
-Example selected build: `{"recipe":"linear_pattern","args":{"target":"last_feature","body":"Plate","count":12,"spacing":15,"direction":"X"}}`. For either an existing body or the last feature, set `target` accordingly; the same typed placement slots apply.

@@ -4,7 +4,7 @@ use super::*;
 pub fn schema(id: &str) -> Result<Value, String> {
     let mut defs = crate::recipe_library::definitions();
     defs["Count"] = json!({"type":"integer","minimum":2,"maximum":500});
-    defs["Axis"] = json!({"type":"string","enum":["X","Y","Z"]});
+    defs["Axis"] = json!({"type":"string","enum":["X","Y","Z"],"description":"World axis"});
     let mut props = json!({
         "target":{"type":"string","enum":["body","last_feature"]},
         "body":{"type":"string","minLength":1,"maxLength":128,"pattern":"^[^\\u0000-\\u001f\\u007f]+$"},
@@ -37,9 +37,9 @@ pub fn schema(id: &str) -> Result<Value, String> {
         }
         _ => return Err("unknown pattern recipe".into()),
     };
-    Ok(
-        json!({"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":props,"required":required,"additionalProperties":false,"$defs":defs,"x-pilot-expander":id}),
-    )
+    let mut schema = json!({"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":props,"required":required,"additionalProperties":false,"$defs":defs,"x-pilot-expander":id});
+    crate::recipe_library::forms::describe(&mut schema);
+    Ok(schema)
 }
 
 /// Deliberately narrow CAD repetition cues; unrelated file/clipboard operations stay out.
@@ -168,7 +168,7 @@ fn expression(def: &Value, key: &str) -> Result<f64, String> {
         .as_f64()
         .or_else(|| def[key].as_str().and_then(|s| s.parse::<f64>().ok()))
         .filter(|v| v.is_finite() && *v > 0. && *v <= MAX_MM)
-        .ok_or_else(|| format!("feature {key} needs a resolved positive numeric length"))
+        .ok_or_else(|| format!("target last_feature {key} {} must be above 0 and at most {MAX_MM} mm; inspect a feature with resolved numeric dimensions", def[key]))
 }
 
 fn inspection(
@@ -205,7 +205,7 @@ pub(super) fn build(
 ) -> Result<Plan, String> {
     crate::recipe_library::validate_structure(args, &schema(id)?)?;
     if args["target"] == "body" && args["join"] == true {
-        return Err("body patterns create new bodies; select a joined last feature to inherit join behavior".into());
+        return Err("join true with target body allows 0 overlapping joins; use target last_feature for an explicitly joined feature".into());
     }
     let (n, m) = if id == "grid_pattern" {
         (count(args, "columns")?, count(args, "rows")?)
@@ -213,7 +213,10 @@ pub(super) fn build(
         (count(args, "count")?, 1)
     };
     if n * m > 500 {
-        return Err("pattern total count exceeds 500; reduce rows or columns".into());
+        return Err(format!(
+            "rows * columns {m} * {n} = {} exceeds 500 instances; reduce rows or columns",
+            n * m
+        ));
     }
     let mut dir = axis(args["direction"].as_str().unwrap_or("X"));
     let mut dir2 = [0., 1., 0.];
@@ -221,14 +224,14 @@ pub(super) fn build(
     let mut spacing2 = 0.;
     if id == "linear_pattern" {
         if args.get("direction").is_some() == args.get("edge").is_some() {
-            return Err("linear pattern needs exactly one direction X/Y/Z or edge name".into());
+            return Err(format!("direction {} and edge {} require exactly 1 selection; supply direction X/Y/Z or one inspected edge, omitting the other", args["direction"], args["edge"]));
         }
         spacing = match (args.get("spacing"), args.get("total_length")) {
             (Some(_), None) => number(args, "spacing")?,
             (None, Some(_)) => number(args, "total_length")? / (n - 1) as f64,
             _ => {
                 return Err(
-                    "linear pattern needs spacing or total_length (first to last), not both".into(),
+                    format!("spacing {} and total_length {} require exactly 1 length; supply spacing or first-to-last total_length, omitting the other", args["spacing"], args["total_length"]),
                 )
             }
         };
@@ -241,26 +244,38 @@ pub(super) fn build(
         spacing = number(args, "spacing1")?;
         spacing2 = number(args, "spacing2")?;
     } else if number(args, "angle_deg")?.abs() < 1e-9 {
-        return Err("circular pattern angle must be nonzero".into());
+        return Err("angle_deg 0 must have absolute value above 0 and at most 360; use 360 for a full circle".into());
     }
     if spacing * (n - 1) as f64 > MAX_MM || spacing2 * (m - 1) as f64 > MAX_MM {
-        return Err("pattern extent exceeds 1000000 mm".into());
+        return Err(format!(
+            "spacing extent [{},{}] must be at most 1000000 mm; reduce spacing or instance counts",
+            spacing * (n - 1) as f64,
+            spacing2 * (m - 1) as f64
+        ));
     }
     // Structural validation runs without I/O; an absent snapshot produces inspection only.
     let Some(data) = snapshot(request) else {
         return inspection(catalog, "document.inspect", json!({"measure":true}), args);
     };
-    let bodies = data["bodies"]
-        .as_array()
-        .ok_or("pattern inspection needs bodies")?;
+    let bodies = data["bodies"].as_array().ok_or_else(|| {
+        format!(
+            "body {} requires 1 complete inspected bodies array; inspect the document",
+            args["body"]
+        )
+    })?;
     let feature_mode = args["target"] == "last_feature";
     let mut chosen = args.get("body").cloned();
     if feature_mode && chosen.is_none() && bodies.len() > 1 {
         let last = data["timeline"]
             .as_array()
             .and_then(|t| t.last())
-            .ok_or("pattern needs an active last feature")?;
-        let name = last["name"].as_str().ok_or("last feature needs a name")?;
+            .ok_or_else(|| format!("target {} requires exactly 1 active last feature; inspect or select target body", args["target"]))?;
+        let name = last["name"].as_str().ok_or_else(|| {
+            format!(
+                "target last_feature has name {} requiring 1 string; inspect a named feature",
+                last["name"]
+            )
+        })?;
         let detail = request["messages"]
             .as_array()
             .into_iter()
@@ -279,7 +294,7 @@ pub(super) fn build(
             .or_else(|| detail["definition"].get("participants"))
             .and_then(Value::as_array)
             .filter(|a| a.len() == 1)
-            .ok_or("last feature must resolve to exactly one target body")?;
+            .ok_or_else(|| format!("target last_feature has definition {} requiring exactly 1 target body; select target body or inspect a feature belonging to one body", detail["definition"]))?;
         chosen = names.first().cloned();
     }
     let selected: Vec<_> = bodies
@@ -287,29 +302,44 @@ pub(super) fn build(
         .filter(|b| chosen.as_ref().is_none_or(|name| b["name"] == *name))
         .collect();
     if selected.len() != 1 {
-        return Err("pattern target is ambiguous: inspect and select exactly one body".into());
+        return Err(format!("body {} matched {} bodies but requires exactly 1; inspect and supply one exact body name", args["body"], selected.len()));
     }
     let seed = selected[0];
-    let body_name = seed["name"].as_str().ok_or("pattern body has no name")?;
-    let baseline = volume(&data).ok_or("pattern needs measured document.inspect volume")?;
+    let body_name = seed["name"].as_str().ok_or_else(|| {
+        format!(
+            "body name {} requires 1 string; inspect and select a named body",
+            seed["name"]
+        )
+    })?;
+    let baseline = volume(&data).ok_or_else(|| {
+        format!(
+            "body {} requires 1 measured document volume; inspect with measure true",
+            args["body"]
+        )
+    })?;
     let seed_volume = seed["volume_mm3"]
         .as_f64()
         .filter(|v| *v > 0.)
-        .ok_or("pattern needs positive target volume")?;
-    let mut min = vector(&seed["bbox"]["min"]).ok_or("pattern needs measured target bounds")?;
-    let mut max = vector(&seed["bbox"]["max"]).ok_or("pattern needs measured target bounds")?;
+        .ok_or_else(|| {
+            format!(
+                "body {body_name:?} volume {} must be above 0 mm3; inspect and select a solid body",
+                seed["volume_mm3"]
+            )
+        })?;
+    let mut min = vector(&seed["bbox"]["min"]).ok_or_else(|| format!("body {body_name:?} bbox.min {} requires 3 numeric coordinates; inspect with measure true", seed["bbox"]["min"]))?;
+    let mut max = vector(&seed["bbox"]["max"]).ok_or_else(|| format!("body {body_name:?} bbox.max {} requires 3 numeric coordinates; inspect with measure true", seed["bbox"]["max"]))?;
     if (0..3).any(|i| min[i] >= max[i]) {
-        return Err("pattern target bounds are invalid".into());
+        return Err(format!("body {body_name:?} has bounds {min:?}..{max:?} requiring 3 positive extents; inspect a valid solid body"));
     }
     let timeline = data["timeline"]
         .as_array()
         .filter(|t| t.len() <= 4096)
-        .ok_or("pattern timeline exceeds limit or is missing")?;
+        .ok_or_else(|| format!("target {} timeline requires 1 array of at most 4096 features; inspect a smaller valid timeline", args["target"]))?;
     if timeline
         .iter()
         .any(|f| f["rolled_back"] == true || f["error"] != Value::Null)
     {
-        return Err("resolve timeline errors or rollback before patterning".into());
+        return Err(format!("target {} has an invalid timeline requiring 0 errors, rollbacks or suppressed last features; resolve timeline errors or rollback before patterning", args["target"]));
     }
     let mut target = json!([body_name]);
     let mut new_bodies = !feature_mode;
@@ -319,8 +349,13 @@ pub(super) fn build(
         let last = timeline
             .last()
             .filter(|f| f["suppressed"] != true)
-            .ok_or("pattern needs an active last feature")?;
-        let name = last["name"].as_str().ok_or("last feature needs a name")?;
+            .ok_or_else(|| format!("target {} requires exactly 1 active last feature; inspect or select target body", args["target"]))?;
+        let name = last["name"].as_str().ok_or_else(|| {
+            format!(
+                "target last_feature has name {} requiring 1 string; inspect a named feature",
+                last["name"]
+            )
+        })?;
         let detail = request["messages"]
             .as_array()
             .into_iter()
@@ -335,7 +370,7 @@ pub(super) fn build(
             return inspection(catalog, "timeline.inspect", json!({"feature":name}), args);
         };
         if detail["id"] != last["id"] || detail["error"] != Value::Null {
-            return Err("last feature inspection is stale or failed".into());
+            return Err(format!("target {} with feature {name:?} requires 1 current successful feature inspection; inspect the active last feature again", args["target"]));
         }
         target = json!([name]);
         let def = &detail["definition"];
@@ -346,11 +381,11 @@ pub(super) fn build(
                 .as_str()
                 .and_then(|s| s.parse::<f64>().ok())
                 .filter(|v| v.is_finite() && *v > 0.)
-                .ok_or("hole pattern needs a resolved numeric diameter")?;
-            let p = vector(&def["position"]).ok_or("hole pattern needs position")?;
-            let normal = vector(&def["direction"]).ok_or("hole pattern needs direction")?;
+                .ok_or_else(|| format!("target last_feature diameter {} requires 1 resolved number; inspect the hole definition", def["diameter"]))?;
+            let p = vector(&def["position"]).ok_or_else(|| format!("target last_feature position {} requires 3 numeric coordinates; inspect the hole definition", def["position"]))?;
+            let normal = vector(&def["direction"]).ok_or_else(|| format!("target last_feature direction {} requires 3 numeric coordinates; inspect the hole definition", def["direction"]))?;
             if def["participants"] != json!([body_name]) {
-                return Err("last hole must target exactly the selected body".into());
+                return Err(format!("target last_feature with hole targets {} must match exactly 1 body {body_name:?}; select the hole's body", def["targets"]));
             }
             for i in 0..3 {
                 if normal[i].abs() < 1e-9 {
@@ -366,8 +401,7 @@ pub(super) fn build(
             Some("BoxFeature" | "CylinderFeature" | "ExtrudeFeature")
         ) {
             return Err(
-                "last feature geometry is unsupported for safe overlap checks; select its body"
-                    .into(),
+                format!("target last_feature has type {} but supports only 4 types HoleFeature, BoxFeature, CylinderFeature, ExtrudeFeature; select target body", detail["type"]),
             );
         } else {
             if def[if new_bodies {
@@ -376,13 +410,13 @@ pub(super) fn build(
                 "participants"
             }] != json!([body_name])
             {
-                return Err("last feature must belong to exactly the selected body".into());
+                return Err(format!("target last_feature with bodies {} and participants {} must belong to exactly 1 body {body_name:?}; select the feature's body", def["body_names"], def["participants"]));
             }
             if !new_bodies {
                 expected_volume = None;
             }
             if detail["type"] == "BoxFeature" {
-                min = vector(&def["corner"]).ok_or("box feature needs numeric corner")?;
+                min = vector(&def["corner"]).ok_or_else(|| format!("target last_feature corner {} requires 3 numeric coordinates; inspect the box definition", def["corner"]))?;
                 let size = [
                     expression(def, "length")?,
                     expression(def, "width")?,
@@ -390,8 +424,8 @@ pub(super) fn build(
                 ];
                 max = std::array::from_fn(|k| min[k] + size[k]);
             } else if detail["type"] == "CylinderFeature" {
-                let base = vector(&def["base"]).ok_or("cylinder feature needs numeric base")?;
-                let normal = vector(&def["axis"]).ok_or("cylinder feature needs axis")?;
+                let base = vector(&def["base"]).ok_or_else(|| format!("target last_feature base {} requires 3 numeric coordinates; inspect the cylinder definition", def["base"]))?;
+                let normal = vector(&def["axis"]).ok_or_else(|| format!("target last_feature axis {} requires 3 numeric coordinates; inspect the cylinder definition", def["axis"]))?;
                 let r = expression(def, "radius")?;
                 let h = expression(def, "height")?;
                 for k in 0..3 {
@@ -401,13 +435,12 @@ pub(super) fn build(
                 }
             } else if !new_bodies {
                 return Err(
-                    "joined extrude bounds are unresolved; select a primitive feature or its body"
-                        .into(),
+                    "target last_feature has unresolved joined extrude bounds requiring 1 measurable primitive; select target body or a box/cylinder feature".into(),
                 );
             }
         }
         if args["join"] == true && def["operation"] != "join" {
-            return Err("join permission requires a last feature whose operation is join".into());
+            return Err(format!("join true with operation {} requires 1 joined last feature; omit join or select an explicitly joined feature", def["operation"]));
         }
     }
     if let Some(edge) = args["edge"].as_str() {
@@ -430,17 +463,27 @@ pub(super) fn build(
             .filter(|e| e["name"] == edge)
             .collect();
         if found.len() != 1 {
-            return Err("edge direction must resolve to exactly one straight edge".into());
+            return Err(format!("edge {edge:?} matched {} edges but requires exactly 1 straight edge; inspect and use one straight edge name", found.len()));
         }
-        let a = vector(&found[0]["start"]).ok_or("edge needs straight start/end points")?;
-        let b = vector(&found[0]["end"]).ok_or("edge needs straight start/end points")?;
+        let a = vector(&found[0]["start"]).ok_or_else(|| {
+            format!(
+                "edge {edge:?} start {} requires 3 numeric coordinates; inspect a straight edge",
+                found[0]["start"]
+            )
+        })?;
+        let b = vector(&found[0]["end"]).ok_or_else(|| {
+            format!(
+                "edge {edge:?} end {} requires 3 numeric coordinates; inspect a straight edge",
+                found[0]["end"]
+            )
+        })?;
         let norm = (0..3).map(|i| (b[i] - a[i]).powi(2)).sum::<f64>().sqrt();
         if norm < 1e-9
             || found[0]["length"]
                 .as_f64()
                 .is_none_or(|length| (length - norm).abs() > 1e-6_f64.max(norm * 1e-6))
         {
-            return Err("edge direction must be a nonzero straight edge".into());
+            return Err(format!("edge {edge:?} has chord length {norm} and measured length {} requiring a chord above 0.000000001 and length agreement within 0.000001 relative; select a nonzero straight edge", found[0]["length"]));
         }
         dir = std::array::from_fn(|i| (b[i] - a[i]) / norm);
     }
@@ -474,14 +517,14 @@ pub(super) fn build(
                 .chain(hi.iter())
                 .any(|v| !v.is_finite() || v.abs() > MAX_MM)
             {
-                return Err("pattern coordinates exceed 1000000 mm".into());
+                return Err(format!("count {n} rows {m} produce bounds {lo:?}..{hi:?} outside -1000000..1000000 mm; reduce count or spacing"));
             }
             if args["join"] != true
                 && boxes.iter().any(|(a, b): &([f64; 3], [f64; 3])| {
                     (0..3).all(|k| lo[k] < b[k] - 1e-8 && hi[k] > a[k] + 1e-8)
                 })
             {
-                return Err("pattern instances may overlap; increase spacing or explicitly request joined last features".into());
+                return Err(format!("spacing [{spacing},{spacing2}] angle_deg {} produce overlapping instance bounds {lo:?}..{hi:?} with limit 0 overlaps; increase spacing or explicitly request joined last features", args["angle_deg"]));
             }
             boxes.push((lo, hi));
         }
@@ -509,7 +552,7 @@ pub(super) fn build(
         + 1;
     let total_bodies = bodies.len() + if new_bodies { n * m - 1 } else { 0 };
     if total_bodies > MAX_BODIES {
-        return Err("pattern result exceeds body limit".into());
+        return Err(format!("count {n} rows {m} produce {total_bodies} bodies, exceeding {MAX_BODIES}; reduce counts or remove bodies"));
     }
     Ok(Plan {
         rule: match id {

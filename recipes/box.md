@@ -10,7 +10,6 @@
     "A cuboid forty long and twenty wide"
   ],
   "schema": {
-    "x-pilot-expander": "box",
     "$defs": {
       "Angle": {
         "description": "Degrees",
@@ -30,6 +29,7 @@
         "type": "number"
       },
       "Plane": {
+        "description": "Sketch plane; extrude along its normal",
         "enum": [
           "XY",
           "XZ",
@@ -67,10 +67,11 @@
       "width",
       "height"
     ],
-    "type": "object"
+    "type": "object",
+    "x-pilot-expander": "box"
   },
   "expander": "box"
 }
 ---
 
-Build a solid cuboid from its three dimensions. Built by the `box` expander.
+Solid rectangular box, block or cube with length width and height. Built by the `box` expander.

@@ -97,19 +97,30 @@ pub(super) fn expand(
     offered: bool,
 ) -> Result<(Value, planner::Plan), String> {
     if !offered {
-        return Err("pilot_build: not offered for this turn".into());
+        return Err(
+            "pilot_build offered false permits 0 calls this turn; use the offered tools".into(),
+        );
     }
     let choices = response["choices"]
         .as_array()
         .filter(|cs| cs.len() == 1)
-        .ok_or("pilot_build: requires one completion choice")?;
+        .ok_or_else(|| {
+            format!(
+                "pilot_build choices {} requires exactly 1 completion; submit one completion",
+                response["choices"]
+            )
+        })?;
     let calls = choices[0]["message"]["tool_calls"]
         .as_array()
         .filter(|cs| cs.len() == 1 && cs[0]["function"]["name"] == "pilot_build")
-        .ok_or("pilot_build: submit exactly one call without other tools")?;
+        .ok_or_else(|| format!("pilot_build tool_calls {} requires exactly 1 pilot_build call; submit it without other tools", choices[0]["message"]["tool_calls"]))?;
     let args = &calls[0]["function"]["arguments"];
     let args = if let Some(s) = args.as_str() {
-        serde_json::from_str(s).map_err(|e| format!("arguments: invalid JSON: {e}"))?
+        serde_json::from_str(s).map_err(|e| {
+            format!(
+                "arguments {s:?} requires 1 valid JSON object ({e}); fix JSON quoting and brackets"
+            )
+        })?
     } else {
         args.clone()
     };

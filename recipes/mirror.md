@@ -10,7 +10,6 @@
     "Reflect the body across the XZ plane"
   ],
   "schema": {
-    "x-pilot-expander": "mirror",
     "$defs": {
       "Angle": {
         "description": "Degrees",
@@ -30,6 +29,7 @@
         "type": "number"
       },
       "Plane": {
+        "description": "Sketch plane; extrude along its normal",
         "enum": [
           "XY",
           "XZ",
@@ -53,16 +53,19 @@
     "additionalProperties": false,
     "properties": {
       "body": {
+        "description": "Exact inspected body name; omit only if unambiguous",
         "maxLength": 128,
         "minLength": 1,
         "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
         "type": "string"
       },
       "keep_original": {
+        "description": "True: retain source and add mirrored copy",
         "type": "boolean"
       },
       "plane": {
-        "$ref": "#/$defs/Plane"
+        "$ref": "#/$defs/Plane",
+        "description": "Reflection plane"
       }
     },
     "required": [
@@ -70,10 +73,11 @@
       "plane",
       "keep_original"
     ],
-    "type": "object"
+    "type": "object",
+    "x-pilot-expander": "mirror"
   },
   "expander": "mirror"
 }
 ---
 
-Reflect a selected body across a principal plane. Built by the `mirror` expander.
+Mirror an existing body across XY XZ or YZ, keeping or discarding the original. Built by the `mirror` expander.

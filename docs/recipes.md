@@ -506,6 +506,15 @@ user's words, convert inches to mm, omit unstated optional fields and decline a
 mismatch. Accepted arguments use the same validators, expanders, approval calls,
 and measured verification as `pilot_build`; a form never reaches the client.
 
+Forms use a compact presentation of the full validation schema, with a tested
+1,200-character budget including the system line. File schemas retain numeric
+limits and field guidance; the compact form keeps the actionable enum meanings
+and defaults. Unstated plate/profile planes default to XY, placement to uncentred,
+enclosure openings to top, and lip sides to inner (flush with the inner wall
+face). Corners default to the four vertical edges through the thickness; `all`
+also rounds the rims and limits the radius to below half the thickness. Errors
+report the supplied field value, numeric limit, and a suggested change.
+
 An invalid form gets one retry with its field error and the same schema. Decline,
 text (including JSON written as text), another tool, mixed calls, or another invalid
 form restores the ordinary tools for the rest of the turn. The rejected proposal

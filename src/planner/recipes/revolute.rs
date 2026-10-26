@@ -574,7 +574,9 @@ pub(super) fn typed(
 }
 pub(super) fn validate_angle(value: f64) -> Result<(), String> {
     if !value.is_finite() || value.abs() > 360.0 {
-        return Err("angle_deg: must be finite and within -360..360".into());
+        return Err(format!(
+            "angle_deg {value} must be within -360..360 degrees; reduce the rotation to this range"
+        ));
     }
     Ok(())
 }
@@ -740,7 +742,7 @@ fn select_inner(
                     .collect::<Vec<_>>();
                 if matches.len() != 1 || matches[0].1["id"] != occurrence["id"] {
                     return Err(format!(
-                        "{field}: must uniquely identify the measured contact component"
+                        "{field} {name:?} matched {} components but requires exactly 1 measured contact component; inspect and use its exact name", matches.len()
                     ));
                 }
             }

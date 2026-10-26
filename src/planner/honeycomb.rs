@@ -15,7 +15,9 @@ pub fn schema() -> Value {
     for k in ["rows", "columns"] {
         props[k] = json!({"type":"integer","minimum":1,"maximum":5000});
     }
-    json!({"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":props,"required":["length","width","thickness","size","size_kind","web","border"],"additionalProperties":false,"$defs":crate::recipe_library::definitions(),"x-pilot-expander":"honeycomb_pattern"})
+    let mut schema = json!({"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":props,"required":["length","width","thickness","size","size_kind","web","border"],"additionalProperties":false,"$defs":crate::recipe_library::definitions(),"x-pilot-expander":"honeycomb_pattern"});
+    crate::recipe_library::forms::describe(&mut schema);
+    schema
 }
 
 #[derive(Debug)]
@@ -60,7 +62,7 @@ fn field(a: &Value) -> Result<Field, String> {
     let border = num(a, "border")?;
     let free = [along - 2. * border - af, across - 2. * border - 2. * radius];
     if free.iter().any(|v| *v < -1e-9) {
-        return Err("honeycomb field fits fewer than one hex inside the border".into());
+        return Err(format!("size {} with border {border} needs at least [{},{}] mm but length/width provide [{along},{across}]; reduce size or border", a["size"], 2. * border + af, 2. * border + 2. * radius));
     }
     let capacity = |space: f64, step: f64| -> usize {
         // Even with empty odd rows this sentinel guarantees more than 5000 cuts.
@@ -70,7 +72,7 @@ fn field(a: &Value) -> Result<Field, String> {
     if exact != (a.get("rows").is_some() && a.get("columns").is_some())
         || (!exact && (a.get("rows").is_some() || a.get("columns").is_some()))
     {
-        return Err("honeycomb exact mode needs rows and columns; fill mode takes neither".into());
+        return Err(format!("mode {} with rows {} and columns {} requires 2 counts for exact or 0 for fill; supply both counts or omit both", a["mode"], a["rows"], a["columns"]));
     }
     let rows = if exact {
         a["rows"].as_u64().ok_or("honeycomb needs rows")? as usize
@@ -105,7 +107,7 @@ fn field(a: &Value) -> Result<Field, String> {
         2. * radius + (rows - 1) as f64 * row_pitch,
     ];
     if span[0] > along - 2. * border + 1e-9 || span[1] > across - 2. * border + 1e-9 {
-        return Err("honeycomb exact rows and columns do not fit inside the border".into());
+        return Err(format!("rows {rows} columns {columns:?} span {span:?} must fit inside [{},{}] mm; reduce rows or columns", along - 2. * border, across - 2. * border));
     }
     let f = Field {
         af,
@@ -121,7 +123,10 @@ fn field(a: &Value) -> Result<Field, String> {
         flat,
     };
     if f.count() == 0 || f.count() > 5000 {
-        return Err("honeycomb cut count must be 1..5000".into());
+        return Err(format!(
+            "rows * columns cut count {} must be 1..5000; increase size/web or reduce rows/columns",
+            f.count()
+        ));
     }
     Ok(f)
 }
@@ -203,7 +208,7 @@ pub(super) fn build(a: &Value, request: &Value, catalog: &Catalog) -> Result<Pla
             b.len() >= MAX_BODIES || b.iter().any(|b| b["name"] == "HoneycombPlate")
         }) {
             return Err(
-                "honeycomb needs room for a new body and an unused HoneycombPlate name".into(),
+                format!("body HoneycombPlate with {} existing bodies requires fewer than {MAX_BODIES} bodies and 0 name collisions; remove bodies or rename the existing HoneycombPlate", data["bodies"].as_array().map_or(0, Vec::len)),
             );
         }
         (

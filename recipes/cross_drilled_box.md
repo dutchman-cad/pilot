@@ -1,35 +1,91 @@
 ---
 {
-  "id":"cross_drilled_box",
-  "description":"Box or cube cross-drilled with centred through holes along one, two or three world axes; holes through all six faces. No sketches or construction planes.",
-  "examples":["Make a cube with holes through all six faces", "Build a cross-drilled box", "A box with a hole through each face", "Create a cube with holes along X, Y and Z", "A block with a through hole along Y"],
-  "expander":"cross_drilled_box",
-  "schema":{
-    "type":"object", "additionalProperties":false,
-    "x-pilot-expander":"cross_drilled_box",
-    "$defs":{
-      "Length":{"type":"number","exclusiveMinimum":0,"maximum":1000000},
-      "Point3":{"type":"array","minItems":3,"maxItems":3,"items":{"type":"number","minimum":-1000000,"maximum":1000000}}
+  "id": "cross_drilled_box",
+  "description": "Box or cube cross-drilled with centred through holes along one, two or three world axes; holes through all six faces. No sketches or construction planes.",
+  "examples": [
+    "Make a cube with holes through all six faces",
+    "Build a cross-drilled box",
+    "A box with a hole through each face",
+    "Create a cube with holes along X, Y and Z",
+    "A block with a through hole along Y"
+  ],
+  "schema": {
+    "$defs": {
+      "Length": {
+        "exclusiveMinimum": 0,
+        "maximum": 1000000,
+        "type": "number"
+      },
+      "Point3": {
+        "items": {
+          "maximum": 1000000,
+          "minimum": -1000000,
+          "type": "number"
+        },
+        "maxItems": 3,
+        "minItems": 3,
+        "type": "array"
+      }
     },
-    "properties":{
-      "length":{"$ref":"#/$defs/Length"},
-      "width":{"$ref":"#/$defs/Length"},
-      "height":{"$ref":"#/$defs/Length"},
-      "corner":{"$ref":"#/$defs/Point3"},
-      "holes":{"type":"array","minItems":1,"maxItems":3,"items":{
-        "type":"object","additionalProperties":false,
-        "properties":{"axis":{"type":"string","enum":["X","Y","Z"]},"diameter":{"$ref":"#/$defs/Length"},"position":{"$ref":"#/$defs/Point3"}},
-        "required":["axis","diameter"]
-      }}
+    "additionalProperties": false,
+    "properties": {
+      "corner": {
+        "$ref": "#/$defs/Point3",
+        "description": "Minimum [x,y,z]; omitted: [0,0,0]"
+      },
+      "height": {
+        "$ref": "#/$defs/Length"
+      },
+      "holes": {
+        "description": "One through hole per distinct axis; maximum 3",
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "axis": {
+              "description": "World axis",
+              "enum": [
+                "X",
+                "Y",
+                "Z"
+              ],
+              "type": "string"
+            },
+            "diameter": {
+              "$ref": "#/$defs/Length"
+            },
+            "position": {
+              "$ref": "#/$defs/Point3",
+              "description": "World [x,y,z] on entry face; omitted: face centre"
+            }
+          },
+          "required": [
+            "axis",
+            "diameter"
+          ],
+          "type": "object"
+        },
+        "maxItems": 3,
+        "minItems": 1,
+        "type": "array"
+      },
+      "length": {
+        "$ref": "#/$defs/Length"
+      },
+      "width": {
+        "$ref": "#/$defs/Length"
+      }
     },
-    "required":["length","width","height","holes"]
-  }
+    "required": [
+      "length",
+      "width",
+      "height",
+      "holes"
+    ],
+    "type": "object",
+    "x-pilot-expander": "cross_drilled_box"
+  },
+  "expander": "cross_drilled_box"
 }
 ---
 
-The corner defaults to the world origin. Each distinct axis gets one solid.hole
-using a world face position and an inward direction, through all by default.
-Positions default to face centres; explicit positions must lie on the selected
-axis face and the whole opening must fit strictly inside it. No auxiliary features.
-Equal centred diameters have an exact volume using cylinder intersection volumes;
-unequal or offset holes require measured volume.
+Box or cube cross-drilled with centred through holes along one, two or three world axes; holes through all six faces. No sketches or construction planes. Built by the `cross_drilled_box` expander.

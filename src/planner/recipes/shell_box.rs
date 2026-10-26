@@ -303,16 +303,22 @@ impl ShellBox {
             positive_mm(field, value)?;
         }
         if self.wall * 2.0 >= self.size[0].min(self.size[1]) || self.wall >= self.size[2] {
-            return Err("wall: must leave a positive interior in every dimension".into());
+            return Err(format!("wall {} must be below {} (half length/width or height); reduce wall or increase the enclosure dimensions", self.wall, (self.size[0].min(self.size[1]) / 2.0).min(self.size[2])));
         }
         if self.floor >= self.size[2] {
-            return Err("floor: must be less than height".into());
+            return Err(format!(
+                "floor {} must be below height {}; reduce floor",
+                self.floor, self.size[2]
+            ));
         }
         if let Some([w, h]) = self.lip {
             positive_mm("lip.width", w)?;
             positive_mm("lip.height", h)?;
             if w >= self.wall {
-                return Err("lip.width: must be narrower than wall".into());
+                return Err(format!(
+                    "lip.width {w} must be below wall {}; reduce lip.width",
+                    self.wall
+                ));
             }
         }
         if !self.bottom && !self.centred && self.lip.is_none() && self.floor == self.wall {

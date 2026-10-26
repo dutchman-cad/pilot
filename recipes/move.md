@@ -10,7 +10,6 @@
     "Shift the solid ten millimetres on Y"
   ],
   "schema": {
-    "x-pilot-expander": "move",
     "$defs": {
       "Angle": {
         "description": "Degrees",
@@ -30,6 +29,7 @@
         "type": "number"
       },
       "Plane": {
+        "description": "Sketch plane; extrude along its normal",
         "enum": [
           "XY",
           "XZ",
@@ -53,23 +53,26 @@
     "additionalProperties": false,
     "properties": {
       "body": {
+        "description": "Exact inspected body name; omit only if unambiguous",
         "maxLength": 128,
         "minLength": 1,
         "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
         "type": "string"
       },
       "delta": {
-        "$ref": "#/$defs/Point3"
+        "$ref": "#/$defs/Point3",
+        "description": "Signed [x,y,z] displacement in mm"
       }
     },
     "required": [
       "body",
       "delta"
     ],
-    "type": "object"
+    "type": "object",
+    "x-pilot-expander": "move"
   },
   "expander": "move"
 }
 ---
 
-Translate the selected body by a signed three-axis displacement. Built by the `move` expander.
+Move or translate an existing body by an XYZ displacement vector. Built by the `move` expander.

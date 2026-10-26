@@ -568,7 +568,18 @@ impl Plate {
         if let Some((_, all, amount)) = rounding {
             positive_mm("corners.size", *amount)?;
             if *amount >= size[0].min(size[1]) / 2.0 || (*all && *amount >= size[2] / 2.0) {
-                return Err("corners.size: must be less than half the cut side".into());
+                let side = if *all {
+                    size[0].min(size[1]).min(size[2])
+                } else {
+                    size[0].min(size[1])
+                };
+                let edges = if *all { "all" } else { "vertical" };
+                let fix = if *all && *amount < size[0].min(size[1]) / 2.0 {
+                    "for the four corner edges through the thickness use edges \"vertical\""
+                } else {
+                    "reduce corners.size or increase the plate length and width"
+                };
+                return Err(format!("corners.size {amount} with edges \"{edges}\" must be below {} (half the {side} mm {}); {fix}", side / 2.0, if *all && side == size[2] { "thickness" } else { "side" }));
             }
         }
         for (p, r) in holes {
@@ -578,17 +589,12 @@ impl Plate {
             }
         }
         if holes.len() > 65 {
-            return Err(
-                "holes: must stay inside plate, clear corners and not overlap (maximum 65)".into(),
-            );
+            return Err(format!("holes count {} must be at most 65 (1 bore plus 64 pattern holes); reduce pattern counts", holes.len()));
         }
         // Refuse tangent/overlapping holes, and conservatively keep holes out of corner blends.
         for (n, (p, r)) in holes.iter().enumerate() {
             if p[0].abs() + r >= size[0] / 2.0 || p[1].abs() + r >= size[1] / 2.0 {
-                return Err(
-                    "holes: must stay inside plate, clear corners and not overlap (maximum 65)"
-                        .into(),
-                );
+                return Err(format!("holes[{n}] centre {p:?} radius {r} must fit strictly inside half-sides [{},{}]; reduce bore_diameter/hole_diameter or pattern spacing", size[0] / 2.0, size[1] / 2.0));
             }
             if let Some((_, all, a)) = rounding {
                 if *all
@@ -596,26 +602,17 @@ impl Plate {
                         || p[1].abs() + r + a >= size[1] / 2.0
                         || *r <= *a)
                 {
-                    return Err(
-                        "holes: must stay inside plate, clear corners and not overlap (maximum 65)"
-                            .into(),
-                    );
+                    return Err(format!("holes[{n}] centre {p:?} radius {r} needs corners.size {a} clearance inside half-sides [{},{}] and radius above {a}; reduce corners.size or use corners.edges \"vertical\"", size[0] / 2.0, size[1] / 2.0));
                 }
                 if p[0].abs() + r > size[0] / 2.0 - a && p[1].abs() + r > size[1] / 2.0 - a {
-                    return Err(
-                        "holes: must stay inside plate, clear corners and not overlap (maximum 65)"
-                            .into(),
-                    );
+                    return Err(format!("holes[{n}] centre {p:?} radius {r} must avoid corner zones starting at [{},{}]; reduce hole_diameter, spacing or corners.size", size[0] / 2.0 - a, size[1] / 2.0 - a));
                 }
             }
-            if holes[..n]
+            if let Some((q, s)) = holes[..n]
                 .iter()
-                .any(|(q, s)| (p[0] - q[0]).hypot(p[1] - q[1]) <= r + s)
+                .find(|(q, s)| (p[0] - q[0]).hypot(p[1] - q[1]) <= r + s)
             {
-                return Err(
-                    "holes: must stay inside plate, clear corners and not overlap (maximum 65)"
-                        .into(),
-                );
+                return Err(format!("holes[{n}] centre distance {} must exceed radii sum {}; reduce hole_diameter/bore_diameter or increase pattern spacing", (p[0]-q[0]).hypot(p[1]-q[1]), r+s));
             }
         }
         Ok(())

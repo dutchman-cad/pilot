@@ -1901,14 +1901,16 @@ pub(super) fn names() -> impl Iterator<Item = &'static str> {
 fn positive_mm(field: &str, value: f64) -> Result<(), String> {
     if !value.is_finite() || value <= 0.0 || value > MAX_MM {
         return Err(format!(
-            "{field}: must be finite, positive and at most {MAX_MM} mm"
+            "{field} {value} must be above 0 and at most {MAX_MM} mm; supply a positive length in mm"
         ));
     }
     Ok(())
 }
 fn valid_plane(plane: &str) -> Result<(), String> {
     if !matches!(plane, "XY" | "XZ" | "YZ") {
-        return Err("plane: must be XY, XZ or YZ".into());
+        return Err(format!(
+            "plane {plane:?} must be 1 of XY, XZ, YZ; use the requested sketch plane"
+        ));
     }
     Ok(())
 }

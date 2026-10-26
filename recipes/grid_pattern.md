@@ -19,6 +19,7 @@
         "type": "number"
       },
       "Axis": {
+        "description": "World axis",
         "enum": [
           "X",
           "Y",
@@ -38,6 +39,7 @@
         "type": "number"
       },
       "Plane": {
+        "description": "Sketch plane; extrude along its normal",
         "enum": [
           "XY",
           "XZ",
@@ -61,31 +63,40 @@
     "additionalProperties": false,
     "properties": {
       "body": {
+        "description": "Exact inspected body name; omit only if unambiguous",
         "maxLength": 128,
         "minLength": 1,
         "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
         "type": "string"
       },
       "columns": {
-        "$ref": "#/$defs/Count"
+        "$ref": "#/$defs/Count",
+        "description": "Instance count; honeycomb requires exact mode"
       },
       "join": {
-        "description": "Explicit permission for overlapping joined feature instances; body patterns always create new bodies",
+        "default": false,
+        "description": "Allow overlap of joined last features only",
         "type": "boolean"
       },
       "plane": {
-        "$ref": "#/$defs/Plane"
+        "$ref": "#/$defs/Plane",
+        "default": "XY",
+        "description": "Sketch plane"
       },
       "rows": {
-        "$ref": "#/$defs/Count"
+        "$ref": "#/$defs/Count",
+        "description": "Instance count; honeycomb requires exact mode"
       },
       "spacing1": {
-        "$ref": "#/$defs/Length"
+        "$ref": "#/$defs/Length",
+        "description": "Centre spacing between instances"
       },
       "spacing2": {
-        "$ref": "#/$defs/Length"
+        "$ref": "#/$defs/Length",
+        "description": "Centre spacing between instances"
       },
       "target": {
+        "description": "body: whole solid; last_feature: latest feature",
         "enum": [
           "body",
           "last_feature"
@@ -98,8 +109,7 @@
       "rows",
       "columns",
       "spacing1",
-      "spacing2",
-      "plane"
+      "spacing2"
     ],
     "type": "object",
     "x-pilot-expander": "grid_pattern"
@@ -109,9 +119,3 @@
 ---
 
 Repeat an existing body or last feature in a rectangular grid: rows, columns, plane and spacing in both directions. Built by the `grid_pattern` expander.
-
-Counts include the original and total instances are capped at 500. Use target `body` (optionally name `body`) or `last_feature`. Inspect with document.inspect measure:true first. A feature pattern also inspects the last feature definition and inherits its new-body, join, or cut behavior. Body patterns create separate bodies; join is only explicit permission for overlapping joined features, not an invented command parameter. Ambiguous targets, unresolved geometry and possible unrequested overlaps defer. Conservative bounding boxes may require clarification.
-
-Run one solid.pattern.rectangular (linear/grid) or solid.pattern.circular, then document.inspect measure:true. Verify the successful pattern timeline entry, body count and measured volume. Body volume is predicted exactly for disjoint instances; joined/cut feature volume is measured because intersections depend on geometry.
-
-Example selected build: `{"recipe":"grid_pattern","args":{"target":"body","rows":4,"columns":6,"spacing1":15,"spacing2":20,"plane":"XY"}}`. For either an existing body or the last feature, set `target` accordingly; the same typed placement slots apply.

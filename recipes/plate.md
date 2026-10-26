@@ -10,7 +10,6 @@
     "A perforated plate with chamfered corners"
   ],
   "schema": {
-    "x-pilot-expander": "plate",
     "$defs": {
       "Angle": {
         "description": "Degrees",
@@ -30,6 +29,7 @@
         "type": "number"
       },
       "Plane": {
+        "description": "Sketch plane; extrude along its normal",
         "enum": [
           "XY",
           "XZ",
@@ -54,6 +54,7 @@
     "properties": {
       "bolt_circle": {
         "additionalProperties": false,
+        "description": "Hole centres on this circle",
         "properties": {
           "count": {
             "$ref": "#/$defs/Count"
@@ -62,7 +63,9 @@
             "$ref": "#/$defs/Length"
           },
           "start_deg": {
-            "$ref": "#/$defs/Angle"
+            "$ref": "#/$defs/Angle",
+            "default": 0,
+            "description": "From +X toward +Y"
           }
         },
         "required": [
@@ -72,15 +75,21 @@
         "type": "object"
       },
       "bore_diameter": {
-        "$ref": "#/$defs/Length"
+        "$ref": "#/$defs/Length",
+        "description": "Centre through bore"
       },
       "centred": {
+        "default": false,
+        "description": "True only for centred/centered/on the origin",
         "type": "boolean"
       },
       "corners": {
         "additionalProperties": false,
+        "description": "Outside corner treatment",
         "properties": {
           "edges": {
+            "default": "vertical",
+            "description": "vertical: four corner edges through thickness; all: every rim too",
             "enum": [
               "vertical",
               "all"
@@ -88,6 +97,7 @@
             "type": "string"
           },
           "kind": {
+            "description": "fillet: round; chamfer: bevel",
             "enum": [
               "fillet",
               "chamfer"
@@ -95,30 +105,35 @@
             "type": "string"
           },
           "size": {
-            "$ref": "#/$defs/Length"
+            "$ref": "#/$defs/Length",
+            "description": "Fillet radius/chamfer distance; hex span for honeycomb"
           }
         },
         "required": [
           "kind",
-          "size",
-          "edges"
+          "size"
         ],
         "type": "object"
       },
       "grid": {
         "additionalProperties": false,
+        "description": "Hole centres in rows and columns",
         "properties": {
           "columns": {
-            "$ref": "#/$defs/Count"
+            "$ref": "#/$defs/Count",
+            "description": "Instance count; honeycomb requires exact mode"
           },
           "pitch_x": {
-            "$ref": "#/$defs/Length"
+            "$ref": "#/$defs/Length",
+            "description": "Hole centre spacing"
           },
           "pitch_y": {
-            "$ref": "#/$defs/Length"
+            "$ref": "#/$defs/Length",
+            "description": "Hole centre spacing"
           },
           "rows": {
-            "$ref": "#/$defs/Count"
+            "$ref": "#/$defs/Count",
+            "description": "Instance count; honeycomb requires exact mode"
           }
         },
         "required": [
@@ -130,16 +145,20 @@
         "type": "object"
       },
       "hole_diameter": {
-        "$ref": "#/$defs/Length"
+        "$ref": "#/$defs/Length",
+        "description": "Pattern hole diameter; requires bolt_circle or grid"
       },
       "length": {
         "$ref": "#/$defs/Length"
       },
       "plane": {
-        "$ref": "#/$defs/Plane"
+        "$ref": "#/$defs/Plane",
+        "default": "XY",
+        "description": "Sketch plane"
       },
       "thickness": {
-        "$ref": "#/$defs/Length"
+        "$ref": "#/$defs/Length",
+        "description": "Plate thickness or uniform profile legs"
       },
       "width": {
         "$ref": "#/$defs/Length"
@@ -148,14 +167,13 @@
     "required": [
       "length",
       "width",
-      "thickness",
-      "plane",
-      "centred"
+      "thickness"
     ],
-    "type": "object"
+    "type": "object",
+    "x-pilot-expander": "plate"
   },
   "expander": "plate"
 }
 ---
 
-Build a flat plate with optional bores, hole patterns and corner treatment. Built by the `plate` expander.
+Flat plate with holes: centre bore, bolt circle or rectangular grid and optional corners. Built by the `plate` expander.

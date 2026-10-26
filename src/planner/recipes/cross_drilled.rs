@@ -2,9 +2,11 @@
 use super::*;
 
 pub(crate) fn schema() -> Value {
-    json!({"type":"object","additionalProperties":false,"x-pilot-expander":"cross_drilled_box",
+    let mut schema = json!({"type":"object","additionalProperties":false,"x-pilot-expander":"cross_drilled_box",
         "$defs":{"Length":{"type":"number","exclusiveMinimum":0,"maximum":1000000},"Point3":{"type":"array","minItems":3,"maxItems":3,"items":{"type":"number","minimum":-1000000,"maximum":1000000}}},
-        "properties":{"length":{"$ref":"#/$defs/Length"},"width":{"$ref":"#/$defs/Length"},"height":{"$ref":"#/$defs/Length"},"corner":{"$ref":"#/$defs/Point3"},"holes":{"type":"array","minItems":1,"maxItems":3,"items":{"type":"object","additionalProperties":false,"properties":{"axis":{"type":"string","enum":["X","Y","Z"]},"diameter":{"$ref":"#/$defs/Length"},"position":{"$ref":"#/$defs/Point3"}},"required":["axis","diameter"]}}},"required":["length","width","height","holes"]})
+        "properties":{"length":{"$ref":"#/$defs/Length"},"width":{"$ref":"#/$defs/Length"},"height":{"$ref":"#/$defs/Length"},"corner":{"$ref":"#/$defs/Point3"},"holes":{"type":"array","minItems":1,"maxItems":3,"items":{"type":"object","additionalProperties":false,"properties":{"axis":{"type":"string","enum":["X","Y","Z"]},"diameter":{"$ref":"#/$defs/Length"},"position":{"$ref":"#/$defs/Point3"}},"required":["axis","diameter"]}}},"required":["length","width","height","holes"]});
+    crate::recipe_library::forms::describe(&mut schema);
+    schema
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -56,13 +58,13 @@ impl BoxHoles {
                 || self.corner[i].abs() > MAX_MM
                 || (self.corner[i] + self.size()[i]).abs() > MAX_MM
             {
-                return Err("box coordinates exceed bounded world range".into());
+                return Err(format!("corner[{i}] {} plus size {} must stay within -{MAX_MM}..{MAX_MM} mm; move corner closer to the origin or reduce size", self.corner[i], self.size()[i]));
             }
         }
-        for h in &self.holes {
+        for (n, h) in self.holes.iter().enumerate() {
             let a = Self::axis(h).ok_or("hole axis must be X, Y or Z")?;
             if seen[a] {
-                return Err("hole axes must be distinct".into());
+                return Err(format!("holes[{n}].axis {:?} permits at most 1 hole per axis; remove the duplicate axis", h.axis));
             }
             seen[a] = true;
             positive_mm("hole diameter", h.diameter)?;
@@ -76,7 +78,7 @@ impl BoxHoles {
                     *value - h.diameter / 2.0 <= lo || *value + h.diameter / 2.0 >= hi
                 };
                 if !value.is_finite() || value.abs() > MAX_MM || outside {
-                    return Err("hole position must be on an axis face with its opening strictly inside that face".into());
+                    return Err(format!("holes[{n}].position[{i}] {value} with diameter {} must {} and stay within -{MAX_MM}..{MAX_MM}; omit position for a centred hole or move it inside the face", h.diameter, if i == a {format!("equal {lo} or {hi}")} else {format!("be above {} and below {}", lo + h.diameter / 2.0, hi - h.diameter / 2.0)}));
                 }
             }
         }

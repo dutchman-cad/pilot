@@ -78,9 +78,8 @@ pub(super) fn offer(
     recipe: &Value,
     error: Option<&str>,
 ) -> Result<(), String> {
-    let mut schema = recipe["schema"].clone();
-    schema["properties"]["decline"] =
-        json!({"type":"boolean","description":"true if this form does not fit the request"});
+    let mut schema = crate::recipe_library::forms::compact(&recipe["schema"]);
+    schema["properties"]["decline"] = json!({"type":"boolean"});
     // A decline is checked before the recipe fields, so it needs no invented dimensions.
     outgoing["tools"] = json!([{"type":"function","function":{"name":"pilot_fill","description":recipe["description"],"parameters":schema}}]);
     outgoing["tool_choice"] = json!({"type":"function","function":{"name":"pilot_fill"}});
@@ -91,7 +90,7 @@ pub(super) fn offer(
     if messages.len() >= 256 {
         return Err("fill prompt exceeds 256 messages".into());
     }
-    let mut line = format!("Recipe {}: fill the form from the user's words; convert inches to mm; leave optional fields out if not stated; set decline if it does not fit.", recipe["id"].as_str().unwrap_or(""));
+    let mut line = crate::recipe_library::forms::line(recipe["id"].as_str().unwrap_or(""));
     if let Some(error) = error {
         line.push_str(&format!(" Correct this field error: {error}"));
     }
@@ -124,7 +123,11 @@ pub(super) fn accept(
     };
     let raw = &calls[0]["function"]["arguments"];
     let parsed = if let Some(text) = raw.as_str() {
-        serde_json::from_str(text).map_err(|e| format!("args: invalid JSON: {e}"))
+        serde_json::from_str(text).map_err(|e| {
+            format!(
+                "args {text:?} requires 1 valid JSON object ({e}); fix JSON quoting and brackets"
+            )
+        })
     } else {
         Ok(raw.clone())
     };
@@ -136,7 +139,10 @@ pub(super) fn accept(
         return Outcome::Decline;
     }
     if args.get("decline").is_some_and(|d| !d.is_boolean()) {
-        return Outcome::Invalid("args.decline: must be boolean".into());
+        return Outcome::Invalid(format!(
+            "args.decline {} requires 1 boolean; use true to decline or omit it to build",
+            args["decline"]
+        ));
     }
     if let Some(o) = args.as_object_mut() {
         o.remove("decline");
@@ -148,9 +154,10 @@ pub(super) fn accept(
         .iter()
         .any(|name| args["body"] == *name)
     {
-        return Outcome::Invalid(
-            "args.body: must name a body in the latest complete inspection".into(),
-        );
+        return Outcome::Invalid(format!(
+            "args.body {} must match exactly 1 inspected body name; inspect and use its exact name",
+            args["body"]
+        ));
     }
     let envelope = json!({"recipe":recipe["id"],"args":args});
     match library.build(&envelope, request, catalog) {
@@ -160,12 +167,59 @@ pub(super) fn accept(
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
     use super::*;
 
     fn request(text: &str) -> Value {
         json!({"messages":[{"role":"user","content":text}]})
+    }
+    #[test]
+    fn probe_error_retries_and_inner_lip_defaults_use_the_shared_validator() {
+        let library = crate::recipe_library::Library::embedded().unwrap();
+        let catalog = Catalog::bundled().unwrap();
+        let req = request("Make a plate with a bore and bolt circle and rounded corners");
+        let recipe = library
+            .find("plate with bolt circle", &crate::recipe_library::Bm25)
+            .unwrap()["recipes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|r| r["id"] == "plate")
+            .unwrap()
+            .clone();
+        let mut args = json!({"length":80,"width":80,"thickness":8,"centred":true,"bore_diameter":30,"hole_diameter":8,"bolt_circle":{"count":6,"diameter":56},"corners":{"kind":"fillet","size":10,"edges":"all"}});
+        let response = |args: &Value| json!({"choices":[{"message":{"tool_calls":[{"function":{"name":"pilot_fill","arguments":args.to_string()}}]}}]});
+        let Outcome::Invalid(error) = accept(&response(&args), &recipe, &req, &library, &catalog)
+        else {
+            panic!("invalid plate accepted");
+        };
+        assert!(error.contains("below 4 (half the 8 mm thickness)"));
+        assert!(error.contains("use edges \"vertical\""));
+        let mut retry = req.clone();
+        offer(&mut retry, &recipe, Some(&error)).unwrap();
+        assert!(
+            retry["messages"].as_array().unwrap().last().unwrap()["content"]
+                .as_str()
+                .unwrap()
+                .contains(&error)
+        );
+        args["corners"].as_object_mut().unwrap().remove("edges");
+        assert!(matches!(
+            accept(&response(&args), &recipe, &req, &library, &catalog),
+            Outcome::Build(_, _)
+        ));
+        let recipe = library
+            .find("enclosure with inner lip", &crate::recipe_library::Bm25)
+            .unwrap()["recipes"][0]
+            .clone();
+        assert_eq!(recipe["id"], "enclosure");
+        let args =
+            json!({"length":80,"width":50,"height":30,"wall":2,"lip":{"width":1,"height":2}});
+        assert!(matches!(
+            accept(&response(&args), &recipe, &req, &library, &catalog),
+            Outcome::Build(_, _)
+        ));
     }
     #[test]
     fn lexical_near_misses_do_not_force_forms() {

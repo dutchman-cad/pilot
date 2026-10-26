@@ -10,7 +10,6 @@
     "A ball twelve millimetres across"
   ],
   "schema": {
-    "x-pilot-expander": "sphere",
     "$defs": {
       "Angle": {
         "description": "Degrees",
@@ -30,6 +29,7 @@
         "type": "number"
       },
       "Plane": {
+        "description": "Sketch plane; extrude along its normal",
         "enum": [
           "XY",
           "XZ",
@@ -59,10 +59,11 @@
     "required": [
       "radius"
     ],
-    "type": "object"
+    "type": "object",
+    "x-pilot-expander": "sphere"
   },
   "expander": "sphere"
 }
 ---
 
-Build a solid ball from its radius. Built by the `sphere` expander.
+Solid sphere or ball with a radius. Built by the `sphere` expander.

@@ -10,7 +10,6 @@
     "A tubular sleeve with outer radius eight"
   ],
   "schema": {
-    "x-pilot-expander": "tube",
     "$defs": {
       "Angle": {
         "description": "Degrees",
@@ -30,6 +29,7 @@
         "type": "number"
       },
       "Plane": {
+        "description": "Sketch plane; extrude along its normal",
         "enum": [
           "XY",
           "XZ",
@@ -67,10 +67,11 @@
       "inner_radius",
       "height"
     ],
-    "type": "object"
+    "type": "object",
+    "x-pilot-expander": "tube"
   },
   "expander": "tube"
 }
 ---
 
-Build a circular tube from its inner radius, outer radius and height. Built by the `tube` expander.
+Hollow round tube or pipe with outer radius inner radius and height. Built by the `tube` expander.

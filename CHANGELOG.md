@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Explain fill fields and numeric validation fixes, default unstated placement and inner lips, and cap each recipe form at 1,200 characters.
+
 - Find recipes automatically and ask the model to fill one typed form first, with one validation retry, audited fallback, and `--no-fill`.
 
 - Map sketch planes to world axes with audited hints, flag unused construction planes, and build cross-drilled boxes with world-space through holes.

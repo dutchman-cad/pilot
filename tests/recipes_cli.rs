@@ -1261,3 +1261,53 @@ fn honeycomb_field_reference_matches_exact_recipe() {
         6 + task["hex_count"].as_u64().unwrap() * 6
     );
 }
+
+#[test]
+fn public_binary_probe_fill_plate_and_inner_lip() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    for (id, args, want) in [
+        (
+            "plate",
+            json!({"length":80,"width":80,"thickness":8,"centred":true,"bore_diameter":30,"hole_diameter":8,"bolt_circle":{"count":6,"diameter":56},"corners":{"kind":"fillet","size":10,"edges":"vertical"}}),
+            42446.,
+        ),
+        (
+            "enclosure",
+            json!({"length":80,"width":50,"height":30,"wall":2,"open":"top","centred":false,"lip":{"width":1,"height":2}}),
+            22608.,
+        ),
+    ] {
+        let mut s = Session::new(&path);
+        let req = json!({"messages":[]});
+        let plan = lib
+            .build(&json!({"recipe":id,"args":args}), &req, &cat)
+            .unwrap();
+        for c in &plan.calls {
+            s.execute(
+                c["arguments"]["command"].as_str().unwrap(),
+                c["arguments"]["params"].clone(),
+            );
+        }
+        let state = s.execute("document.inspect", json!({"measure":true}));
+        let bodies = state["bodies"].as_array().unwrap();
+        assert_eq!(bodies.len(), 1, "{state}");
+        let volume = bodies[0]["volume_mm3"].as_f64().unwrap();
+        eprintln!("probe {id}: {volume} mm3");
+        assert!(
+            (volume - want).abs() < want * 0.003,
+            "{id}: {volume} vs {want}"
+        );
+        assert!(
+            state["timeline"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|f| f["error"].is_null() || f["error"] == ""),
+            "{state}"
+        );
+    }
+}
