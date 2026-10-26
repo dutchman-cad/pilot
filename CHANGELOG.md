@@ -4,6 +4,7 @@
 
 ## 0.1.0-beta.5 (2026-10-26)
 
+- Recipes with Windows line endings now load.
 - Recipe forms: Pilot finds the recipe that fits a request and asks the model only to
   fill in its typed form, in a short separate request. Pilot builds the part from the
   form with checked SolidCraft commands. Small local models now build many common

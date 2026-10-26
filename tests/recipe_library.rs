@@ -4,6 +4,32 @@ use dutchman_pilot::{catalog::Catalog, recipe_library::*};
 use serde_json::{json, Value};
 
 #[test]
+fn recipe_text_accepts_windows_line_endings_and_one_leading_bom() {
+    let text = include_str!("../recipes/box.md");
+    let text = text
+        .strip_prefix('\u{feff}')
+        .unwrap_or(text)
+        .replace("\r\n", "\n")
+        .replace('\r', "\n");
+    let expected = Recipe::parse(&text).unwrap().markdown().unwrap();
+    for ending in ["\n", "\r\n", "\r"] {
+        for bom in ["", "\u{feff}"] {
+            let input = format!("{bom}{}", text.replace('\n', ending));
+            let recipe = Recipe::parse(&input).unwrap();
+            assert_eq!(recipe.markdown().unwrap(), expected, "{ending:?}, {bom:?}");
+            assert_eq!(Library::parse([input.as_str()]).unwrap().recipes.len(), 1);
+        }
+    }
+    assert!(Recipe::parse(&format!("\u{feff}\u{feff}{text}")).is_err());
+    // The cap applies to original bytes, even when normalization shrinks them.
+    let oversized = format!("{text}{}", "\r\n".repeat(32768));
+    assert_eq!(
+        Recipe::parse(&oversized).unwrap_err(),
+        "recipe exceeds 64 KiB"
+    );
+}
+
+#[test]
 fn cross_drilled_boxes_exact_english_and_typed_validation() {
     let lib = Library::embedded().unwrap();
     let cat = Catalog::bundled().unwrap();
@@ -402,7 +428,10 @@ fn audit_draft_requires_review_and_round_trips() {
     let review = dir.join("review");
     let path = draft(&audit, 1, &review).unwrap();
     assert!(path.starts_with(&review));
+    let text = std::fs::read_to_string(&path).unwrap();
+    std::fs::write(&path, format!("\u{feff}{}", text.replace('\n', "\r\n"))).unwrap();
     let r = Recipe::parse(&std::fs::read_to_string(path).unwrap()).unwrap();
+    assert_eq!(Library::load(Some(&review)).unwrap().recipes.len(), 1);
     assert_eq!(r.examples[0], "Make a block 41 by 23 by 17 mm");
     assert_eq!(r.expander, "sequence");
     assert_eq!(r.schema["properties"].as_object().unwrap().len(), 3);
@@ -502,7 +531,16 @@ fn development_override_is_explicit_and_rejects_duplicates_or_schema_drift() {
         .into_iter()
         .find(|r| r.id == "sphere")
         .unwrap();
-    std::fs::write(dir.join("sphere.md"), r.markdown().unwrap()).unwrap();
+    for bom in ["", "\u{feff}"] {
+        std::fs::write(
+            dir.join("sphere.md"),
+            format!("{bom}{}", r.markdown().unwrap().replace('\n', "\r\n")),
+        )
+        .unwrap();
+        let loaded = Library::load(Some(&dir)).unwrap();
+        assert_eq!(loaded.recipes.len(), 1);
+        assert_eq!(loaded.recipes[0].id, "sphere");
+    }
     let lib = Library::load(Some(&dir)).unwrap();
     assert_eq!(lib.recipes.len(), 1);
     assert!(lib

@@ -52,6 +52,13 @@ impl Recipe {
         if text.len() > MAX_FILE {
             return Err("recipe exceeds 64 KiB".into());
         }
+        // All inputs (embedded, directory files and reviewed drafts) enter here.
+        // Check the original byte limit before normalizing the entire document.
+        let text = text
+            .strip_prefix('\u{feff}')
+            .unwrap_or(text)
+            .replace("\r\n", "\n")
+            .replace('\r', "\n");
         let text = text
             .strip_prefix("---\n")
             .ok_or("recipe needs YAML frontmatter (JSON subset)")?;
