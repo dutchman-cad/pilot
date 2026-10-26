@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Ask for fill and route forms in clean extraction requests, retry off-form/text replies once, and audit each request’s size.
+
 - Discard off-form fill/route calls and prevent repeated form offers after retries, history trimming, or tool execution in the same user turn.
 
 - Restore direct recipe fills at score 4.5, route only scores from 1.5 to below 4.5, and keep declined fills on normal tools.

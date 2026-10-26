@@ -428,7 +428,13 @@ fn additions(client: &Value, body: &Value) -> BTreeMap<String, u64> {
         "hints".into(),
         hints(body).saturating_sub(hints(client)) as u64,
     );
-    for name in ["how", "pilot_build", "pilot_find"] {
+    for name in [
+        "how",
+        "pilot_build",
+        "pilot_find",
+        "pilot_fill",
+        "pilot_route",
+    ] {
         let size = |v: &Value| {
             v["tools"]
                 .as_array()

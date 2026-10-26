@@ -193,6 +193,35 @@ pub(crate) fn recipe_targets(request: &Value) -> Vec<String> {
         })
         .collect()
 }
+/// Bounded names from inspected payloads only, never from user or assistant prose.
+#[cfg(feature = "proxy")]
+pub(crate) fn form_names(request: &Value) -> Vec<String> {
+    let mut names = recipe_targets(request);
+    if let Some(messages) = request["messages"].as_array() {
+        if let Some(data) = messages
+            .iter()
+            .rev()
+            .filter(|m| m["role"] == "tool")
+            .filter_map(tool_payload)
+            .find(|d| d.get("components").is_some())
+        {
+            if let Some(components) = data["components"].as_array().filter(|cs| cs.len() <= 64) {
+                for component in components {
+                    if let Some(name) = component["name"]
+                        .as_str()
+                        .filter(|n| !n.is_empty() && n.len() <= 128)
+                    {
+                        names.push(name.to_string());
+                    }
+                }
+            }
+        }
+    }
+    names.truncate(128);
+    names.sort();
+    names.dedup();
+    names
+}
 fn body(text: &str, data: Option<&Value>) -> Option<String> {
     let bodies = data?.get("bodies")?.as_array()?;
     let lower = text.to_ascii_lowercase();

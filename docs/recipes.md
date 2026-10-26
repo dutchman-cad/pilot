@@ -507,10 +507,14 @@ loops to verify count, minimum web and border.
 On a fresh user turn that reaches the model, Pilot runs the `pilot_find` BM25 ranker
 itself. At **4.5 or higher**, the first request offers exactly one `pilot_fill`
 function, with the selected typed schema plus boolean `decline`, and forces that
-function with `tool_choice`. The line naming the recipe asks the model to use the
-user's words, convert inches to mm, omit unstated optional fields and decline a
-mismatch. Accepted arguments use the same validators, expanders, approval calls,
-and measured verification as `pilot_build`; a form never reaches the client.
+function with `tool_choice`. Fill and route use separate requests built from scratch:
+client model and sampling settings, one short Pilot system message, the latest user
+message, and exactly one tool. Client system prompts, tools and conversation history
+stay out. The fill instruction requests one tool call, lengths in mm (inches × 25.4,
+cm × 10), optional fields only when stated, and `decline: true` for mismatches.
+Target recipes append one bounded line listing inspected body/component names to
+the user message. Accepted arguments use the same validators, expanders, approval
+calls and measured verification as `pilot_build`; a form never reaches the client.
 
 Forms use a compact presentation of the full validation schema, with a tested
 1,200-character budget including the system line. File schemas retain numeric
@@ -521,10 +525,11 @@ face). Corners default to the four vertical edges through the thickness; `all`
 also rounds the rims and limits the radius to below half the thickness. Errors
 report the supplied field value, numeric limit, and a suggested change.
 
-An invalid form gets two retries with its latest field error and the same schema (three attempts total). Decline,
-text (including JSON written as text), another tool, mixed calls, or a third invalid
-form restores the ordinary tools for the rest of the turn, without offering a
-route question. The rejected proposal is discarded. Normal find/build are
+An invalid form gets two retries with its latest field error and the same schema (three attempts total). Decline
+or a third invalid form restores ordinary tools for the rest of the turn.
+Text (including JSON written as text), another tool or mixed calls gets one retry
+of the same clean request with a one-line previous-reply problem note; a second
+such reply restores ordinary tools, without offering a route question. The rejected proposal is discarded. Normal find/build are
 available only with `--offer-recipe-tools`. There is no fill on tool-result
 continuations or SolidCraft 98. `--no-fill` skips forced fill and route;
 `--no-shortcuts` disables fill, route and both recipe tools even with the offer flag. Exact direct
@@ -537,11 +542,11 @@ affect scores. Scores are lexical relevance, not probabilities. Unsupported
 geometry and explanation cues skip forms.
 
 Scores from **1.5** inclusive up to **4.5** exclusive offer only `pilot_route`,
-with one required `recipe` enum containing the top four ids plus `none`. Its system note is
-“Pick the form that matches the request, or none.” A single valid selection
+with one required `recipe` enum containing the top four ids plus `none`. Its system note asks for one `pilot_route` call selecting the matching recipe,
+or `none` when no form fits. A single valid selection
 offers that recipe’s fill form on the next upstream request in the same turn.
-`none`, unknown ids, malformed arguments, text, or mixed calls restore normal
-tools. Scores below **1.5** use normal tools immediately. Both forms are
+`none`, unknown ids or malformed arguments restore normal tools. Text and
+mixed/off-form calls get the same single clean-request retry as fills. Scores below **1.5** use normal tools immediately. Both forms are
 skipped by `--no-fill`, on continuations and for SolidCraft 98. Routes never
 execute geometry. Custom sequence recipes stay on the explicit find/build path.
 
@@ -563,13 +568,18 @@ Three verbatim public Assistant requests are replayed from
 plate and enclosure. They were not used as recipe examples. The optional ignored
 `live_gemma_fill_public_probes` test sends at most three requests to Ollama on
 127.0.0.1:11435, with 30-second timeouts, and executes no CAD operations.
+The ignored `live_gemma_clean_fill_public_l` sends each of the five public L
+prompts once (at most five calls, no retries), reporting valid `pilot_fill` counts.
 
 Audit kinds: `fill_offered` records recipe and score; `fill_accepted` records the
 validated envelope and rule; `fill_declined`, `fill_invalid` and `fill_fallback`
 record why the normal path resumes. `route_offered`, `route_picked`, and
 `route_none` audit routing. A route and its fills share at most four upstream
 requests, including provider retries, before normal tools resume. The fill itself
-still has at most three validation attempts. Existing size and search caps apply.
+still has at most three attempts, including reply-shape retries. `fill_retry` records
+the previous reply's problem. `form_request` records each clean request's serialized
+bytes and characters; `request_size` and profile totals count every extraction call.
+Existing size and search caps apply.
 The wire cap is eight requests, including provider-mode recovery and normal retries.
 
 ### Flat fill forms

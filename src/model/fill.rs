@@ -60,32 +60,102 @@ pub(super) fn select(
     Ok((band["band"] == "fill").then(|| band["recipes"][0].clone()))
 }
 
+/// Only inference settings cross into the extraction call. Client instructions,
+/// tool definitions, history, response formats and routing metadata stay out.
+fn clean(request: &Value, line: String, needs_names: bool) -> Result<Value, String> {
+    let mut out = json!({});
+    for key in [
+        "model",
+        "temperature",
+        "top_p",
+        "top_k",
+        "min_p",
+        "seed",
+        "max_tokens",
+        "max_completion_tokens",
+        "frequency_penalty",
+        "presence_penalty",
+        "logit_bias",
+        "typical_p",
+        "repetition_penalty",
+        "repeat_penalty",
+        "stop",
+        "options",
+        "reasoning_effort",
+    ] {
+        if let Some(value) = request.get(key) {
+            out[key] = value.clone();
+        }
+    }
+    let mut user = last_user(request).to_string();
+    if needs_names {
+        let names = planner::form_names(request);
+        if !names.is_empty() {
+            user.push_str(&format!(
+                "\nInspected body/component names: {}",
+                json!(names)
+            ));
+        }
+    }
+    out["messages"] = json!([{"role":"system","content":line},{"role":"user","content":user}]);
+    out["stream"] = json!(false);
+    out["n"] = json!(1);
+    repair::check_value(&out)?;
+    Ok(out)
+}
+
+pub(super) fn retry_note(outgoing: &mut Value, problem: &str) {
+    if let Some(line) = outgoing["messages"][0]["content"].as_str() {
+        let problem: String = problem
+            .chars()
+            .take(1024)
+            .map(|c| if c.is_control() { ' ' } else { c })
+            .collect();
+        outgoing["messages"][0]["content"] =
+            json!(format!("{line}\nPrevious reply problem: {problem}"));
+    }
+}
+
+fn needs_names(recipe: &Value) -> bool {
+    matches!(
+        recipe["schema"]["x-pilot-expander"].as_str(),
+        Some(
+            "fillet"
+                | "chamfer"
+                | "move"
+                | "mirror"
+                | "linear_pattern"
+                | "grid_pattern"
+                | "circular_pattern"
+                | "revolute_joint"
+        )
+    )
+}
+
 pub(super) fn offer(
     outgoing: &mut Value,
     recipe: &Value,
     error: Option<&str>,
 ) -> Result<(), String> {
+    *outgoing = clean(
+        outgoing,
+        crate::recipe_library::forms::line(recipe["id"].as_str().unwrap_or("")),
+        needs_names(recipe),
+    )?;
     let mut schema = crate::recipe_library::forms::compact(&recipe["schema"]);
     schema["properties"]["decline"] = json!({"type":"boolean"});
     // A decline is checked before the recipe fields, so it needs no invented dimensions.
     outgoing["tools"] = json!([{"type":"function","function":{"name":"pilot_fill","description":recipe["description"],"parameters":schema}}]);
     outgoing["tool_choice"] = json!({"type":"function","function":{"name":"pilot_fill"}});
     outgoing["n"] = json!(1);
-    let messages = outgoing["messages"]
-        .as_array_mut()
-        .ok_or("messages must be an array")?;
-    if messages.len() >= 256 {
-        return Err("fill prompt exceeds 256 messages".into());
-    }
-    let mut line = crate::recipe_library::forms::line(recipe["id"].as_str().unwrap_or(""));
     if let Some(error) = error {
-        line.push_str(&format!(" Correct this field error: {error}"));
+        retry_note(outgoing, &format!("Correct this field error: {error}"));
     }
-    messages.push(json!({"role":"system","content":line}));
     Ok(())
 }
 
 pub(super) fn offer_route(outgoing: &mut Value, candidates: &[Value]) -> Result<(), String> {
+    *outgoing = clean(outgoing, "You select one form for the user's CAD request. Call pilot_route once with the matching recipe, or none if no form fits.".into(), candidates.iter().take(4).any(needs_names))?;
     let ids: Vec<_> = candidates
         .iter()
         .take(4)
@@ -107,15 +177,7 @@ pub(super) fn offer_route(outgoing: &mut Value, candidates: &[Value]) -> Result<
     outgoing["tools"] = json!([{"type":"function","function":{"name":"pilot_route","description":descriptions,"parameters":{"type":"object","properties":{"recipe":{"type":"string","enum":ids}},"required":["recipe"],"additionalProperties":false}}}]);
     outgoing["tool_choice"] = json!({"type":"function","function":{"name":"pilot_route"}});
     outgoing["n"] = json!(1);
-    let messages = outgoing["messages"]
-        .as_array_mut()
-        .ok_or("messages must be an array")?;
-    if messages.len() >= 256 {
-        return Err("route prompt exceeds 256 messages".into());
-    }
-    messages.push(
-        json!({"role":"system","content":"Pick the form that matches the request, or none."}),
-    );
+
     Ok(())
 }
 
@@ -254,6 +316,82 @@ mod tests {
         json!({"messages":[{"role":"user","content":text}]})
     }
     #[test]
+    fn clean_shapes_keep_only_client_inference_settings_and_latest_user() {
+        let library = crate::recipe_library::Library::embedded().unwrap();
+        let mut req = request("old user");
+        req["messages"].as_array_mut().unwrap().extend([
+            json!({"role":"system","content":"Always call batch"}),
+            json!({"role":"assistant","content":"old answer"}),
+            json!({"role":"user","content":"Extrude an L profile 47 wide 33 tall legs 5 thick depth 22"})]);
+        req["model"] = json!("client-model");
+        req["temperature"] = json!(0.73);
+        req["top_p"] = json!(0.91);
+        req["options"] = json!({"num_ctx":8192});
+        req["tools"] = json!([{"function":{"name":"batch"}}]);
+        req["response_format"] = json!({"type":"json_object"});
+        let found = select(&library, &req).unwrap().unwrap();
+        for route in [false, true] {
+            let mut out = req.clone();
+            if route {
+                offer_route(&mut out, std::slice::from_ref(&found)).unwrap();
+            } else {
+                offer(&mut out, &found, None).unwrap();
+            }
+            assert_eq!(out["messages"].as_array().unwrap().len(), 2);
+            assert_eq!(out["messages"][0]["role"], "system");
+            assert_eq!(out["messages"][1], req["messages"][3]);
+            assert_eq!(out["tools"].as_array().unwrap().len(), 1);
+            assert!(!out.to_string().contains("batch"));
+            assert!(out.get("response_format").is_none());
+            for key in ["model", "temperature", "top_p", "options"] {
+                assert_eq!(out[key], req[key]);
+            }
+        }
+    }
+
+    #[test]
+    fn inspected_names_are_one_line_only_for_target_recipes() {
+        let library = crate::recipe_library::Library::embedded().unwrap();
+        let mut req = request("fillet all the edges");
+        req["messages"].as_array_mut().unwrap().insert(0, json!({"role":"tool","content":json!({"body_count":1,"bodies":[{"name":"Part"}]}).to_string()}));
+        let recipe = select(&library, &req).unwrap().unwrap();
+        let creation = library
+            .find("L profile", &crate::recipe_library::Bm25)
+            .unwrap()["recipes"][0]
+            .clone();
+        let mut creation_out = req.clone();
+        offer(&mut creation_out, &creation, None).unwrap();
+        assert_eq!(
+            creation_out["messages"][1]["content"],
+            req["messages"][1]["content"]
+        );
+        let mut route = req.clone();
+        offer_route(&mut route, std::slice::from_ref(&recipe)).unwrap();
+        assert_eq!(
+            route["messages"][1]["content"],
+            "fillet all the edges\nInspected body/component names: [\"Part\"]"
+        );
+        let mut out = req.clone();
+        offer(&mut out, &recipe, None).unwrap();
+        assert_eq!(
+            out["messages"][1]["content"],
+            "fillet all the edges\nInspected body/component names: [\"Part\"]"
+        );
+        req["messages"][0]["content"] =
+            json!(json!({"components":[{"name":"Pin"},{"name":"Bracket"}]}).to_string());
+        let joint = library
+            .find("revolute joint", &crate::recipe_library::Bm25)
+            .unwrap()["recipes"][0]
+            .clone();
+        assert_eq!(joint["id"], "revolute_joint");
+        offer(&mut req, &joint, None).unwrap();
+        assert!(req["messages"][1]["content"]
+            .as_str()
+            .unwrap()
+            .contains("[\"Bracket\",\"Pin\"]"));
+    }
+
+    #[test]
     fn turn_identity_survives_trim_and_system_changes_but_allows_new_users() {
         let mut turns = Turns::default();
         let mut req = request("make a profile");
@@ -327,12 +465,10 @@ mod tests {
         assert!(error.contains("use edges \"vertical\""));
         let mut retry = req.clone();
         offer(&mut retry, &recipe, Some(&error)).unwrap();
-        assert!(
-            retry["messages"].as_array().unwrap().last().unwrap()["content"]
-                .as_str()
-                .unwrap()
-                .contains(&error)
-        );
+        assert!(retry["messages"][0]["content"]
+            .as_str()
+            .unwrap()
+            .contains(&error));
         args["corners"].as_object_mut().unwrap().remove("edges");
         assert!(matches!(
             accept(&response(&args), &recipe, &req, &library, &catalog),

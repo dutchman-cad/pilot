@@ -74,7 +74,7 @@ impl Audit {
             .map_err(|e| format!("cannot write rewrite log: {e}"))?;
         self.size += bytes.len() as u64;
         // Size observations are audit records, not request rewrites.
-        if kind != "request_size" {
+        if kind != "request_size" && kind != "form_request" {
             self.count += 1;
         }
         let kind = kind.split(':').next().unwrap_or(kind);

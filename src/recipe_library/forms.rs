@@ -169,8 +169,8 @@ pub fn compact(s: &Value) -> Value {
     walk(&s, &s, "")
 }
 
-pub fn line(id: &str) -> String {
-    format!("{id}: user words; inches to mm; omit unstated; decline on mismatch.")
+pub fn line(_id: &str) -> String {
+    "You fill in one form from the user's CAD request. Call the tool once. Lengths in mm; convert inches (25.4) and cm (10). Leave optional fields out unless stated. If the form does not fit, set decline true.".into()
 }
 
 /// File-owned scalar form; typed schemas remain the compatibility contract.

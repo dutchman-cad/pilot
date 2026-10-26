@@ -62,13 +62,20 @@ Request side:
 - On a fresh user turn after exact direct matching, Pilot searches with the same ranker.
   A top score >= 4.5 (find hit/miss remains 1.8), with available recipe state or
   inspection first, offers only `pilot_fill`: the typed recipe schema plus boolean
-  `decline`, with forced function `tool_choice`. A short system line names the recipe,
-  requests fields from the user's words, inch-to-mm conversion, omitted unstated
-  optionals, and decline for mismatches. Reuse build validation and expansion.
+  `decline`, with forced function `tool_choice`. Fill and route are separate extraction
+  requests built from client model/sampling settings, one short Pilot system message,
+  the latest user message only, and exactly one tool. No client system prompt, history,
+  or tools are included. Target recipes add one bounded line of inspected body/component
+  names to the user message. Fill requests ask for mm (inches × 25.4, cm × 10), omitted
+  unstated optionals, and decline for mismatches. Reuse build validation and expansion.
   Scores from 1.5 inclusive to 4.5 exclusive offer a top-four `pilot_route`
   question first; lower scores use ordinary tools. A declined fill never routes.
-  Invalid fills get at most two field-error retries (three attempts); decline, text, another tool or third
-  invalid fill restores the ordinary tools for the rest of the turn. Local forms never
+  Invalid fills get at most two field-error retries (three attempts). An off-form or text
+  reply gets one retry of the same clean request with a one-line problem note, then
+  restores ordinary tools. Decline or a third invalid fill also restores ordinary tools.
+  All form calls including retries share the four-request per-turn cap; the wire cap
+  remains eight. Audit `form_request` records clean request bytes/characters, and
+  `request_size` and profile accounting include every extraction request. Local forms never
   reach the client. Audit `fill_offered` (recipe, score), `fill_accepted`, `fill_declined`,
   `fill_invalid`, `fill_fallback`, and `fill_defaulted` for inferred non-dimensional choices. Offer once per user turn; no continuation or SC98
   fills. Forced fill and route do not require `--offer-recipe-tools`. `--no-fill` skips

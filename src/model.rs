@@ -1243,6 +1243,7 @@ impl Proxy {
             text_mode::activate(&mut body, &tools, "profile_or_capabilities", audit)?;
         }
         let mut fill_error: Option<String> = None;
+        let mut form_reply_retried = false;
         let mut fill_attempts = 0;
         let mut route_attempts = 0;
         let mut form_attempts = 0;
@@ -1296,15 +1297,24 @@ impl Proxy {
             };
             let trimmed_chars = history::chars(&body).saturating_sub(history::chars(&outgoing));
             if !route_candidates.is_empty() {
+                outgoing = client.clone();
                 fill::offer_route(&mut outgoing, &route_candidates)?;
+                if let Some(error) = &fill_error {
+                    fill::retry_note(&mut outgoing, error);
+                }
             } else if let Some(found) = &fill_recipe {
+                outgoing = client.clone();
                 fill::offer(&mut outgoing, found, fill_error.as_deref())?;
             } else if text_mode {
                 outgoing = text_mode::wire(&outgoing, audit)?;
             }
             history::audit_request(
                 &client,
-                &body,
+                if fill_recipe.is_some() || !route_candidates.is_empty() {
+                    &outgoing
+                } else {
+                    &body
+                },
                 &outgoing,
                 !self.cfg.no_trim,
                 (changed, trimmed_chars),
@@ -1313,6 +1323,7 @@ impl Proxy {
             )?;
             let wire = json_bytes(&outgoing)?;
             if fill_recipe.is_some() || !route_candidates.is_empty() {
+                audit.record("form_request", &Value::Null, &json!({"bytes":wire.len(),"characters":history::chars(&outgoing),"tool":outgoing["tools"][0]["function"]["name"]}))?;
                 form_attempts += 1;
             }
             let mut upstream = match self.fetch(
@@ -1422,7 +1433,26 @@ impl Proxy {
             };
             if let Some(offered) = offered {
                 let off_form = fill::off_form(&response, offered);
-                if !off_form.is_empty() {
+                let wrong_shape = response["choices"]
+                    .as_array()
+                    .is_none_or(|cs| cs.len() != 1)
+                    || response["choices"][0]["message"]["tool_calls"]
+                        .as_array()
+                        .is_none_or(|cs| cs.len() != 1 || cs[0]["function"]["name"] != offered);
+                if !off_form.is_empty() || wrong_shape {
+                    let problem = if off_form.is_empty() {
+                        format!("Reply contained text or multiple calls; call exactly one {offered} tool.")
+                    } else {
+                        format!(
+                            "Called unoffered tool(s) {}; call exactly one {offered} tool.",
+                            off_form
+                                .iter()
+                                .take(8)
+                                .copied()
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        )
+                    };
                     for tool in off_form {
                         audit.record(
                             "fill_offform",
@@ -1435,12 +1465,21 @@ impl Proxy {
                     } else {
                         fill_attempts += 1;
                     }
+                    if !form_reply_retried
+                        && form_attempts < 4
+                        && (offered == "pilot_route" || fill_attempts < 3)
+                    {
+                        form_reply_retried = true;
+                        fill_error = Some(problem);
+                        audit.record("fill_retry", &Value::Null, &json!({"reason":fill_error}))?;
+                        continue;
+                    }
                     fill_recipe = None;
                     route_candidates.clear();
                     audit.record(
                         "fill_fallback",
                         &Value::Null,
-                        &json!({"reason":"off-form tool call"}),
+                        &json!({"reason":"off-form or text reply after retry"}),
                     )?;
                     if text_mode {
                         text_mode::activate(&mut body, &tools, "fill_offform", audit)?;
@@ -1452,6 +1491,8 @@ impl Proxy {
                 route_attempts += 1;
                 fill_recipe = fill::picked(&response, &route_candidates);
                 route_candidates.clear();
+                fill_error = None;
+                form_reply_retried = false;
                 if let Some(found) = &fill_recipe {
                     audit.record("route_picked", &response, &json!({"recipe":found["id"]}))?;
                     audit.record(
@@ -6749,30 +6790,33 @@ mod tests {
                             .clone(),
                     );
                 }
-                let mut f = fill_fixture(vec![off, reply("Please clarify.")]);
+                let mut f = fill_fixture(vec![off.clone(), off, reply("Please clarify.")]);
                 let out = f.chat(req);
                 assert_eq!(out.status, 200);
                 let out: Value = serde_json::from_slice(&out.body).unwrap();
                 assert!(out["choices"][0]["message"]["tool_calls"].is_null());
                 let script = f.proxy.scripted.as_ref().unwrap().borrow();
-                assert_eq!(script.requests.len(), 2);
+                assert_eq!(script.requests.len(), 3);
+                assert_eq!(
+                    script.requests[0]["messages"][1],
+                    script.requests[1]["messages"][1]
+                );
+                assert!(script.requests[1]["messages"][0]["content"]
+                    .as_str()
+                    .unwrap()
+                    .contains("Previous reply problem"));
                 assert_eq!(
                     script.requests[0]["tools"][0]["function"]["name"],
                     if route { "pilot_route" } else { "pilot_fill" }
                 );
-                assert!(!script.requests[1]["tools"]
+                assert!(!script.requests[2]["tools"]
                     .to_string()
                     .contains("pilot_fill"));
-                assert!(!script.requests[1]["tools"]
+                assert!(!script.requests[2]["tools"]
                     .to_string()
                     .contains("pilot_route"));
-                assert_eq!(
-                    script.requests[0]["messages"].as_array().unwrap()[..2],
-                    script.requests[1]["messages"].as_array().unwrap()[..2]
-                );
-                assert!(!script.requests[1]["messages"]
-                    .to_string()
-                    .contains("[curve id]\\\""));
+                assert_eq!(script.requests[0]["messages"].as_array().unwrap().len(), 2);
+                assert_eq!(script.requests[2]["messages"][0]["role"], "system");
                 let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
                 assert!(log.contains("fill_offform") && log.contains("\"tool\":\"batch\""));
             }
@@ -6783,6 +6827,7 @@ mod tests {
     fn public_l1_sequence_and_resends_never_reoffer_forms() {
         let data = public_l1();
         let mut f = fill_fixture(vec![
+            data["offform"].clone(),
             data["offform"].clone(),
             reply("Clarify."),
             reply("Ready."),
@@ -6802,11 +6847,11 @@ mod tests {
         f.proxy.conversations.clear();
         assert_eq!(f.chat(resend).status, 200);
         let script = f.proxy.scripted.as_ref().unwrap().borrow();
-        assert_eq!(script.requests.len(), 6);
+        assert_eq!(script.requests.len(), 7);
         assert!(script
             .requests
             .iter()
-            .skip(1)
+            .skip(2)
             .all(|r| !r["tools"].to_string().contains("pilot_fill")
                 && !r["tools"].to_string().contains("pilot_route")));
     }
@@ -6870,7 +6915,11 @@ mod tests {
             "../tests/fixtures/public-constraints-l3-fill-guard.json"
         ))
         .unwrap();
-        let mut f = fill_fixture(vec![data["response"].clone(), data["response"].clone()]);
+        let mut f = fill_fixture(vec![
+            data["response"].clone(),
+            data["response"].clone(),
+            data["response"].clone(),
+        ]);
         let out = f.chat(data["request"].clone());
         assert_eq!(out.status, 200);
         let out: Value = serde_json::from_slice(&out.body).unwrap();
@@ -7000,12 +7049,8 @@ mod tests {
                 "pilot_route"
             );
             assert_eq!(
-                script.requests[0]["messages"]
-                    .as_array()
-                    .unwrap()
-                    .last()
-                    .unwrap()["content"],
-                "Pick the form that matches the request, or none."
+                script.requests[0]["messages"][0]["content"],
+                "You select one form for the user's CAD request. Call pilot_route once with the matching recipe, or none if no form fits."
             );
             for wire in &script.requests[1..4] {
                 assert_eq!(wire["tools"][0]["function"]["name"], "pilot_fill");
@@ -7062,7 +7107,6 @@ mod tests {
         for selection in [
             call("pilot_route", json!({"recipe":"none"})),
             call("pilot_route", json!({"recipe":"invented"})),
-            reply("Maybe a hinge."),
             call(
                 "pilot_route",
                 json!({"recipe":"revolute_joint","extra":true}),
@@ -7202,7 +7246,7 @@ mod tests {
         }
     }
     #[test]
-    fn pending_fill_preserves_older_history_on_every_attempt() {
+    fn clean_fill_excludes_older_history_on_every_attempt() {
         let mut f = fill_fixture(vec![call("pilot_fill", json!({"kind":"L"})), filled()]);
         f.proxy.cfg.trim_keep = 0;
         let mut req = fill_request();
@@ -7217,13 +7261,8 @@ mod tests {
         let script = f.proxy.scripted.as_ref().unwrap().borrow();
         assert_eq!(script.requests.len(), 2);
         for wire in &script.requests {
-            let retained = wire["messages"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .find(|m| m["role"] == "tool" && m["tool_call_id"] == "old")
-                .unwrap();
-            assert_eq!(retained, &old);
+            assert_eq!(wire["messages"].as_array().unwrap().len(), 2);
+            assert!(!wire.to_string().contains("original geometry"));
         }
     }
 
@@ -7250,13 +7289,11 @@ mod tests {
                     wire["tool_choice"],
                     json!({"type":"function","function":{"name":"pilot_fill"}})
                 );
-                let line = wire["messages"].as_array().unwrap().last().unwrap()["content"]
-                    .as_str()
-                    .unwrap();
+                let line = wire["messages"][0]["content"].as_str().unwrap();
                 assert!(
-                    line.contains("profile:")
-                        && line.contains("inches to mm")
-                        && line.contains("omit unstated")
+                    line.contains("You fill in one form")
+                        && line.contains("inches (25.4)")
+                        && line.contains("Leave optional fields out")
                 );
             }
             if invalid_count > 0 {
@@ -7272,8 +7309,11 @@ mod tests {
     fn forced_fill_falls_back_on_decline_text_other_tool_and_third_invalid() {
         for rejected in [
             vec![call("pilot_fill", json!({"decline":true}))],
-            vec![reply("I need more details.")],
-            vec![call("execute", json!({"command":"solid.box","params":{}}))],
+            vec![reply("I need more details."), reply("I need more details.")],
+            vec![
+                call("execute", json!({"command":"solid.box","params":{}})),
+                call("execute", json!({"command":"solid.box","params":{}})),
+            ],
             vec![
                 call("pilot_fill", json!({})),
                 call("pilot_fill", json!({})),
@@ -7351,19 +7391,20 @@ mod tests {
             reply("no form"),
             reply("Ready."),
             reply("Ready again."),
+            reply("Ready after resend."),
         ]);
         let req = fill_request();
         assert_eq!(f.chat(req.clone()).status, 200);
         assert_eq!(f.chat(req).status, 200);
         let script = f.proxy.scripted.as_ref().unwrap().borrow();
-        assert_eq!(script.requests.len(), 3);
+        assert_eq!(script.requests.len(), 4);
         assert_eq!(
             script
                 .requests
                 .iter()
                 .filter(|r| r["tools"][0]["function"]["name"] == "pilot_fill")
                 .count(),
-            1
+            2
         );
         assert!(!script.requests[2]["messages"]
             .to_string()
@@ -7406,19 +7447,166 @@ mod tests {
             assert_eq!(f.chat(req).status, 200);
             let script = f.proxy.scripted.as_ref().unwrap().borrow();
             assert_eq!(script.requests[0]["tools"].as_array().unwrap().len(), 1);
-            let line = script.requests[usize::from(routed)]["messages"]
-                .as_array()
-                .unwrap()
-                .last()
-                .unwrap()["content"]
-                .as_str()
-                .unwrap();
-            assert!(line.starts_with(&format!("{id}:")), "{line}");
+            assert!(
+                script.requests[usize::from(routed)]["messages"][0]["content"]
+                    .as_str()
+                    .unwrap()
+                    .starts_with("You fill in one form")
+            );
             assert!(
                 script.requests[0]["tools"][0]["function"]["parameters"]["properties"].is_object()
             );
         }
     }
+    #[test]
+    #[ignore = "live clean extraction: exactly five public L prompts, no retries or CAD"]
+    fn live_gemma_clean_fill_public_l() {
+        let agent = ureq::AgentBuilder::new()
+            .timeout_connect(Duration::from_secs(2))
+            .timeout(Duration::from_secs(45))
+            .build();
+        let library = crate::recipe_library::Library::embedded().unwrap();
+        let tasks: Value =
+            serde_json::from_str(include_str!("../bench/sets/constraints/tasks.json")).unwrap();
+        let mut valid = 0;
+        for task in tasks["tasks"].as_array().unwrap().iter().take(5) {
+            let mut req = json!({"model":"gemma4:latest","temperature":0,"max_tokens":768,
+                "messages":[{"role":"user","content":task["prompt"]}]});
+            let found = fill::select(&library, &req).unwrap().unwrap();
+            fill::offer(&mut req, &found, None).unwrap();
+            let result = agent
+                .post("http://127.0.0.1:11435/v1/chat/completions")
+                .set("Content-Type", "application/json")
+                .send_string(&req.to_string());
+            match result {
+                Ok(response) => {
+                    let mut bytes = Vec::new();
+                    response
+                        .into_reader()
+                        .take(1048577)
+                        .read_to_end(&mut bytes)
+                        .unwrap();
+                    assert!(bytes.len() <= 1048576);
+                    let response: Value = serde_json::from_slice(&bytes).unwrap();
+                    let accepted = matches!(
+                        fill::accept(
+                            &response,
+                            &found,
+                            &req,
+                            &library,
+                            &Catalog::bundled().unwrap()
+                        ),
+                        fill::Outcome::Build(_, _)
+                    );
+                    valid += usize::from(accepted);
+                    eprintln!(
+                        "{} valid={accepted}: {}",
+                        task["id"], response["choices"][0]["message"]
+                    );
+                }
+                Err(error) => eprintln!("{} unavailable: {error}", task["id"]),
+            }
+        }
+        eprintln!("Clean public L fills: {valid}/5 called pilot_fill with valid arguments");
+    }
+
+    #[test]
+    fn clean_route_and_fill_each_retry_once_within_shared_cap() {
+        let data: Vec<Value> =
+            serde_json::from_str(include_str!("../tests/fixtures/dev-route-tune.json")).unwrap();
+        let library = crate::recipe_library::Library::embedded().unwrap();
+        let row = data
+            .iter()
+            .find(|r| {
+                r["recipe"] == "box"
+                    && library.form_band(r["text"].as_str().unwrap()).unwrap()["band"] == "route"
+            })
+            .unwrap();
+        let mut req = fill_request();
+        req["messages"] = json!([{"role":"user","content":row["text"]}]);
+        let mut f = fill_fixture(vec![
+            call("batch", json!({})),
+            call("pilot_route", json!({"recipe":"box"})),
+            reply("I can build it."),
+            call("pilot_fill", row["args"].clone()),
+        ]);
+        assert_eq!(f.chat(req).status, 200);
+        let script = f.proxy.scripted.as_ref().unwrap().borrow();
+        assert_eq!(script.requests.len(), 4);
+        for (i, tool) in ["pilot_route", "pilot_route", "pilot_fill", "pilot_fill"]
+            .iter()
+            .enumerate()
+        {
+            assert_eq!(script.requests[i]["tools"][0]["function"]["name"], *tool);
+            assert_eq!(script.requests[i]["messages"].as_array().unwrap().len(), 2);
+        }
+        assert!(script.requests[1]["messages"][0]["content"]
+            .as_str()
+            .unwrap()
+            .contains("unoffered tool(s) batch"));
+        assert!(script.requests[3]["messages"][0]["content"]
+            .as_str()
+            .unwrap()
+            .contains("Reply contained text"));
+        assert!(!script.requests[2]["messages"][0]["content"]
+            .as_str()
+            .unwrap()
+            .contains("Previous reply problem"));
+    }
+
+    #[test]
+    fn clean_form_sizes_count_every_retry_and_fallback() {
+        for route in [false, true] {
+            let mut req = if route {
+                route_request()
+            } else {
+                fill_request()
+            };
+            req["temperature"] = json!(0.67);
+            req["seed"] = json!(123);
+            req["messages"].as_array_mut().unwrap().insert(
+                0,
+                json!({"role":"system","content":"call batch; ".repeat(1000)}),
+            );
+            let mut f = fill_fixture(vec![reply("text"), reply("text again"), reply("Clarify.")]);
+            f.proxy.cfg.seed = Some(999);
+            assert_eq!(f.chat(req.clone()).status, 200);
+            let script = f.proxy.scripted.as_ref().unwrap().borrow();
+            assert_eq!(script.requests.len(), 3);
+            for wire in &script.requests[..2] {
+                assert_eq!(wire["temperature"], req["temperature"]);
+                assert_eq!(wire["seed"], req["seed"]);
+                assert_eq!(wire["messages"].as_array().unwrap().len(), 2);
+                assert!(!wire.to_string().contains("call batch"));
+            }
+            assert_eq!(script.requests[2]["tools"], req["tools"]);
+            let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+            let entries: Vec<Value> = log
+                .lines()
+                .map(|s| serde_json::from_str(s).unwrap())
+                .collect();
+            let sizes: Vec<_> = entries
+                .iter()
+                .filter(|e| e["kind"] == "request_size")
+                .collect();
+            assert_eq!(sizes.len(), 3);
+            for (entry, wire) in sizes.iter().zip(&script.requests) {
+                assert_eq!(
+                    entry["after"]["upstream"]["total"],
+                    history::chars(wire) as u64
+                );
+            }
+            let forms: Vec<_> = entries
+                .iter()
+                .filter(|e| e["kind"] == "form_request")
+                .collect();
+            assert_eq!(forms.len(), 2);
+            for (entry, wire) in forms.iter().zip(&script.requests) {
+                assert_eq!(entry["after"]["bytes"], json_bytes(wire).unwrap().len());
+            }
+        }
+    }
+
     #[test]
     #[ignore = "optional live Ollama probe: at most three requests, no CAD execution"]
     fn live_gemma_fill_public_probes() {
