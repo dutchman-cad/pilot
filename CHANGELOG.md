@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- SolidCraft 98: the model's action budget counts only its own steps, a dialog left open is
+  filled or cancelled cleanly, and repeated screens are shortened.
+
 ## 0.1.0-beta.5 (2026-10-26)
 
 - Recipes with Windows line endings now load.

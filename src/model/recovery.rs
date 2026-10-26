@@ -6,6 +6,7 @@ use std::hash::{Hash, Hasher};
 pub(super) struct Conversation {
     pub model: String,
     pub facts_seen: [bool; 3],
+    pub sc98_dialog_fact_seen: bool,
     pub next_hints_seen: std::collections::BTreeSet<u64>,
     pub history: Vec<u64>,
     counts: BTreeMap<String, usize>,

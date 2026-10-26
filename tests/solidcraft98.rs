@@ -223,7 +223,11 @@ mod host {
             .call("wait", &json!({"ms":0}))
             .to_string()
             .contains("three identical"));
-        assert!(s.call("look", &json!({})).to_string().contains("40 action"));
+        assert_eq!(s.call("look", &json!({}))["isError"], false);
+        assert!(s
+            .call("wait", &json!({"ms":0}))
+            .to_string()
+            .contains("40 action"));
         let path = dir().join("stale");
         std::fs::copy(fake(), &path).unwrap();
         let mut s = Server::new(config(path)).unwrap();
@@ -236,7 +240,11 @@ mod host {
         for _ in 0..40 {
             assert_eq!(s.call("unknown", &json!({}))["isError"], true);
         }
-        assert!(s.call("look", &json!({})).to_string().contains("40 action"));
+        assert_eq!(s.call("look", &json!({}))["isError"], false);
+        assert!(s
+            .call("wait", &json!({"ms":0}))
+            .to_string()
+            .contains("40 action"));
     }
     #[test]
     fn slow_pipe_and_blocked_pipe_deadlines() {
@@ -320,7 +328,7 @@ mod host {
         let mut m = Mcp::start(fake());
         assert!(m.request("initialize", json!({}))["capabilities"]["tools"].is_object());
         let tools = m.request("tools/list", json!({}));
-        assert_eq!(tools["tools"].as_array().unwrap().len(), 11);
+        assert_eq!(tools["tools"].as_array().unwrap().len(), 12);
         assert!(!tools.to_string().contains("quit"));
         m.ok("look", json!({}));
     }

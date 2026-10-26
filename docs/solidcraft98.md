@@ -40,8 +40,21 @@ never killed.
 ## Tools and model driver
 
 The MCP tools are `look`, `click`, `doubleclick`, `rightclick`, `drag`, `menu`,
-`key`, `type`, `wait`, `how`, and `yes`. Calls have closed schemas. Read the screen
-before choosing a target or changing fields. `type` preserves literal text;
+`key`, `type`, `wait`, `how`, `yes`, and `fill_dialog`. Calls have closed schemas. Read the screen
+before choosing a target or changing fields.
+`fill_dialog` accepts 1–16 named fields, fills them in order, and presses OK as
+one model action. Other displayed defaults stay unchanged. For example:
+
+```json
+{"tool":"fill_dialog","args":{"fields":[{"name":"Width (mm)","value":"20"},{"name":"Height (mm)","value":"20"}]}}
+```
+
+Every field must be displayed and unique; Pilot checks all targets before editing.
+It selects each field before typing, stops on the first error or dialog change,
+and never retries an uncertain edit. This is an explicit UI batch, available in
+both modes, not a recipe inferred from the task.
+
+`type` preserves literal text;
 the application's command reader trims outer whitespace. Coordinates must be
 inside the last reported screen bounds. `yes` requires a current application offer.
 
@@ -95,10 +108,36 @@ frames, and invalid schemas return errors. Limits include 4 KiB per command,
 are at most five seconds. MCP input messages are limited to 64 KiB.
 
 An MCP session permits 40 action/help attempts, 160 command/connect attempts,
-and 15 minutes. The driver defaults to 40 model turns, eight history turns,
+and 15 minutes. The driver defaults to 40 model actions, eight history turns,
 1 MiB of history, 131,072 total tokens, and 15 minutes. `--budget` accepts 1–200
-turns, with at most 800 remote commands. Three identical action/error/state
-results stop the loop. Empty replies have one retry; error hand-backs are bounded.
+model actions (including explicit look, help, and failed tool calls), with a separate
+three-request allowance for format/empty recovery. Pilot observations, repairs,
+and final dialog cancellation do not consume model actions. Remote commands still
+have their separate safety cap of at most 800; a large dialog batch can reach it.
+Three identical action/error/state results stop the loop. Empty replies have one retry; error hand-backs are bounded.
+Pilot sends one dialog fact per conversation: fill every field, then OK; target
+the intended field before typing. The driver retains that single system fact;
+the HTTP dialect deduplicates it against retained conversation state and incoming
+history. `--plain` / `--no-hints` disable the corresponding help. Key chord casing
+is normalized and audited outside plain mode.
+
+The driver keeps the current screen once, with compact status/error/offer history
+instead of repeated old screens. Public gemma cube recordings stopped after 11
+actions on **token_budget**, despite the runner's `--budget 40`: six unnecessary
+Tabs and repeated screen text consumed the token allowance before extrusion.
+This is not evidence of an 11-action runner limit. The runner only supplies the
+budget; no change in the other worktree is needed. Dialog batching and smaller
+history address Pilot's overhead; fresh benchmark pass rates remain unmeasured.
+
+Before an error hand-back, the assisted tools face cancels any open dialog.
+Before returning control, the assisted driver also cancels an unfinished dialog with
+Esc and verifies closure, without approving missing values. The summary reports
+`dialog_cancelled`, and any done message explains that those edits were not
+applied. Plain mode leaves dialogs intact for comparison. Cleanup failures stay
+visible as errors and never imply successful completion. Wall/remote command caps
+also apply to cleanup, so a disconnected or exhausted session can require manual
+recovery. The HTTP proxy only returns calls and cannot close application dialogs.
+
 TCP connection setup has a three-second deadline and at most two retries;
 commands share a fifteen-second write/read deadline. A lost connection discards
 cached state. An uncertain action is never replayed; a lost child is never

@@ -69,7 +69,7 @@ impl Upstream {
                     let mut text = String::new();
                     req.as_reader().read_to_string(&mut text).unwrap();
                     let v: Value = serde_json::from_str(&text).unwrap();
-                    assert_eq!(v["tools"].as_array().unwrap().len(), 11);
+                    assert_eq!(v["tools"].as_array().unwrap().len(), 12);
                     assert!(!v["tools"].to_string().contains("quit"));
                     r.lock().unwrap().push(v);
                     let message=replies.pop_front().unwrap_or(json!({"role":"assistant","content":"COMMAND: done no more scripted replies"}));
@@ -466,4 +466,219 @@ fn cli_offline_help_and_driver_bounds() {
             .status
             .success());
     }
+}
+
+// Public benchmark screens only. This peer checks the exact emitted wire sequence;
+// it never starts or connects to the shared application.
+fn replay_peer(
+    initial: String,
+    transitions: Vec<(String, String)>,
+) -> (Endpoint, thread::JoinHandle<()>) {
+    use std::io::{BufRead, BufReader, Write};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let endpoint = Endpoint::Tcp(listener.local_addr().unwrap());
+    let handle = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().unwrap();
+        stream
+            .set_read_timeout(Some(Duration::from_secs(10)))
+            .unwrap();
+        let mut reader = BufReader::new(stream.try_clone().unwrap());
+        let mut screen = initial;
+        let mut transitions = VecDeque::from(transitions);
+        let mut line = String::new();
+        while reader.read_line(&mut line).unwrap() != 0 {
+            let command = line.trim_end();
+            let answer = if command == "look" {
+                screen.clone()
+            } else {
+                let (expected, next) = transitions.pop_front().expect("unexpected command");
+                assert_eq!(command, expected);
+                screen = next;
+                "ok\n".into()
+            };
+            for l in answer.lines() {
+                writeln!(stream, "{}{l}", if l.starts_with('.') { "." } else { "" }).unwrap();
+            }
+            writeln!(stream, ".").unwrap();
+            stream.flush().unwrap();
+            line.clear();
+        }
+        assert!(transitions.is_empty(), "missing commands: {transitions:?}");
+    });
+    (endpoint, handle)
+}
+fn public_fixture(name: &str) -> Value {
+    serde_json::from_str(match name {
+        "gemma" => include_str!("fixtures/sc98-public/gemma-cube.json"),
+        "direct" => include_str!("fixtures/sc98-public/gemma-cube-direct.json"),
+        "muse" => include_str!("fixtures/sc98-public/muse-cube.json"),
+        _ => panic!("unknown fixture"),
+    })
+    .unwrap()
+}
+fn recorded_screen(fixture: &Value, step: usize) -> String {
+    fixture["steps"][step]["screen"].as_str().unwrap().into()
+}
+#[test]
+fn public_cube_dialog_batch_spends_two_actions_instead_of_eleven() {
+    let fixture = public_fixture("gemma");
+    let direct = public_fixture("direct");
+    let dialog = recorded_screen(&fixture, 0);
+    let sketch = recorded_screen(&fixture, 10);
+    let extrude = recorded_screen(&direct, 6);
+    let cube = recorded_screen(&direct, 7);
+    let mut transitions = vec![("menu Sketch > Rectangle...".into(), dialog.clone())];
+    for (name, value) in [("Width (mm)", "20"), ("Height (mm)", "20")] {
+        transitions.extend([
+            (format!("click {name}"), dialog.clone()),
+            ("key tab shift+tab".into(), dialog.clone()),
+            (format!("type {value}"), dialog.clone()),
+        ]);
+    }
+    transitions.extend([
+        ("click OK".into(), sketch),
+        ("menu Features > Extrude".into(), extrude.clone()),
+        ("click Depth (mm)".into(), extrude.clone()),
+        ("key tab shift+tab".into(), extrude.clone()),
+        ("type 20".into(), extrude),
+        ("click OK".into(), cube.clone()),
+    ]);
+    let (endpoint, peer) = replay_peer(
+        fixture["initial_screen"].as_str().unwrap().into(),
+        transitions,
+    );
+    let u = Upstream::new(vec![
+        fixture["steps"][0]["message"].clone(),
+        native(
+            "fill_dialog",
+            r#"{"fields":[{"name":"Width (mm)","value":"20"},{"name":"Height (mm)","value":"20"}]}"#,
+        ),
+        direct["steps"][6]["message"].clone(),
+        native(
+            "fill_dialog",
+            r#"{"fields":[{"name":"Depth (mm)","value":"20"}]}"#,
+        ),
+        text("COMMAND: done cube created"),
+    ]);
+    let mut cfg = u.cfg(false);
+    cfg.endpoint = endpoint;
+    cfg.budget = 5;
+    let log = cfg.log.clone().unwrap();
+    let r = drive::run(cfg).unwrap();
+    peer.join().unwrap();
+    assert_eq!(r["stop_reason"], "done");
+    assert_eq!(r["actions"], 4); // two for the entire rectangle dialog, two for extrusion
+    assert_eq!(r["errors"], 0);
+    assert_eq!(r["final_screen_text"], cube);
+    assert_eq!(fixture["summary"]["actions"], 11); // old run stopped before extrusion
+    let records = std::fs::read_to_string(log).unwrap();
+    assert_eq!(
+        records
+            .lines()
+            .filter(|l| l.contains("\"kind\":\"prompt\""))
+            .count(),
+        1
+    );
+    let requests = u.requests.lock().unwrap();
+    for req in requests.iter() {
+        assert_eq!(
+            req["messages"]
+                .to_string()
+                .matches("SolidCraft 98 dialogs:")
+                .count(),
+            1
+        );
+        assert_eq!(
+            req["messages"]
+                .to_string()
+                .matches("SolidCraft 98, ")
+                .count(),
+            1
+        );
+    }
+}
+#[test]
+fn public_muse_key_repair_and_exit_recovery_do_not_spend_model_actions() {
+    let fixture = public_fixture("muse");
+    let dialog = recorded_screen(&fixture, 2);
+    let typed = recorded_screen(&fixture, 3);
+    let height = recorded_screen(&fixture, 5);
+    let initial = fixture["initial_screen"].as_str().unwrap().to_owned();
+    let (endpoint, peer) = replay_peer(
+        initial.clone(),
+        vec![
+            ("click Sketch Rectangle".into(), dialog),
+            ("type 20".into(), typed),
+            ("key tab".into(), height),
+            ("key esc".into(), initial.clone()),
+        ],
+    );
+    let u = Upstream::new(vec![
+        fixture["steps"][2]["message"].clone(),
+        fixture["steps"][3]["message"].clone(),
+        fixture["steps"][4]["message"].clone(), // Tab was formerly rejected
+        text("COMMAND: done stopping"),
+    ]);
+    let mut cfg = u.cfg(false);
+    cfg.endpoint = endpoint;
+    let r = drive::run(cfg).unwrap();
+    peer.join().unwrap();
+    assert_eq!(r["actions"], 3);
+    assert_eq!(r["errors"], 0);
+    assert_eq!(r["dialog_cancelled"], true);
+    assert_eq!(r["final_screen_text"], initial);
+    assert!(r["done_message"].as_str().unwrap().contains("not applied"));
+}
+
+#[test]
+fn invalid_batch_validates_every_field_before_editing_and_recovers_before_handback() {
+    for rejected in [
+        native(
+            "fill_dialog",
+            r#"{"fields":[{"name":"Width (mm)","value":"20"},{"name":"Missing","value":"20"}]}"#,
+        ),
+        native("menu", r#"{"title":"Features","item":"Extrude"}"#),
+        native("click", r#"{"name":"Height (mm)","point":{"x":0,"y":0}}"#),
+    ] {
+        let fixture = public_fixture("gemma");
+        let initial = fixture["initial_screen"].as_str().unwrap().to_owned();
+        let (endpoint, peer) = replay_peer(
+            initial.clone(),
+            vec![
+                (
+                    "menu Sketch > Rectangle...".into(),
+                    recorded_screen(&fixture, 0),
+                ),
+                ("key esc".into(), initial.clone()),
+            ],
+        );
+        let u = Upstream::new(vec![
+            fixture["steps"][0]["message"].clone(),
+            rejected,
+            text("COMMAND: done stopped"),
+        ]);
+        let mut cfg = u.cfg(false);
+        cfg.endpoint = endpoint;
+        let r = drive::run(cfg).unwrap();
+        peer.join().unwrap();
+        assert_eq!(r["actions"], 2);
+        assert_eq!(r["errors"], 1);
+        let requests = u.requests.lock().unwrap();
+        let last = requests.last().unwrap()["messages"].to_string();
+        assert!(last.contains("Unfinished dialog cancelled"));
+        assert!(!last.contains(
+            "SCREEN:\\nSolidCraft 98, 800 x 600. Turbo off (the LED says 66 MHz).\\nDialog"
+        ));
+        assert_eq!(r["final_screen_text"], initial);
+    }
+}
+#[test]
+fn format_repair_requests_do_not_spend_the_model_action_budget() {
+    let u = Upstream::new(vec![text("not a call"), text("COMMAND: wait 0")]);
+    let mut cfg = u.cfg(false);
+    cfg.budget = 1;
+    let r = drive::run(cfg).unwrap();
+    assert_eq!(r["steps"], 2);
+    assert_eq!(r["actions"], 1);
+    assert_eq!(r["hand_backs"], 1);
 }
