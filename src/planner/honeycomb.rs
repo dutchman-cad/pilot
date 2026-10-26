@@ -53,7 +53,13 @@ fn field(a: &Value) -> Result<Field, String> {
     let web = num(a, "web")?;
     let pitch = af + web;
     let row_pitch = pitch * 3_f64.sqrt() / 2.;
-    let flat = a["orientation"] == "flat_top";
+    // Unstated orientation follows the longer plate side; ties use X rows.
+    // Explicit orientations remain relative to the plate's sketch axes.
+    let flat = match a["orientation"].as_str() {
+        Some("flat_top") => true,
+        Some("pointy_top") => false,
+        _ => num(a, "width")? > num(a, "length")?,
+    };
     let (along, across) = if flat {
         (num(a, "width")?, num(a, "length")?)
     } else {
@@ -158,10 +164,26 @@ pub(super) fn build(a: &Value, request: &Value, catalog: &Catalog) -> Result<Pla
     if plane == "XZ" {
         corner[1] -= thickness;
     }
+    // Build Y-row fields as X-row fields, then turn the completed part. The
+    // public 0.20 CLI exceeds its planar comparison budget for large Y arrays.
+    let build_origin = if f.flat { [0.; 3] } else { origin };
+    let build_dims = if f.flat {
+        match plane {
+            "XZ" => [width, thickness, length],
+            "YZ" => [thickness, width, length],
+            _ => [width, length, thickness],
+        }
+    } else {
+        dims
+    };
+    let mut build_corner = build_origin;
+    if plane == "XZ" {
+        build_corner[1] -= thickness;
+    }
     let mut calls = vec![call(
         catalog,
         "solid.box",
-        json!({"length":dims[0],"width":dims[1],"height":dims[2],"corner":corner,"operation":"new","body_name":"HoneycombPlate"}),
+        json!({"length":build_dims[0],"width":build_dims[1],"height":build_dims[2],"corner":build_corner,"operation":"new","body_name":"HoneycombPlate"}),
     )?];
     for parity in 0..2 {
         let row_count = (f.rows + 1 - parity) / 2;
@@ -171,17 +193,13 @@ pub(super) fn build(a: &Value, request: &Value, catalog: &Catalog) -> Result<Pla
         }
         let along = f.start[0] + parity as f64 * f.pitch / 2.;
         let across = f.start[1] + parity as f64 * f.row_pitch;
-        let center = if f.flat {
-            [across, along]
-        } else {
-            [along, across]
-        };
+        let center = [along, across];
         let name = format!("HoneycombCut{parity}");
-        calls.push(call(catalog,"sketch.create",json!({"plane":{"origin":origin,"x_dir":u,"y_dir":v},"name":format!("HoneycombSeed{parity}")}))?);
+        calls.push(call(catalog,"sketch.create",json!({"plane":{"origin":build_origin,"x_dir":u,"y_dir":v},"name":format!("HoneycombSeed{parity}")}))?);
         calls.push(call(
             catalog,
             "sketch.polygon.inscribed",
-            json!({"center":center,"radius":f.radius,"sides":6,"angle":if f.flat {0} else {30}}),
+            json!({"center":center,"radius":f.radius,"sides":6,"angle":30}),
         )?);
         calls.push(call(catalog, "sketch.finish", json!({}))?);
         calls.push(call(
@@ -190,9 +208,18 @@ pub(super) fn build(a: &Value, request: &Value, catalog: &Catalog) -> Result<Pla
             json!({"through_all":true,"operation":"cut","targets":["HoneycombPlate"],"name":name}),
         )?);
         if col_count * row_count > 1 {
-            let (d1, d2) = if f.flat { (v, u) } else { (u, v) };
-            calls.push(call(catalog,"solid.pattern.rectangular",json!({"features":[name],"dir1":d1,"count1":col_count,"spacing1":f.pitch,"dir2":d2,"count2":row_count,"spacing2":2.*f.row_pitch}))?);
+            calls.push(call(catalog,"solid.pattern.rectangular",json!({"features":[name],"dir1":u,"count1":col_count,"spacing1":f.pitch,"dir2":v,"count2":row_count,"spacing2":2.*f.row_pitch}))?);
         }
+    }
+    if f.flat {
+        let axis = match plane {
+            "XZ" => [0., -1., 0.],
+            "YZ" => [1., 0., 0.],
+            _ => [0., 0., 1.],
+        };
+        let translate: [f64; 3] =
+            std::array::from_fn(|i| u[i] * offset[0] + v[i] * (width + offset[1]));
+        calls.push(call(catalog, "solid.move", json!({"bodies":["HoneycombPlate"],"axis":axis,"angle":-90,"translate":translate,"copy":false}))?);
     }
     calls.push(call(catalog, "document.inspect", json!({"measure":true}))?);
     let cut_volume = f.count() as f64 * 3_f64.sqrt() / 2. * f.af * f.af * thickness;
@@ -388,7 +415,10 @@ pub(super) fn select(
     if flat && pointy {
         return Ok(None);
     }
-    let mut a = json!({"length":values[0],"width":values[1],"thickness":values[2],"size":values[3],"size_kind":if ac {"across_corners"} else {"across_flats"},"web":values[4],"border":values[5],"plane":plane.first().map_or("XY".into(),|p|p.to_uppercase()),"centred":has("centred")||has("centered"),"orientation":if flat {"flat_top"} else {"pointy_top"},"mode":if exact {"exact"} else {"fill"}});
+    let mut a = json!({"length":values[0],"width":values[1],"thickness":values[2],"size":values[3],"size_kind":if ac {"across_corners"} else {"across_flats"},"web":values[4],"border":values[5],"plane":plane.first().map_or("XY".into(),|p|p.to_uppercase()),"centred":has("centred")||has("centered"),"mode":if exact {"exact"} else {"fill"}});
+    if flat || pointy {
+        a["orientation"] = json!(if flat { "flat_top" } else { "pointy_top" });
+    }
     if exact {
         let r = t.iter().position(|w| w == "rows");
         let c = t.iter().position(|w| w == "columns");
@@ -468,7 +498,7 @@ mod tests {
         let mut a = args();
         a["size_kind"] = json!("across_corners");
         a["size"] = json!(14. / 3_f64.sqrt());
-        assert_eq!(field(&a).unwrap().count(), 624);
+        assert_eq!(field(&a).unwrap().count(), 646);
         a["mode"] = json!("exact");
         a["rows"] = json!(3);
         a["columns"] = json!(4);
@@ -484,6 +514,7 @@ mod tests {
         assert!(field(&a).unwrap_err().contains("5000"));
         a = args();
         a["length"] = json!(15);
+        a["orientation"] = json!("pointy_top");
         let f = field(&a).unwrap();
         assert_eq!(f.columns, [1, 0]);
         assert!(f.rows > 1);
@@ -501,8 +532,49 @@ mod tests {
         a = args();
         a["length"] = json!(33);
         a["width"] = json!(50);
+        a["orientation"] = json!("pointy_top");
         assert_eq!(field(&a).unwrap().columns, [3, 2]);
     }
+    #[test]
+    fn longer_side_defaults_and_explicit_orientation() {
+        let c = Catalog::bundled().unwrap();
+        for (length, width) in [(150., 300.), (45., 67.), (80., 51.), (60., 60.)] {
+            for kind in ["across_flats", "across_corners"] {
+                for exact in [false, true] {
+                    let mut a = args();
+                    a["length"] = json!(length);
+                    a["width"] = json!(width);
+                    a["size_kind"] = json!(kind);
+                    if exact {
+                        a["mode"] = json!("exact");
+                        a["rows"] = json!(2);
+                        a["columns"] = json!(3);
+                    }
+                    let original = field(&a).unwrap();
+                    assert_eq!(original.flat, width > length);
+                    a["length"] = json!(width);
+                    a["width"] = json!(length);
+                    let swapped = field(&a).unwrap();
+                    assert_eq!(original.rows, swapped.rows);
+                    assert_eq!(original.columns, swapped.columns);
+                    assert_eq!(original.start, swapped.start);
+                    assert_eq!(original.count(), swapped.count());
+                }
+            }
+        }
+        for (text, flat, count) in [
+            ("", true, 646),
+            (" pointy-top", false, 624),
+            (" flat-top", true, 646),
+        ] {
+            let text =
+                format!("Make a plate 150x300x3mm honeycomb 7mm AF web 1.5mm border 4mm{text}");
+            let p = select(&text, &req(&text), &c).unwrap().unwrap();
+            assert_eq!(field(&p.slots).unwrap().flat, flat);
+            assert_eq!(p.facts.as_ref().unwrap()["hex_count"], count);
+        }
+    }
+
     #[test]
     fn own_wording_and_schema_agree() {
         let c = Catalog::bundled().unwrap();
@@ -526,7 +598,7 @@ mod tests {
                 let p = plan(&req(&text), &c)
                     .unwrap()
                     .unwrap_or_else(|| panic!("{text}"));
-                assert_eq!(p.facts.as_ref().unwrap()["hex_count"], 624);
+                assert_eq!(p.facts.as_ref().unwrap()["hex_count"], 646);
                 crate::recipe_library::validate(&p.slots, &schema()).unwrap();
                 let typed = lib
                     .build(
@@ -536,7 +608,7 @@ mod tests {
                     )
                     .unwrap();
                 assert_eq!(p.calls, typed.calls);
-                assert!(p.calls.len() <= 12);
+                assert!(p.calls.len() <= 13);
                 assert_eq!(
                     lib.find(&text, &crate::recipe_library::Bm25).unwrap()["recipes"][0]["id"],
                     "honeycomb_pattern"

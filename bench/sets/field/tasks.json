@@ -51,16 +51,16 @@
       "prompt": "Draw a 150x300 rectangle with a 3mm depth, and create a hexagon pattern on it that was 7mm edge to edge and a spacing of 1.5mm from each other. Leave a border of 4mm around the edges.",
       "check": {
         "bodies": 1,
-        "volume": 55561.221761661,
+        "volume": 52760.49560582214,
         "tol": 0.0001,
         "bbox_size": [
           150,
           300,
           3
         ],
-        "faces": 3750
+        "faces": 3882
       },
-      "hex_count": 624,
+      "hex_count": 646,
       "reference": "references/honeycomb-plate.json",
       "setup_steps": 0
     }

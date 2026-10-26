@@ -1118,6 +1118,99 @@ fn measured_honeycomb_clearances(
     (web, border)
 }
 #[test]
+fn public_binary_honeycomb_swapped_sides_are_quarter_turns() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let cat = Catalog::bundled().unwrap();
+    let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    for (length, width) in [(150., 300.), (45., 67.), (80., 51.)] {
+        for kind in ["across_flats", "across_corners"] {
+            // Explicit orientation is axis-relative: a quarter turn exchanges
+            // pointy_top and flat_top. Omitted orientation needs no such hint.
+            for orientation in [None, Some("pointy_top"), Some("flat_top")] {
+                let flat = orientation.map_or(width > length, |o| o == "flat_top");
+                let mut measurements = Vec::new();
+                for swapped in [false, true] {
+                    let (l, w) = if swapped {
+                        (width, length)
+                    } else {
+                        (length, width)
+                    };
+                    let size = if kind == "across_flats" {
+                        7.
+                    } else {
+                        14. / 3_f64.sqrt()
+                    };
+                    let mut args = json!({"length":l,"width":w,"thickness":3,"size":size,"size_kind":kind,"web":1.5,"border":4});
+                    if let Some(o) = orientation {
+                        args["orientation"] = json!(if swapped {
+                            if o == "flat_top" {
+                                "pointy_top"
+                            } else {
+                                "flat_top"
+                            }
+                        } else {
+                            o
+                        });
+                    }
+                    let plan = lib
+                        .build(
+                            &json!({"recipe":"honeycomb_pattern","args":args}),
+                            &json!({"messages":[]}),
+                            &cat,
+                        )
+                        .unwrap();
+                    let mut session = Session::new(&path);
+                    session.run(&plan);
+                    let state = session.execute("document.inspect", json!({"measure":true}));
+                    let bodies = state["bodies"].as_array().unwrap();
+                    assert_eq!(bodies.len(), 1);
+                    let body = &bodies[0];
+                    let volume = body["volume_mm3"].as_f64().unwrap();
+                    assert!(
+                        (volume - plan.expected.as_ref().unwrap().created_volume_mm3.unwrap())
+                            .abs()
+                            < 0.01
+                    );
+                    for (axis, max) in [l, w, 3.].into_iter().enumerate() {
+                        assert!(body["bbox"]["min"][axis].as_f64().unwrap().abs() < 1e-6);
+                        assert!((body["bbox"]["max"][axis].as_f64().unwrap() - max).abs() < 1e-6);
+                    }
+                    let radius = 7. / 3_f64.sqrt();
+                    let loops = honeycomb_loops(&mut session, "XY", 0., radius);
+                    let count = loops.len();
+                    assert_eq!(plan.facts.as_ref().unwrap()["hex_count"], count);
+                    assert_eq!(body["faces"].as_u64().unwrap(), 6 + 6 * count as u64);
+                    let mut points: Vec<[i64; 2]> = loops
+                        .into_iter()
+                        .flatten()
+                        .map(|p| {
+                            let p = if swapped {
+                                p
+                            } else if flat {
+                                [width - p[1], p[0]]
+                            } else {
+                                [p[1], length - p[0]]
+                            };
+                            p.map(|n| (n * 100_000.).round() as i64)
+                        })
+                        .collect();
+                    points.sort_unstable();
+                    measurements.push((count, volume, points));
+                }
+                assert_eq!(measurements[0].0, measurements[1].0);
+                assert!((measurements[0].1 - measurements[1].1).abs() < 0.01);
+                assert_eq!(
+                    measurements[0].2, measurements[1].2,
+                    "{length}x{width} {kind} {orientation:?}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn public_binary_honeycomb_recipe() {
     let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
         return;
@@ -1133,6 +1226,9 @@ fn public_binary_honeycomb_recipe() {
         ("YZ", true, true, false),
     ] {
         let mut args = json!({"length":if fill{150}else{60},"width":if fill{300}else{50},"thickness":3,"size":7,"size_kind":"across_flats","web":1.5,"border":4,"plane":plane,"orientation":if flat{"flat_top"}else{"pointy_top"},"centred":centred});
+        if fill {
+            args.as_object_mut().unwrap().remove("orientation");
+        }
         if !fill {
             args["mode"] = json!("exact");
             args["rows"] = json!(3);
@@ -1148,7 +1244,7 @@ fn public_binary_honeycomb_recipe() {
         let mut s = Session::new(&path);
         s.run(&p);
         let state = s.execute("document.inspect", json!({"measure":true}));
-        let count = if fill { 624 } else { 12 };
+        let count = if fill { 646 } else { 12 };
         let length = args["length"].as_f64().unwrap();
         let width = args["width"].as_f64().unwrap();
         assert_eq!(state["bodies"].as_array().unwrap().len(), 1, "{state}");
@@ -1174,7 +1270,7 @@ fn public_binary_honeycomb_recipe() {
         assert!((web - 1.5).abs() < 1e-6, "{plane} {flat}: web {web}");
         assert!(border >= 4. - 1e-6, "border {border}");
         if fill {
-            assert!((border - 5.625).abs() < 1e-6);
+            assert!((border - 4.125).abs() < 1e-6);
         }
         eprintln!("Honeycomb {plane} flat={flat}: {count} cuts, volume {volume:.9}, measured web {web:.9}, border {border:.9}");
     }
@@ -1194,7 +1290,7 @@ fn public_binary_honeycomb_single_axes_and_fill_clipping() {
         (0, 0, 33., 50., 13),
         (0, 0, 15., 50., 3),
     ] {
-        let mut a = json!({"length":length,"width":width,"thickness":3,"size":14./3_f64.sqrt(),"size_kind":"across_corners","web":1.5,"border":4});
+        let mut a = json!({"length":length,"width":width,"thickness":3,"size":14./3_f64.sqrt(),"size_kind":"across_corners","web":1.5,"border":4,"orientation":"pointy_top"});
         if rows > 0 {
             a["mode"] = json!("exact");
             a["rows"] = json!(rows);
@@ -1260,6 +1356,24 @@ fn honeycomb_field_reference_matches_exact_recipe() {
         task["check"]["faces"].as_u64().unwrap(),
         6 + task["hex_count"].as_u64().unwrap() * 6
     );
+    if let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") {
+        let mut session = Session::new(&path);
+        for command in reference["commands"].as_array().unwrap() {
+            session.execute(
+                command["command"].as_str().unwrap(),
+                command["params"].clone(),
+            );
+        }
+        let state = session.execute("document.inspect", json!({"measure":true}));
+        assert_eq!(state["bodies"].as_array().unwrap().len(), 1);
+        let body = &state["bodies"][0];
+        assert_eq!(body["faces"], task["check"]["faces"]);
+        assert!(
+            (body["volume_mm3"].as_f64().unwrap() - task["check"]["volume"].as_f64().unwrap())
+                .abs()
+                < 0.01
+        );
+    }
 }
 
 #[test]

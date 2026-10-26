@@ -23,13 +23,19 @@ Run the reference, negative, and do-nothing modes documented in
 [the benchmark guide](../../README.md) with `--set field`.
 
 `honeycomb-plate` preserves the public rectangle/hexagon report. The default
-pointy-top AF lattice has 39 staggered rows of 16 hexes (624 through cuts),
+AF lattice has 19 staggered rows of 34 hexes (646 through cuts) along the
+longer side (Y for the given 150×300 plate),
 8.5 mm centre pitch, and 7.361215932 mm row pitch. The reference uses two seed
 cuts and two rectangular feature patterns, never separate hex bodies. Its
 check requires one body, a 150×300×3 mm box, the computed volume
-`135000 - 624 × sqrt(3)/2 × 7² × 3`, and 3750 planar faces
+`135000 - 646 × sqrt(3)/2 × 7² × 3`, and 3882 planar faces
 (6 plate faces + 6 per hex), enforcing the hex count through the existing face
 predicate. `hex_count` records that count as task metadata. The Rust public CLI
 test also reconstructs every hole loop from finished B-rep edges, measuring
-minimum web 1.5 mm and minimum border 5.625 mm (at least the requested 4 mm).
+minimum web 1.5 mm and minimum border 4.125 mm (at least the requested 4 mm).
+The reference previously ran rows along the shorter X side; it now follows the
+longer-side convention, retaining length along X and width along Y. Explicit
+pointy-top/flat-top requests still override this default.
+Y-row fields are built with X rows and then rotated through the public move
+command, avoiding the 0.20 CLI's planar comparison budget for large Y arrays.
 Doing nothing fails this task.

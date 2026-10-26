@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Lay out honeycomb rows along the plate's longer side by default, preserving explicit orientations and matching swapped dimensions by rotation.
+
 - Calibrate recipe retrieval with bounded synonyms, stemming and field hits, and route uncertain requests through one audited recipe choice before filling.
 
 - Embed recipes directly with include_str! so checkouts sharing a build directory each use their own recipe files; test the file list for omissions.

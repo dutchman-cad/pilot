@@ -83,8 +83,7 @@
         "type": "string"
       },
       "orientation": {
-        "default": "pointy_top",
-        "description": "pointy_top: vertex up; flat_top: edge up",
+        "description": "Omit: rows along longer side; pointy_top: X rows; flat_top: Y rows",
         "enum": [
           "pointy_top",
           "flat_top"
@@ -252,3 +251,11 @@
 ---
 
 Cut a plate with a staggered honeycomb of hexagonal through holes, bounded web and border; fill or exact rows and columns. Built by the `honeycomb_pattern` expander.
+
+Length stays along sketch X and width along sketch Y. When orientation is omitted,
+rows run along the longer side (X on a square). Swapping unequal length and width
+rotates the part by 90 degrees with the same hole count and volume. Explicit
+`pointy_top` means rows along X; explicit `flat_top` means rows along Y and wins
+over the longer-side convention. To rotate an explicit layout, swap these two
+orientations as well as the dimensions. This applies to fill and exact mode;
+columns count along rows. On XZ/YZ, X and Y here mean the plate's sketch axes.

@@ -475,8 +475,10 @@ and the absence of auxiliary timeline features.
 `pilot_find` retrieves `honeycomb_pattern` for a honeycomb or staggered hexagonal
 plate. `pilot_build` takes `length`, `width`, `thickness`, `size`, `size_kind`
 (`across_flats` or `across_corners`), `web` and `border`, in mm. Optional slots:
-`plane` (XY default, XZ, YZ), `centred` (false), `orientation` (`pointy_top`
-default or `flat_top`), and `mode` (`fill` default or `exact`). Exact mode needs
+`plane` (XY default, XZ, YZ), `centred` (false), `orientation` (omitted: rows
+along the longer side, X for squares; explicit `pointy_top`: X rows or
+`flat_top`: Y rows overrides this), and `mode` (`fill` default or `exact`).
+Length stays along sketch X and width along sketch Y. Exact mode needs
 `rows` and `columns`; fill rejects explicit counts. See the
 [recipe](../recipes/honeycomb_pattern.md) for the full placement contract.
 

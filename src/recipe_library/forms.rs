@@ -50,8 +50,8 @@ pub(crate) fn describe(s: &mut Value) {
                     None,
                 ),
                 "orientation" => (
-                    "pointy_top: vertex up; flat_top: edge up",
-                    Some(json!("pointy_top")),
+                    "Omit: rows along longer side; pointy_top: X rows; flat_top: Y rows",
+                    None,
                 ),
                 "mode" => (
                     "fill: fit field; exact: require rows and columns",
@@ -131,7 +131,7 @@ pub fn compact(s: &Value) -> Value {
             "kind" if out["enum"][0] == "fillet" => "round/bevel",
             "kind" => "Section outline",
             "size_kind" => "across_flats: edge to edge; across_corners: vertex to vertex",
-            "orientation" => "pointy_top: vertex up; flat_top: edge up",
+            "orientation" => "Omit: longer-side rows; pointy_top: X rows; flat_top: Y rows",
             "mode" => "fill: fit; exact: rows and columns",
             "web_thickness" => "Vertical leg; U bottom",
             "flange_thickness" => "Horizontal leg; U sides",

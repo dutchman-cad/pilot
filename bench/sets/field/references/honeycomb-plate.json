@@ -11,9 +11,9 @@
           0.0
         ],
         "height": 3.0,
-        "length": 150.0,
+        "length": 300.0,
         "operation": "new",
-        "width": 300.0
+        "width": 150.0
       }
     },
     {
@@ -44,8 +44,8 @@
       "params": {
         "angle": 30,
         "center": [
-          9.125,
-          10.136897288813167
+          7.625,
+          8.749056610490435
         ],
         "radius": 4.041451884327381,
         "sides": 6
@@ -69,8 +69,8 @@
     {
       "command": "solid.pattern.rectangular",
       "params": {
-        "count1": 16,
-        "count2": 20,
+        "count1": 34,
+        "count2": 10,
         "dir1": [
           1.0,
           0.0,
@@ -116,8 +116,8 @@
       "params": {
         "angle": 30,
         "center": [
-          13.375,
-          17.498113220980894
+          11.875,
+          16.110272542658162
         ],
         "radius": 4.041451884327381,
         "sides": 6
@@ -141,8 +141,8 @@
     {
       "command": "solid.pattern.rectangular",
       "params": {
-        "count1": 16,
-        "count2": 19,
+        "count1": 34,
+        "count2": 9,
         "dir1": [
           1.0,
           0.0,
@@ -158,6 +158,26 @@
         ],
         "spacing1": 8.5,
         "spacing2": 14.722431864335457
+      }
+    },
+    {
+      "command": "solid.move",
+      "params": {
+        "angle": -90,
+        "axis": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "bodies": [
+          "HoneycombPlate"
+        ],
+        "copy": false,
+        "translate": [
+          0.0,
+          300.0,
+          0.0
+        ]
       }
     }
   ]
