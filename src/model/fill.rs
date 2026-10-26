@@ -220,7 +220,11 @@ pub(super) enum Outcome {
 }
 
 /// Coercions are returned individually so the proxy audits each supplied field.
-pub(super) fn coerced(response: &Value, recipe: &Value) -> Result<(Value, Vec<Value>), String> {
+pub(super) fn coerced(
+    response: &Value,
+    recipe: &Value,
+    request: &Value,
+) -> Result<(Value, Vec<Value>), String> {
     let mut response = response.clone();
     if response["choices"].as_array().is_none_or(|c| c.len() != 1)
         || !response["choices"][0]["message"]["tool_calls"]
@@ -243,7 +247,11 @@ pub(super) fn coerced(response: &Value, recipe: &Value) -> Result<(Value, Vec<Va
     };
     let mut schema = recipe["schema"].clone();
     schema["properties"]["decline"] = json!({"type":"boolean"});
-    let changes = crate::recipe_library::forms::coerce(&mut args, &schema)?;
+    let mut changes = crate::recipe_library::forms::coerce(&mut args, &schema)?;
+    if args["decline"] != true && planner::patterns::is_pattern(recipe["id"].as_str().unwrap_or(""))
+    {
+        changes.extend(planner::patterns::resolve(&mut args, request)?);
+    }
     response["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"] =
         json!(args.to_string());
     Ok((response, changes))
@@ -256,7 +264,7 @@ pub(super) fn accept(
     library: &crate::recipe_library::Library,
     catalog: &Catalog,
 ) -> Outcome {
-    let response = match coerced(response, recipe) {
+    let response = match coerced(response, recipe, request) {
         Ok((r, _)) => r,
         Err(e) => return Outcome::Invalid(e),
     };
@@ -295,7 +303,10 @@ pub(super) fn accept(
     if let Some(o) = args.as_object_mut() {
         o.remove("decline");
     }
-    if needs_names(recipe) && recipe["id"] != "revolute_joint" {
+    if needs_names(recipe)
+        && recipe["id"] != "revolute_joint"
+        && !planner::patterns::is_pattern(recipe["id"].as_str().unwrap_or(""))
+    {
         let pronoun = last_user(request)
             .split(|c: char| !c.is_alphanumeric())
             .any(|w| matches!(w.to_ascii_lowercase().as_str(), "this" | "these" | "it"));
@@ -345,6 +356,63 @@ mod tests {
     fn request(text: &str) -> Value {
         json!({"messages":[{"role":"user","content":text}]})
     }
+    #[test]
+    fn pattern_fills_accept_model_axes_names_and_target_keys() {
+        let library = crate::recipe_library::Library::embedded().unwrap();
+        let catalog = Catalog::bundled().unwrap();
+        let recipe = library
+            .find("linear pattern", &crate::recipe_library::Bm25)
+            .unwrap()["recipes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|r| r["id"] == "linear_pattern")
+            .unwrap()
+            .clone();
+        let mut request = request("copy this part");
+        request["messages"].as_array_mut().unwrap().push(json!({"role":"tool","content":json!({"bodies":[{"name":"Body1","volume_mm3":1000,"bbox":{"min":[0,0,0],"max":[10,10,10]}}],"timeline":[{"id":1,"name":"Box1","type":"BoxFeature","error":null}]}).to_string()}));
+        request["messages"].as_array_mut().unwrap().push(json!({"role":"tool","content":json!({"id":1,"name":"Box1","type":"BoxFeature","error":null,"definition":{"operation":"new_body","corner":[0,0,0],"length":"10","width":"10","height":"10"}}).to_string()}));
+        for extra in [
+            json!({"target":"part","body":"10x10x10 Cube"}),
+            json!({"target":"post"}),
+            json!({"last_feature":true}),
+            json!({"body":true}),
+            json!({"target":"feature","body":null}),
+        ] {
+            for direction in [
+                json!([1, 0, 0]),
+                json!({"x":1}),
+                json!("positive X"),
+                json!([-1, 0, 0]),
+            ] {
+                let mut args = json!({"count":3,"spacing":20,"direction":direction});
+                args.as_object_mut()
+                    .unwrap()
+                    .extend(extra.as_object().unwrap().clone());
+                let response = json!({"choices":[{"message":{"tool_calls":[{"function":{"name":"pilot_fill","arguments":args.to_string()}}]}}]});
+                let (_, audit) = coerced(&response, &recipe, &request).unwrap();
+                assert!(audit
+                    .iter()
+                    .any(|c| c["field"] == "body" && c["after"] == "Body1"));
+                let Outcome::Build(envelope, plan) =
+                    accept(&response, &recipe, &request, &library, &catalog)
+                else {
+                    panic!("rejected {args}");
+                };
+                assert_eq!(envelope["args"]["body"], "Body1");
+                assert_eq!(plan.rule, "linear_pattern");
+                assert_eq!(
+                    plan.calls[0]["arguments"]["params"]["dir1"][0],
+                    if direction == json!([-1, 0, 0]) {
+                        -1.
+                    } else {
+                        1.
+                    }
+                );
+            }
+        }
+    }
+
     #[test]
     fn clean_shapes_keep_only_client_inference_settings_and_latest_user() {
         let library = crate::recipe_library::Library::embedded().unwrap();

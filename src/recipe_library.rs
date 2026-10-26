@@ -488,7 +488,12 @@ impl Library {
                 self.recipes.len()
             )
         })?;
-        let args = forms::to_slots(&envelope["args"], &r.schema)?;
+        let mut supplied = envelope["args"].clone();
+        if planner::patterns::is_pattern(&r.expander) {
+            planner::patterns::coerce(&mut supplied)?;
+            planner::patterns::resolve(&mut supplied, request)?;
+        }
+        let args = forms::to_slots(&supplied, &r.schema)?;
         let typed_schema = schema(&r.expander).unwrap_or_else(|_| r.schema.clone());
         validate(&args, &typed_schema)?;
         if r.expander == "sequence" {

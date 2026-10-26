@@ -1,0 +1,191 @@
+[
+  {
+    "id": "dp-01",
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 80,
+          "width": 30,
+          "height": 6,
+          "body_name": "Plate"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            10,
+            15,
+            6
+          ],
+          "diameter": 6
+        }
+      }
+    ],
+    "check": {
+      "bodies": 1,
+      "volume": 13551.910877663244,
+      "tol": 0.001,
+      "bbox_size": [
+        80.0,
+        30.0,
+        6.0
+      ],
+      "round": [
+        {
+          "d": 6,
+          "count": 5
+        }
+      ]
+    }
+  },
+  {
+    "id": "dp-05",
+    "commands": [
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 80,
+          "height": 8,
+          "base": [
+            0,
+            0,
+            0
+          ],
+          "body_name": "Flange"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            0,
+            0,
+            8
+          ],
+          "diameter": 20
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            30,
+            0,
+            8
+          ],
+          "diameter": 6
+        }
+      }
+    ],
+    "check": {
+      "bodies": 1,
+      "volume": 36341.778915679475,
+      "tol": 0.001,
+      "bbox_size": [
+        79.999,
+        80.0,
+        8.0
+      ],
+      "round": [
+        {
+          "d": 6,
+          "count": 6,
+          "pcd": 60
+        },
+        {
+          "d": 20,
+          "count": 1
+        }
+      ]
+    }
+  },
+  {
+    "id": "dp-09",
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 80,
+          "width": 60,
+          "height": 5,
+          "body_name": "Plate"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            10,
+            10,
+            5
+          ],
+          "diameter": 5
+        }
+      }
+    ],
+    "check": {
+      "bodies": 1,
+      "volume": 22822.098441198938,
+      "tol": 0.001,
+      "bbox_size": [
+        80.0,
+        60.0,
+        5.0
+      ],
+      "round": [
+        {
+          "d": 5,
+          "count": 12
+        }
+      ]
+    }
+  },
+  {
+    "id": "dp-10",
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 90,
+          "width": 90,
+          "height": 6,
+          "body_name": "Base"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 10,
+          "height": 6,
+          "base": [
+            15,
+            15,
+            6
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      }
+    ],
+    "check": {
+      "bodies": 1,
+      "volume": 56138.56997632183,
+      "tol": 0.001,
+      "bbox_size": [
+        90.0,
+        90.0,
+        12.0
+      ],
+      "round": [
+        {
+          "d": 10,
+          "count": 16
+        }
+      ]
+    }
+  }
+]

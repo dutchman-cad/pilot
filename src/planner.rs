@@ -8,7 +8,7 @@ mod first_turn;
 #[cfg(feature = "proxy")]
 pub(crate) mod form_context;
 mod honeycomb;
-mod patterns;
+pub(crate) mod patterns;
 mod recipes;
 #[cfg(test)]
 mod robust;

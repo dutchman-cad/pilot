@@ -1603,7 +1603,7 @@ impl Proxy {
             }
             if let Some(found) = &fill_recipe {
                 fill_attempts += 1;
-                let response = match fill::coerced(&response, found) {
+                let response = match fill::coerced(&response, found, &original) {
                     Ok((r, changes)) => {
                         for change in changes {
                             audit.record(

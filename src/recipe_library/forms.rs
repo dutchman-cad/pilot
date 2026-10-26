@@ -337,14 +337,21 @@ fn legacy_hole_coordinates(args: &mut Value, schema: &Value) -> Result<Vec<Value
     Ok(changes)
 }
 
-/// Coerce only explicitly supplied scalars. No dimensions or counts are inferred.
+/// Coerce explicitly supplied values, including unit axes. No dimensions or counts are inferred.
 pub fn coerce(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> {
     crate::repair::check_value(args)?;
+    let pattern_changes = if crate::planner::patterns::is_pattern(
+        schema["x-pilot-expander"].as_str().unwrap_or(""),
+    ) {
+        crate::planner::patterns::coerce(args)?
+    } else {
+        Vec::new()
+    };
     let fields = schema["properties"]
         .as_object()
         .ok_or("fill schema needs properties")?;
     let object = args.as_object_mut().ok_or("args requires one object")?;
-    let mut changes = Vec::new();
+    let mut changes = pattern_changes;
     for (key, value) in object {
         let compatibility = json!({"type":"number","x-unit":"mm"});
         let Some(field) = fields.get(key).or_else(|| {

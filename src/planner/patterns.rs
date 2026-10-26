@@ -15,7 +15,7 @@ pub fn schema(id: &str) -> Result<Value, String> {
             props["count"] = json!({"$ref":"#/$defs/Count"});
             props["spacing"] = json!({"$ref":"#/$defs/Length"});
             props["total_length"] = json!({"$ref":"#/$defs/Length"});
-            props["direction"] = json!({"$ref":"#/$defs/Axis"});
+            props["direction"] = json!({"type":"string","enum":["X","Y","Z","-X","-Y","-Z"]});
             props["edge"] = json!({"type":"string","minLength":1,"maxLength":128});
             vec!["target", "count"]
         }
@@ -40,6 +40,223 @@ pub fn schema(id: &str) -> Result<Value, String> {
     let mut schema = json!({"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":props,"required":required,"additionalProperties":false,"$defs":defs,"x-pilot-expander":id});
     crate::recipe_library::forms::describe(&mut schema);
     Ok(schema)
+}
+
+pub(crate) fn is_pattern(id: &str) -> bool {
+    matches!(id, "linear_pattern" | "circular_pattern" | "grid_pattern")
+}
+
+/// Normalize explicit form values only; every substitution is returned for auditing.
+pub(crate) fn coerce(args: &mut Value) -> Result<Vec<Value>, String> {
+    crate::repair::check_value(args)?;
+    let before = args.clone();
+    let obj = args
+        .as_object_mut()
+        .ok_or("pattern args requires one object")?;
+    for key in ["axis", "direction"] {
+        let Some(value) = obj.get_mut(key) else {
+            continue;
+        };
+        let parsed = if let Some(text) = value.as_str() {
+            let lower = text.trim().to_ascii_lowercase();
+            let stripped = lower.strip_prefix("along ").unwrap_or(&lower);
+            let stripped = stripped.strip_prefix("positive ").unwrap_or(stripped);
+            let stripped = stripped.strip_suffix(" axis").unwrap_or(stripped).trim();
+            let negative = stripped.starts_with('-') || stripped.starts_with("negative ");
+            let letter = stripped
+                .trim_start_matches(['+', '-'])
+                .strip_prefix("negative ")
+                .unwrap_or(stripped.trim_start_matches(['+', '-']));
+            match letter {
+                "x" => Some((0, negative)),
+                "y" => Some((1, negative)),
+                "z" => Some((2, negative)),
+                _ => None,
+            }
+        } else {
+            let v = vector(value).or_else(|| {
+                let o = value.as_object()?;
+                if o.is_empty() || o.keys().any(|k| !matches!(k.as_str(), "x" | "y" | "z")) {
+                    return None;
+                }
+                Some([
+                    o.get("x").map_or(Some(0.), Value::as_f64)?,
+                    o.get("y").map_or(Some(0.), Value::as_f64)?,
+                    o.get("z").map_or(Some(0.), Value::as_f64)?,
+                ])
+            });
+            v.and_then(|v| {
+                (0..3)
+                    .find(|i| v[*i].abs() == 1. && (0..3).all(|j| j == *i || v[j] == 0.))
+                    .map(|i| (i, v[i] < 0.))
+            })
+        };
+        let (i, negative) = parsed
+            .ok_or_else(|| format!("args.{key} {value} requires a unit axis; use X or [1,0,0]"))?;
+        if negative && key != "direction" {
+            return Err(format!("args.{key} {value} requires a positive world axis in this form; use X (or an inspected edge for a signed linear direction)"));
+        }
+        *value = json!(if negative {
+            ["-X", "-Y", "-Z"][i]
+        } else {
+            ["X", "Y", "Z"][i]
+        });
+    }
+    Ok(changes(&before, args))
+}
+
+fn changes(before: &Value, after: &Value) -> Vec<Value> {
+    before
+        .as_object()
+        .into_iter()
+        .flatten()
+        .map(|(k, _)| k)
+        .chain(after.as_object().into_iter().flatten().map(|(k, _)| k))
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .filter(|k| before[*k] != after[*k])
+        .map(|k| json!({"field":k,"before":before[k],"after":after[k]}))
+        .collect()
+}
+
+fn owner_names(def: &Value) -> Option<&Vec<Value>> {
+    ["participants", "targets", "body_names"]
+        .into_iter()
+        .filter_map(|key| def[key].as_array())
+        .find(|names| !names.is_empty())
+}
+
+pub(crate) fn resolve(args: &mut Value, request: &Value) -> Result<Vec<Value>, String> {
+    let before = args.clone();
+    crate::repair::check_value(args)?;
+    let original_target = args["target"]
+        .as_str()
+        .map(|s| s.trim().to_ascii_lowercase());
+    let obj = args
+        .as_object_mut()
+        .ok_or("pattern args requires one object")?;
+    if obj.get("body") == Some(&json!(true)) {
+        obj.remove("body");
+        if obj.get("target").is_some_and(|v| v != "body") {
+            return Err("args.body true conflicts with target; use target: body".into());
+        }
+        obj.insert("target".into(), json!("body"));
+    }
+    if let Some(value) = obj.remove("last_feature") {
+        if value != true || obj.get("target").is_some_and(|t| t != "last_feature") {
+            return Err(
+                "args.last_feature requires true and target last_feature; use target: last_feature"
+                    .into(),
+            );
+        }
+        obj.insert("target".into(), json!("last_feature"));
+    }
+    if let Some(target) = obj.get_mut("target") {
+        if let Some(text) = target.as_str() {
+            let canonical = match text.trim().to_ascii_lowercase().as_str() {
+                "feature" | "hole" | "the hole" | "boss" | "post" | "last_feature" => {
+                    Some("last_feature")
+                }
+                "body" | "part" | "copy the part" => Some("body"),
+                _ => None,
+            };
+            if let Some(canonical) = canonical {
+                *target = json!(canonical);
+            }
+        }
+    }
+
+    let Some(data) = snapshot(request) else {
+        return Ok(changes(&before, args));
+    };
+    if let Some(target @ ("hole" | "the hole" | "boss" | "post")) = original_target.as_deref() {
+        let kind = data["timeline"]
+            .as_array()
+            .and_then(|t| t.last())
+            .and_then(|f| f["type"].as_str());
+        let matches = if matches!(target, "hole" | "the hole") {
+            kind == Some("HoleFeature")
+        } else {
+            matches!(
+                kind,
+                Some("CylinderFeature" | "BoxFeature" | "ExtrudeFeature")
+            )
+        };
+        if !matches {
+            return Err(format!("args.target {target:?} does not match the inspected last feature {kind:?}; use body or inspect the requested feature"));
+        }
+    }
+    let bodies = data["bodies"]
+        .as_array()
+        .ok_or("pattern needs inspected bodies")?;
+    let mut chosen = args["body"].as_str().map(str::to_owned);
+    if args["target"] == "last_feature" {
+        let last = data["timeline"].as_array().and_then(|t| t.last());
+        if let Some(detail) = request["messages"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .rev()
+            .take(4096)
+            .filter(|m| m["role"] == "tool")
+            .filter_map(tool_payload)
+            .take_while(|v| !v["timeline"].is_array())
+            .find(|v| {
+                last.is_some_and(|last| v["id"] == last["id"] && v["name"] == last["name"])
+                    && v["definition"].is_object()
+            })
+        {
+            if let Some(names) = owner_names(&detail["definition"]).filter(|n| n.len() == 1) {
+                chosen = names[0].as_str().map(str::to_owned);
+            }
+        }
+    }
+    let normalize = |s: &str| {
+        s.chars()
+            .filter(|c| c.is_alphanumeric())
+            .flat_map(char::to_lowercase)
+            .collect::<String>()
+    };
+    let names: Vec<_> = bodies.iter().filter_map(|b| b["name"].as_str()).collect();
+    let exact: Vec<_> = names
+        .iter()
+        .copied()
+        .filter(|name| chosen.as_deref() == Some(*name))
+        .collect();
+    let matches = if !exact.is_empty() {
+        exact
+    } else if names.len() == 1 {
+        names.clone()
+    } else {
+        let query = normalize(chosen.as_deref().unwrap_or(""));
+        let near: Vec<_> = names
+            .iter()
+            .copied()
+            .filter(|name| !query.is_empty() && normalize(name) == query)
+            .collect();
+        if !near.is_empty() {
+            near
+        } else {
+            names
+                .iter()
+                .copied()
+                .filter(|name| {
+                    query.is_empty()
+                        || normalize(name).contains(&query)
+                        || query.contains(&normalize(name))
+                })
+                .collect()
+        }
+    };
+    if matches.len() == 1 {
+        args["body"] = json!(matches[0]);
+    } else if args["target"] != "last_feature" || chosen.is_some() {
+        return Err(format!(
+            "args.body {} is ambiguous or unmatched; choose one exact body name from {names:?}",
+            args["body"]
+        ));
+    }
+    Ok(changes(&before, args))
 }
 
 /// Deliberately narrow CAD repetition cues; unrelated file/clipboard operations stay out.
@@ -118,6 +335,9 @@ pub fn intent(text: &str) -> Option<&'static str> {
 }
 fn axis(s: &str) -> [f64; 3] {
     match s {
+        "-X" => [-1., 0., 0.],
+        "-Y" => [0., -1., 0.],
+        "-Z" => [0., 0., -1.],
         "Y" => [0., 1., 0.],
         "Z" => [0., 0., 1.],
         _ => [1., 0., 0.],
@@ -289,10 +509,7 @@ pub(super) fn build(
         let Some(detail) = detail else {
             return inspection(catalog, "timeline.inspect", json!({"feature":name}), args);
         };
-        let names = detail["definition"]
-            .get("body_names")
-            .or_else(|| detail["definition"].get("participants"))
-            .and_then(Value::as_array)
+        let names = owner_names(&detail["definition"])
             .filter(|a| a.len() == 1)
             .ok_or_else(|| format!("target last_feature has definition {} requiring exactly 1 target body; select target body or inspect a feature belonging to one body", detail["definition"]))?;
         chosen = names.first().cloned();
@@ -373,18 +590,83 @@ pub(super) fn build(
             return Err(format!("target {} with feature {name:?} requires 1 current successful feature inspection; inspect the active last feature again", args["target"]));
         }
         target = json!([name]);
-        let def = &detail["definition"];
+        // Dimensions are expressions in the public definition (diameter-created
+        // cylinders, for example, expose radius as "(10 mm) / 2"). Read their
+        // evaluated inputs rather than falling back to the joined body's bounds.
+        let mut definition = detail["definition"].clone();
+        let dimensions: &[&str] = match detail["type"].as_str() {
+            Some("CylinderFeature") => &["radius", "height"],
+            Some("BoxFeature") => &["length", "width", "height"],
+            Some("HoleFeature") => &["diameter"],
+            _ => &[],
+        };
+        if dimensions
+            .iter()
+            .any(|key| expression(&definition, key).is_err())
+        {
+            let parameters = request["messages"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .rev()
+                .take(4096)
+                .filter(|m| m["role"] == "tool")
+                .filter_map(tool_payload)
+                .take_while(|v| !v["timeline"].is_array())
+                .find(|v| v["parameters"].is_array());
+            let Some(parameters) = parameters else {
+                return inspection(
+                    catalog,
+                    "parameters.list",
+                    json!({"filter":"feature"}),
+                    args,
+                );
+            };
+            let parameters = parameters["parameters"]
+                .as_array()
+                .filter(|p| p.len() <= 4096)
+                .ok_or("pattern feature dimensions require at most 4096 evaluated parameters")?;
+            for key in dimensions {
+                if expression(&definition, key).is_ok() {
+                    continue;
+                }
+                let input = detail["inputs"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .take(128)
+                    .find(|input| {
+                        input["label"]
+                            .as_str()
+                            .is_some_and(|label| label.eq_ignore_ascii_case(key))
+                    });
+                let values: Vec<_> = parameters
+                    .iter()
+                    .filter(|p| {
+                        p["feature"] == name
+                            && input.is_some_and(|input| p["name"] == input["param"])
+                            && p["expression"] == definition[*key]
+                            && p["error"].is_null()
+                            && p["unit"] == "mm"
+                    })
+                    .collect();
+                if values.len() != 1 || values[0]["value"].as_f64().is_none() {
+                    return Err(format!("target last_feature {key} {} needs exactly 1 current evaluated input in mm; inspect parameters for {name:?}", definition[*key]));
+                }
+                definition[*key] = values[0]["value"].clone();
+                expression(&definition, key)?;
+            }
+        }
+        let def = &definition;
         new_bodies = def["operation"] == "new_body";
         cut = detail["type"] == "HoleFeature" || def["operation"] == "cut";
         if detail["type"] == "HoleFeature" {
-            let d = def["diameter"]
-                .as_str()
-                .and_then(|s| s.parse::<f64>().ok())
-                .filter(|v| v.is_finite() && *v > 0.)
-                .ok_or_else(|| format!("target last_feature diameter {} requires 1 resolved number; inspect the hole definition", def["diameter"]))?;
+            let d = expression(def, "diameter")?;
             let p = vector(&def["position"]).ok_or_else(|| format!("target last_feature position {} requires 3 numeric coordinates; inspect the hole definition", def["position"]))?;
             let normal = vector(&def["direction"]).ok_or_else(|| format!("target last_feature direction {} requires 3 numeric coordinates; inspect the hole definition", def["direction"]))?;
-            if def["participants"] != json!([body_name]) {
+            if owner_names(def).map_or(bodies.len() != 1, |names| {
+                names.as_slice() != [json!(body_name)]
+            }) {
                 return Err(format!("target last_feature with hole targets {} must match exactly 1 body {body_name:?}; select the hole's body", def["targets"]));
             }
             for i in 0..3 {
@@ -404,12 +686,9 @@ pub(super) fn build(
                 format!("target last_feature has type {} but supports only 4 types HoleFeature, BoxFeature, CylinderFeature, ExtrudeFeature; select target body", detail["type"]),
             );
         } else {
-            if def[if new_bodies {
-                "body_names"
-            } else {
-                "participants"
-            }] != json!([body_name])
-            {
+            if owner_names(def).map_or(bodies.len() != 1, |names| {
+                names.as_slice() != [json!(body_name)]
+            }) {
                 return Err(format!("target last_feature with bodies {} and participants {} must belong to exactly 1 body {body_name:?}; select the feature's body", def["body_names"], def["participants"]));
             }
             if !new_bodies {
@@ -729,4 +1008,67 @@ pub fn repetition_hint(request: &Value) -> Option<&'static str> {
         }
     }
     None
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod form_tests {
+    use super::*;
+    #[test]
+    fn model_axes_are_canonical_and_signed_directions_survive() {
+        for input in [
+            json!([1, 0, 0]),
+            json!({"x":1}),
+            json!("positive X"),
+            json!("X axis"),
+            json!("+x"),
+            json!("along X"),
+            json!("x"),
+        ] {
+            let mut args = json!({"direction":input});
+            assert!(!coerce(&mut args).unwrap().is_empty());
+            assert_eq!(args["direction"], "X");
+        }
+        for input in [
+            json!([-1, 0, 0]),
+            json!({"x":-1}),
+            json!("negative X"),
+            json!("-x"),
+        ] {
+            let mut args = json!({"direction":input});
+            coerce(&mut args).unwrap();
+            assert_eq!(args["direction"], "-X");
+        }
+        for input in [json!("z"), json!("Z Axis"), json!([0, 0, 1])] {
+            let mut args = json!({"axis":input});
+            coerce(&mut args).unwrap();
+            assert_eq!(args["axis"], "Z");
+        }
+        for input in [json!([1, 1, 0]), json!({"x":1,"typo":2}), json!("-z")] {
+            let error = coerce(&mut json!({"axis":input})).unwrap_err();
+            assert!(error.contains("args.axis") && error.contains("use"));
+        }
+    }
+    #[test]
+    fn inspected_selections_replace_inventions_and_preserve_ambiguity() {
+        let mut request = json!({"messages":[{"role":"user","content":"copy the part"},{"role":"tool","content":json!({"bodies":[{"name":"Body1"}],"timeline":[]}).to_string()}]});
+        for body in [Value::Null, json!("10x10x10 Cube")] {
+            let mut args = json!({"target":"body","body":body});
+            let audit = resolve(&mut args, &request).unwrap();
+            assert_eq!(args["body"], "Body1");
+            assert_eq!(audit.len(), 1);
+        }
+        request["messages"][1]["content"] = json!(json!({"bodies":[{"name":"Base Plate"},{"name":"Post"},{"name":"Post 2"}],"timeline":[{"id":1,"name":"Boss"}]}).to_string());
+        for name in ["base-plate", "Plate"] {
+            let mut args = json!({"target":"body","body":name});
+            resolve(&mut args, &request).unwrap();
+            assert_eq!(args["body"], "Base Plate");
+        }
+        let error = resolve(&mut json!({"target":"body","body":"pos"}), &request).unwrap_err();
+        assert!(error.contains("Post") && error.contains("Post 2"));
+        request["messages"].as_array_mut().unwrap().push(json!({"role":"tool","content":json!({"id":1,"name":"Boss","definition":{"targets":["Post"]}}).to_string()}));
+        let mut args = json!({"target":"last_feature"});
+        resolve(&mut args, &request).unwrap();
+        assert_eq!(args["body"], "Post");
+    }
 }

@@ -1594,3 +1594,101 @@ fn public_binary_probe_fill_plate_and_inner_lip() {
         );
     }
 }
+
+#[test]
+fn development_pattern_fills_replay_reference_measurements() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let fixtures: Value =
+        serde_json::from_str(include_str!("fixtures/dev_pattern_forms.json")).unwrap();
+    let library = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    let catalog = Catalog::bundled().unwrap();
+    for fixture in fixtures.as_array().unwrap() {
+        let mut session = Session::new(&path);
+        for command in fixture["commands"].as_array().unwrap() {
+            session.execute(
+                command["command"].as_str().unwrap(),
+                command["params"].clone(),
+            );
+        }
+        let (id, args) = match fixture["id"].as_str().unwrap() {
+            "dp-01" => (
+                "linear_pattern",
+                json!({"last_feature":true,"count":5,"spacing":12,"direction":[1,0,0]}),
+            ),
+            "dp-05" => (
+                "circular_pattern",
+                json!({"target":"the hole","count":6,"axis":"Z Axis","angle_deg":360}),
+            ),
+            "dp-09" => (
+                "grid_pattern",
+                json!({"target":"hole","columns":4,"rows":3,"spacing1":15,"spacing2":15,"plane":"XY"}),
+            ),
+            "dp-10" => (
+                "grid_pattern",
+                json!({"target":"boss","columns":4,"rows":4,"spacing1":20,"spacing2":20,"plane":"XY"}),
+            ),
+            _ => panic!("unknown development fixture"),
+        };
+        let mut request =
+            json!({"messages":[{"role":"user","content":"Pattern the existing feature"}]});
+        let mut built = false;
+        for _ in 0..4 {
+            let plan = library
+                .build(&json!({"recipe":id,"args":args}), &request, &catalog)
+                .unwrap();
+            for call in &plan.calls {
+                let result = session.execute(
+                    call["arguments"]["command"].as_str().unwrap(),
+                    call["arguments"]["params"].clone(),
+                );
+                request["messages"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(json!({"role":"tool","content":result.to_string()}));
+            }
+            if plan.rule == id {
+                built = true;
+                break;
+            }
+        }
+        assert!(built, "{request}");
+        let state = session.execute("document.inspect", json!({"measure":true}));
+        assert_eq!(
+            state["bodies"].as_array().unwrap().len(),
+            fixture["check"]["bodies"].as_u64().unwrap() as usize
+        );
+        let volume: f64 = state["bodies"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|b| b["volume_mm3"].as_f64().unwrap())
+            .sum();
+        let expected = fixture["check"]["volume"].as_f64().unwrap();
+        assert!((volume - expected).abs() <= expected * 0.001, "{state}");
+        let faces = session.execute("model.faces", json!({"body":state["bodies"][0]["name"]}));
+        for round in fixture["check"]["round"].as_array().unwrap() {
+            let radius = round["d"].as_f64().unwrap() / 2.;
+            // The public kernel may split a round wall at its seam. Count
+            // distinct cylinder axes, as the task's round checks do.
+            let cylinders: std::collections::BTreeSet<[i64; 2]> = faces["faces"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|face| {
+                    face["cylinder"]["radius"]
+                        .as_f64()
+                        .is_some_and(|r| (r - radius).abs() < 0.001)
+                })
+                .map(|face| {
+                    std::array::from_fn(|k| {
+                        (face["cylinder"]["origin"][k].as_f64().unwrap() * 1000.).round() as i64
+                    })
+                })
+                .collect();
+            let count = cylinders.len();
+            assert_eq!(count, round["count"].as_u64().unwrap() as usize, "{faces}");
+        }
+    }
+}

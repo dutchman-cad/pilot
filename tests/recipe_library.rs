@@ -1414,3 +1414,75 @@ fn enums_reject_containers_and_redundancy_preserves_bounds() {
         .unwrap_err()
         .contains("never a dimension"));
 }
+
+#[test]
+fn joined_boss_pattern_spacing_uses_tool_extent() {
+    let library = Library::embedded().unwrap();
+    let catalog = Catalog::bundled().unwrap();
+    let snapshot = json!({"bodies":[{"name":"Base","volume_mm3":49071.16,"bbox":{"min":[0,0,0],"max":[90,90,12]}}],"timeline":[{"id":1,"name":"Cylinder1","type":"CylinderFeature","error":null}]});
+    let detail = json!({"id":1,"name":"Cylinder1","type":"CylinderFeature","error":null,"definition":{"operation":"join","base":[15,15,6],"axis":[0,0,1],"radius":"5","height":"6"}});
+    let request = json!({"messages":[{"role":"user","content":"Pattern that boss"},{"role":"tool","content":snapshot.to_string()},{"role":"tool","content":detail.to_string()}]});
+    let mut args = json!({"target":"boss","body":null,"columns":4,"rows":4,"spacing1":20,"spacing2":20,"plane":"XY"});
+    let plan = library
+        .build(
+            &json!({"recipe":"grid_pattern","args":args}),
+            &request,
+            &catalog,
+        )
+        .unwrap();
+    assert_eq!(
+        plan.calls[0]["arguments"]["params"]["features"],
+        json!(["Cylinder1"])
+    );
+    assert_eq!(plan.expected.as_ref().unwrap().bodies, Some(1));
+    let mut expression_request = request.clone();
+    let mut expression_detail = detail.clone();
+    expression_detail["definition"]["radius"] = json!("(10 mm) / 2");
+    expression_detail["inputs"] = json!([{"label":"Radius","param":"d4"}]);
+    expression_request["messages"][2]["content"] = json!(expression_detail.to_string());
+    let lookup = library
+        .build(
+            &json!({"recipe":"grid_pattern","args":args}),
+            &expression_request,
+            &catalog,
+        )
+        .unwrap();
+    assert_eq!(lookup.calls[0]["arguments"]["command"], "parameters.list");
+    expression_request["messages"].as_array_mut().unwrap().push(json!({"role":"tool","content":json!({"parameters":[{"feature":"Cylinder1","name":"d4","unit":"mm","expression":"(10 mm) / 2","value":5}]}).to_string()}));
+    let resolved = library
+        .build(
+            &json!({"recipe":"grid_pattern","args":args}),
+            &expression_request,
+            &catalog,
+        )
+        .unwrap();
+    assert_eq!(resolved.calls[0], plan.calls[0]);
+    expression_request["messages"][3]["content"] = json!(json!({"parameters":[{"feature":"Cylinder1","name":"d4","unit":"mm","expression":"stale","value":5}]}).to_string());
+    assert!(library
+        .build(
+            &json!({"recipe":"grid_pattern","args":args}),
+            &expression_request,
+            &catalog
+        )
+        .unwrap_err()
+        .contains("current evaluated input"));
+    args["spacing1"] = json!(8);
+    let error = library
+        .build(
+            &json!({"recipe":"grid_pattern","args":args}),
+            &request,
+            &catalog,
+        )
+        .unwrap_err();
+    assert!(error.contains("overlapping instance bounds"), "{error}");
+    let mut wrong = request.clone();
+    wrong["messages"][1]["content"] = json!(json!({"bodies":snapshot["bodies"],"timeline":[{"id":1,"name":"Hole1","type":"HoleFeature","error":null}]}).to_string());
+    assert!(library
+        .build(
+            &json!({"recipe":"grid_pattern","args":args}),
+            &wrong,
+            &catalog
+        )
+        .unwrap_err()
+        .contains("does not match"));
+}
