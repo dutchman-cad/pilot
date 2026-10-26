@@ -65,8 +65,12 @@ Request side:
   `decline`, with forced function `tool_choice`. Fill and route are separate extraction
   requests built from client model/sampling settings, one short Pilot system message,
   the latest user message only, and exactly one tool. No client system prompt, history,
-  or tools are included. Target recipes add one bounded line of inspected body/component
-  names to the user message. Fill requests ask for mm (inches × 25.4, cm × 10), omitted
+  or tools are included. Existing-target recipes first request public inspection through
+  the client, then append a compact design summary (at most 8,192 characters and 12
+  bodies): names, bounds, centres, last created body, last feature and definition,
+  selection, and component/contact geometry for joints. Implicit this/these/it targets
+  use selection, then the last created body, then the only body; ambiguous targets
+  produce a clear form error. Fill requests ask for mm (inches × 25.4, cm × 10), omitted
   unstated optionals, and decline for mismatches. Reuse build validation and expansion.
   Scores from 1.5 inclusive to 4.5 exclusive offer a top-four `pilot_route`
   question first; lower scores use ordinary tools. A declined fill never routes.

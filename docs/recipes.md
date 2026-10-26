@@ -512,7 +512,7 @@ client model and sampling settings, one short Pilot system message, the latest u
 message, and exactly one tool. Client system prompts, tools and conversation history
 stay out. The fill instruction requests one tool call, lengths in mm (inches × 25.4,
 cm × 10), optional fields only when stated, and `decline: true` for mismatches.
-Target recipes append one bounded line listing inspected body/component names to
+Target recipes append a bounded design summary to
 the user message. Accepted arguments use the same validators, expanders, approval
 calls and measured verification as `pilot_build`; a form never reaches the client.
 
@@ -559,7 +559,29 @@ check is read once after implementation; its results belong in the commit body, 
 or test sentences. The ignored `live_gemma_route_tune` sends at most six tune
 requests to gemma4:latest on 127.0.0.1:11435 and prints route picks without CAD.
 
-Creation recipes need no existing target; patterns and joints inspect first.
+Creation recipes need no existing target. Patterns, mirror, move, fillet/chamfer,
+existing-body shell and revolute joint forms inspect before extraction, including
+before a route question containing one of these recipes. Inspection calls use the
+client's normal approval path. At most three inspection rounds read the measured
+document, up to 12 recent active feature definitions, and (for joints) component,
+joint and contact topology. Failed, partial or missing results stop with a form
+error; inspection never repeats an accepted modification.
+
+The clean request's JSON summary is capped at 8,192 characters and 12 bodies,
+with names, bounding boxes, centres, the last created body, last feature definition
+and current selection (`selection`, `metadata.selection`, or inspected selection).
+Joint summaries also include components, occurrences and circular contact geometry.
+Body counts and a partial marker distinguish a shortened list from an empty design.
+For "this", "these" or "it", whole-body forms use the selection, else the last
+created body whose inspected definition identifies it, else the only body. Multiple
+selections or unresolved multiple bodies produce a field error, never a guessed
+target. Explicit names and last-feature targets retain shared recipe validation.
+An existing rectangular box can be shelled with `body` and `wall`; omit new-box
+dimensions. Omitting `body` and supplying length, width, height and wall still
+creates a new box. Existing shells preserve other bodies and verify measured volume.
+`form_inspect` audits prerequisite calls; `form_request` and `request_size` include
+the summary on every extraction attempt.
+
 Existing-body edit fills accept only names from a complete latest inspected
 recipe snapshot; absent evidence produces a field error and bounded fallback.
 Unknown development sequence state requirements stay on the normal path.
@@ -635,3 +657,13 @@ field is audited as `fill_coerced`. Counts and angles do not accept length units
 A number supplied under an old container name, such as `bolt_circle: 56`, is
 rejected with the scalar field names to use. Each compact fill schema plus its
 system line stays below 1,200 characters, including the `decline` field.
+
+The independent public context regressions live in
+`src/model/tests/context_tests.rs`. They build a plate and peg, a joined boss and
+hole, a rib, two separately created bodies, and a component pair through the
+public MCP binary. A scripted extractor reads only the clean wire request; the
+original names-only implementation declined the row case because it could not
+identify "these". The tests now drive row, grid and circular forms through client
+execution and measured completion, exercise every existing-target form, verify
+selection precedence and inspection failure, and check extraction-size accounting.
+They do not use private evaluation tasks or model-specific prompt examples.

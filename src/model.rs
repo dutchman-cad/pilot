@@ -248,6 +248,7 @@ struct Proxy {
 #[cfg(test)]
 #[derive(Default)]
 struct Scripted {
+    model: Option<fn(&Value) -> Value>,
     reject_tools: bool,
     replies: std::collections::VecDeque<Upstream>,
     requests: Vec<Value>,
@@ -610,6 +611,16 @@ impl Proxy {
                     retry_after: None,
                 });
             }
+            if let Some(model) = script.model {
+                let request =
+                    serde_json::from_slice(body).map_err(|e| format!("test request: {e}"))?;
+                return Ok(Upstream {
+                    status: 200,
+                    body: model(&request).to_string().into_bytes(),
+                    content_type: "application/json".into(),
+                    retry_after: None,
+                });
+            }
             return script
                 .replies
                 .pop_front()
@@ -921,6 +932,10 @@ impl Proxy {
             .as_array()
             .and_then(|m| m.iter().rposition(|m| m["role"] == "user"))
             .unwrap_or(0);
+        let pending_form = conversation
+            .form_pending
+            .take()
+            .filter(|(i, _, _, _)| *i == user_index);
         if conversation.sketch_hint_index != user_index {
             conversation.sketch_hint_index = user_index;
             conversation.pattern_inspections = 0;
@@ -936,7 +951,9 @@ impl Proxy {
             conversation.direct = None;
             conversation.direct_failed = false;
         }
-        let mut recipe = if self.cfg.direct_recipes {
+        let mut recipe = if pending_form.is_some() {
+            None
+        } else if self.cfg.direct_recipes {
             planner::plan_direct(&body, &self.catalog)?
         } else if self.cfg.planner {
             planner::plan(&body, &self.catalog)?
@@ -949,10 +966,9 @@ impl Proxy {
             .is_some_and(|(i, _, _)| *i == user_index);
         if let Some((i, args)) = &conversation.shortcut_args {
             if *i == user_index
-                && conversation
-                    .direct
-                    .as_ref()
-                    .is_some_and(|(_, p, _)| matches!(p.rule, "resolve_joint" | "resolve_pattern"))
+                && conversation.direct.as_ref().is_some_and(|(_, p, _)| {
+                    matches!(p.rule, "resolve_joint" | "resolve_pattern" | "resolve_body")
+                })
             {
                 recipe = if args.get("recipe").is_some() {
                     self.recipes.build(args, &body, &self.catalog).ok()
@@ -968,7 +984,11 @@ impl Proxy {
                 resumed = recipe.is_some();
             }
         }
-        if self.cfg.direct_recipes && recipe.is_none() && !conversation.direct_failed {
+        if self.cfg.direct_recipes
+            && pending_form.is_none()
+            && recipe.is_none()
+            && !conversation.direct_failed
+        {
             recipe = planner::inspect_for_edit(&body, &self.catalog)?;
         }
         if self.cfg.direct_recipes || shortcut_active {
@@ -1214,11 +1234,47 @@ impl Proxy {
             }
         }
         let mut text_mode = profile.text_tool_mode || profile.native_support == Some(false);
-        let band = if shortcuts_enabled && !self.cfg.no_fill && form_allowed && recipe.is_none() {
+        let (continued_band, context_round) = if let Some((_, band, emitted, rounds)) = pending_form
+        {
+            if !fill::inspection_results(&original, &emitted) {
+                return direct::reply(&original, "Form error: design inspection failed or its results are incomplete. Inspect the target again before requesting a form.".into(), audit.count);
+            }
+            (Some(band), rounds)
+        } else {
+            (None, 0)
+        };
+        let band = if let Some(band) = continued_band {
+            band
+        } else if shortcuts_enabled && !self.cfg.no_fill && form_allowed && recipe.is_none() {
             self.recipes.form_band(last_user(&original))?
         } else {
             json!({"band":"low"})
         };
+        let all_candidates = band["recipes"].as_array().map(Vec::as_slice).unwrap_or(&[]);
+        let candidates =
+            &all_candidates[..all_candidates
+                .len()
+                .min(if band["band"] == "fill" { 1 } else { 4 })];
+        if matches!(band["band"].as_str(), Some("fill" | "route"))
+            && candidates.iter().any(fill::needs_names)
+        {
+            let joint = candidates
+                .iter()
+                .take(4)
+                .any(|r| r["id"] == "revolute_joint");
+            let reads = planner::form_context::reads(&original, joint, &self.catalog)?;
+            if !reads.is_empty() {
+                if context_round >= 3 {
+                    return direct::reply(&original, "Form error: design inspection limit reached; select a target and inspect it again.".into(), audit.count);
+                }
+                let calls: Vec<_> = reads.into_iter().enumerate().map(|(n,c)| json!({"id":format!("pilot_context_{user_index}_{context_round}_{n}"),"type":"function","function":{"name":c["tool"],"arguments":c["arguments"].to_string()}})).collect();
+                let message = json!({"role":"assistant","content":null,"tool_calls":calls});
+                conversation.form_pending =
+                    Some((user_index, band, message.clone(), context_round + 1));
+                audit.record("form_inspect", &Value::Null, &message)?;
+                return direct::native(&original, message, audit.count);
+            }
+        }
         let mut fill_recipe = (band["band"] == "fill").then(|| band["recipes"][0].clone());
         let mut route_candidates = if band["band"] == "route" {
             band["recipes"].as_array().cloned().unwrap_or_default()
@@ -1541,6 +1597,15 @@ impl Proxy {
                 };
                 match fill::accept(&response, found, &original, &self.recipes, &self.catalog) {
                     fill::Outcome::Build(args, plan) => {
+                        let raw = &response["choices"][0]["message"]["tool_calls"][0]["function"]
+                            ["arguments"];
+                        let supplied: Value = raw
+                            .as_str()
+                            .and_then(|s| serde_json::from_str(s).ok())
+                            .unwrap_or_else(|| raw.clone());
+                        if supplied.get("body").is_none() && args["args"].get("body").is_some() {
+                            audit.record("fill_defaulted", &Value::Null, &json!({"field":"body","value":args["args"]["body"],"rule":"selection, last created body, only body"}))?;
+                        }
                         audit.record(
                             "fill_accepted",
                             &args,
@@ -2977,6 +3042,7 @@ fn emit_sse(response: &Value, include_usage: bool) -> Result<Vec<u8>, String> {
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
+    mod context_tests;
     use super::*;
     use std::{
         cell::RefCell,
@@ -3038,6 +3104,7 @@ mod tests {
                     form_turns: std::cell::RefCell::default(),
                     turns: crate::capture::Ring::default(),
                     scripted: Some(RefCell::new(Scripted {
+                        model: None,
                         reject_tools: false,
                         replies: replies
                             .into_iter()
@@ -6760,6 +6827,41 @@ mod tests {
         req
     }
 
+    // Extraction-only fixtures acknowledge the new public read prerequisite with
+    // an empty document. Geometry behavior is exercised against the real binary.
+    fn chat_forms(f: &mut Fixture, mut req: Value) -> Reply {
+        for _ in 0..4 {
+            let out = f.chat(req.clone());
+            let parsed = if out.content_type == "text/event-stream" {
+                collect_sse(&out.body)
+            } else {
+                serde_json::from_slice::<Value>(&out.body).map_err(|e| e.to_string())
+            };
+            let Ok(value) = parsed else {
+                return out;
+            };
+            let message = &value["choices"][0]["message"];
+            let Some(calls) = message["tool_calls"].as_array().filter(|cs| {
+                !cs.is_empty()
+                    && cs.iter().all(|c| {
+                        c["id"]
+                            .as_str()
+                            .is_some_and(|s| s.starts_with("pilot_context_"))
+                    })
+            }) else {
+                return out;
+            };
+            req["messages"]
+                .as_array_mut()
+                .unwrap()
+                .push(message.clone());
+            for call in calls {
+                req["messages"].as_array_mut().unwrap().push(json!({"role":"tool","tool_call_id":call["id"],"content":json!({"bodies":[],"timeline":[],"components":[],"joints":[],"origins":[]}).to_string()}));
+            }
+        }
+        panic!("form inspection did not finish");
+    }
+
     fn public_l1() -> Value {
         serde_json::from_str(include_str!(
             "../tests/fixtures/public-constraints-l1-fill-guard.json"
@@ -6791,7 +6893,7 @@ mod tests {
                     );
                 }
                 let mut f = fill_fixture(vec![off.clone(), off, reply("Please clarify.")]);
-                let out = f.chat(req);
+                let out = chat_forms(&mut f, req);
                 assert_eq!(out.status, 200);
                 let out: Value = serde_json::from_slice(&out.body).unwrap();
                 assert!(out["choices"][0]["message"]["tool_calls"].is_null());
@@ -7001,7 +7103,7 @@ mod tests {
             call("pilot_route", json!({"recipe":"box"})),
             call("pilot_fill", row["args"].clone()),
         ]);
-        let out = f.chat(req);
+        let out = chat_forms(&mut f, req);
         assert_eq!(out.status, 200);
         let response: Value = serde_json::from_slice(&out.body).unwrap();
         assert!(response["choices"][0]["message"]["tool_calls"]
@@ -7030,7 +7132,8 @@ mod tests {
             if streaming {
                 req["stream"] = json!(true);
             }
-            assert_eq!(f.chat(req).status, 200);
+            let out = chat_forms(&mut f, req);
+            assert_eq!(out.status, 200);
             let script = f.proxy.scripted.as_ref().unwrap().borrow();
             assert_eq!(script.requests.len(), 5);
             assert_eq!(script.requests[0]["tools"].as_array().unwrap().len(), 1);
@@ -7048,10 +7151,10 @@ mod tests {
                 script.requests[0]["tool_choice"]["function"]["name"],
                 "pilot_route"
             );
-            assert_eq!(
-                script.requests[0]["messages"][0]["content"],
-                "You select one form for the user's CAD request. Call pilot_route once with the matching recipe, or none if no form fits."
-            );
+            assert!(script.requests[0]["messages"][0]["content"]
+                .as_str()
+                .unwrap()
+                .starts_with("You select one form"));
             for wire in &script.requests[1..4] {
                 assert_eq!(wire["tools"][0]["function"]["name"], "pilot_fill");
             }
@@ -7080,7 +7183,7 @@ mod tests {
             reply("Which parts?"),
         ]);
         mark_errors(&f);
-        assert_eq!(f.chat(route_request()).status, 200);
+        assert_eq!(chat_forms(&mut f, route_request()).status, 200);
         let script = f.proxy.scripted.as_ref().unwrap().borrow();
         assert_eq!(script.requests.len(), 5);
         assert_eq!(
@@ -7113,7 +7216,7 @@ mod tests {
             ),
         ] {
             let mut f = fill_fixture(vec![selection, reply("Which parts?")]);
-            assert_eq!(f.chat(route_request()).status, 200);
+            assert_eq!(chat_forms(&mut f, route_request()).status, 200);
             let script = f.proxy.scripted.as_ref().unwrap().borrow();
             assert_eq!(script.requests.len(), 2);
             assert_eq!(
@@ -7530,7 +7633,7 @@ mod tests {
             reply("I can build it."),
             call("pilot_fill", row["args"].clone()),
         ]);
-        assert_eq!(f.chat(req).status, 200);
+        assert_eq!(chat_forms(&mut f, req).status, 200);
         let script = f.proxy.scripted.as_ref().unwrap().borrow();
         assert_eq!(script.requests.len(), 4);
         for (i, tool) in ["pilot_route", "pilot_route", "pilot_fill", "pilot_fill"]
@@ -7570,7 +7673,7 @@ mod tests {
             );
             let mut f = fill_fixture(vec![reply("text"), reply("text again"), reply("Clarify.")]);
             f.proxy.cfg.seed = Some(999);
-            assert_eq!(f.chat(req.clone()).status, 200);
+            assert_eq!(chat_forms(&mut f, req.clone()).status, 200);
             let script = f.proxy.scripted.as_ref().unwrap().borrow();
             assert_eq!(script.requests.len(), 3);
             for wire in &script.requests[..2] {

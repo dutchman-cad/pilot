@@ -452,6 +452,10 @@ struct Circle {
     radius: f64,
     pin: bool,
 }
+#[cfg(feature = "proxy")]
+pub(crate) fn contact_summary(faces: &Value, edges: &Value) -> Vec<Value> {
+    circles(faces, edges).unwrap_or_default().into_iter().take(24).map(|c| json!({"body":faces["body"],"kind":if c.pin { "pin" } else { "hole" },"centre":c.center,"radius":c.radius,"axis":[0,0,1],"pick":c.pick})).collect()
+}
 fn circles(faces: &Value, edges: &Value) -> Option<Vec<Circle>> {
     let faces = array(&faces["faces"], 256)?;
     let edges = array(&edges["edges"], 256)?;
@@ -605,6 +609,7 @@ fn select_inner(
                         c["command"].as_str(),
                         Some(
                             "document.inspect"
+                                | "timeline.inspect"
                                 | "component.list"
                                 | "joint.list"
                                 | "model.faces"

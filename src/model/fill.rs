@@ -62,7 +62,12 @@ pub(super) fn select(
 
 /// Only inference settings cross into the extraction call. Client instructions,
 /// tool definitions, history, response formats and routing metadata stay out.
-fn clean(request: &Value, line: String, needs_names: bool) -> Result<Value, String> {
+fn clean(
+    request: &Value,
+    mut line: String,
+    needs_names: bool,
+    joint: bool,
+) -> Result<Value, String> {
     let mut out = json!({});
     for key in [
         "model",
@@ -89,12 +94,10 @@ fn clean(request: &Value, line: String, needs_names: bool) -> Result<Value, Stri
     }
     let mut user = last_user(request).to_string();
     if needs_names {
-        let names = planner::form_names(request);
-        if !names.is_empty() {
-            user.push_str(&format!(
-                "\nInspected body/component names: {}",
-                json!(names)
-            ));
+        line.push_str(" Use only inspected design facts. For this/these/it, use default_body (selection, last created body, then only body); decline if ambiguous. Use last_feature for a requested latest boss, rib or hole only when its inspected definition matches. Never rebuild an existing body to shell it.");
+        let context = planner::form_context::summary(request, joint);
+        if !context.is_empty() {
+            user.push_str(&format!("\nDesign context: {context}"));
         }
     }
     out["messages"] = json!([{"role":"system","content":line},{"role":"user","content":user}]);
@@ -116,7 +119,33 @@ pub(super) fn retry_note(outgoing: &mut Value, problem: &str) {
     }
 }
 
-fn needs_names(recipe: &Value) -> bool {
+pub(super) fn inspection_results(request: &Value, emitted: &Value) -> bool {
+    let Some(messages) = request["messages"].as_array() else {
+        return false;
+    };
+    let Some(start) = messages
+        .iter()
+        .rposition(|m| m["role"] == "assistant" && m["tool_calls"] == emitted["tool_calls"])
+    else {
+        return false;
+    };
+    let Some(calls) = emitted["tool_calls"].as_array() else {
+        return false;
+    };
+    let results = &messages[start + 1..];
+    results.len() == calls.len()
+        && calls.iter().all(|call| {
+            let matching: Vec<_> = results
+                .iter()
+                .filter(|m| m["role"] == "tool" && m["tool_call_id"] == call["id"])
+                .collect();
+            matching.len() == 1
+                && tool_data(matching[0])
+                    .is_some_and(|d| !direct::has_error(&d) && guidance::paging(&d).is_empty())
+        })
+}
+
+pub(super) fn needs_names(recipe: &Value) -> bool {
     matches!(
         recipe["schema"]["x-pilot-expander"].as_str(),
         Some(
@@ -128,6 +157,7 @@ fn needs_names(recipe: &Value) -> bool {
                 | "grid_pattern"
                 | "circular_pattern"
                 | "revolute_joint"
+                | "shell"
         )
     )
 }
@@ -141,6 +171,7 @@ pub(super) fn offer(
         outgoing,
         crate::recipe_library::forms::line(recipe["id"].as_str().unwrap_or("")),
         needs_names(recipe),
+        recipe["id"] == "revolute_joint",
     )?;
     let mut schema = crate::recipe_library::forms::compact(&recipe["schema"]);
     schema["properties"]["decline"] = json!({"type":"boolean"});
@@ -155,7 +186,7 @@ pub(super) fn offer(
 }
 
 pub(super) fn offer_route(outgoing: &mut Value, candidates: &[Value]) -> Result<(), String> {
-    *outgoing = clean(outgoing, "You select one form for the user's CAD request. Call pilot_route once with the matching recipe, or none if no form fits.".into(), candidates.iter().take(4).any(needs_names))?;
+    *outgoing = clean(outgoing, "You select one form for the user's CAD request. Call pilot_route once with the matching recipe, or none if no form fits.".into(), candidates.iter().take(4).any(needs_names), candidates.iter().take(4).any(|r| r["id"] == "revolute_joint"))?;
     let ids: Vec<_> = candidates
         .iter()
         .take(4)
@@ -288,12 +319,35 @@ pub(super) fn accept(
     if let Some(o) = args.as_object_mut() {
         o.remove("decline");
     }
+    if needs_names(recipe) && recipe["id"] != "revolute_joint" {
+        let pronoun = last_user(request)
+            .split(|c: char| !c.is_alphanumeric())
+            .any(|w| matches!(w.to_ascii_lowercase().as_str(), "this" | "these" | "it"));
+        let explicit = planner::recipe_targets(request).iter().any(|n| {
+            last_user(request)
+                .to_ascii_lowercase()
+                .contains(&n.to_ascii_lowercase())
+        });
+        if pronoun && !explicit && args["target"] != "last_feature" {
+            match planner::form_context::default_body(request) {
+                Ok(name) => {
+                    if args.get("body").is_some_and(|b| *b != name) {
+                        return Outcome::Invalid(format!("args.body must use the current target {name:?} (selection, last created body, or only body)"));
+                    }
+                    args["body"] = json!(name);
+                }
+                Err(e) => return Outcome::Invalid(e),
+            }
+        }
+    }
     if matches!(
         recipe["schema"]["x-pilot-expander"].as_str(),
         Some("fillet" | "chamfer" | "move" | "mirror")
-    ) && !planner::recipe_targets(request)
+    ) && planner::recipe_targets(request)
         .iter()
-        .any(|name| args["body"] == *name)
+        .filter(|name| args["body"] == **name)
+        .count()
+        != 1
     {
         return Outcome::Invalid(format!(
             "args.body {} must match exactly 1 inspected body name; inspect and use its exact name",
@@ -350,10 +404,10 @@ mod tests {
     }
 
     #[test]
-    fn inspected_names_are_one_line_only_for_target_recipes() {
+    fn inspected_context_is_only_for_target_recipes() {
         let library = crate::recipe_library::Library::embedded().unwrap();
         let mut req = request("fillet all the edges");
-        req["messages"].as_array_mut().unwrap().insert(0, json!({"role":"tool","content":json!({"body_count":1,"bodies":[{"name":"Part"}]}).to_string()}));
+        req["messages"].as_array_mut().unwrap().push(json!({"role":"tool","content":json!({"body_count":1,"bodies":[{"name":"Part"}],"timeline":[]}).to_string()}));
         let recipe = select(&library, &req).unwrap().unwrap();
         let creation = library
             .find("L profile", &crate::recipe_library::Bm25)
@@ -363,22 +417,18 @@ mod tests {
         offer(&mut creation_out, &creation, None).unwrap();
         assert_eq!(
             creation_out["messages"][1]["content"],
-            req["messages"][1]["content"]
+            req["messages"][0]["content"]
         );
         let mut route = req.clone();
         offer_route(&mut route, std::slice::from_ref(&recipe)).unwrap();
-        assert_eq!(
-            route["messages"][1]["content"],
-            "fillet all the edges\nInspected body/component names: [\"Part\"]"
-        );
+        assert!(route["messages"][1]["content"]
+            .as_str()
+            .unwrap()
+            .contains("Design context: "));
         let mut out = req.clone();
         offer(&mut out, &recipe, None).unwrap();
-        assert_eq!(
-            out["messages"][1]["content"],
-            "fillet all the edges\nInspected body/component names: [\"Part\"]"
-        );
-        req["messages"][0]["content"] =
-            json!(json!({"components":[{"name":"Pin"},{"name":"Bracket"}]}).to_string());
+        assert_eq!(out["messages"][1], route["messages"][1]);
+        req["messages"].as_array_mut().unwrap().push(json!({"role":"tool","content":json!({"components":[{"name":"Pin"},{"name":"Bracket"}]}).to_string()}));
         let joint = library
             .find("revolute joint", &crate::recipe_library::Bm25)
             .unwrap()["recipes"][0]
@@ -388,7 +438,7 @@ mod tests {
         assert!(req["messages"][1]["content"]
             .as_str()
             .unwrap()
-            .contains("[\"Bracket\",\"Pin\"]"));
+            .contains("\"name\":\"Pin\""));
     }
 
     #[test]
@@ -535,5 +585,29 @@ mod tests {
             ),
             Outcome::Invalid(_)
         ));
+    }
+
+    #[test]
+    fn implicit_form_targets_default_from_selection_and_reject_ambiguity() {
+        let library = crate::recipe_library::Library::embedded().unwrap();
+        let catalog = Catalog::bundled().unwrap();
+        let mut req = request("fillet all edges of these with radius 0.5 mm");
+        req["messages"].as_array_mut().unwrap().push(json!({"role":"tool","content":json!({"bodies":[{"name":"Plate"},{"name":"Peg"}],"timeline":[]}).to_string()}));
+        let recipe = select(&library, &req).unwrap().unwrap();
+        assert_eq!(recipe["id"], "fillet");
+        let response = json!({"choices":[{"message":{"tool_calls":[{"function":{"name":"pilot_fill","arguments":"{\"amount\":0.5}"}}]}}]});
+        assert!(
+            matches!(accept(&response,&recipe,&req,&library,&catalog),Outcome::Invalid(e) if e.contains("ambiguous"))
+        );
+        req["selection"] = json!(["Plate", "Peg"]);
+        assert!(
+            matches!(accept(&response,&recipe,&req,&library,&catalog),Outcome::Invalid(e) if e.contains("ambiguous"))
+        );
+        req["selection"] = json!(["Peg"]);
+        let Outcome::Build(envelope, _) = accept(&response, &recipe, &req, &library, &catalog)
+        else {
+            panic!("selected target not defaulted");
+        };
+        assert_eq!(envelope["args"]["body"], "Peg");
     }
 }

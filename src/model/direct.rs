@@ -37,6 +37,9 @@ fn response(
         retry_after: None,
     })
 }
+pub(super) fn native(request: &Value, message: Value, rewrites: usize) -> Result<Reply, String> {
+    response(request, message, "tool_calls", rewrites)
+}
 pub(super) fn calls(request: &Value, plan: &planner::Plan, index: usize) -> Value {
     let mut planned = plan.calls.clone();
     let batch = request["tools"]
@@ -202,7 +205,7 @@ impl Proxy {
 }
 
 // JSON ingress already bounds size and nesting, including batch result trees.
-fn has_error(value: &Value) -> bool {
+pub(super) fn has_error(value: &Value) -> bool {
     match value {
         Value::Object(object) => object.iter().any(|(key, value)| {
             (key == "error" && !value.is_null())

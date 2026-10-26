@@ -1,7 +1,6 @@
 ---
 {
   "id": "shell",
-  "synonyms": ["hollow open top shelled box uniform thickness bin planter"],
   "description": "Shell a rectangular box with uniform wall thickness and an open top.",
   "examples": [
     "Shell a box with a two mm wall",
@@ -9,6 +8,9 @@
     "Hollow a box leaving uniform walls",
     "Create an open top shell",
     "A shell box with a thin wall"
+  ],
+  "synonyms": [
+    "hollow open top shelled box uniform thickness bin planter"
   ],
   "schema": {
     "$defs": {
@@ -52,7 +54,27 @@
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties": false,
+    "anyOf": [
+      {
+        "required": [
+          "body"
+        ]
+      },
+      {
+        "required": [
+          "length",
+          "width",
+          "height"
+        ]
+      }
+    ],
     "properties": {
+      "body": {
+        "description": "Exact inspected body name; omit only if unambiguous",
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
       "height": {
         "$ref": "#/$defs/Length"
       },
@@ -67,9 +89,6 @@
       }
     },
     "required": [
-      "length",
-      "width",
-      "height",
       "wall"
     ],
     "type": "object",
@@ -77,6 +96,12 @@
     "x-pilot-fill": {
       "groups": [],
       "properties": {
+        "body": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string",
+          "x-slot": "/body"
+        },
         "height": {
           "exclusiveMinimum": 0,
           "maximum": 1000000,
@@ -107,10 +132,7 @@
         }
       },
       "required": [
-        "height",
-        "length",
-        "wall",
-        "width"
+        "wall"
       ]
     }
   },

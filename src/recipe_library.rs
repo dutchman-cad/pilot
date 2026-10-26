@@ -224,6 +224,11 @@ pub fn schema(id: &str) -> Result<Value, String> {
         json!({"type":"object","properties":props,"required":fields.iter().map(|(k,_)|k).collect::<Vec<_>>(),"additionalProperties":false})
     };
     shared(&mut s);
+    if id == "shell" {
+        s["properties"]["body"] = json!({"type":"string","minLength":1,"maxLength":128,"description":"Exact inspected rectangular body to shell; omit to create a new box"});
+        s["required"] = json!(["wall"]);
+        s["anyOf"] = json!([{"required":["body"]},{"required":["length","width","height"]}]);
+    }
     s["$schema"] = json!("https://json-schema.org/draft/2020-12/schema");
     s["$defs"] = definitions();
     s["x-pilot-expander"] = json!(id);

@@ -452,6 +452,9 @@ pub(crate) fn file_build(
     catalog: &Catalog,
 ) -> Result<Plan, String> {
     crate::recipe_library::validate_structure(args, &crate::recipe_library::schema(id)?)?;
+    if id == "shell" && args.get("body").is_some() {
+        return existing_shell(args, request, catalog);
+    }
     if matches!(id, "profile" | "plate" | "enclosure" | "revolute_joint") {
         let mut typed = args.clone();
         typed["shape"] = json!(id);
@@ -580,6 +583,96 @@ pub(crate) fn file_build(
     };
     from_slots(rule, slots, state(messages).as_ref(), catalog)?
         .ok_or_else(|| format!("args {args} exceeds capacity of {MAX_BODIES} bodies or {MAX_MM} mm; reduce sizes or remove bodies"))
+}
+
+fn existing_shell(args: &Value, request: &Value, catalog: &Catalog) -> Result<Plan, String> {
+    if ["length", "width", "height"]
+        .iter()
+        .any(|k| args.get(k).is_some())
+    {
+        return Err("args.body with shell dimensions is ambiguous; omit dimensions to shell the existing body".into());
+    }
+    let messages = request["messages"]
+        .as_array()
+        .ok_or("shell requires messages")?;
+    let Some(data) = state(messages) else {
+        return Ok(Plan {
+            rule: "resolve_body",
+            calls: vec![call(catalog, "document.inspect", json!({"measure":true}))?],
+            facts: None,
+            slots: args.clone(),
+            expected: None,
+            continuation: None,
+        });
+    };
+    let bodies = data["bodies"]
+        .as_array()
+        .ok_or("shell requires inspected bodies")?;
+    let matches: Vec<_> = bodies
+        .iter()
+        .filter(|b| b["name"] == args["body"])
+        .collect();
+    let [body] = matches.as_slice() else {
+        return Err("args.body must match exactly one inspected rectangular body".into());
+    };
+    let min = &body["bbox"]["min"];
+    let max = &body["bbox"]["max"];
+    let mut lo = [0.; 3];
+    let mut hi = [0.; 3];
+    for k in 0..3 {
+        lo[k] = min[k].as_f64().ok_or("shell needs measured bbox minimum")?;
+        hi[k] = max[k].as_f64().ok_or("shell needs measured bbox maximum")?;
+        if !lo[k].is_finite()
+            || !hi[k].is_finite()
+            || lo[k].abs() > MAX_MM
+            || hi[k].abs() > MAX_MM
+            || hi[k] <= lo[k]
+            || hi[k] - lo[k] > MAX_MM
+        {
+            return Err(
+                "shell bounds must have positive dimensions and coordinates within 1000000 mm"
+                    .into(),
+            );
+        }
+    }
+    let size: [f64; 3] = std::array::from_fn(|k| hi[k] - lo[k]);
+    let before = body["volume_mm3"]
+        .as_f64()
+        .ok_or("shell needs measured body volume")?;
+    if body["face_types"]["plane"] != 6 || (before - size.iter().product::<f64>()).abs() > 0.01 {
+        return Err("args.body must be an axis-aligned rectangular box for this shell form".into());
+    }
+    let wall = args["wall"].as_f64().ok_or("shell needs wall thickness")?;
+    if 2. * wall >= size[0].min(size[1]) || wall >= size[2] {
+        return Err("args.wall must be below half the length/width and below the height".into());
+    }
+    let removed = (size[0] - 2. * wall) * (size[1] - 2. * wall) * (size[2] - wall);
+    Ok(Plan {
+        rule: "shell",
+        slots: args.clone(),
+        facts: None,
+        continuation: None,
+        calls: vec![
+            call(
+                catalog,
+                "solid.shell",
+                json!({"body":args["body"],"faces":[[(lo[0]+hi[0])/2.,(lo[1]+hi[1])/2.,hi[2]]],"thickness":wall,"direction":"inside"}),
+            )?,
+            call(catalog, "document.inspect", json!({"measure":true}))?,
+        ],
+        expected: Some(Expected {
+            bodies: Some(bodies.len()),
+            volume_mm3: Some(
+                volume(&data).ok_or("shell needs measured document volume")? - removed,
+            ),
+            volume_range_mm3: None,
+            name: None,
+            created_volume_mm3: None,
+            placement: None,
+            feature: None,
+            joint: None,
+        }),
+    })
 }
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::panic)]

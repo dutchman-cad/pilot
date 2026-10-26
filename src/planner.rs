@@ -5,6 +5,8 @@ pub(crate) mod cases;
 mod english;
 #[cfg(test)]
 mod first_turn;
+#[cfg(feature = "proxy")]
+pub(crate) mod form_context;
 mod honeycomb;
 mod patterns;
 mod recipes;
@@ -165,7 +167,32 @@ fn tool_payload(message: &Value) -> Option<Value> {
     Some(data)
 }
 fn state(messages: &[Value]) -> Option<Value> {
-    let data = tool_payload(messages.iter().rev().find(|m| m["role"] == "tool")?)?;
+    let mut found = None;
+    for message in messages.iter().rev().filter(|m| m["role"] == "tool") {
+        let data = tool_payload(message)?;
+        if [
+            "created_bodies",
+            "changed_bodies",
+            "removed_bodies",
+            "feature",
+        ]
+        .iter()
+        .any(|key| data.get(key).is_some())
+        {
+            return None;
+        }
+        if data["definition"].is_object()
+            || data["components"].is_array()
+            || data["joints"].is_array()
+            || data["faces"].is_array()
+            || data["edges"].is_array()
+        {
+            continue;
+        }
+        found = Some(data);
+        break;
+    }
+    let data = found?;
     let bodies = data.get("bodies")?.as_array()?;
     if bodies.len() > MAX_BODIES
         || bodies.iter().any(|b| !b.is_object())
@@ -192,35 +219,6 @@ pub(crate) fn recipe_targets(request: &Value) -> Vec<String> {
                 .map(String::from)
         })
         .collect()
-}
-/// Bounded names from inspected payloads only, never from user or assistant prose.
-#[cfg(feature = "proxy")]
-pub(crate) fn form_names(request: &Value) -> Vec<String> {
-    let mut names = recipe_targets(request);
-    if let Some(messages) = request["messages"].as_array() {
-        if let Some(data) = messages
-            .iter()
-            .rev()
-            .filter(|m| m["role"] == "tool")
-            .filter_map(tool_payload)
-            .find(|d| d.get("components").is_some())
-        {
-            if let Some(components) = data["components"].as_array().filter(|cs| cs.len() <= 64) {
-                for component in components {
-                    if let Some(name) = component["name"]
-                        .as_str()
-                        .filter(|n| !n.is_empty() && n.len() <= 128)
-                    {
-                        names.push(name.to_string());
-                    }
-                }
-            }
-        }
-    }
-    names.truncate(128);
-    names.sort();
-    names.dedup();
-    names
 }
 fn body(text: &str, data: Option<&Value>) -> Option<String> {
     let bodies = data?.get("bodies")?.as_array()?;
