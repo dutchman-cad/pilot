@@ -107,6 +107,34 @@ fn public_binary_sketch_axes_and_world_holes() {
 }
 
 #[test]
+fn public_binary_offset_blind_cross_holes() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    for axis in ["x", "y", "z"] {
+        let args = json!({"length":20,"width":20,"height":20,"corner_x":-4,"corner_y":5,"corner_z":-6,format!("hole_{axis}_diameter"):4,format!("hole_{axis}_offset_u"):2,format!("hole_{axis}_offset_v"):-3,format!("hole_{axis}_depth"):5});
+        let p = lib
+            .build(
+                &json!({"recipe":"cross_drilled_box","args":args}),
+                &json!({"messages":[]}),
+                &cat,
+            )
+            .unwrap();
+        let mut s = Session::new(&path);
+        s.run(&p);
+        check_shortcut_body(
+            &mut s,
+            8000. - 20. * std::f64::consts::PI,
+            [-4., 5., -6.],
+            [16., 25., 14.],
+            false,
+        );
+    }
+}
+
+#[test]
 fn public_binary_construction_plane_result_contract() {
     let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
         return;
@@ -146,6 +174,65 @@ fn public_binary_offset_box_with_explicit_side_hole() {
         [16., 35., 34.],
         false,
     );
+}
+
+#[test]
+fn public_binary_centred_cross_hole_fills() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    for (position, partial) in [
+        (None, false),
+        (None, true),
+        (Some([10, 10, 10]), false),
+        (Some([0, 10, 10]), false),
+        (Some([20, 10, 10]), false),
+    ] {
+        let mut args = json!({"length":20,"width":20,"height":20,"hole_x_diameter":8,"hole_y_diameter":8,"hole_z_diameter":8});
+        if partial {
+            args["hole_x_position_y"] = json!(10);
+        }
+        if let Some(p) = position {
+            for (axis, point) in [
+                ("x", p),
+                ("y", [p[1], p[0], p[2]]),
+                ("z", [p[1], p[2], p[0]]),
+            ] {
+                for (key, n) in ["x", "y", "z"].into_iter().zip(point) {
+                    args[format!("hole_{axis}_position_{key}")] = json!(n);
+                }
+            }
+        }
+        let p = lib
+            .build(
+                &json!({"recipe":"cross_drilled_box","args":args}),
+                &json!({"messages":[]}),
+                &cat,
+            )
+            .unwrap();
+        let mut s = Session::new(&path);
+        s.run(&p);
+        check_shortcut_body(&mut s, 5708.1, [0.; 3], [20.; 3], false);
+        let faces = s.execute("model.faces", json!({"body":"PilotRecipe1"}));
+        let mut axes = std::collections::BTreeSet::new();
+        for f in faces["faces"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|f| f.get("cylinder").is_some())
+        {
+            let c = &f["cylinder"];
+            assert!((c["radius"].as_f64().unwrap() - 4.).abs() < 0.001);
+            axes.insert(
+                (0..3)
+                    .find(|i| c["axis"][i].as_f64().unwrap().abs() > 0.99)
+                    .unwrap(),
+            );
+        }
+        assert_eq!(axes.len(), 3);
+    }
 }
 impl Drop for Session {
     fn drop(&mut self) {
@@ -1219,6 +1306,8 @@ fn public_binary_honeycomb_recipe() {
     let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
     for (plane, flat, centred, fill) in [
         ("XY", false, false, true),
+        ("XY", false, true, true),
+        ("XY", true, true, true),
         ("XY", true, true, false),
         ("XZ", false, true, false),
         ("XZ", true, false, false),
@@ -1226,6 +1315,10 @@ fn public_binary_honeycomb_recipe() {
         ("YZ", true, true, false),
     ] {
         let mut args = json!({"length":if fill{150}else{60},"width":if fill{300}else{50},"thickness":3,"size":7,"size_kind":"across_flats","web":1.5,"border":4,"plane":plane,"orientation":if flat{"flat_top"}else{"pointy_top"},"centred":centred});
+        if fill && centred && !flat {
+            args["length"] = json!(300);
+            args["width"] = json!(150);
+        }
         if fill {
             args.as_object_mut().unwrap().remove("orientation");
         }
@@ -1242,6 +1335,14 @@ fn public_binary_honeycomb_recipe() {
             )
             .unwrap();
         let mut s = Session::new(&path);
+        assert_eq!(
+            p.calls[0]["arguments"]["params"]["corner"],
+            json!([0., 0., 0.])
+        );
+        assert_eq!(
+            p.facts.as_ref().unwrap()["hex_count"],
+            if fill { 646 } else { 12 }
+        );
         s.run(&p);
         let state = s.execute("document.inspect", json!({"measure":true}));
         let count = if fill { 646 } else { 12 };
@@ -1271,8 +1372,62 @@ fn public_binary_honeycomb_recipe() {
         assert!(border >= 4. - 1e-6, "border {border}");
         if fill {
             assert!((border - 4.125).abs() < 1e-6);
+            assert!((state["bodies"][0]["volume_mm3"].as_f64().unwrap() - 52760.5).abs() < 0.1);
         }
         eprintln!("Honeycomb {plane} flat={flat}: {count} cuts, volume {volume:.9}, measured web {web:.9}, border {border:.9}");
+    }
+}
+
+#[test]
+fn public_binary_honeycomb_given_corner() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let cat = Catalog::bundled().unwrap();
+    let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    for plane in ["XY", "XZ", "YZ"] {
+        for orientation in ["pointy_top", "flat_top"] {
+            let args = json!({"length":60,"width":50,"thickness":3,"size":7,"size_kind":"across_flats","web":1.5,"border":4,"plane":plane,"orientation":orientation,"mode":"exact","rows":3,"columns":4,"corner_x":-37,"corner_y":19,"corner_z":-11});
+            let p = lib
+                .build(
+                    &json!({"recipe":"honeycomb_pattern","args":args}),
+                    &json!({"messages":[]}),
+                    &cat,
+                )
+                .unwrap();
+            assert_eq!(
+                p.calls[0]["arguments"]["params"]["corner"],
+                json!([0., 0., 0.])
+            );
+            assert_eq!(
+                p.calls
+                    .iter()
+                    .filter(|c| c["arguments"]["command"] == "solid.move")
+                    .count(),
+                1
+            );
+            let mut s = Session::new(&path);
+            s.run(&p);
+            let state = s.execute("document.inspect", json!({"measure":true}));
+            let measured = json!({"messages":[{"role":"tool","content":state.to_string()}]});
+            assert_eq!(
+                planner::completion(&measured, p.expected.as_ref().unwrap()),
+                None,
+                "{state}"
+            );
+            let dims = match plane {
+                "XZ" => [60., 3., 50.],
+                "YZ" => [3., 60., 50.],
+                _ => [60., 50., 3.],
+            };
+            check_shortcut_body(
+                &mut s,
+                9000. - 12. * 3_f64.sqrt() / 2. * 49. * 3.,
+                [-37., 19., -11.],
+                std::array::from_fn(|i| [-37., 19., -11.][i] + dims[i]),
+                false,
+            );
+        }
     }
 }
 

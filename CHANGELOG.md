@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Build honeycomb plates at the origin before placing them, fixing failed centred patterns.
+- Centre cross-drilled holes by default; accept body-centre points, face-centre offsets and blind depths.
 - SolidCraft 98: the model's action budget counts only its own steps, a dialog left open is
   filled or cancelled cleanly, and repeated screens are shortened.
 

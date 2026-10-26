@@ -1,7 +1,9 @@
 ---
 {
   "id": "honeycomb_pattern",
-  "synonyms": ["perforated lattice honeycomb hex mesh hexagon cells web border"],
+  "synonyms": [
+    "perforated lattice honeycomb hex mesh hexagon cells web border"
+  ],
   "description": "Cut a plate with a staggered honeycomb of hexagonal through holes, bounded web and border; fill or exact rows and columns.",
   "examples": [
     "plate with honeycomb hexagonal through cuts",
@@ -123,6 +125,10 @@
       },
       "width": {
         "$ref": "#/$defs/Length"
+      },
+      "corner": {
+        "$ref": "#/$defs/Point3",
+        "description": "Minimum [x,y,z]; omitted: [0,0,0]"
       }
     },
     "required": [
@@ -137,7 +143,20 @@
     "type": "object",
     "x-pilot-expander": "honeycomb_pattern",
     "x-pilot-fill": {
-      "groups": [],
+      "groups": [
+        {
+          "fields": [
+            "corner_x",
+            "corner_y",
+            "corner_z"
+          ],
+          "required": [
+            "corner_x",
+            "corner_y",
+            "corner_z"
+          ]
+        }
+      ],
       "properties": {
         "border": {
           "maximum": 1000000,
@@ -233,6 +252,27 @@
           "type": "number",
           "x-slot": "/width",
           "x-unit": "mm"
+        },
+        "corner_x": {
+          "type": "number",
+          "minimum": -1000000,
+          "maximum": 1000000,
+          "x-unit": "mm",
+          "x-slot": "/corner/0"
+        },
+        "corner_y": {
+          "type": "number",
+          "minimum": -1000000,
+          "maximum": 1000000,
+          "x-unit": "mm",
+          "x-slot": "/corner/1"
+        },
+        "corner_z": {
+          "type": "number",
+          "minimum": -1000000,
+          "maximum": 1000000,
+          "x-unit": "mm",
+          "x-slot": "/corner/2"
         }
       },
       "required": [
@@ -259,3 +299,7 @@ rotates the part by 90 degrees with the same hole count and volume. Explicit
 over the longer-side convention. To rotate an explicit layout, swap these two
 orientations as well as the dimensions. This applies to fill and exact mode;
 columns count along rows. On XZ/YZ, X and Y here mean the plate's sketch axes.
+
+An optional `corner:[x,y,z]` (flat fields `corner_x/y/z`) sets the final minimum
+bounding-box corner. Use either this corner or `centred:true`. Cutting always
+starts at the origin; a single rigid move places the finished plate.

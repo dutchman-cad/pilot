@@ -166,7 +166,11 @@ pub fn compact(s: &Value) -> Value {
         out
     }
     let s = flat(s);
-    walk(&s, &s, "")
+    let mut out = walk(&s, &s, "");
+    if s["x-pilot-expander"] == "cross_drilled_box" {
+        out["description"] = s["description"].clone();
+    }
+    out
 }
 
 pub fn line(_id: &str) -> String {
@@ -248,7 +252,89 @@ pub fn flat(schema: &Value) -> Value {
     let Some(fill) = schema.get("x-pilot-fill") else {
         return schema.clone();
     };
-    json!({"type":"object","additionalProperties":false,"properties":fill["properties"],"required":fill["required"],"x-pilot-expander":schema["x-pilot-expander"]})
+    let mut out = json!({"type":"object","additionalProperties":false,"properties":fill["properties"],"required":fill["required"],"x-pilot-expander":schema["x-pilot-expander"]});
+    if schema["x-pilot-expander"] == "cross_drilled_box" {
+        out["description"] =
+            json!("Holes are centred unless you give offset_u/offset_v from the face centre.");
+    }
+    out
+}
+
+fn legacy_hole_key(key: &str) -> bool {
+    ["x", "y", "z"].iter().any(|axis| {
+        ["x", "y", "z"]
+            .iter()
+            .any(|coordinate| key == format!("hole_{axis}_position_{coordinate}"))
+    })
+}
+
+/// Retired flat coordinates are independent hints, never a partial vector.
+fn legacy_hole_coordinates(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> {
+    if schema["x-pilot-expander"] != "cross_drilled_box" {
+        return Ok(Vec::new());
+    }
+    let mut changes = Vec::new();
+    for (axis, name) in ["x", "y", "z"].iter().enumerate() {
+        for (coordinate, label) in ["x", "y", "z"].iter().enumerate() {
+            let key = format!("hole_{name}_position_{label}");
+            let Some(value) = args.get(&key).cloned() else {
+                continue;
+            };
+            let offset = if (0..3).filter(|i| *i != axis).position(|i| i == coordinate) == Some(1) {
+                "offset_v"
+            } else {
+                "offset_u"
+            };
+            let fix = format!(
+                "use hole_{name}_{offset} from the face centre, e.g. hole_{name}_{offset}:0"
+            );
+            let number = value
+                .as_f64()
+                .filter(|v| v.is_finite() && v.abs() <= 1_000_000.)
+                .ok_or_else(|| format!("args.{key} requires a bounded number; {fix}"))?;
+            let dimension = ["length", "width", "height"][coordinate];
+            let size = args[dimension]
+                .as_f64()
+                .filter(|v| *v > 0. && *v <= 1_000_000.)
+                .ok_or_else(|| format!("args.{dimension} missing or invalid for {key}; {fix}"))?;
+            let corner_key = format!("corner_{label}");
+            let corner = args
+                .get(&corner_key)
+                .or_else(|| args["corner"].get(coordinate));
+            let lo = match corner {
+                Some(v) => v
+                    .as_f64()
+                    .filter(|v| v.is_finite() && v.abs() <= 1_000_000.)
+                    .ok_or_else(|| format!("args.{corner_key} requires a bounded number; {fix}"))?,
+                None => 0.,
+            };
+            let centre = lo + size / 2.;
+            let centred = (number - centre).abs() < 1e-8;
+            let entry = (number - lo).abs() < 1e-8 || (number - lo - size).abs() < 1e-8;
+            if !centred
+                && (coordinate == axis && !entry
+                    || coordinate != axis && !(number > lo && number < lo + size))
+            {
+                return Err(format!(
+                    "args.{key} {number} is not a supported hole coordinate; {fix}"
+                ));
+            }
+            let target = format!("hole_{name}_{offset}");
+            if coordinate != axis && !centred {
+                let converted = json!(number - centre);
+                if args.get(&target).is_some_and(|v| !agrees(v, &converted)) {
+                    return Err(format!("args.{key} conflicts with {target}; {fix}"));
+                }
+                changes.push(json!({"field":target,"before":args.get(&target),"after":converted}));
+                args[&target] = converted;
+            }
+            args.as_object_mut()
+                .ok_or("args requires one object")?
+                .remove(&key);
+            changes.push(json!({"field":key,"before":value,"after":null,"converted_to":if coordinate != axis && !centred {Some(target)} else {None}}));
+        }
+    }
+    Ok(changes)
 }
 
 /// Coerce only explicitly supplied scalars. No dimensions or counts are inferred.
@@ -260,7 +346,11 @@ pub fn coerce(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> {
     let object = args.as_object_mut().ok_or("args requires one object")?;
     let mut changes = Vec::new();
     for (key, value) in object {
-        let Some(field) = fields.get(key) else {
+        let compatibility = json!({"type":"number","x-unit":"mm"});
+        let Some(field) = fields.get(key).or_else(|| {
+            (schema["x-pilot-expander"] == "cross_drilled_box" && legacy_hole_key(key))
+                .then_some(&compatibility)
+        }) else {
             continue;
         };
         let before = value.clone();
@@ -318,6 +408,7 @@ pub fn coerce(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> {
         }
     }
     changes.extend(defaults(args, schema)?);
+    changes.extend(legacy_hole_coordinates(args, schema)?);
     Ok(changes)
 }
 
@@ -474,6 +565,7 @@ pub fn to_slots(args: &Value, schema: &Value) -> Result<Value, String> {
     }
     let mut args = args.clone();
     defaults(&mut args, &flat(schema))?;
+    legacy_hole_coordinates(&mut args, schema)?;
     let object = args.as_object().ok_or("args requires one object")?;
     for (key, value) in object {
         if let Some(field) = fields.get(key).filter(|f| f.get("enum").is_some()) {

@@ -1,8 +1,10 @@
 ---
 {
   "id": "cross_drilled_box",
-  "synonyms": ["cross drilled cube block crossing bores axes faces"],
-  "description": "Box or cube cross-drilled with centred through holes along one, two or three world axes; holes through all six faces. No sketches or construction planes.",
+  "synonyms": [
+    "cross drilled cube block crossing bores axes faces"
+  ],
+  "description": "Holes are centred unless you give offset_u/offset_v from the face centre.",
   "examples": [
     "Make a cube with holes through all six faces",
     "Build a cross-drilled box",
@@ -57,6 +59,19 @@
             "position": {
               "$ref": "#/$defs/Point3",
               "description": "World [x,y,z] on entry face; omitted: face centre"
+            },
+            "offset_u": {
+              "type": "number",
+              "minimum": -1000000,
+              "maximum": 1000000
+            },
+            "offset_v": {
+              "type": "number",
+              "minimum": -1000000,
+              "maximum": 1000000
+            },
+            "depth": {
+              "$ref": "#/$defs/Length"
             }
           },
           "required": [
@@ -100,22 +115,7 @@
         },
         {
           "fields": [
-            "hole_x_position_x",
-            "hole_x_position_y",
-            "hole_x_position_z"
-          ],
-          "required": [
-            "hole_x_position_x",
-            "hole_x_position_y",
-            "hole_x_position_z"
-          ]
-        },
-        {
-          "fields": [
-            "hole_x_diameter",
-            "hole_x_position_x",
-            "hole_x_position_y",
-            "hole_x_position_z"
+            "hole_x_diameter"
           ],
           "required": [
             "hole_x_diameter"
@@ -123,22 +123,7 @@
         },
         {
           "fields": [
-            "hole_y_position_x",
-            "hole_y_position_y",
-            "hole_y_position_z"
-          ],
-          "required": [
-            "hole_y_position_x",
-            "hole_y_position_y",
-            "hole_y_position_z"
-          ]
-        },
-        {
-          "fields": [
-            "hole_y_diameter",
-            "hole_y_position_x",
-            "hole_y_position_y",
-            "hole_y_position_z"
+            "hole_y_diameter"
           ],
           "required": [
             "hole_y_diameter"
@@ -146,22 +131,37 @@
         },
         {
           "fields": [
-            "hole_z_position_x",
-            "hole_z_position_y",
-            "hole_z_position_z"
+            "hole_z_diameter"
           ],
           "required": [
-            "hole_z_position_x",
-            "hole_z_position_y",
-            "hole_z_position_z"
+            "hole_z_diameter"
           ]
         },
         {
           "fields": [
-            "hole_z_diameter",
-            "hole_z_position_x",
-            "hole_z_position_y",
-            "hole_z_position_z"
+            "hole_x_offset_u",
+            "hole_x_offset_v",
+            "hole_x_depth"
+          ],
+          "required": [
+            "hole_x_diameter"
+          ]
+        },
+        {
+          "fields": [
+            "hole_y_offset_u",
+            "hole_y_offset_v",
+            "hole_y_depth"
+          ],
+          "required": [
+            "hole_y_diameter"
+          ]
+        },
+        {
+          "fields": [
+            "hole_z_offset_u",
+            "hole_z_offset_v",
+            "hole_z_depth"
           ],
           "required": [
             "hole_z_diameter"
@@ -204,27 +204,6 @@
           "x-slot": "/hole_X/diameter",
           "x-unit": "mm"
         },
-        "hole_x_position_x": {
-          "maximum": 1000000,
-          "minimum": -1000000,
-          "type": "number",
-          "x-slot": "/hole_X/position/0",
-          "x-unit": "mm"
-        },
-        "hole_x_position_y": {
-          "maximum": 1000000,
-          "minimum": -1000000,
-          "type": "number",
-          "x-slot": "/hole_X/position/1",
-          "x-unit": "mm"
-        },
-        "hole_x_position_z": {
-          "maximum": 1000000,
-          "minimum": -1000000,
-          "type": "number",
-          "x-slot": "/hole_X/position/2",
-          "x-unit": "mm"
-        },
         "hole_y_diameter": {
           "exclusiveMinimum": 0,
           "maximum": 1000000,
@@ -232,53 +211,11 @@
           "x-slot": "/hole_Y/diameter",
           "x-unit": "mm"
         },
-        "hole_y_position_x": {
-          "maximum": 1000000,
-          "minimum": -1000000,
-          "type": "number",
-          "x-slot": "/hole_Y/position/0",
-          "x-unit": "mm"
-        },
-        "hole_y_position_y": {
-          "maximum": 1000000,
-          "minimum": -1000000,
-          "type": "number",
-          "x-slot": "/hole_Y/position/1",
-          "x-unit": "mm"
-        },
-        "hole_y_position_z": {
-          "maximum": 1000000,
-          "minimum": -1000000,
-          "type": "number",
-          "x-slot": "/hole_Y/position/2",
-          "x-unit": "mm"
-        },
         "hole_z_diameter": {
           "exclusiveMinimum": 0,
           "maximum": 1000000,
           "type": "number",
           "x-slot": "/hole_Z/diameter",
-          "x-unit": "mm"
-        },
-        "hole_z_position_x": {
-          "maximum": 1000000,
-          "minimum": -1000000,
-          "type": "number",
-          "x-slot": "/hole_Z/position/0",
-          "x-unit": "mm"
-        },
-        "hole_z_position_y": {
-          "maximum": 1000000,
-          "minimum": -1000000,
-          "type": "number",
-          "x-slot": "/hole_Z/position/1",
-          "x-unit": "mm"
-        },
-        "hole_z_position_z": {
-          "maximum": 1000000,
-          "minimum": -1000000,
-          "type": "number",
-          "x-slot": "/hole_Z/position/2",
           "x-unit": "mm"
         },
         "length": {
@@ -294,6 +231,69 @@
           "type": "number",
           "x-slot": "/width",
           "x-unit": "mm"
+        },
+        "hole_x_offset_u": {
+          "type": "number",
+          "minimum": -1000000,
+          "maximum": 1000000,
+          "x-slot": "/hole_X/offset_u",
+          "x-unit": "mm"
+        },
+        "hole_x_offset_v": {
+          "type": "number",
+          "minimum": -1000000,
+          "maximum": 1000000,
+          "x-slot": "/hole_X/offset_v",
+          "x-unit": "mm"
+        },
+        "hole_x_depth": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "x-slot": "/hole_X/depth",
+          "x-unit": "mm"
+        },
+        "hole_y_offset_u": {
+          "type": "number",
+          "minimum": -1000000,
+          "maximum": 1000000,
+          "x-slot": "/hole_Y/offset_u",
+          "x-unit": "mm"
+        },
+        "hole_y_offset_v": {
+          "type": "number",
+          "minimum": -1000000,
+          "maximum": 1000000,
+          "x-slot": "/hole_Y/offset_v",
+          "x-unit": "mm"
+        },
+        "hole_y_depth": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "x-slot": "/hole_Y/depth",
+          "x-unit": "mm"
+        },
+        "hole_z_offset_u": {
+          "type": "number",
+          "minimum": -1000000,
+          "maximum": 1000000,
+          "x-slot": "/hole_Z/offset_u",
+          "x-unit": "mm"
+        },
+        "hole_z_offset_v": {
+          "type": "number",
+          "minimum": -1000000,
+          "maximum": 1000000,
+          "x-slot": "/hole_Z/offset_v",
+          "x-unit": "mm"
+        },
+        "hole_z_depth": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "x-slot": "/hole_Z/depth",
+          "x-unit": "mm"
         }
       },
       "required": [
@@ -307,4 +307,4 @@
 }
 ---
 
-Box or cube cross-drilled with centred through holes along one, two or three world axes; holes through all six faces. No sketches or construction planes. Built by the `cross_drilled_box` expander.
+Box or cube with one hole per axis. Optional offset_u/offset_v are measured from the face centre: X uses Y,Z; Y uses X,Z; Z uses X,Y. Omit depth for through holes; a positive depth below the body size makes a blind hole. Omit position for centred holes; legacy world positions accept the body centre or either entry face.

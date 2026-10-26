@@ -105,6 +105,139 @@ fn cross_drilled_boxes_exact_english_and_typed_validation() {
     }
 }
 #[test]
+fn cross_hole_centres_offsets_depths_and_errors() {
+    let lib = Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    let build = |args| {
+        lib.build(
+            &json!({"recipe":"cross_drilled_box","args":args}),
+            &json!({"messages":[]}),
+            &cat,
+        )
+    };
+    let base = json!({"length":20,"width":20,"height":20,"hole_x_diameter":8,"hole_y_diameter":8,"hole_z_diameter":8});
+    let centred = build(base.clone()).unwrap();
+    let mut partial = base.clone();
+    partial["hole_x_position_y"] = json!(10);
+    assert_eq!(build(partial.clone()).unwrap().calls, centred.calls);
+    partial["hole_x_position_y"] = json!(0);
+    let error = build(partial).unwrap_err();
+    assert!(
+        error.contains("offset_u") && error.contains("e.g."),
+        "{error}"
+    );
+    let shifted = json!({"length":20,"width":30,"height":40,"corner":[-5,3,7],"hole_x_diameter":4,"hole_x_position_y":20,"hole_x_position_z":24});
+    assert_eq!(
+        build(shifted).unwrap().calls[1]["arguments"]["params"]["position"],
+        json!([15., 20., 24.])
+    );
+    for value in [0, 10, 20] {
+        let mut args = base.clone();
+        args["hole_x_position_x"] = json!(value);
+        assert_eq!(build(args).unwrap().calls, centred.calls);
+    }
+    for value in [5, 21] {
+        let mut args = base.clone();
+        args["hole_x_position_x"] = json!(value);
+        let error = build(args).unwrap_err();
+        assert!(
+            error.contains("offset_u") && error.contains("e.g."),
+            "{error}"
+        );
+    }
+    for position in [json!([10, 10, 10]), json!([0, 10, 10]), json!([20, 10, 10])] {
+        let mut args = json!({"length":20,"width":20,"height":20,"holes":[]});
+        args["holes"] = json!([
+            {"axis":"X","diameter":8,"position":position},
+            {"axis":"Y","diameter":8,"position":[10,10,10]},
+            {"axis":"Z","diameter":8,"position":[10,10,10]}
+        ]);
+        let p = build(args).unwrap();
+        assert_eq!(
+            p.expected.as_ref().unwrap().created_volume_mm3,
+            centred.expected.as_ref().unwrap().created_volume_mm3
+        );
+        assert!((p.expected.as_ref().unwrap().created_volume_mm3.unwrap() - 5708.1).abs() < 0.1);
+    }
+    for (axis, position) in [
+        ("x", json!([20., 12., 7.])),
+        ("y", json!([12., 20., 7.])),
+        ("z", json!([12., 7., 20.])),
+    ] {
+        let args = json!({"length":20,"width":20,"height":20,format!("hole_{axis}_diameter"):4,format!("hole_{axis}_offset_u"):2,format!("hole_{axis}_offset_v"):-3,format!("hole_{axis}_depth"):5});
+        let p = build(args).unwrap();
+        let params = &p.calls[1]["arguments"]["params"];
+        assert_eq!(params["position"], position);
+        assert_eq!(params["depth"], 5.);
+        assert_eq!(p.expected.as_ref().unwrap().created_volume_mm3, None);
+    }
+    for hole in [
+        json!({"axis":"X","diameter":8,"position":[9,10,10]}),
+        json!({"axis":"Y","diameter":8,"position":[10,0,0]}),
+        json!({"axis":"Z","diameter":8,"offset_u":10}),
+        json!({"axis":"X","diameter":8,"depth":21}),
+    ] {
+        let error = build(json!({"length":20,"width":20,"height":20,"holes":[hole]})).unwrap_err();
+        assert!(
+            error.contains("holes[0]") && (error.contains("e.g.") || error.contains("example")),
+            "{error}"
+        );
+    }
+    let schema = &lib
+        .recipes
+        .iter()
+        .find(|r| r.id == "cross_drilled_box")
+        .unwrap()
+        .schema;
+    let compact = forms::compact(schema);
+    for form in [forms::flat(schema), compact.clone()] {
+        assert!(form["properties"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .all(|k| !k.contains("_position_")));
+        assert_eq!(
+            form["description"],
+            "Holes are centred unless you give offset_u/offset_v from the face centre."
+        );
+    }
+    for (axis, coordinate, offset, position) in [
+        ("x", "y", "offset_u", json!([20., 12., 10.])),
+        ("x", "z", "offset_v", json!([20., 10., 12.])),
+        ("y", "x", "offset_u", json!([12., 20., 10.])),
+        ("y", "z", "offset_v", json!([10., 20., 12.])),
+        ("z", "x", "offset_u", json!([12., 10., 20.])),
+        ("z", "y", "offset_v", json!([10., 12., 20.])),
+    ] {
+        let key = format!("hole_{axis}_position_{coordinate}");
+        let mut args = json!({"length":20,"width":20,"height":20,format!("hole_{axis}_diameter"):4,key.clone():"12 mm"});
+        let changes = forms::coerce(&mut args, &forms::flat(schema)).unwrap();
+        assert!(!changes.is_empty());
+        assert!(args.get(&key).is_none());
+        assert_eq!(args[format!("hole_{axis}_{offset}")], 2.);
+        assert_eq!(
+            build(args.clone()).unwrap().calls[1]["arguments"]["params"]["position"],
+            position
+        );
+        args[key.clone()] = json!(13);
+        assert!(build(args).unwrap_err().contains(offset));
+        for value in [0, 20, 21] {
+            let args = json!({"length":20,"width":20,"height":20,format!("hole_{axis}_diameter"):4,key.clone():value});
+            let error = build(args).unwrap_err();
+            assert!(error.contains(offset) && error.contains("e.g."), "{error}");
+        }
+    }
+    assert!(compact["properties"].get("hole_x_offset_u").is_some());
+    assert_eq!(
+        forms::to_slots(&base, schema).unwrap()["holes"]
+            .as_array()
+            .unwrap()
+            .len(),
+        3
+    );
+}
+
+#[test]
 fn independent_ranking_and_calibrated_misses() {
     let lib = Library::embedded().unwrap();
     let rows = [
@@ -997,7 +1130,7 @@ fn flat_coercions_and_partial_features_are_explicit() {
         (
             "cross_drilled_box",
             json!({"hole_x_position_x":0}),
-            "hole_x_position_y",
+            "length",
         ),
     ] {
         let r = &lib.recipes.iter().find(|r| r.id == id).unwrap().schema;
@@ -1038,7 +1171,7 @@ fn flat_grid_positions_and_conflicts_preserve_typed_behavior() {
         (
             "cross_drilled_box",
             json!({"length":24,"width":30,"height":36,"hole_z_diameter":4,"hole_z_position_x":12,"hole_z_position_y":15,"hole_z_position_z":0}),
-            json!({"length":24,"width":30,"height":36,"holes":[{"axis":"Z","diameter":4,"position":[12,15,0]}]}),
+            json!({"length":24,"width":30,"height":36,"holes":[{"axis":"Z","diameter":4,"position":[12,15,36]}]}),
         ),
     ] {
         let build = |args| {
