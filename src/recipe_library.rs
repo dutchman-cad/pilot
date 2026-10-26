@@ -258,6 +258,12 @@ fn validate_at(v: &Value, s: &Value, root: &Value, path: &str, depth: usize) -> 
     if !s.is_object() {
         return Err("schema must be an object".into());
     }
+    if s.get("enum").is_some() && (v.is_array() || v.is_object()) {
+        return Err(format!(
+            "{path} takes {}; not a list or an object; use one listed string",
+            forms::enum_meanings(s)
+        ));
+    }
     for key in s.as_object().into_iter().flat_map(|m| m.keys()) {
         if ![
             "type",

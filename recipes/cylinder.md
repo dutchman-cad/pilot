@@ -81,6 +81,15 @@
           "type": "number",
           "x-slot": "/radius",
           "x-unit": "mm"
+        },
+        "diameter": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/radius",
+          "x-unit": "mm",
+          "x-scale": 0.5,
+          "description": "Diameter; must equal twice the radius if both supplied"
         }
       },
       "required": [
@@ -92,5 +101,6 @@
   "expander": "cylinder"
 }
 ---
+
 
 Solid cylinder, round rod or disc with radius and height. Built by the `cylinder` expander.

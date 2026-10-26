@@ -1,4 +1,4 @@
-//! A recipe form is local to one fresh user turn, including its one validation retry.
+//! A recipe form is local to one fresh user turn, including two validation retries.
 use super::*;
 
 pub(super) fn select(

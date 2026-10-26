@@ -193,7 +193,6 @@
             "corner_size"
           ],
           "required": [
-            "corner_kind",
             "corner_size"
           ]
         },
@@ -252,22 +251,26 @@
           "x-slot": "/centred"
         },
         "corner_edges": {
-          "description": "Choice",
+          "description": "vertical: four corner edges through thickness; all: rims too",
           "enum": [
             "vertical",
             "all"
           ],
           "type": "string",
-          "x-slot": "/corners/edges"
+          "x-slot": "/corners/edges",
+          "default": "vertical",
+          "x-default-when": "corner_size"
         },
         "corner_kind": {
-          "description": "Choice",
+          "description": "fillet: round; chamfer: bevel",
           "enum": [
             "fillet",
             "chamfer"
           ],
           "type": "string",
-          "x-slot": "/corners/kind"
+          "x-slot": "/corners/kind",
+          "default": "fillet",
+          "x-default-when": "corner_size"
         },
         "corner_size": {
           "exclusiveMinimum": 0,
@@ -351,4 +354,4 @@
 }
 ---
 
-Flat plate with holes: centre bore, bolt circle or rectangular grid and optional corners. Built by the `plate` expander.
+Plate with optional holes and corners. A corner_size without corner_kind means fillet (round); without corner_edges it means vertical (four corner edges through thickness). No dimension is defaulted.

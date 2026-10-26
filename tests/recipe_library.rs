@@ -868,6 +868,10 @@ fn every_flat_form_maps_to_the_same_typed_commands() {
         let form = flat(&r.schema);
         let mut args = json!({});
         for (key, field) in form["properties"].as_object().unwrap() {
+            // Scaled aliases are independently covered by the consistency tests.
+            if field.get("x-scale").is_some() {
+                continue;
+            }
             assert!(
                 matches!(
                     field["type"].as_str(),
@@ -890,7 +894,10 @@ fn every_flat_form_maps_to_the_same_typed_commands() {
                 nested.pointer(path)
             };
             if let Some(value) = value {
-                args[key] = value.clone();
+                args[key] = field["x-scale"].as_f64().map_or_else(
+                    || value.clone(),
+                    |scale| json!(value.as_f64().unwrap() / scale),
+                );
             }
         }
         // A plate can contain both patterns with a shared hole diameter. Test
@@ -1018,4 +1025,216 @@ fn flat_grid_positions_and_conflicts_preserve_typed_behavior() {
     assert!(forms::to_slots(&json!({"length":1}), &bounded)
         .unwrap_err()
         .contains("1..8"));
+}
+
+#[test]
+fn consistent_representations_and_corner_defaults() {
+    let lib = Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    let req = json!({"messages":[]});
+    let build = |id: &str, args: Value| lib.build(&json!({"recipe":id,"args":args}), &req, &cat);
+    for kind in ["L", "T", "U", "C"] {
+        let base = json!({"kind":kind,"width":50,"height":40,"depth":30,"thickness":8});
+        for fields in [
+            json!({"web_thickness":8}),
+            json!({"flange_thickness":8}),
+            json!({"web_thickness":8,"flange_thickness":8}),
+        ] {
+            let mut redundant = base.clone();
+            redundant
+                .as_object_mut()
+                .unwrap()
+                .extend(fields.as_object().unwrap().clone());
+            assert_eq!(
+                build("profile", base.clone()).unwrap().calls,
+                build("profile", redundant.clone()).unwrap().calls
+            );
+            redundant["web_thickness"] = json!(7);
+            let error = build("profile", redundant).unwrap_err();
+            assert!(
+                error.contains("thickness 8") && error.contains("web_thickness 7"),
+                "{error}"
+            );
+        }
+    }
+    for id in ["cylinder", "sphere", "revolve", "tube"] {
+        let mut base = if id == "tube" {
+            json!({"outer_radius":10,"inner_radius":8,"height":30})
+        } else {
+            json!({"radius":10,"height":30})
+        };
+        if id == "sphere" {
+            base.as_object_mut().unwrap().remove("height");
+        }
+        let mut redundant = base.clone();
+        let (radius, diameter) = if id == "tube" {
+            ("outer_radius", "outer_diameter")
+        } else {
+            ("radius", "diameter")
+        };
+        redundant[diameter] = json!(20);
+        assert_eq!(
+            build(id, base.clone()).unwrap().calls,
+            build(id, redundant.clone()).unwrap().calls
+        );
+        redundant.as_object_mut().unwrap().remove(radius);
+        assert_eq!(
+            build(id, base).unwrap().calls,
+            build(id, redundant.clone()).unwrap().calls
+        );
+        redundant[radius] = json!(9);
+        let error = build(id, redundant).unwrap_err();
+        assert!(
+            error.contains(diameter)
+                && error.contains("20")
+                && error.contains(radius)
+                && error.contains('9'),
+            "{error}"
+        );
+    }
+    let schema = &lib
+        .recipes
+        .iter()
+        .find(|r| r.id == "linear_pattern")
+        .unwrap()
+        .schema;
+    let args = json!({"target":"body","count":6,"spacing":10,"total_length":50,"direction":"X"});
+    assert_eq!(
+        forms::to_slots(&args, schema).unwrap().get("total_length"),
+        None
+    );
+    let mut bad = args;
+    bad["total_length"] = json!(60);
+    assert!(forms::to_slots(&bad, schema)
+        .unwrap_err()
+        .contains("spacing 10"));
+    let schema = &lib.recipes.iter().find(|r| r.id == "plate").unwrap().schema;
+    let mut args = json!({"corner_size":10});
+    let changes = forms::coerce(&mut args, &forms::flat(schema)).unwrap();
+    assert_eq!(changes.len(), 2);
+    assert!(changes.iter().all(|c| c["defaulted"] == true));
+    assert_eq!(args["corner_kind"], "fillet");
+    assert_eq!(args["corner_edges"], "vertical");
+    for value in [json!([1, 2, 3, 4]), json!({"edges":"vertical"})] {
+        args["corner_edges"] = value;
+        let error = forms::to_slots(&args, schema).unwrap_err();
+        assert!(
+            error.contains("vertical")
+                && error.contains("four corner")
+                && error.contains("all")
+                && error.contains("rims"),
+            "{error}"
+        );
+    }
+}
+
+#[test]
+fn audited_first_fills_replay_without_inventing_dimensions() {
+    let lib = Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    let cases: Vec<Value> =
+        serde_json::from_str(include_str!("fixtures/fill-audit4.json")).unwrap();
+    assert_eq!(cases.len(), 4);
+    for (index, case) in cases.iter().enumerate() {
+        let result = lib.build(case, &json!({"messages":[]}), &cat);
+        match index {
+            0 | 1 => {
+                assert!(result.is_ok(), "{result:?}");
+            }
+            2 => {
+                let error = result.unwrap_err();
+                assert!(
+                    error.contains("corner_edges")
+                        && error.contains("vertical")
+                        && error.contains("not a list"),
+                    "{error}"
+                );
+            }
+            3 => {
+                assert!(result.unwrap_err().contains("lip_height missing"));
+            }
+            _ => panic!("unexpected audit case {index}"),
+        }
+    }
+}
+
+#[test]
+fn enums_reject_containers_and_redundancy_preserves_bounds() {
+    let lib = Library::embedded().unwrap();
+    for recipe in &lib.recipes {
+        for (key, field) in recipe.schema["x-pilot-fill"]["properties"]
+            .as_object()
+            .unwrap()
+        {
+            if field.get("enum").is_none() {
+                continue;
+            }
+            for value in [json!([]), json!({})] {
+                let error = forms::to_slots(&json!({key:value}), &recipe.schema).unwrap_err();
+                for choice in field["enum"].as_array().unwrap() {
+                    assert!(error.contains(choice.as_str().unwrap()), "{error}");
+                }
+                assert!(error.contains("not a list or an object"), "{error}");
+            }
+        }
+    }
+    let plate = &lib.recipes.iter().find(|r| r.id == "plate").unwrap().schema;
+    let mixed = json!({"corner_size":2,"corners":{"kind":"chamfer","size":2}});
+    assert_eq!(
+        forms::to_slots(&mixed, plate).unwrap()["corners"],
+        json!({"kind":"chamfer","size":2,"edges":"vertical"})
+    );
+    let moving = &lib.recipes.iter().find(|r| r.id == "move").unwrap().schema;
+    assert_eq!(
+        forms::to_slots(
+            &json!({"delta":[1,2,3],"delta_x":1,"delta_y":2,"delta_z":3}),
+            moving
+        )
+        .unwrap()["delta"],
+        json!([1, 2, 3])
+    );
+    let error = forms::to_slots(
+        &json!({"delta":[1,2,3],"delta_x":4,"delta_y":2,"delta_z":3}),
+        moving,
+    )
+    .unwrap_err();
+    assert!(
+        error.contains("delta_x 4") && error.contains("1 and 4"),
+        "{error}"
+    );
+    let profile = &lib
+        .recipes
+        .iter()
+        .find(|r| r.id == "profile")
+        .unwrap()
+        .schema;
+    assert!(forms::to_slots(
+        &json!({"thickness":1000000,"web_thickness":1000000.0001}),
+        profile
+    )
+    .is_err());
+    let pattern = &lib
+        .recipes
+        .iter()
+        .find(|r| r.id == "linear_pattern")
+        .unwrap()
+        .schema;
+    assert!(forms::to_slots(
+        &json!({"count":3,"spacing":600000,"total_length":1200000}),
+        pattern
+    )
+    .is_err());
+    let mut dimensional_default = plate["x-pilot-fill"].clone();
+    dimensional_default["properties"]["corner_size"]["default"] = json!(2);
+    dimensional_default["properties"]["corner_size"]["x-default-when"] = json!("corner_kind");
+    let mut changed = lib
+        .recipes
+        .iter()
+        .find(|r| r.id == "plate")
+        .unwrap()
+        .clone();
+    changed.schema["x-pilot-fill"] = dimensional_default;
+    assert!(Recipe::parse(&changed.markdown().unwrap())
+        .unwrap_err()
+        .contains("never a dimension"));
 }

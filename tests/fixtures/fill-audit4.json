@@ -1,0 +1,60 @@
+[
+  {
+    "recipe": "profile",
+    "args": {
+      "depth": 30,
+      "flange_thickness": 8,
+      "height": 40,
+      "kind": "L",
+      "thickness": 8,
+      "web_thickness": 8,
+      "width": 50
+    }
+  },
+  {
+    "recipe": "plate",
+    "args": {
+      "bolt_circle_diameter": 56,
+      "bolt_hole_count": 6,
+      "bolt_hole_diameter": 8,
+      "bore_diameter": 30,
+      "centred": true,
+      "corner_size": 10,
+      "length": 80,
+      "thickness": 8,
+      "width": 80
+    }
+  },
+  {
+    "recipe": "plate",
+    "args": {
+      "bolt_circle_diameter": 56,
+      "bolt_hole_count": 6,
+      "bolt_hole_diameter": 8,
+      "bore_diameter": 30,
+      "centred": true,
+      "corner_edges": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "corner_kind": "fillet",
+      "corner_size": 10,
+      "length": 80,
+      "thickness": 8,
+      "width": 80
+    }
+  },
+  {
+    "recipe": "enclosure",
+    "args": {
+      "height": 30,
+      "length": 80,
+      "lip_width": 1,
+      "open": "top_left",
+      "wall": 2,
+      "width": 50
+    }
+  }
+]

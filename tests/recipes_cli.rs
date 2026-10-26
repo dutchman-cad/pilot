@@ -1271,8 +1271,18 @@ fn public_binary_probe_fill_plate_and_inner_lip() {
     let cat = Catalog::bundled().unwrap();
     for (id, args, want) in [
         (
+            "profile",
+            json!({"depth":30,"flange_thickness":8,"height":40,"kind":"L","thickness":8,"web_thickness":8,"width":50}),
+            19680.,
+        ),
+        (
             "plate",
-            json!({"length":80,"width":80,"thickness":8,"plane":"XY","centred":true,"bore_diameter":30,"bolt_hole_diameter":8,"bolt_hole_count":6,"bolt_circle_diameter":56,"corner_kind":"fillet","corner_size":10,"corner_edges":"vertical"}),
+            json!({"length":80,"width":80,"thickness":8,"centred":true,"bore_diameter":30,"bolt_hole_diameter":8,"bolt_hole_count":6,"bolt_circle_diameter":56,"corner_size":10}),
+            42446.,
+        ),
+        (
+            "plate",
+            json!({"length":80,"width":80,"thickness":8,"centred":true,"bore_diameter":30,"bolt_hole_diameter":8,"bolt_hole_count":6,"bolt_circle_diameter":56,"corner_kind":"fillet","corner_size":10,"corner_edges":"vertical"}),
             42446.,
         ),
         (
@@ -1282,7 +1292,9 @@ fn public_binary_probe_fill_plate_and_inner_lip() {
         ),
     ] {
         let mut s = Session::new(&path);
-        let req: Value = serde_json::from_str(if id == "plate" {
+        let req: Value = serde_json::from_str(if id == "profile" {
+            include_str!("fixtures/fill-constraints-L-1.json")
+        } else if id == "plate" {
             include_str!("fixtures/fill-v2-01-bolt-circle-bracket.json")
         } else {
             include_str!("fixtures/fill-v2-03-shell-lip.json")

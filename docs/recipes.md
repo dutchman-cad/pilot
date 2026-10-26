@@ -413,7 +413,8 @@ axis, or target instead of issuing primitive calls repeatedly.
 | `circular_pattern` | `{"target":"last_feature","body":"Plate","count":8,"axis":"Z","angle_deg":360}` |
 
 Wrap these as `{"recipe":"linear_pattern","args":{...}}`. Linear patterns accept
-exactly one of `spacing` or `total_length` (first to last), and exactly one of
+`spacing` or `total_length` (first to last), or both when
+`total_length = (count - 1) × spacing`, and exactly one of
 `direction` X/Y/Z or `edge` (an inspected straight edge name). Grids use the two
 axes of XY/XZ/YZ. Circular axes pass through the origin; partial arcs include both
 ends, while full turns do not duplicate the original at 360 degrees. Lengths are
@@ -515,8 +516,8 @@ face). Corners default to the four vertical edges through the thickness; `all`
 also rounds the rims and limits the radius to below half the thickness. Errors
 report the supplied field value, numeric limit, and a suggested change.
 
-An invalid form gets one retry with its field error and the same schema. Decline,
-text (including JSON written as text), another tool, mixed calls, or another invalid
+An invalid form gets two retries with its latest field error and the same schema (three attempts total). Decline,
+text (including JSON written as text), another tool, mixed calls, or a third invalid
 form restores the ordinary tools for the rest of the turn. The rejected proposal
 is discarded. Normal find/build remain available. There is no fill on tool-result
 continuations or SolidCraft 98. `--no-fill` skips forms while keeping find/build;
@@ -547,7 +548,8 @@ plate and enclosure. They were not used as recipe examples. The optional ignored
 Audit kinds: `fill_offered` records recipe and score; `fill_accepted` records the
 validated envelope and rule; `fill_declined`, `fill_invalid` and `fill_fallback`
 record why the normal path resumes. Existing wire, size, search and retry caps
-still apply; two fill attempts are additional to the bounded normal retry budget.
+still apply; three fill attempts are additional to the bounded normal retry budget.
+The wire cap is eight requests, including provider-mode recovery and normal retries.
 
 ### Flat fill forms
 
@@ -563,10 +565,30 @@ For a plate use `length`, `width`, `thickness`, `plane`, `centred`,
 `grid_pitch_x`, `grid_pitch_y`, `grid_hole_diameter`, `corner_kind`,
 `corner_size`, and `corner_edges`. A bolt pattern needs its count, hole diameter,
 and circle diameter; a grid needs both counts, both pitches, and its hole diameter.
-Corners need kind and size; edges default to vertical. An enclosure lip uses
+Corners need size; kind defaults to fillet (round) and edges to vertical when
+`corner_size` is supplied. Both defaults are declared in `recipes/plate.md`
+and audited individually as `fill_defaulted`. An enclosure lip uses
 `lip_width`, `lip_height`, `lip_side` (default inner). A supplied feature field
 activates that feature; incomplete features name the missing field in the error.
 No missing dimension or count is guessed.
+
+The shared flat mapper accepts agreeing redundant representations across recipes:
+uniform profile `thickness` alongside either or both leg thicknesses; equal flat
+and nested slots (including shared pattern hole diameters); radius and diameter
+aliases for cylinders, spheres, tubes and revolved rectangles; and linear pattern
+spacing alongside its first-to-last total length. Diameter aliases map to half
+their value via the file's `x-scale`. Conflicts name the supplied fields and values.
+Numeric agreement permits relative roundoff of 1e-9; all supplied flat values
+retain their individual bounds before redundant fields are removed. Array or object
+enum values are refused with allowed choices and their meanings.
+
+`tests/fixtures/fill-audit4.json` preserves only the arguments from the four
+`fill_invalid` events in the public audit. The profile now builds; the first plate
+builds with corner defaults; its edge-list retry gets the explicit enum error.
+The enclosure first fill still needs `lip_height` and uses unsupported `top_left`:
+its recorded retry supplies height 2 and open top and builds. Inferring that
+missing dimension would violate the contract. The public CLI replay verifies
+the profile, the defaulted and corrected plate (42446 mm³), and the enclosure retry.
 
 Vector slots use scalar coordinates: `delta_x/y/z`, `corner_x/y/z`, and
 `origin_x/y/z` where offered. Cross-drilled boxes offer `hole_x_diameter`,

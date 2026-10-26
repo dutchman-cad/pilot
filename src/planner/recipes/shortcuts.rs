@@ -101,6 +101,9 @@ pub(crate) fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<
         .find(|s| s["properties"]["shape"]["const"] == args["shape"])
         .ok_or_else(|| format!("shape {} must be 1 of profile, plate, enclosure, revolute_joint; choose the matching shape", args["shape"]))?;
     check(args, variant, "arguments")?;
+    let mut normalized = args.clone();
+    crate::recipe_library::forms::consistent(&mut normalized)?;
+    let args = &normalized;
     let input: Build =
         serde_json::from_value(args.clone()).map_err(|e| format!("arguments: {e}"))?;
     let (rule, slots) = match input {

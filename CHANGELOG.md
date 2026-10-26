@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Accept consistent redundant fill fields, audit unambiguous corner defaults, explain enum container errors, and allow two bounded fill retries.
+
 - Flatten every recipe fill form into scalar fields with audited coercions and explicit partial-feature errors; preserve nested build arguments.
 
 - Explain fill fields and numeric validation fixes, default unstated placement and inner lips, and cap each recipe form at 1,200 characters.

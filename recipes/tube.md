@@ -92,6 +92,24 @@
           "type": "number",
           "x-slot": "/outer_radius",
           "x-unit": "mm"
+        },
+        "inner_diameter": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/inner_radius",
+          "x-unit": "mm",
+          "x-scale": 0.5,
+          "description": "Diameter; must equal twice the radius if both supplied"
+        },
+        "outer_diameter": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/outer_radius",
+          "x-unit": "mm",
+          "x-scale": 0.5,
+          "description": "Diameter; must equal twice the radius if both supplied"
         }
       },
       "required": [
@@ -104,5 +122,6 @@
   "expander": "tube"
 }
 ---
+
 
 Hollow round tube or pipe with outer radius inner radius and height. Built by the `tube` expander.

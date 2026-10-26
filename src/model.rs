@@ -1221,7 +1221,7 @@ impl Proxy {
         let mut mode_retry = 0;
         let mut shortcut_retries = 0;
         let mut find_count = 0;
-        for wire_attempt in 0..=6 {
+        for wire_attempt in 0..=7 {
             let attempt = wire_attempt - mode_retry - fill_attempts;
             if attempt > 3 {
                 break;
@@ -1356,7 +1356,11 @@ impl Proxy {
                     Ok((r, changes)) => {
                         for change in changes {
                             audit.record(
-                                "fill_coerced",
+                                if change["defaulted"] == true {
+                                    "fill_defaulted"
+                                } else {
+                                    "fill_coerced"
+                                },
                                 &change["before"],
                                 &json!({"field":change["field"],"value":change["after"]}),
                             )?;
@@ -1370,7 +1374,7 @@ impl Proxy {
                         audit.record(
                             "fill_accepted",
                             &args,
-                            &json!({"recipe":found["id"],"rule":plan.rule}),
+                            &json!({"recipe":found["id"],"rule":plan.rule,"attempt":fill_attempts,"max_attempts":3}),
                         )?;
                         audit.record("shortcut", &args, &json!({"args":args,"rule":plan.rule}))?;
                         conversation.shortcut_args = Some((user_index, args));
@@ -1389,9 +1393,9 @@ impl Proxy {
                         audit.record(
                             "fill_invalid",
                             &response,
-                            &json!({"recipe":found["id"],"reason":reason}),
+                            &json!({"recipe":found["id"],"reason":reason,"attempt":fill_attempts,"max_attempts":3}),
                         )?;
-                        if fill_error.is_none() {
+                        if fill_attempts < 3 {
                             fill_error = Some(reason);
                             continue;
                         }
@@ -1405,7 +1409,7 @@ impl Proxy {
                     }
                     fill::Outcome::Fallback => {}
                 }
-                audit.record("fill_fallback", &Value::Null, &json!({"recipe":found["id"],"reason":"form declined, invalid twice, or not called"}))?;
+                audit.record("fill_fallback", &Value::Null, &json!({"recipe":found["id"],"attempts":fill_attempts,"max_attempts":3,"reason":"form declined, invalid three times, or not called"}))?;
                 fill_recipe = None;
                 if text_mode {
                     text_mode::activate(&mut body, &tools, "fill_fallback", audit)?;
@@ -6252,10 +6256,41 @@ mod tests {
         assert!(!events.iter().any(|e| e["kind"] == "fill_invalid"));
     }
     #[test]
+    fn fill_corner_defaults_are_audited_and_plate_can_recover_on_third_attempt() {
+        let cases: Vec<Value> =
+            serde_json::from_str(include_str!("../tests/fixtures/fill-audit4.json")).unwrap();
+        let mut corrected = cases[2]["args"].clone();
+        corrected["corner_edges"] = json!("vertical");
+        for args in [
+            vec![cases[1]["args"].clone()],
+            vec![json!({}), cases[2]["args"].clone(), corrected],
+        ] {
+            let count = args.len();
+            let mut f = fill_fixture(args.into_iter().map(|a| call("pilot_fill", a)).collect());
+            let req = serde_json::from_str(include_str!(
+                "../tests/fixtures/fill-v2-01-bolt-circle-bracket.json"
+            ))
+            .unwrap();
+            let out = f.chat(req);
+            assert_eq!(out.status, 200);
+            assert_eq!(
+                f.proxy.scripted.as_ref().unwrap().borrow().requests.len(),
+                count
+            );
+            let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+            assert!(log.contains("fill_accepted"));
+            if count == 1 {
+                assert_eq!(log.matches("\"kind\":\"fill_defaulted\"").count(), 2);
+            } else {
+                assert!(log.contains("four corner edges through the thickness"));
+            }
+        }
+    }
+    #[test]
     fn forced_fill_accepts_real_calls_and_retries_one_field_error() {
-        for invalid_first in [false, true] {
+        for invalid_count in 0..=2 {
             let mut replies = Vec::new();
-            if invalid_first {
+            for _ in 0..invalid_count {
                 replies.push(call("pilot_fill", json!({"kind":"L"})));
             }
             replies.push(filled());
@@ -6266,7 +6301,7 @@ mod tests {
             assert!(!body.to_string().contains("pilot_fill"));
             assert!(body["choices"][0]["message"]["tool_calls"].is_array());
             let script = f.proxy.scripted.as_ref().unwrap().borrow();
-            assert_eq!(script.requests.len(), 1 + usize::from(invalid_first));
+            assert_eq!(script.requests.len(), 1 + invalid_count);
             for wire in &script.requests {
                 assert_eq!(wire["tools"].as_array().unwrap().len(), 1);
                 assert_eq!(wire["tools"][0]["function"]["name"], "pilot_fill");
@@ -6283,7 +6318,7 @@ mod tests {
                         && line.contains("omit unstated")
                 );
             }
-            if invalid_first {
+            if invalid_count > 0 {
                 assert!(script.requests[1]["messages"]
                     .to_string()
                     .contains("field error"));
@@ -6293,12 +6328,16 @@ mod tests {
         }
     }
     #[test]
-    fn forced_fill_falls_back_on_decline_text_other_tool_and_second_invalid() {
+    fn forced_fill_falls_back_on_decline_text_other_tool_and_third_invalid() {
         for rejected in [
             vec![call("pilot_fill", json!({"decline":true}))],
             vec![reply("I need more details.")],
             vec![call("execute", json!({"command":"solid.box","params":{}}))],
-            vec![call("pilot_fill", json!({})), call("pilot_fill", json!({}))],
+            vec![
+                call("pilot_fill", json!({})),
+                call("pilot_fill", json!({})),
+                call("pilot_fill", json!({})),
+            ],
         ] {
             let count = rejected.len();
             let mut replies = rejected;
