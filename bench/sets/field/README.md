@@ -8,9 +8,9 @@ a 20 mm cube. Its exact remaining volume is
 `8000 - 960π + 512√2 = 5708.148396488824 mm³` (0.1% kernel tolerance).
 Three distinct cylindrical axes give six round face openings; the existing
 `round` checker merges the two ends of each hole, so its count is three.
-Requiring one Box and three Hole features within four total features leaves
-no room for Sketch or ConstructionPlane features. The public-binary Rust test
-also checks the timeline directly.
+The check scores the geometry the user asked for, so a correct answer built
+from sketches and cuts passes too. Pilot's own recipe test also checks that its
+timeline holds no Sketch or ConstructionPlane features.
 
 `cube-centre-hole` starts empty and asks for a 20 mm cube with a centred
 5 mm diameter through hole. The check requires one body, a 20×20×20 mm
