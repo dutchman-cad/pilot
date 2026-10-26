@@ -17,6 +17,7 @@ Usage:
                        [--profile-dir DIR] [--model-settings [FILE]] [--seed INTEGER]
                        [--no-report-buffer] [--dialect solidcraft|solidcraft98]
                        [--no-how] [--no-hints] [--no-shortcuts] [--no-fill] [--no-trim] [--trim-cap CHARS (default 1500)]
+                       [--trim-keep N (default 2, range 0..4096)]
                        [--planner] [--no-plan (alias --no-planner)]
                        [--recipes-dir DIR]
   dutchman-pilot report [--listen ADDR] [--turn N] [--include-request] [--out FILE]
@@ -93,6 +94,7 @@ Flags (including aliases):
 - `--seed`
 - `--solidcraft-cli`
 - `--trim-cap`
+- `--trim-keep`
 - `--turn`
 - `--upstream`
 - `--upstream-timeout`

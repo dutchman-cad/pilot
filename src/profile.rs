@@ -122,8 +122,8 @@ pub fn profiles(dir: Option<&Path>, model: Option<&str>, json: bool) -> Result<S
             counts_text(&p.repairs_by_kind)
         ));
         text.push_str(&format!(
-            "request characters (trim={}): mean / max per upstream request ({} requests)\n",
-            p.trim_enabled, p.upstream_requests
+            "request characters (trim={}, keep={}): mean / max per upstream request ({} requests)\n",
+            p.trim_enabled, p.trim_keep, p.upstream_requests
         ));
         for (part, total) in &p.request_chars_total {
             let mean = if p.upstream_requests == 0 {

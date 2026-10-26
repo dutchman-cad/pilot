@@ -48,6 +48,10 @@ fn help_version_and_flag_errors() {
     assert!(String::from_utf8(output.stderr)
         .unwrap()
         .contains("auto, on, or off"));
+    for count in ["-1", "4097", "many"] {
+        let output = run(&["model", "--trim-keep", count]);
+        assert!(!output.status.success());
+    }
 }
 
 #[test]

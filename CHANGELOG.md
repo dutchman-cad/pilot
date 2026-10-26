@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Trim older tool results within the current user turn, keep the newest two (`--trim-keep`), summarize command docs, and audit per-request `trimmed_chars`.
+
 - Accept consistent redundant fill fields, audit unambiguous corner defaults, explain enum container errors, and allow two bounded fill retries.
 
 - Flatten every recipe fill form into scalar fields with audited coercions and explicit partial-feature errors; preserve nested build arguments.

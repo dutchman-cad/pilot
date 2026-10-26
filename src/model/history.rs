@@ -3,7 +3,7 @@ use super::{Audit, Profile};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
-fn chars(value: &Value) -> usize {
+pub(super) fn chars(value: &Value) -> usize {
     value
         .as_str()
         .map_or_else(|| value.to_string().chars().count(), |s| s.chars().count())
@@ -135,8 +135,118 @@ fn command_ids(value: &Value, ids: &mut BTreeSet<String>, depth: usize) {
     }
 }
 
+fn command_params(value: &Value, params: &mut BTreeMap<String, String>, depth: usize) {
+    if depth > 12 {
+        return;
+    }
+    match value {
+        Value::Object(map) => {
+            if let Some(id) = value["id"].as_str().or_else(|| value["command"].as_str()) {
+                if let Some(text) = value["params"].as_str() {
+                    params.insert(
+                        id.into(),
+                        text.split_whitespace()
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                            .chars()
+                            .take(400)
+                            .collect(),
+                    );
+                }
+            }
+            for (key, child) in map {
+                if key == "text" {
+                    if let Some(parsed) = child
+                        .as_str()
+                        .and_then(|s| serde_json::from_str::<Value>(s).ok())
+                    {
+                        command_params(&parsed, params, depth + 1);
+                    }
+                } else if matches!(
+                    key.as_str(),
+                    "commands"
+                        | "command"
+                        | "items"
+                        | "result"
+                        | "data"
+                        | "content"
+                        | "structuredContent"
+                ) {
+                    command_params(child, params, depth + 1);
+                }
+            }
+        }
+        Value::Array(items) => {
+            for item in items {
+                command_params(item, params, depth + 1);
+            }
+        }
+        _ => {}
+    }
+}
+
+// The Assistant can truncate a catalogue mid-JSON. Read only complete JSON
+// string fields; never repair a cut-off value or invent the missing entries.
+fn partial_commands(text: &str) -> Value {
+    let mut commands = BTreeMap::<String, String>::new();
+    let mut start = None;
+    let mut escaped = false;
+    let mut current_id: Option<String> = None;
+    for (index, ch) in text.char_indices() {
+        if let Some(begin) = start {
+            if escaped {
+                escaped = false;
+            } else if ch == '\\' {
+                escaped = true;
+            } else if ch == '"' {
+                start = None;
+                let key = &text[begin..=index];
+                if !matches!(key, "\"id\"" | "\"command\"" | "\"params\"") {
+                    continue;
+                }
+                let Some(rest) = text[index + 1..].trim_start().strip_prefix(':') else {
+                    continue;
+                };
+                let mut strings =
+                    serde_json::Deserializer::from_str(rest.trim_start()).into_iter::<String>();
+                let Some(Ok(value)) = strings.next() else {
+                    continue;
+                };
+                if key == "\"params\"" {
+                    if let Some(id) = &current_id {
+                        commands.insert(id.clone(), value);
+                    }
+                } else if commands.len() < 4096 {
+                    commands.entry(value.clone()).or_default();
+                    current_id = Some(value);
+                } else {
+                    current_id = None;
+                }
+            }
+        } else if ch == '"' {
+            start = Some(index);
+        }
+    }
+    json!({"commands":commands.into_iter().map(|(id, params)| json!({"id":id,"params":params})).collect::<Vec<_>>()})
+}
+
+pub(super) fn answering_start(body: &Value) -> usize {
+    body["messages"].as_array().map_or(0, |messages| {
+        messages
+            .iter()
+            .rposition(|m| m["role"] != "tool" && m["role"] != "system")
+            .map_or(0, |index| index + 1)
+    })
+}
+
 /// Keep tool envelopes so native tool-call/result pairing remains valid.
-pub(super) fn trim(body: &mut Value, cap: usize, protected: bool) -> usize {
+pub(super) fn trim(
+    body: &mut Value,
+    cap: usize,
+    keep: usize,
+    protected: bool,
+    answering: usize,
+) -> usize {
     if protected {
         return 0;
     }
@@ -144,11 +254,11 @@ pub(super) fn trim(body: &mut Value, cap: usize, protected: bool) -> usize {
     let Some(messages) = body["messages"].as_array_mut() else {
         return 0;
     };
-    let Some(latest_user) = messages.iter().rposition(|m| m["role"] == "user") else {
-        return 0;
-    };
+    // Preserve the full result block the model is answering now, including
+    // parallel calls, even when the configured window is zero.
     let mut seen = BTreeSet::new();
     let mut changed = 0;
+    let mut results = 0;
     for (index, message) in messages.iter_mut().enumerate().rev() {
         if message["role"] != "tool" {
             continue;
@@ -165,7 +275,8 @@ pub(super) fn trim(body: &mut Value, cap: usize, protected: bool) -> usize {
         let duplicate = identity.is_some_and(|(name, args)| {
             !seen.insert((name.clone(), args.clone(), content.to_string()))
         });
-        if index > latest_user {
+        results += 1;
+        if results <= keep || index >= answering {
             continue;
         }
         let n = chars(content);
@@ -174,6 +285,11 @@ pub(super) fn trim(body: &mut Value, cap: usize, protected: bool) -> usize {
             .and_then(|s| serde_json::from_str::<Value>(s).ok())
             .or_else(|| (content.is_object() || content.is_array()).then(|| content.clone()));
         let catalogue = matches!(name, "list_commands" | "describe_command");
+        let partial = catalogue && parsed.is_none();
+        let parsed = parsed.or_else(|| {
+            (partial && content.is_string())
+                .then(|| partial_commands(content.as_str().unwrap_or("")))
+        });
         let summary = if duplicate {
             Some(format!(
                 "Identical result retained at its latest occurrence.\n{}",
@@ -183,10 +299,33 @@ pub(super) fn trim(body: &mut Value, cap: usize, protected: bool) -> usize {
             parsed.as_ref().and_then(|value| {
                 let mut ids = BTreeSet::new();
                 command_ids(value, &mut ids, 0);
-                (!ids.is_empty()).then(|| format!("{}\n{}", json!({"ids":ids}), note(n)))
+                (!ids.is_empty()).then(|| {
+                    let summary = if name == "describe_command" {
+                        let mut descriptions = BTreeMap::new();
+                        command_params(value, &mut descriptions, 0);
+                        json!({"commands":ids.into_iter().map(|id| {
+                            let params = descriptions.remove(&id).unwrap_or_default();
+                            json!({"id":id,"params":params})
+                        }).collect::<Vec<_>>()})
+                    } else {
+                        json!({"ids":ids})
+                    };
+                    format!(
+                        "{summary}\n{}{}",
+                        if partial {
+                            "Source result incomplete; only complete command fields retained.\n"
+                        } else {
+                            ""
+                        },
+                        note(n)
+                    )
+                })
             })
-        } else if n > cap {
-            Some(match parsed {
+        } else {
+            None
+        };
+        let summary = summary.or_else(|| {
+            (n > cap).then(|| match parsed {
                 Some(value) => format!("{}\n{}", compact(&value, 0), note(n)),
                 None => format!(
                     "{}\n{}",
@@ -199,9 +338,7 @@ pub(super) fn trim(body: &mut Value, cap: usize, protected: bool) -> usize {
                     note(n)
                 ),
             })
-        } else {
-            None
-        };
+        });
         if let Some(summary) = summary.filter(|s| duplicate || catalogue || s.chars().count() < n) {
             message["content"] = json!(summary);
             changed += 1;
@@ -314,13 +451,14 @@ pub(super) fn audit_request(
     augmented: &Value,
     wire: &Value,
     enabled: bool,
-    changed: usize,
+    trimming: (usize, usize),
     profile: &mut Profile,
     audit: &mut Audit,
 ) -> Result<(), String> {
     let client_sizes = breakdown(client);
     let upstream = breakdown(wire);
     let pilot = additions(client, augmented);
+    let (changed, trimmed_chars) = trimming;
     if changed > 0 {
         audit.record(
             "history_trim",
@@ -328,7 +466,7 @@ pub(super) fn audit_request(
             &json!({"results":changed,"characters":upstream["tool_results"]}),
         )?;
     }
-    let details = json!({"trim_enabled":enabled,"trimmed_results":changed,"client":client_sizes,"pilot":pilot,"upstream":upstream});
+    let details = json!({"trim_enabled":enabled,"trimmed_results":changed,"trimmed_chars":trimmed_chars,"client":client_sizes,"pilot":pilot,"upstream":upstream});
     audit.record_context(
         "request_size",
         &Value::Null,
@@ -395,6 +533,11 @@ pub(super) fn replay_fixture() -> Vec<Value> {
 mod tests {
     use super::*;
 
+    fn trim(body: &mut Value, cap: usize, keep: usize, protected: bool) -> usize {
+        let answering = answering_start(body);
+        super::trim(body, cap, keep, protected, answering)
+    }
+
     fn conversation(name: &str, content: Value) -> Value {
         json!({"messages":[{"role":"system","content":"rules"},{"role":"user","content":"old turn"},
             {"role":"assistant","tool_calls":[{"id":"a","function":{"name":name,"arguments":"{}"}}]},
@@ -403,25 +546,104 @@ mod tests {
     }
 
     #[test]
+    fn truncated_catalogues_keep_only_complete_fields_and_mark_partial() {
+        for (name, text) in [
+            ("list_commands", "[{\"id\":\"solid.box\",\"params\":\"width: mm\"},{\"id\":\"solid.sphere\",\"params\":\"radius: mm\"},{\"id\":\"cut"),
+            ("describe_command", "{\"id\":\"solid.box\",\"params\":\"width: mm\\nheight: mm\",\"input\":{\"description\":\"cut"),
+        ] {
+            let mut body = conversation(name, json!(text));
+            assert_eq!(trim(&mut body, 1500, 0, false), 1);
+            let summary = body["messages"][3]["content"].as_str().unwrap();
+            assert!(summary.contains("Source result incomplete"));
+            assert!(summary.contains("[trimmed by Pilot"));
+            assert!(!summary.contains("cut"));
+            let parsed: Value = serde_json::from_str(summary.lines().next().unwrap()).unwrap();
+            if name == "list_commands" {
+                assert_eq!(parsed, json!({"ids":["solid.box","solid.sphere"]}));
+            } else {
+                assert_eq!(parsed["commands"][0], json!({"id":"solid.box","params":"width: mm height: mm"}));
+            }
+        }
+    }
+
+    #[test]
+    fn kept_window_crosses_user_turns_and_preserves_parallel_answers() {
+        let mut body = json!({"messages":[{"role":"user","content":"one task"}]});
+        for i in 0..5 {
+            body["messages"].as_array_mut().unwrap().extend([
+                json!({"role":"assistant","tool_calls":[{"id":format!("c{i}"),"function":{"name":"inspect","arguments":format!("{{\"index\":{i}}}")}}]}),
+                json!({"role":"tool","tool_call_id":format!("c{i}"),"content":"é".repeat(5000)})]);
+        }
+        let original = body.clone();
+        assert_eq!(trim(&mut body, 1500, 2, false), 3);
+        assert_eq!(body["messages"][8], original["messages"][8]);
+        assert_eq!(body["messages"][10], original["messages"][10]);
+        for index in [2, 4, 6] {
+            assert!(body["messages"][index]["content"]
+                .as_str()
+                .unwrap()
+                .contains("[trimmed by Pilot"));
+        }
+        // The window counts results across a user boundary too.
+        let mut across = original.clone();
+        across["messages"]
+            .as_array_mut()
+            .unwrap()
+            .insert(7, json!({"role":"user","content":"continue"}));
+        assert_eq!(trim(&mut across, 1500, 2, false), 3);
+        // More than N parallel answers must all survive, including with N=0.
+        let mut parallel = original.clone();
+        parallel["messages"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"role":"tool","tool_call_id":"parallel","content":"p".repeat(5000)}));
+        parallel["messages"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"role":"system","content":"Pilot fact"}));
+        let full = parallel.clone();
+        assert_eq!(trim(&mut parallel, 1500, 0, false), 4);
+        assert_eq!(parallel["messages"][10], full["messages"][10]);
+        assert_eq!(parallel["messages"][11], full["messages"][11]);
+        assert_eq!(trim(&mut original.clone(), 1500, 4096, false), 0);
+    }
+
+    #[test]
+    fn description_keeps_bounded_one_line_params_in_mcp_results() {
+        let params = format!("body: name;\n distance: mm; {}", "extra ".repeat(300));
+        let data = json!({"content":[{"type":"text","text":json!({"id":"solid.move","params":params,"input":{"description":"long schema".repeat(1000)}}).to_string()}]});
+        let mut body = conversation("describe_command", json!(data.to_string()));
+        assert_eq!(trim(&mut body, 1500, 0, false), 1);
+        let summary = body["messages"][3]["content"].as_str().unwrap();
+        let parsed: Value = serde_json::from_str(summary.lines().next().unwrap()).unwrap();
+        assert_eq!(parsed["commands"][0]["id"], "solid.move");
+        let params = parsed["commands"][0]["params"].as_str().unwrap();
+        assert!(params.starts_with("body: name; distance: mm;"));
+        assert_eq!(params.chars().count(), 400);
+        assert!(!params.contains('\n'));
+        assert!(!summary.contains("long schema"));
+    }
+
+    #[test]
     fn threshold_unicode_plaintext_and_current_turn() {
         let mut small = conversation("inspect", json!("é".repeat(1500)));
         let original = small.clone();
-        assert_eq!(trim(&mut small, 1500, false), 0);
+        assert_eq!(trim(&mut small, 1500, 0, false), 0);
         assert_eq!(small, original);
         let mut large = conversation("inspect", json!("é".repeat(1501)));
-        assert_eq!(trim(&mut large, 1500, false), 1);
+        assert_eq!(trim(&mut large, 1500, 0, false), 1);
         let content = large["messages"][3]["content"].as_str().unwrap();
         assert!(content.chars().count() <= 1500);
         assert!(content.contains(&note(1501)));
         // A different configured cap also applies.
         let mut capped = conversation("inspect", json!("é".repeat(1500)));
-        assert_eq!(trim(&mut capped, 500, false), 1);
+        assert_eq!(trim(&mut capped, 500, 0, false), 1);
         assert!(chars(&capped["messages"][3]["content"]) <= 500);
         let messages = large["messages"].as_array_mut().unwrap();
         messages.push(json!({"role":"assistant","tool_calls":[{"id":"b","function":{"name":"inspect","arguments":"{}"}}]}));
         let current = json!({"role":"tool","tool_call_id":"b","content":"x".repeat(5000)});
         messages.push(current.clone());
-        trim(&mut large, 1500, false);
+        trim(&mut large, 1500, 0, false);
         assert_eq!(large["messages"][6], current);
     }
 
@@ -435,7 +657,7 @@ mod tests {
                 .into(),
         ] {
             let mut body = conversation("inspect", content);
-            assert_eq!(trim(&mut body, 256, false), 1);
+            assert_eq!(trim(&mut body, 256, 0, false), 1);
             let summary = body["messages"][3]["content"].as_str().unwrap();
             let mut parsed: Value = serde_json::from_str(summary.lines().next().unwrap()).unwrap();
             if parsed.get("content").is_some() {
@@ -471,7 +693,7 @@ mod tests {
                 _ => {}
             }
             assert_eq!(
-                trim(&mut trial, 1500, false),
+                trim(&mut trial, 1500, 0, false),
                 usize::from(difference == "none")
             );
             assert_eq!(
@@ -489,10 +711,15 @@ mod tests {
     fn catalogue_and_descriptions_collapse_to_ids() {
         for name in ["list_commands", "describe_command"] {
             let mut body = conversation(name, json!(json!({"commands":[{"id":"solid.box","description":"details".repeat(300)},{"id":"solid.sphere","params":{"type":"object","properties":{"plane":{"enum":["XY","XZ","YZ"]}}}}]}).to_string()));
-            assert_eq!(trim(&mut body, 1500, false), 1);
+            assert_eq!(trim(&mut body, 1500, 0, false), 1);
             let summary = body["messages"][3]["content"].as_str().unwrap();
             let ids: Value = serde_json::from_str(summary.lines().next().unwrap()).unwrap();
-            assert_eq!(ids, json!({"ids":["solid.box","solid.sphere"]}));
+            if name == "list_commands" {
+                assert_eq!(ids, json!({"ids":["solid.box","solid.sphere"]}));
+            } else {
+                assert_eq!(ids["commands"][0]["id"], "solid.box");
+                assert_eq!(ids["commands"][1]["id"], "solid.sphere");
+            }
             assert!(!summary.contains("details"));
         }
     }
@@ -501,7 +728,7 @@ mod tests {
     fn pending_readers_preserve_all_history() {
         let mut body = conversation("execute", json!("full geometry".repeat(1000)));
         let original = body.clone();
-        assert_eq!(trim(&mut body, 1500, true), 0);
+        assert_eq!(trim(&mut body, 1500, 0, true), 0);
         assert_eq!(body, original);
     }
 }

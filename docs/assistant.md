@@ -5,11 +5,17 @@ Assistant. Pilot is the agent's base URL; the real model endpoint is Pilot's
 upstream. Select the same model id that the upstream serves.
 
 Pilot trims older tool results on the upstream copy of each request by default.
-The latest user turn stays whole, and client-visible results and local recipe
-readers retain the original history. While a recipe continuation or completion
-check is pending, the upstream history also stays whole. Earlier catalogue and
-command descriptions become command ids; identical tool/arguments/results keep
-their latest full copy and leave a reference in earlier result envelopes.
+The newest two tool results stay whole (`--trim-keep N`, range 0–4096), across
+the whole history including the current user turn. The trailing result block
+the model is answering always stays whole, including parallel calls and with
+`--trim-keep 0`. Client-visible results and local recipe readers retain the
+original history. While a recipe, fill, continuation or completion check is
+pending, the upstream history also stays whole. Earlier catalogue results become
+command ids; command descriptions become ids plus one-line parameter docs
+(at most 400 characters). For catalogue results already truncated by the client,
+Pilot retains only complete command fields and marks the source incomplete.
+Identical tool/arguments/results outside the kept
+window leave a reference to the latest occurrence in their result envelopes.
 Other results over `--trim-cap 1500` characters keep JSON keys, scalar fields and
 the first/last two array entries, with an explicit recall note. Long strings and
 deep nesting are bounded. This is a trigger threshold, not a strict summary size:
@@ -21,7 +27,9 @@ Each upstream attempt (including retries) logs a `dutchman-pilot` size field:
 client system/tools/user/assistant content, results by tool name, Pilot facts,
 hints and local schemas, and final upstream character sizes. These are Unicode
 character counts, not tokenizer estimates; JSON totals include envelopes and
-escaping. `profile` reports mean/max per attempt and whether trimming is enabled.
+escaping. Each request includes `trimmed_chars`, the serialized characters saved
+by history trimming before other wire transformations. `profile` reports mean/max
+per attempt, whether trimming is enabled, and the configured kept-result window.
 Facts already present in client history are reused; missing facts are inserted
 once at the latest system position for that request. Pilot never relies on the
 client retaining an upstream-only fact.

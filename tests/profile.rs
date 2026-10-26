@@ -55,6 +55,7 @@ fn fixture_profiles_json_and_table() {
     let records = output_json(&["profile", "--profile-dir", &dir, "--json"]);
     assert_eq!(records.as_array().unwrap().len(), 3);
     let first = &records[0];
+    assert_eq!(first["trim_keep"], 2);
     for (key, value) in [
         ("turns", 8),
         ("empty", 1),

@@ -19,6 +19,7 @@ Usage:
   {pad}       [--profile-dir DIR] [--model-settings [FILE]] [--seed INTEGER]
   {pad}       [--no-report-buffer] [--dialect solidcraft|solidcraft98]
   {pad}       [--no-how] [--no-hints] [--no-shortcuts] [--no-fill] [--no-trim] [--trim-cap CHARS (default 1500)]
+  {pad}       [--trim-keep N (default 2, range 0..4096)]
   {pad}       [--planner] [--no-plan (alias --no-planner)]
   {pad}       [--recipes-dir DIR]
   {binary} report [--listen ADDR] [--turn N] [--include-request] [--out FILE]
@@ -186,6 +187,9 @@ struct ModelArgs {
     /// Character threshold for older tool results; JSON keeps keys and scalar fields.
     #[arg(long, default_value_t = model::DEFAULT_TRIM_CAP as u32, value_parser = clap::value_parser!(u32).range(256..=65536))]
     trim_cap: u32,
+    /// Keep the newest N tool results whole across all user turns.
+    #[arg(long, default_value_t = model::DEFAULT_TRIM_KEEP as u32, value_parser = clap::value_parser!(u32).range(0..=4096))]
+    trim_keep: u32,
     /// Load development recipes from this directory instead of the embedded set.
     #[arg(long)]
     recipes_dir: Option<PathBuf>,
@@ -361,6 +365,7 @@ pub fn run_named(cmd: Command, bin: &str) -> Result<i32, Error> {
                 no_fill: args.no_fill,
                 no_trim: args.no_trim,
                 trim_cap: args.trim_cap as usize,
+                trim_keep: args.trim_keep as usize,
                 recipes_dir: args.recipes_dir,
                 planner: args.planner,
             })

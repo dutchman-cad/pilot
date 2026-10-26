@@ -30,6 +30,7 @@ const MAX_PROFILES: usize = 256;
 pub const DEFAULT_UPSTREAM_TIMEOUT: Duration = Duration::from_secs(300);
 pub const MAX_UPSTREAM_TIMEOUT: Duration = Duration::from_secs(3600);
 pub const DEFAULT_TRIM_CAP: usize = 1500;
+pub const DEFAULT_TRIM_KEEP: usize = 2;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FallbackPrompt {
@@ -52,6 +53,7 @@ pub struct Config {
     pub no_fill: bool,
     pub no_trim: bool,
     pub trim_cap: usize,
+    pub trim_keep: usize,
     pub recipes_dir: Option<PathBuf>,
     pub planner: bool,
     pub direct_recipes: bool,
@@ -113,6 +115,8 @@ pub struct Profile {
     pub find_misses: u64,
     #[serde(default = "trim_default")]
     pub trim_enabled: bool,
+    #[serde(default = "default_trim_keep")]
+    pub trim_keep: usize,
     pub upstream_requests: u64,
     pub request_chars_total: BTreeMap<String, u64>,
     pub request_chars_max: BTreeMap<String, u64>,
@@ -128,6 +132,10 @@ type Profiles = BTreeMap<String, Profile>;
 
 fn trim_default() -> bool {
     true
+}
+
+fn default_trim_keep() -> usize {
+    DEFAULT_TRIM_KEEP
 }
 
 pub(crate) fn data_dir(explicit: Option<&Path>) -> Result<PathBuf, String> {
@@ -245,6 +253,9 @@ impl Server {
     pub fn bind(mut cfg: Config) -> Result<Self, String> {
         if !(256..=65536).contains(&cfg.trim_cap) {
             return Err("trim-cap must be between 256 and 65536 characters".into());
+        }
+        if cfg.trim_keep > 4096 {
+            return Err("trim-keep must be between 0 and 4096 results".into());
         }
         if cfg.solidcraft98 {
             cfg.planner = false;
@@ -745,6 +756,7 @@ impl Proxy {
             ..Profile::default()
         });
         profile.trim_enabled = !self.cfg.no_trim;
+        profile.trim_keep = self.cfg.trim_keep;
         let mut captured = if self.cfg.no_report_buffer {
             None
         } else {
@@ -756,7 +768,7 @@ impl Proxy {
                     "planner":self.cfg.planner,"direct_recipes":self.cfg.direct_recipes,
                     "fallback_prompt":format!("{:?}",self.cfg.fallback_prompt),"prompt_help":self.cfg.prompt_help,
                     "no_shortcuts":self.cfg.no_shortcuts,"no_fill":self.cfg.no_fill,"no_how":self.cfg.no_how,"no_hints":self.cfg.no_hints,"no_report_buffer":self.cfg.no_report_buffer,
-                    "trim_enabled":!self.cfg.no_trim,"trim_cap":self.cfg.trim_cap,
+                    "trim_enabled":!self.cfg.no_trim,"trim_cap":self.cfg.trim_cap,"trim_keep":self.cfg.trim_keep,
                     "model_settings_enabled":self.cfg.model_settings_enabled || self.cfg.model_settings.is_some(),
                     "seed":self.cfg.seed,"upstream_timeout":self.cfg.upstream_timeout.as_secs(),
                     "upstream":crate::capture::bounded(&self.cfg.upstream),"listen":self.cfg.listen.to_string(),
@@ -1221,6 +1233,9 @@ impl Proxy {
         let mut mode_retry = 0;
         let mut shortcut_retries = 0;
         let mut find_count = 0;
+        // Freeze the current answer's result block before retry nudges append
+        // assistant/user messages; those nudges must not make its evidence old.
+        let answering = history::answering_start(&body);
         for wire_attempt in 0..=7 {
             let attempt = wire_attempt - mode_retry - fill_attempts;
             if attempt > 3 {
@@ -1230,13 +1245,21 @@ impl Proxy {
             // keep the wire full too while any recipe continuation/verification is pending.
             let protected = conversation.pending_recipe.is_some()
                 || conversation.recipe.is_some()
-                || conversation.direct.is_some();
+                || conversation.direct.is_some()
+                || fill_recipe.is_some();
             let mut outgoing = body.clone();
             let changed = if self.cfg.no_trim {
                 0
             } else {
-                history::trim(&mut outgoing, self.cfg.trim_cap, protected)
+                history::trim(
+                    &mut outgoing,
+                    self.cfg.trim_cap,
+                    self.cfg.trim_keep,
+                    protected,
+                    answering,
+                )
             };
+            let trimmed_chars = history::chars(&body).saturating_sub(history::chars(&outgoing));
             if let Some(found) = &fill_recipe {
                 fill::offer(&mut outgoing, found, fill_error.as_deref())?;
             } else if text_mode {
@@ -1247,7 +1270,7 @@ impl Proxy {
                 &body,
                 &outgoing,
                 !self.cfg.no_trim,
-                changed,
+                (changed, trimmed_chars),
                 profile,
                 audit,
             )?;
@@ -2834,6 +2857,7 @@ mod tests {
                         no_fill: false,
                         no_trim: false,
                         trim_cap: DEFAULT_TRIM_CAP,
+                        trim_keep: DEFAULT_TRIM_KEEP,
                         recipes_dir: None,
                         planner: true,
                         direct_recipes: false,
@@ -2902,6 +2926,118 @@ mod tests {
         }
     }
     #[test]
+    fn retries_keep_the_current_parallel_result_block_even_with_zero_window() {
+        let mut f = Fixture::new(vec![reply(""), reply("Ready.")]);
+        f.proxy.cfg.planner = false;
+        f.proxy.cfg.no_hints = true;
+        f.proxy.cfg.trim_keep = 0;
+        let mut req = request();
+        let results = [
+            json!({"role":"tool","tool_call_id":"a","content":"a".repeat(5000)}),
+            json!({"role":"tool","tool_call_id":"b","content":"b".repeat(5000)}),
+        ];
+        req["messages"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"role":"assistant","tool_calls":[
+                {"id":"a","function":{"name":"inspect","arguments":"{}"}},
+                {"id":"b","function":{"name":"inspect","arguments":"{}"}}
+            ]}));
+        req["messages"]
+            .as_array_mut()
+            .unwrap()
+            .extend(results.clone());
+        assert_eq!(f.chat(req).status, 200);
+        let script = f.proxy.scripted.as_ref().unwrap().borrow();
+        assert_eq!(script.requests.len(), 2);
+        for wire in &script.requests {
+            for result in &results {
+                assert!(wire["messages"].as_array().unwrap().contains(result));
+            }
+        }
+    }
+
+    #[test]
+    fn public_single_turn_conversation_replay_trims_all_24_requests() {
+        let requests: Vec<Value> =
+            serde_json::from_str(include_str!("../tests/fixtures/v2-03-conversation.json"))
+                .unwrap();
+        assert_eq!(requests.len(), 24);
+        let mut measurements = Vec::new();
+        for no_trim in [true, false] {
+            let mut f = Fixture::new(vec![reply("Ready."); requests.len()]);
+            f.proxy.cfg.planner = false;
+            f.proxy.cfg.direct_recipes = false;
+            f.proxy.cfg.no_hints = true;
+            f.proxy.cfg.no_trim = no_trim;
+            let mut total = 0;
+            let mut last = 0;
+            for request in &requests {
+                let response = f
+                    .proxy
+                    .handle(Request {
+                        method: "POST".into(),
+                        path: "/v1/chat/completions".into(),
+                        auth: None,
+                        body: request.to_string().into_bytes(),
+                    })
+                    .unwrap();
+                assert_eq!(response.status, 200);
+                let script = f.proxy.scripted.as_ref().unwrap().borrow();
+                let wire = script.requests.last().unwrap();
+                last = history::chars(wire);
+                total += last;
+                if no_trim {
+                    assert_eq!(wire, request);
+                }
+                let recent: Vec<_> = request["messages"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, m)| m["role"] == "tool")
+                    .rev()
+                    .take(2)
+                    .collect();
+                for (index, message) in recent {
+                    assert_eq!(&wire["messages"][index], message);
+                }
+            }
+            assert_eq!(
+                f.proxy.scripted.as_ref().unwrap().borrow().requests.len(),
+                24
+            );
+            let profile = f.proxy.profiles.values().next().unwrap();
+            assert_eq!(profile.trim_keep, 2);
+            assert_eq!(profile.request_chars_total["upstream.total"], total as u64);
+            let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+            let sizes: Vec<Value> = log
+                .lines()
+                .map(|s| serde_json::from_str(s).unwrap())
+                .filter(|v: &Value| v["kind"] == "request_size")
+                .collect();
+            assert_eq!(sizes.len(), 24);
+            let saved: u64 = sizes
+                .iter()
+                .map(|v| v["dutchman-pilot"]["trimmed_chars"].as_u64().unwrap())
+                .sum();
+            if no_trim {
+                assert_eq!(saved, 0);
+            } else {
+                assert!(saved > 0);
+            }
+            measurements.push((total, last));
+        }
+        let reduction = 100.0 * (1.0 - measurements[1].0 as f64 / measurements[0].0 as f64);
+        eprintln!(
+            "public 24-request replay: {:?} -> {:?} (total, last); {reduction:.2}% reduction",
+            measurements[0], measurements[1]
+        );
+        assert!(reduction >= 55.0);
+        assert!(measurements[1].1 < 40_000);
+    }
+
+    #[test]
     fn long_history_fixture_replay_measures_wire_reduction_and_opt_out() {
         let requests = history::replay_fixture();
         let mut totals = Vec::new();
@@ -2910,6 +3046,9 @@ mod tests {
             f.proxy.cfg.planner = false;
             f.proxy.cfg.no_hints = true;
             f.proxy.cfg.no_trim = no_trim;
+            // Preserve the original regression's one-result window; the public
+            // single-turn replay above exercises the new default of two.
+            f.proxy.cfg.trim_keep = 1;
             let mut total = 0;
             for (index, request) in requests.iter().enumerate() {
                 let original = request.clone();
@@ -3023,6 +3162,7 @@ mod tests {
         for no_trim in [false, true] {
             let mut f = Fixture::new(vec![reply("Ready.")]);
             f.proxy.cfg.solidcraft98 = true;
+            f.proxy.cfg.trim_keep = 0;
             f.proxy.cfg.planner = false;
             f.proxy.cfg.no_hints = true;
             f.proxy.cfg.no_trim = no_trim;
@@ -6286,6 +6426,32 @@ mod tests {
             }
         }
     }
+    #[test]
+    fn pending_fill_preserves_older_history_on_every_attempt() {
+        let mut f = fill_fixture(vec![call("pilot_fill", json!({"kind":"L"})), filled()]);
+        f.proxy.cfg.trim_keep = 0;
+        let mut req = fill_request();
+        let old =
+            json!({"role":"tool","tool_call_id":"old","content":"original geometry ".repeat(2000)});
+        req["messages"].as_array_mut().unwrap().splice(0..0, [
+            json!({"role":"user","content":"previous task"}),
+            json!({"role":"assistant","tool_calls":[{"id":"old","function":{"name":"inspect_design","arguments":"{}"}}]}),
+            old.clone(),
+        ]);
+        assert_eq!(f.chat(req).status, 200);
+        let script = f.proxy.scripted.as_ref().unwrap().borrow();
+        assert_eq!(script.requests.len(), 2);
+        for wire in &script.requests {
+            let retained = wire["messages"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|m| m["role"] == "tool" && m["tool_call_id"] == "old")
+                .unwrap();
+            assert_eq!(retained, &old);
+        }
+    }
+
     #[test]
     fn forced_fill_accepts_real_calls_and_retries_one_field_error() {
         for invalid_count in 0..=2 {
