@@ -1,5 +1,55 @@
 //! A recipe form is local to one fresh user turn, including two validation retries.
 use super::*;
+use std::hash::{Hash, Hasher};
+
+/// Independent of prefix-based conversation identification. At capacity, stop
+/// offering forms rather than forget a turn and risk replaying a creation.
+#[derive(Default)]
+pub(super) struct Turns(Vec<(String, usize, u64)>);
+
+impl Turns {
+    pub fn claim(&mut self, body: &Value) -> Result<bool, String> {
+        let messages = body["messages"]
+            .as_array()
+            .ok_or("messages must be an array")?;
+        let Some(index) = messages.iter().rposition(|m| m["role"] == "user") else {
+            return Ok(false);
+        };
+        let mut hash = std::collections::hash_map::DefaultHasher::new();
+        json_bytes(&messages[index]["content"])?.hash(&mut hash);
+        let hash = hash.finish();
+        let model = body["model"].as_str().unwrap_or("");
+        let position = messages[..index]
+            .iter()
+            .filter(|m| m["role"] != "system")
+            .count();
+        // A shorter prefix can move the same user message backwards. Keep the
+        // content identity as well as its original position across such trims.
+        if self.0.len() >= 4096
+            || self
+                .0
+                .iter()
+                .any(|(m, i, h)| m == model && *h == hash && position <= *i)
+        {
+            return Ok(false);
+        }
+        self.0.push((model.to_string(), position, hash));
+        Ok(messages[index + 1..].iter().all(|m| m["role"] == "system"))
+    }
+}
+
+/// Inspect every choice and call before accepting any local form. Mixed replies
+/// are discarded in full, even if one call is the requested form.
+pub(super) fn off_form<'a>(response: &'a Value, offered: &str) -> Vec<&'a str> {
+    response["choices"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .flat_map(|c| c["message"]["tool_calls"].as_array().into_iter().flatten())
+        .map(|c| c["function"]["name"].as_str().unwrap_or("<unnamed>"))
+        .filter(|name| *name != offered)
+        .collect()
+}
 
 #[cfg(test)]
 pub(super) fn select(
@@ -202,6 +252,56 @@ mod tests {
 
     fn request(text: &str) -> Value {
         json!({"messages":[{"role":"user","content":text}]})
+    }
+    #[test]
+    fn turn_identity_survives_trim_and_system_changes_but_allows_new_users() {
+        let mut turns = Turns::default();
+        let mut req = request("make a profile");
+        req["messages"]
+            .as_array_mut()
+            .unwrap()
+            .insert(0, json!({"role":"user","content":"earlier task"}));
+        assert!(turns.claim(&req).unwrap());
+        assert!(!turns.claim(&req).unwrap());
+        req["messages"].as_array_mut().unwrap().remove(0);
+        req["messages"]
+            .as_array_mut()
+            .unwrap()
+            .insert(0, json!({"role":"system","content":"new prompt"}));
+        assert!(!turns.claim(&req).unwrap());
+        req["messages"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"role":"user","content":"a different profile"}));
+        assert!(turns.claim(&req).unwrap());
+        req["messages"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"role":"user","content":"a different profile"}));
+        assert!(turns.claim(&req).unwrap());
+        // Capacity is fail-closed, including for unseen content.
+        turns.0.resize(4096, (String::new(), 0, 0));
+        assert!(!turns.claim(&request("another task")).unwrap());
+    }
+
+    #[test]
+    fn tool_history_blocks_forms_before_local_history_is_stripped() {
+        for name in [
+            "batch",
+            "pilot_fill",
+            "pilot_route",
+            "pilot_build",
+            "inspect",
+        ] {
+            let mut req = request("make a profile");
+            req["messages"].as_array_mut().unwrap().push(json!({"role":"assistant","tool_calls":[{"function":{"name":name,"arguments":"{}"}}]}));
+            let mut turns = Turns::default();
+            assert!(!turns.claim(&req).unwrap());
+            req["messages"].as_array_mut().unwrap().pop();
+            assert!(!turns.claim(&req).unwrap());
+        }
+        let response = json!({"choices":[{"message":{"tool_calls":[{"function":{"name":"pilot_fill"}},{"function":{"name":"batch"}}]}}]});
+        assert_eq!(off_form(&response, "pilot_fill"), vec!["batch"]);
     }
     #[test]
     fn probe_error_retries_and_inner_lip_defaults_use_the_shared_validator() {

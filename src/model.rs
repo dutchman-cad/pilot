@@ -240,6 +240,7 @@ struct Proxy {
     settings: BTreeMap<String, ModelSettings>,
     log: File,
     conversations: Vec<Conversation>,
+    form_turns: std::cell::RefCell<fill::Turns>,
     turns: crate::capture::Ring,
     #[cfg(test)]
     scripted: Option<std::cell::RefCell<Scripted>>,
@@ -346,6 +347,7 @@ impl Server {
                 settings,
                 log,
                 conversations: Vec::new(),
+                form_turns: std::cell::RefCell::default(),
                 turns: crate::capture::Ring::default(),
                 #[cfg(test)]
                 scripted: None,
@@ -896,6 +898,7 @@ impl Proxy {
         deadline: Instant,
         conversation: &mut Conversation,
     ) -> Result<Reply, String> {
+        let form_allowed = self.form_turns.borrow_mut().claim(&body)?;
         let before_strip = body.clone();
         shortcuts::strip(&mut body);
         let stripped = body != before_strip;
@@ -1211,15 +1214,7 @@ impl Proxy {
             }
         }
         let mut text_mode = profile.text_tool_mode || profile.native_support == Some(false);
-        let fresh = original["messages"]
-            .as_array()
-            .is_some_and(|ms| ms[user_index + 1..].iter().all(|m| m["role"] == "system"));
-        let band = if shortcuts_enabled
-            && !self.cfg.no_fill
-            && fresh
-            && recipe.is_none()
-            && conversation.fill_index != Some(user_index)
-        {
+        let band = if shortcuts_enabled && !self.cfg.no_fill && form_allowed && recipe.is_none() {
             self.recipes.form_band(last_user(&original))?
         } else {
             json!({"band":"low"})
@@ -1231,7 +1226,6 @@ impl Proxy {
             Vec::new()
         };
         if !route_candidates.is_empty() {
-            conversation.fill_index = Some(user_index);
             let choices: Vec<_> = route_candidates
                 .iter()
                 .map(|r| json!({"id":r["id"],"score":r["score"]}))
@@ -1239,7 +1233,6 @@ impl Proxy {
             audit.record("route_offered", &Value::Null, &json!({"recipes":choices}))?;
         }
         if let Some(found) = &fill_recipe {
-            conversation.fill_index = Some(user_index);
             audit.record(
                 "fill_offered",
                 &Value::Null,
@@ -1420,6 +1413,41 @@ impl Proxy {
                     .map_err(|_| "upstream did not return completion JSON")?
             };
             repair::check_value(&response)?;
+            let offered = if !route_candidates.is_empty() {
+                Some("pilot_route")
+            } else if fill_recipe.is_some() {
+                Some("pilot_fill")
+            } else {
+                None
+            };
+            if let Some(offered) = offered {
+                let off_form = fill::off_form(&response, offered);
+                if !off_form.is_empty() {
+                    for tool in off_form {
+                        audit.record(
+                            "fill_offform",
+                            &Value::Null,
+                            &json!({"tool":tool,"offered":offered}),
+                        )?;
+                    }
+                    if offered == "pilot_route" {
+                        route_attempts += 1;
+                    } else {
+                        fill_attempts += 1;
+                    }
+                    fill_recipe = None;
+                    route_candidates.clear();
+                    audit.record(
+                        "fill_fallback",
+                        &Value::Null,
+                        &json!({"reason":"off-form tool call"}),
+                    )?;
+                    if text_mode {
+                        text_mode::activate(&mut body, &tools, "fill_offform", audit)?;
+                    }
+                    continue;
+                }
+            }
             if !route_candidates.is_empty() {
                 route_attempts += 1;
                 fill_recipe = fill::picked(&response, &route_candidates);
@@ -2966,6 +2994,7 @@ mod tests {
                     settings: BTreeMap::new(),
                     log,
                     conversations: Vec::new(),
+                    form_turns: std::cell::RefCell::default(),
                     turns: crate::capture::Ring::default(),
                     scripted: Some(RefCell::new(Scripted {
                         reject_tools: false,
@@ -6688,6 +6717,168 @@ mod tests {
         let mut req = fill_request();
         req["messages"] = json!([{"role":"user","content":"hinge pivot two parts"}]);
         req
+    }
+
+    fn public_l1() -> Value {
+        serde_json::from_str(include_str!(
+            "../tests/fixtures/public-constraints-l1-fill-guard.json"
+        ))
+        .unwrap()
+    }
+
+    #[test]
+    fn public_l1_offform_is_discarded_before_normal_tool_retry() {
+        let data = public_l1();
+        for route in [false, true] {
+            for mixed in [false, true] {
+                let mut req = data["requests"][0].clone();
+                if route {
+                    req["messages"][1]["content"] =
+                        route_request()["messages"][0]["content"].clone();
+                }
+                let mut off = data["offform"].clone();
+                if mixed {
+                    // An offered call must not hide an unoffered call, even in
+                    // another choice (providers need not obey n=1 either).
+                    off["choices"].as_array_mut().unwrap().insert(
+                        0,
+                        call(
+                            if route { "pilot_route" } else { "pilot_fill" },
+                            json!({"decline":true}),
+                        )["choices"][0]
+                            .clone(),
+                    );
+                }
+                let mut f = fill_fixture(vec![off, reply("Please clarify.")]);
+                let out = f.chat(req);
+                assert_eq!(out.status, 200);
+                let out: Value = serde_json::from_slice(&out.body).unwrap();
+                assert!(out["choices"][0]["message"]["tool_calls"].is_null());
+                let script = f.proxy.scripted.as_ref().unwrap().borrow();
+                assert_eq!(script.requests.len(), 2);
+                assert_eq!(
+                    script.requests[0]["tools"][0]["function"]["name"],
+                    if route { "pilot_route" } else { "pilot_fill" }
+                );
+                assert!(!script.requests[1]["tools"]
+                    .to_string()
+                    .contains("pilot_fill"));
+                assert!(!script.requests[1]["tools"]
+                    .to_string()
+                    .contains("pilot_route"));
+                assert_eq!(
+                    script.requests[0]["messages"].as_array().unwrap()[..2],
+                    script.requests[1]["messages"].as_array().unwrap()[..2]
+                );
+                assert!(!script.requests[1]["messages"]
+                    .to_string()
+                    .contains("[curve id]\\\""));
+                let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+                assert!(log.contains("fill_offform") && log.contains("\"tool\":\"batch\""));
+            }
+        }
+    }
+
+    #[test]
+    fn public_l1_sequence_and_resends_never_reoffer_forms() {
+        let data = public_l1();
+        let mut f = fill_fixture(vec![
+            data["offform"].clone(),
+            reply("Clarify."),
+            reply("Ready."),
+            reply("Ready."),
+            reply("Ready."),
+            reply("Ready."),
+        ]);
+        assert_eq!(f.chat(data["requests"][0].clone()).status, 200);
+        // Replay the real follow-up histories despite deliberately losing all
+        // prefix-based conversation state between requests.
+        for req in data["requests"].as_array().unwrap().iter().skip(1) {
+            f.proxy.conversations.clear();
+            assert_eq!(f.chat(req.clone()).status, 200);
+        }
+        let mut resend = data["requests"][0].clone();
+        resend["messages"].as_array_mut().unwrap().remove(0);
+        f.proxy.conversations.clear();
+        assert_eq!(f.chat(resend).status, 200);
+        let script = f.proxy.scripted.as_ref().unwrap().borrow();
+        assert_eq!(script.requests.len(), 6);
+        assert!(script
+            .requests
+            .iter()
+            .skip(1)
+            .all(|r| !r["tools"].to_string().contains("pilot_fill")
+                && !r["tools"].to_string().contains("pilot_route")));
+    }
+
+    #[test]
+    fn public_l1_accepted_fill_and_prior_calls_block_later_forms() {
+        let data = public_l1();
+        let mut f = fill_fixture(vec![
+            call(
+                "pilot_fill",
+                json!({"kind":"L","plane":"XZ","width":50,"height":40,"thickness":8,"depth":30}),
+            ),
+            reply("Ready."),
+            reply("Ready."),
+        ]);
+        let mut req = data["requests"][0].clone();
+        let out = f.chat(req.clone());
+        let out: Value = serde_json::from_slice(&out.body).unwrap();
+        let message = out["choices"][0]["message"].clone();
+        assert!(message["tool_calls"]
+            .as_array()
+            .is_some_and(|cs| !cs.is_empty()));
+        req["messages"]
+            .as_array_mut()
+            .unwrap()
+            .push(message.clone());
+        for call in message["tool_calls"].as_array().unwrap() {
+            req["messages"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({"role":"tool","tool_call_id":call["id"],"content":"{\"ok\":true}"}));
+        }
+        f.proxy.conversations.clear();
+        assert_eq!(f.chat(req).status, 200);
+        // A re-send with the tool history removed still cannot re-offer.
+        f.proxy.conversations.clear();
+        assert_eq!(f.chat(data["requests"][0].clone()).status, 200);
+        let script = f.proxy.scripted.as_ref().unwrap().borrow();
+        assert_eq!(script.requests.len(), 3);
+        assert!(script
+            .requests
+            .iter()
+            .skip(1)
+            .all(|r| !r["tools"].to_string().contains("pilot_fill")));
+        drop(script);
+        // A cold proxy must also reject each already-acted public history.
+        for req in data["requests"].as_array().unwrap().iter().skip(1) {
+            let mut cold = fill_fixture(vec![reply("Ready.")]);
+            assert_eq!(cold.chat(req.clone()).status, 200);
+            assert!(
+                !cold.proxy.scripted.as_ref().unwrap().borrow().requests[0]["tools"]
+                    .to_string()
+                    .contains("pilot_fill")
+            );
+        }
+    }
+
+    #[test]
+    fn public_l3_code_array_remains_text_and_builds_nothing() {
+        let data: Value = serde_json::from_str(include_str!(
+            "../tests/fixtures/public-constraints-l3-fill-guard.json"
+        ))
+        .unwrap();
+        let mut f = fill_fixture(vec![data["response"].clone(), data["response"].clone()]);
+        let out = f.chat(data["request"].clone());
+        assert_eq!(out.status, 200);
+        let out: Value = serde_json::from_slice(&out.body).unwrap();
+        assert!(out["choices"][0]["message"]["tool_calls"].is_null());
+        assert!(out["choices"][0]["message"]["content"]
+            .as_str()
+            .unwrap()
+            .contains("line_id_1"));
     }
 
     #[test]
