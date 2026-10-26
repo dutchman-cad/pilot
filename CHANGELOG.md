@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Embed recipes directly with include_str! so checkouts sharing a build directory each use their own recipe files; test the file list for omissions.
+
 - Trim older tool results within the current user turn, keep the newest two (`--trim-keep`), summarize command docs, and audit per-request `trimmed_chars`.
 
 - Accept consistent redundant fill fields, audit unambiguous corner defaults, explain enum container errors, and allow two bounded fill retries.

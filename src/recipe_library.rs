@@ -3,6 +3,7 @@ use crate::{catalog::Catalog, planner, repair};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
+mod files;
 pub mod forms;
 
 pub const FIND_DESCRIPTION: &str = "Search recipes before building. Returns the closest three schemas. On no good hit, do not improvise CAD: tell the user what Pilot can build or ask one question. Then use pilot_build with recipe and args. Lengths are mm.";
@@ -31,7 +32,6 @@ pub const IDS: &[&str] = &[
     "shell",
     "revolve",
 ];
-include!(concat!(env!("OUT_DIR"), "/recipes.rs"));
 const MAX_FILE: usize = 65536;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -424,7 +424,7 @@ pub struct Library {
 }
 impl Library {
     pub fn embedded() -> Result<Self, String> {
-        Self::parse(EMBEDDED.iter().copied())
+        Self::parse(files::EMBEDDED.iter().map(|(_, text)| *text))
     }
     pub fn parse<'a>(texts: impl IntoIterator<Item = &'a str>) -> Result<Self, String> {
         let mut recipes = Vec::new();
