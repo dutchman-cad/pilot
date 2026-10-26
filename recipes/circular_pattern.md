@@ -101,7 +101,60 @@
       "angle_deg"
     ],
     "type": "object",
-    "x-pilot-expander": "circular_pattern"
+    "x-pilot-expander": "circular_pattern",
+    "x-pilot-fill": {
+      "groups": [],
+      "properties": {
+        "angle_deg": {
+          "maximum": 360,
+          "minimum": -360,
+          "type": "number",
+          "x-slot": "/angle_deg"
+        },
+        "axis": {
+          "description": "Choice",
+          "enum": [
+            "X",
+            "Y",
+            "Z"
+          ],
+          "type": "string",
+          "x-slot": "/axis"
+        },
+        "body": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+          "type": "string",
+          "x-slot": "/body"
+        },
+        "count": {
+          "maximum": 500,
+          "minimum": 2,
+          "type": "integer",
+          "x-slot": "/count"
+        },
+        "join": {
+          "type": "boolean",
+          "x-slot": "/join"
+        },
+        "target": {
+          "description": "Choice",
+          "enum": [
+            "body",
+            "last_feature"
+          ],
+          "type": "string",
+          "x-slot": "/target"
+        }
+      },
+      "required": [
+        "angle_deg",
+        "axis",
+        "count",
+        "target"
+      ]
+    }
   },
   "expander": "circular_pattern"
 }

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Flatten every recipe fill form into scalar fields with audited coercions and explicit partial-feature errors; preserve nested build arguments.
+
 - Explain fill fields and numeric validation fixes, default unstated placement and inner lips, and cap each recipe form at 1,200 characters.
 
 - Find recipes automatically and ask the model to fill one typed form first, with one validation retry, audited fallback, and `--no-fill`.

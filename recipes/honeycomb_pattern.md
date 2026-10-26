@@ -135,7 +135,116 @@
       "border"
     ],
     "type": "object",
-    "x-pilot-expander": "honeycomb_pattern"
+    "x-pilot-expander": "honeycomb_pattern",
+    "x-pilot-fill": {
+      "groups": [],
+      "properties": {
+        "border": {
+          "maximum": 1000000,
+          "minimum": 0,
+          "type": "number",
+          "x-slot": "/border",
+          "x-unit": "mm"
+        },
+        "centred": {
+          "type": "boolean",
+          "x-slot": "/centred"
+        },
+        "columns": {
+          "maximum": 5000,
+          "minimum": 1,
+          "type": "integer",
+          "x-slot": "/columns"
+        },
+        "length": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/length",
+          "x-unit": "mm"
+        },
+        "mode": {
+          "description": "Choice",
+          "enum": [
+            "fill",
+            "exact"
+          ],
+          "type": "string",
+          "x-slot": "/mode"
+        },
+        "orientation": {
+          "description": "Choice",
+          "enum": [
+            "pointy_top",
+            "flat_top"
+          ],
+          "type": "string",
+          "x-slot": "/orientation"
+        },
+        "plane": {
+          "description": "Choice",
+          "enum": [
+            "XY",
+            "XZ",
+            "YZ"
+          ],
+          "type": "string",
+          "x-slot": "/plane"
+        },
+        "rows": {
+          "maximum": 5000,
+          "minimum": 1,
+          "type": "integer",
+          "x-slot": "/rows"
+        },
+        "size": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/size",
+          "x-unit": "mm"
+        },
+        "size_kind": {
+          "description": "Choice",
+          "enum": [
+            "across_flats",
+            "across_corners"
+          ],
+          "type": "string",
+          "x-slot": "/size_kind"
+        },
+        "thickness": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/thickness",
+          "x-unit": "mm"
+        },
+        "web": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/web",
+          "x-unit": "mm"
+        },
+        "width": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/width",
+          "x-unit": "mm"
+        }
+      },
+      "required": [
+        "border",
+        "length",
+        "size",
+        "size_kind",
+        "thickness",
+        "web",
+        "width"
+      ]
+    }
   },
   "expander": "honeycomb_pattern"
 }

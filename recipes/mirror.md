@@ -74,7 +74,38 @@
       "keep_original"
     ],
     "type": "object",
-    "x-pilot-expander": "mirror"
+    "x-pilot-expander": "mirror",
+    "x-pilot-fill": {
+      "groups": [],
+      "properties": {
+        "body": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+          "type": "string",
+          "x-slot": "/body"
+        },
+        "keep_original": {
+          "type": "boolean",
+          "x-slot": "/keep_original"
+        },
+        "plane": {
+          "description": "Choice",
+          "enum": [
+            "XY",
+            "XZ",
+            "YZ"
+          ],
+          "type": "string",
+          "x-slot": "/plane"
+        }
+      },
+      "required": [
+        "body",
+        "keep_original",
+        "plane"
+      ]
+    }
   },
   "expander": "mirror"
 }

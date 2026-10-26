@@ -69,7 +69,59 @@
       "delta"
     ],
     "type": "object",
-    "x-pilot-expander": "move"
+    "x-pilot-expander": "move",
+    "x-pilot-fill": {
+      "groups": [
+        {
+          "fields": [
+            "delta_x",
+            "delta_y",
+            "delta_z"
+          ],
+          "required": [
+            "delta_x",
+            "delta_y",
+            "delta_z"
+          ]
+        }
+      ],
+      "properties": {
+        "body": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+          "type": "string",
+          "x-slot": "/body"
+        },
+        "delta_x": {
+          "maximum": 1000000,
+          "minimum": -1000000,
+          "type": "number",
+          "x-slot": "/delta/0",
+          "x-unit": "mm"
+        },
+        "delta_y": {
+          "maximum": 1000000,
+          "minimum": -1000000,
+          "type": "number",
+          "x-slot": "/delta/1",
+          "x-unit": "mm"
+        },
+        "delta_z": {
+          "maximum": 1000000,
+          "minimum": -1000000,
+          "type": "number",
+          "x-slot": "/delta/2",
+          "x-unit": "mm"
+        }
+      },
+      "required": [
+        "body",
+        "delta_x",
+        "delta_y",
+        "delta_z"
+      ]
+    }
   },
   "expander": "move"
 }

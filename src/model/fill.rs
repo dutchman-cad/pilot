@@ -105,6 +105,36 @@ pub(super) enum Outcome {
     Invalid(String),
 }
 
+/// Coercions are returned individually so the proxy audits each supplied field.
+pub(super) fn coerced(response: &Value, recipe: &Value) -> Result<(Value, Vec<Value>), String> {
+    let mut response = response.clone();
+    if response["choices"].as_array().is_none_or(|c| c.len() != 1)
+        || !response["choices"][0]["message"]["tool_calls"]
+            .as_array()
+            .is_some_and(|c| c.len() == 1 && c[0]["function"]["name"] == "pilot_fill")
+    {
+        return Ok((response, Vec::new()));
+    }
+    let raw = &response["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"];
+    if raw.is_null() {
+        return Ok((response, Vec::new()));
+    }
+    let mut args: Value = if let Some(text) = raw.as_str() {
+        match serde_json::from_str(text) {
+            Ok(v) => v,
+            Err(_) => return Ok((response, Vec::new())),
+        }
+    } else {
+        raw.clone()
+    };
+    let mut schema = recipe["schema"].clone();
+    schema["properties"]["decline"] = json!({"type":"boolean"});
+    let changes = crate::recipe_library::forms::coerce(&mut args, &schema)?;
+    response["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"] =
+        json!(args.to_string());
+    Ok((response, changes))
+}
+
 pub(super) fn accept(
     response: &Value,
     recipe: &Value,
@@ -112,6 +142,10 @@ pub(super) fn accept(
     library: &crate::recipe_library::Library,
     catalog: &Catalog,
 ) -> Outcome {
+    let response = match coerced(response, recipe) {
+        Ok((r, _)) => r,
+        Err(e) => return Outcome::Invalid(e),
+    };
     let Some(choices) = response["choices"].as_array().filter(|c| c.len() == 1) else {
         return Outcome::Fallback;
     };

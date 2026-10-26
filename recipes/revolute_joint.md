@@ -74,7 +74,33 @@
     },
     "required": [],
     "type": "object",
-    "x-pilot-expander": "revolute_joint"
+    "x-pilot-expander": "revolute_joint",
+    "x-pilot-fill": {
+      "groups": [],
+      "properties": {
+        "angle_deg": {
+          "maximum": 360,
+          "minimum": -360,
+          "type": "number",
+          "x-slot": "/angle_deg"
+        },
+        "hole_component": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+          "type": "string",
+          "x-slot": "/hole_component"
+        },
+        "pin_component": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+          "type": "string",
+          "x-slot": "/pin_component"
+        }
+      },
+      "required": []
+    }
   },
   "expander": "revolute_joint"
 }

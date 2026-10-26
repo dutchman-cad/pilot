@@ -1352,6 +1352,19 @@ impl Proxy {
             }
             if let Some(found) = &fill_recipe {
                 fill_attempts += 1;
+                let response = match fill::coerced(&response, found) {
+                    Ok((r, changes)) => {
+                        for change in changes {
+                            audit.record(
+                                "fill_coerced",
+                                &change["before"],
+                                &json!({"field":change["field"],"value":change["after"]}),
+                            )?;
+                        }
+                        r
+                    }
+                    Err(_) => response.clone(),
+                };
                 match fill::accept(&response, found, &original, &self.recipes, &self.catalog) {
                     fill::Outcome::Build(args, plan) => {
                         audit.record(
@@ -6214,6 +6227,29 @@ mod tests {
             "pilot_fill",
             json!({"kind":"L","plane":"XZ","width":47,"height":33,"thickness":5,"depth":22,"decline":false}),
         )
+    }
+    #[test]
+    fn every_fill_coercion_is_audited_before_validation() {
+        let mut f = fill_fixture(vec![call(
+            "pilot_fill",
+            json!({"kind":"l","plane":"xz","width":"47 mm","height":"33","thickness":"5","depth":"22","decline":"no"}),
+        )]);
+        let out = f.chat(fill_request());
+        assert_eq!(out.status, 200);
+        let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+        let events: Vec<Value> = log
+            .lines()
+            .map(|l| serde_json::from_str(l).unwrap())
+            .collect();
+        assert_eq!(
+            events
+                .iter()
+                .filter(|e| e["kind"] == "fill_coerced")
+                .count(),
+            7
+        );
+        assert!(events.iter().any(|e| e["kind"] == "fill_accepted"));
+        assert!(!events.iter().any(|e| e["kind"] == "fill_invalid"));
     }
     #[test]
     fn forced_fill_accepts_real_calls_and_retries_one_field_error() {

@@ -69,7 +69,30 @@
       "amount"
     ],
     "type": "object",
-    "x-pilot-expander": "chamfer"
+    "x-pilot-expander": "chamfer",
+    "x-pilot-fill": {
+      "groups": [],
+      "properties": {
+        "amount": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/amount",
+          "x-unit": "mm"
+        },
+        "body": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+          "type": "string",
+          "x-slot": "/body"
+        }
+      },
+      "required": [
+        "amount",
+        "body"
+      ]
+    }
   },
   "expander": "chamfer"
 }

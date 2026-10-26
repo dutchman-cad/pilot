@@ -60,7 +60,22 @@
       "radius"
     ],
     "type": "object",
-    "x-pilot-expander": "sphere"
+    "x-pilot-expander": "sphere",
+    "x-pilot-fill": {
+      "groups": [],
+      "properties": {
+        "radius": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/radius",
+          "x-unit": "mm"
+        }
+      },
+      "required": [
+        "radius"
+      ]
+    }
   },
   "expander": "sphere"
 }

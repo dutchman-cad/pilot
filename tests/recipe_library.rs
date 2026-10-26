@@ -306,7 +306,9 @@ fn generated_schema_and_expander_cases() {
     let cat = Catalog::bundled().unwrap();
     let req = json!({"messages":[{"role":"user","content":"build my selected recipe"}]});
     for r in &lib.recipes {
-        assert_eq!(r.schema, schema(&r.expander).unwrap());
+        let mut typed_schema = r.schema.clone();
+        typed_schema.as_object_mut().unwrap().remove("x-pilot-fill");
+        assert_eq!(typed_schema, schema(&r.expander).unwrap());
         let args = sample(&r.id);
         validate(&args, &r.schema).unwrap();
         // Joint discovery depends on contact topology, not the parameter domain.
@@ -841,4 +843,179 @@ fn field_errors_include_values_numeric_limits_and_fixes() {
     assert!(error.contains("args.corners.edges \"corners\""));
     assert!(error.contains("vertical"));
     assert!(error.contains("use a listed value"));
+}
+
+#[test]
+fn every_flat_form_maps_to_the_same_typed_commands() {
+    use dutchman_pilot::recipe_library::forms::{flat, to_slots};
+    let lib = Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    let req = json!({"messages":[{"role":"user","content":"build the selected recipe"}],"tools":[{"function":{"name":"execute"}}]});
+    for r in &lib.recipes {
+        let mut nested = sample(&r.id);
+        if r.id == "revolute_joint" {
+            nested = json!({"pin_component":"Base","hole_component":"Arm","angle_deg":45});
+        }
+        if r.id == "plate" {
+            nested = json!({"length":80,"width":80,"thickness":8,"centred":true,"bore_diameter":30,"hole_diameter":8,"bolt_circle":{"count":6,"diameter":56,"start_deg":0},"corners":{"kind":"fillet","size":10,"edges":"vertical"}});
+        }
+        if r.id == "enclosure" {
+            nested["lip"] = json!({"width":1,"height":2,"side":"inner"});
+        }
+        if r.id == "cross_drilled_box" {
+            nested["corner"] = json!([0, 0, 0]);
+        }
+        let form = flat(&r.schema);
+        let mut args = json!({});
+        for (key, field) in form["properties"].as_object().unwrap() {
+            assert!(
+                matches!(
+                    field["type"].as_str(),
+                    Some("number" | "integer" | "boolean" | "string")
+                ),
+                "{}.{key}: {field}",
+                r.id
+            );
+            let path = field["x-slot"].as_str().unwrap();
+            let value = if let Some(rest) = path.strip_prefix("/hole_").filter(|r| r.contains('/'))
+            {
+                let (axis, rest) = rest.split_once('/').unwrap();
+                nested["holes"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|h| h["axis"] == axis)
+                    .and_then(|h| h.pointer(&format!("/{rest}")))
+            } else {
+                nested.pointer(path)
+            };
+            if let Some(value) = value {
+                args[key] = value.clone();
+            }
+        }
+        // A plate can contain both patterns with a shared hole diameter. Test
+        // one feature at a time to avoid activating an unspecified pattern.
+        if r.id == "plate" {
+            args.as_object_mut().unwrap().remove("grid_hole_diameter");
+        }
+        let slots = to_slots(&args, &r.schema).unwrap_or_else(|e| panic!("{}: {e}", r.id));
+        assert_eq!(slots, nested, "{}", r.id);
+        let build = |a| {
+            lib.build(&json!({"recipe":r.id,"args":a}), &req, &cat)
+                .unwrap()
+        };
+        assert_eq!(build(args).calls, build(nested).calls, "{}", r.id);
+        let found = lib.find(&r.examples[0], &Bm25).unwrap();
+        if let Some(found) = found["recipes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|v| v["id"] == r.id)
+        {
+            assert_eq!(found["schema"], form);
+        }
+    }
+}
+
+#[test]
+fn flat_coercions_and_partial_features_are_explicit() {
+    use dutchman_pilot::recipe_library::forms::{coerce, flat, to_slots};
+    let lib = Library::embedded().unwrap();
+    let plate = &lib.recipes.iter().find(|r| r.id == "plate").unwrap().schema;
+    let mut args = json!({"length":"2 in","width":"56 mm","thickness":"8","centred":"yes","plane":"xy","bolt_hole_count":"6","corner_kind":"ROUND","corner_edges":"side"});
+    let changes = coerce(&mut args, &flat(plate)).unwrap();
+    assert_eq!(changes.len(), 8);
+    assert_eq!(
+        args,
+        json!({"length":50.8,"width":56.,"thickness":8.,"centred":true,"plane":"XY","bolt_hole_count":6,"corner_kind":"fillet","corner_edges":"vertical"})
+    );
+    for (id, args, missing) in [
+        (
+            "plate",
+            json!({"bolt_hole_count":6}),
+            "bolt_circle_diameter",
+        ),
+        (
+            "plate",
+            json!({"bolt_circle_diameter":56,"bolt_hole_count":6}),
+            "bolt_hole_diameter",
+        ),
+        ("plate", json!({"grid_rows":2}), "grid_columns"),
+        ("plate", json!({"corner_kind":"fillet"}), "corner_size"),
+        ("enclosure", json!({"lip_width":1}), "lip_height"),
+        ("move", json!({"delta_x":5}), "delta_y"),
+        (
+            "cross_drilled_box",
+            json!({"hole_x_position_x":0}),
+            "hole_x_position_y",
+        ),
+    ] {
+        let r = &lib.recipes.iter().find(|r| r.id == id).unwrap().schema;
+        let error = to_slots(&args, r).unwrap_err();
+        assert!(error.contains(missing), "{error}");
+    }
+    let error = to_slots(&json!({"bolt_circle":56}), plate).unwrap_err();
+    assert!(
+        error.contains("bolt_hole_count") && error.contains("bolt_circle_diameter"),
+        "{error}"
+    );
+    for value in ["NaN", "infinity", "", "six", "2 in"] {
+        let mut args = json!({"bolt_hole_count":value});
+        assert!(coerce(&mut args, &flat(plate)).unwrap().is_empty());
+    }
+    for (key, value, want) in [
+        ("centred", "no", json!(false)),
+        ("corner_kind", "bevel", json!("chamfer")),
+        ("corner_edges", "corners", json!("vertical")),
+    ] {
+        let mut args = json!({key:value});
+        assert_eq!(coerce(&mut args, &flat(plate)).unwrap().len(), 1);
+        assert_eq!(args[key], want);
+    }
+}
+
+#[test]
+fn flat_grid_positions_and_conflicts_preserve_typed_behavior() {
+    let lib = Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    let req = json!({"messages":[]});
+    for (id, flat, nested) in [
+        (
+            "plate",
+            json!({"length":100,"width":80,"thickness":8,"grid_rows":2,"grid_columns":3,"grid_pitch_x":20,"grid_pitch_y":20,"grid_hole_diameter":4,"corner_kind":"chamfer","corner_size":2}),
+            json!({"length":100,"width":80,"thickness":8,"grid":{"rows":2,"columns":3,"pitch_x":20,"pitch_y":20},"hole_diameter":4,"corners":{"kind":"chamfer","size":2}}),
+        ),
+        (
+            "cross_drilled_box",
+            json!({"length":24,"width":30,"height":36,"hole_z_diameter":4,"hole_z_position_x":12,"hole_z_position_y":15,"hole_z_position_z":0}),
+            json!({"length":24,"width":30,"height":36,"holes":[{"axis":"Z","diameter":4,"position":[12,15,0]}]}),
+        ),
+    ] {
+        let build = |args| {
+            lib.build(&json!({"recipe":id,"args":args}), &req, &cat)
+                .unwrap()
+        };
+        assert_eq!(build(flat).calls, build(nested).calls);
+    }
+    let schema = &lib.recipes.iter().find(|r| r.id == "plate").unwrap().schema;
+    let mut args = json!({"bolt_hole_count":6,"bolt_circle_diameter":56,"bolt_hole_diameter":4,"bolt_circle":{"count":5,"diameter":60}});
+    assert!(forms::to_slots(&args, schema)
+        .unwrap_err()
+        .contains("conflicting"));
+    args.as_object_mut().unwrap().remove("bolt_circle");
+    args["grid_rows"] = json!(2);
+    args["grid_columns"] = json!(2);
+    args["grid_pitch_x"] = json!(10);
+    args["grid_pitch_y"] = json!(10);
+    args["grid_hole_diameter"] = json!(4);
+    assert_eq!(forms::to_slots(&args, schema).unwrap()["hole_diameter"], 4);
+    args["grid_hole_diameter"] = json!(5);
+    assert!(forms::to_slots(&args, schema)
+        .unwrap_err()
+        .contains("conflicting"));
+    let mut bounded = schema.clone();
+    bounded["x-pilot-fill"]["properties"]["length"]["x-slot"] = json!("/a/b/c/d/e/f/g/h/i");
+    assert!(forms::to_slots(&json!({"length":1}), &bounded)
+        .unwrap_err()
+        .contains("1..8"));
 }

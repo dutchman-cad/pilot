@@ -170,7 +170,182 @@
       "thickness"
     ],
     "type": "object",
-    "x-pilot-expander": "plate"
+    "x-pilot-expander": "plate",
+    "x-pilot-fill": {
+      "groups": [
+        {
+          "fields": [
+            "bolt_hole_count",
+            "bolt_circle_diameter",
+            "bolt_start_deg",
+            "bolt_hole_diameter"
+          ],
+          "required": [
+            "bolt_hole_count",
+            "bolt_circle_diameter",
+            "bolt_hole_diameter"
+          ]
+        },
+        {
+          "fields": [
+            "corner_edges",
+            "corner_kind",
+            "corner_size"
+          ],
+          "required": [
+            "corner_kind",
+            "corner_size"
+          ]
+        },
+        {
+          "fields": [
+            "grid_columns",
+            "grid_pitch_x",
+            "grid_pitch_y",
+            "grid_rows",
+            "grid_hole_diameter"
+          ],
+          "required": [
+            "grid_columns",
+            "grid_pitch_x",
+            "grid_pitch_y",
+            "grid_rows",
+            "grid_hole_diameter"
+          ]
+        }
+      ],
+      "properties": {
+        "bolt_circle_diameter": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/bolt_circle/diameter",
+          "x-unit": "mm"
+        },
+        "bolt_hole_count": {
+          "maximum": 64,
+          "minimum": 1,
+          "type": "integer",
+          "x-slot": "/bolt_circle/count"
+        },
+        "bolt_hole_diameter": {
+          "description": "Pattern holes",
+          "type": "number",
+          "x-slot": "/hole_diameter",
+          "x-unit": "mm"
+        },
+        "bolt_start_deg": {
+          "maximum": 360,
+          "minimum": -360,
+          "type": "number",
+          "x-slot": "/bolt_circle/start_deg"
+        },
+        "bore_diameter": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/bore_diameter",
+          "x-unit": "mm"
+        },
+        "centred": {
+          "type": "boolean",
+          "x-slot": "/centred"
+        },
+        "corner_edges": {
+          "description": "Choice",
+          "enum": [
+            "vertical",
+            "all"
+          ],
+          "type": "string",
+          "x-slot": "/corners/edges"
+        },
+        "corner_kind": {
+          "description": "Choice",
+          "enum": [
+            "fillet",
+            "chamfer"
+          ],
+          "type": "string",
+          "x-slot": "/corners/kind"
+        },
+        "corner_size": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/corners/size",
+          "x-unit": "mm"
+        },
+        "grid_columns": {
+          "maximum": 64,
+          "minimum": 1,
+          "type": "integer",
+          "x-slot": "/grid/columns"
+        },
+        "grid_hole_diameter": {
+          "description": "Pattern holes",
+          "type": "number",
+          "x-slot": "/hole_diameter",
+          "x-unit": "mm"
+        },
+        "grid_pitch_x": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/grid/pitch_x",
+          "x-unit": "mm"
+        },
+        "grid_pitch_y": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/grid/pitch_y",
+          "x-unit": "mm"
+        },
+        "grid_rows": {
+          "maximum": 64,
+          "minimum": 1,
+          "type": "integer",
+          "x-slot": "/grid/rows"
+        },
+        "length": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/length",
+          "x-unit": "mm"
+        },
+        "plane": {
+          "description": "Choice",
+          "enum": [
+            "XY",
+            "XZ",
+            "YZ"
+          ],
+          "type": "string",
+          "x-slot": "/plane"
+        },
+        "thickness": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/thickness",
+          "x-unit": "mm"
+        },
+        "width": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/width",
+          "x-unit": "mm"
+        }
+      },
+      "required": [
+        "length",
+        "thickness",
+        "width"
+      ]
+    }
   },
   "expander": "plate"
 }

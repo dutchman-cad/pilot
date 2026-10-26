@@ -109,7 +109,72 @@
       "count"
     ],
     "type": "object",
-    "x-pilot-expander": "linear_pattern"
+    "x-pilot-expander": "linear_pattern",
+    "x-pilot-fill": {
+      "groups": [],
+      "properties": {
+        "body": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+          "type": "string",
+          "x-slot": "/body"
+        },
+        "count": {
+          "maximum": 500,
+          "minimum": 2,
+          "type": "integer",
+          "x-slot": "/count"
+        },
+        "direction": {
+          "description": "Choice",
+          "enum": [
+            "X",
+            "Y",
+            "Z"
+          ],
+          "type": "string",
+          "x-slot": "/direction"
+        },
+        "edge": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string",
+          "x-slot": "/edge"
+        },
+        "join": {
+          "type": "boolean",
+          "x-slot": "/join"
+        },
+        "spacing": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/spacing",
+          "x-unit": "mm"
+        },
+        "target": {
+          "description": "Choice",
+          "enum": [
+            "body",
+            "last_feature"
+          ],
+          "type": "string",
+          "x-slot": "/target"
+        },
+        "total_length": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/total_length",
+          "x-unit": "mm"
+        }
+      },
+      "required": [
+        "count",
+        "target"
+      ]
+    }
   },
   "expander": "linear_pattern"
 }

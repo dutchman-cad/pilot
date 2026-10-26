@@ -104,7 +104,89 @@
       "depth"
     ],
     "type": "object",
-    "x-pilot-expander": "profile"
+    "x-pilot-expander": "profile",
+    "x-pilot-fill": {
+      "groups": [],
+      "properties": {
+        "depth": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/depth",
+          "x-unit": "mm"
+        },
+        "flange_thickness": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/flange_thickness",
+          "x-unit": "mm"
+        },
+        "height": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/height",
+          "x-unit": "mm"
+        },
+        "kind": {
+          "description": "Choice",
+          "enum": [
+            "L",
+            "T",
+            "U",
+            "C",
+            "rectangle"
+          ],
+          "type": "string",
+          "x-slot": "/kind"
+        },
+        "plane": {
+          "description": "Choice",
+          "enum": [
+            "XY",
+            "XZ",
+            "YZ"
+          ],
+          "type": "string",
+          "x-slot": "/plane"
+        },
+        "stem_offset": {
+          "maximum": 1000000,
+          "minimum": 0,
+          "type": "number",
+          "x-slot": "/stem_offset",
+          "x-unit": "mm"
+        },
+        "thickness": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/thickness",
+          "x-unit": "mm"
+        },
+        "web_thickness": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/web_thickness",
+          "x-unit": "mm"
+        },
+        "width": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/width",
+          "x-unit": "mm"
+        }
+      },
+      "required": [
+        "depth",
+        "height",
+        "kind",
+        "width"
+      ]
+    }
   },
   "expander": "profile"
 }

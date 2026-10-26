@@ -58,6 +58,9 @@ impl Recipe {
         let recipe: Self =
             serde_json::from_str(front).map_err(|e| format!("invalid recipe frontmatter: {e}"))?;
         repair::check_value(&recipe.schema)?;
+        if let Some(fill) = recipe.schema.get("x-pilot-fill") {
+            forms::check_definition(fill)?;
+        }
         if !identifier(&recipe.id)
             || recipe.description.is_empty()
             || recipe.description.len() > 256
@@ -80,8 +83,14 @@ impl Recipe {
             if recipe.calls.is_empty() || recipe.calls.len() > 64 {
                 return Err("sequence requires 1..64 calls".into());
             }
-        } else if recipe.schema != schema(&recipe.expander)? || !recipe.calls.is_empty() {
-            return Err(format!("{}: schema differs from typed expander", recipe.id));
+        } else {
+            let mut typed = recipe.schema.clone();
+            if let Some(o) = typed.as_object_mut() {
+                o.remove("x-pilot-fill");
+            }
+            if typed != schema(&recipe.expander)? || !recipe.calls.is_empty() {
+                return Err(format!("{}: schema differs from typed expander", recipe.id));
+            }
         }
         Ok(recipe)
     }
@@ -274,6 +283,7 @@ fn validate_at(v: &Value, s: &Value, root: &Value, path: &str, depth: usize) -> 
             "allOf",
             "anyOf",
             "x-pilot-expander",
+            "x-pilot-fill",
         ]
         .contains(&key.as_str())
         {
@@ -452,11 +462,13 @@ impl Library {
                 self.recipes.len()
             )
         })?;
-        validate(&envelope["args"], &r.schema)?;
+        let args = forms::to_slots(&envelope["args"], &r.schema)?;
+        let typed_schema = schema(&r.expander).unwrap_or_else(|_| r.schema.clone());
+        validate(&args, &typed_schema)?;
         if r.expander == "sequence" {
             return sequence(r, &envelope["args"], catalog);
         }
-        planner::recipe_expand(&r.expander, &envelope["args"], request, catalog)
+        planner::recipe_expand(&r.expander, &args, request, catalog)
     }
     pub fn find(&self, request: &str, ranker: &dyn Ranker) -> Result<Value, String> {
         if request.trim().is_empty() || request.len() > 2048 {
@@ -474,7 +486,7 @@ impl Library {
             .iter()
             .map(|(i, score)| {
                 let r = &self.recipes[*i];
-                json!({"id":r.id,"description":r.description,"schema":r.schema,"score":score})
+                json!({"id":r.id,"description":r.description,"schema":forms::flat(&r.schema),"score":score})
             })
             .collect();
         Ok(

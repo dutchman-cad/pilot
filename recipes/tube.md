@@ -68,7 +68,38 @@
       "height"
     ],
     "type": "object",
-    "x-pilot-expander": "tube"
+    "x-pilot-expander": "tube",
+    "x-pilot-fill": {
+      "groups": [],
+      "properties": {
+        "height": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/height",
+          "x-unit": "mm"
+        },
+        "inner_radius": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/inner_radius",
+          "x-unit": "mm"
+        },
+        "outer_radius": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/outer_radius",
+          "x-unit": "mm"
+        }
+      },
+      "required": [
+        "height",
+        "inner_radius",
+        "outer_radius"
+      ]
+    }
   },
   "expander": "tube"
 }

@@ -68,7 +68,38 @@
       "height"
     ],
     "type": "object",
-    "x-pilot-expander": "box"
+    "x-pilot-expander": "box",
+    "x-pilot-fill": {
+      "groups": [],
+      "properties": {
+        "height": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/height",
+          "x-unit": "mm"
+        },
+        "length": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/length",
+          "x-unit": "mm"
+        },
+        "width": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/width",
+          "x-unit": "mm"
+        }
+      },
+      "required": [
+        "height",
+        "length",
+        "width"
+      ]
+    }
   },
   "expander": "box"
 }

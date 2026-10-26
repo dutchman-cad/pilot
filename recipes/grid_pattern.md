@@ -112,7 +112,75 @@
       "spacing2"
     ],
     "type": "object",
-    "x-pilot-expander": "grid_pattern"
+    "x-pilot-expander": "grid_pattern",
+    "x-pilot-fill": {
+      "groups": [],
+      "properties": {
+        "body": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
+          "type": "string",
+          "x-slot": "/body"
+        },
+        "columns": {
+          "maximum": 500,
+          "minimum": 2,
+          "type": "integer",
+          "x-slot": "/columns"
+        },
+        "join": {
+          "type": "boolean",
+          "x-slot": "/join"
+        },
+        "plane": {
+          "description": "Choice",
+          "enum": [
+            "XY",
+            "XZ",
+            "YZ"
+          ],
+          "type": "string",
+          "x-slot": "/plane"
+        },
+        "rows": {
+          "maximum": 500,
+          "minimum": 2,
+          "type": "integer",
+          "x-slot": "/rows"
+        },
+        "spacing1": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/spacing1",
+          "x-unit": "mm"
+        },
+        "spacing2": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/spacing2",
+          "x-unit": "mm"
+        },
+        "target": {
+          "description": "Choice",
+          "enum": [
+            "body",
+            "last_feature"
+          ],
+          "type": "string",
+          "x-slot": "/target"
+        }
+      },
+      "required": [
+        "columns",
+        "rows",
+        "spacing1",
+        "spacing2",
+        "target"
+      ]
+    }
   },
   "expander": "grid_pattern"
 }

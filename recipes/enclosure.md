@@ -118,7 +118,101 @@
       "wall"
     ],
     "type": "object",
-    "x-pilot-expander": "enclosure"
+    "x-pilot-expander": "enclosure",
+    "x-pilot-fill": {
+      "groups": [
+        {
+          "fields": [
+            "lip_height",
+            "lip_side",
+            "lip_width"
+          ],
+          "required": [
+            "lip_height",
+            "lip_width"
+          ]
+        }
+      ],
+      "properties": {
+        "centred": {
+          "type": "boolean",
+          "x-slot": "/centred"
+        },
+        "floor": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/floor",
+          "x-unit": "mm"
+        },
+        "height": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/height",
+          "x-unit": "mm"
+        },
+        "length": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/length",
+          "x-unit": "mm"
+        },
+        "lip_height": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/lip/height",
+          "x-unit": "mm"
+        },
+        "lip_side": {
+          "description": "inner/outer wall face",
+          "enum": [
+            "inner",
+            "outer"
+          ],
+          "type": "string",
+          "x-slot": "/lip/side"
+        },
+        "lip_width": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/lip/width",
+          "x-unit": "mm"
+        },
+        "open": {
+          "description": "Choice",
+          "enum": [
+            "top",
+            "bottom"
+          ],
+          "type": "string",
+          "x-slot": "/open"
+        },
+        "wall": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/wall",
+          "x-unit": "mm"
+        },
+        "width": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/width",
+          "x-unit": "mm"
+        }
+      },
+      "required": [
+        "height",
+        "length",
+        "wall",
+        "width"
+      ]
+    }
   },
   "expander": "enclosure"
 }

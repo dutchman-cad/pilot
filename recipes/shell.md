@@ -72,7 +72,46 @@
       "wall"
     ],
     "type": "object",
-    "x-pilot-expander": "shell"
+    "x-pilot-expander": "shell",
+    "x-pilot-fill": {
+      "groups": [],
+      "properties": {
+        "height": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/height",
+          "x-unit": "mm"
+        },
+        "length": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/length",
+          "x-unit": "mm"
+        },
+        "wall": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/wall",
+          "x-unit": "mm"
+        },
+        "width": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/width",
+          "x-unit": "mm"
+        }
+      },
+      "required": [
+        "height",
+        "length",
+        "wall",
+        "width"
+      ]
+    }
   },
   "expander": "shell"
 }

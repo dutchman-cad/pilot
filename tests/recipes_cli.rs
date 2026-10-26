@@ -1272,17 +1272,22 @@ fn public_binary_probe_fill_plate_and_inner_lip() {
     for (id, args, want) in [
         (
             "plate",
-            json!({"length":80,"width":80,"thickness":8,"centred":true,"bore_diameter":30,"hole_diameter":8,"bolt_circle":{"count":6,"diameter":56},"corners":{"kind":"fillet","size":10,"edges":"vertical"}}),
+            json!({"length":80,"width":80,"thickness":8,"plane":"XY","centred":true,"bore_diameter":30,"bolt_hole_diameter":8,"bolt_hole_count":6,"bolt_circle_diameter":56,"corner_kind":"fillet","corner_size":10,"corner_edges":"vertical"}),
             42446.,
         ),
         (
             "enclosure",
-            json!({"length":80,"width":50,"height":30,"wall":2,"open":"top","centred":false,"lip":{"width":1,"height":2}}),
+            json!({"length":80,"width":50,"height":30,"wall":2,"open":"top","centred":false,"lip_width":1,"lip_height":2}),
             22608.,
         ),
     ] {
         let mut s = Session::new(&path);
-        let req = json!({"messages":[]});
+        let req: Value = serde_json::from_str(if id == "plate" {
+            include_str!("fixtures/fill-v2-01-bolt-circle-bracket.json")
+        } else {
+            include_str!("fixtures/fill-v2-03-shell-lip.json")
+        })
+        .unwrap();
         let plan = lib
             .build(&json!({"recipe":id,"args":args}), &req, &cat)
             .unwrap();
@@ -1297,10 +1302,7 @@ fn public_binary_probe_fill_plate_and_inner_lip() {
         assert_eq!(bodies.len(), 1, "{state}");
         let volume = bodies[0]["volume_mm3"].as_f64().unwrap();
         eprintln!("probe {id}: {volume} mm3");
-        assert!(
-            (volume - want).abs() < want * 0.003,
-            "{id}: {volume} vs {want}"
-        );
+        assert!((volume - want).abs() < 0.5, "{id}: {volume} vs {want}");
         assert!(
             state["timeline"]
                 .as_array()

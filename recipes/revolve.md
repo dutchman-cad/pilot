@@ -64,7 +64,30 @@
       "height"
     ],
     "type": "object",
-    "x-pilot-expander": "revolve"
+    "x-pilot-expander": "revolve",
+    "x-pilot-fill": {
+      "groups": [],
+      "properties": {
+        "height": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/height",
+          "x-unit": "mm"
+        },
+        "radius": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/radius",
+          "x-unit": "mm"
+        }
+      },
+      "required": [
+        "height",
+        "radius"
+      ]
+    }
   },
   "expander": "revolve"
 }

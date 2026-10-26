@@ -548,3 +548,37 @@ Audit kinds: `fill_offered` records recipe and score; `fill_accepted` records th
 validated envelope and rule; `fill_declined`, `fill_invalid` and `fill_fallback`
 record why the normal path resumes. Existing wire, size, search and retry caps
 still apply; two fill attempts are additional to the bounded normal retry budget.
+
+### Flat fill forms
+
+`pilot_find` returns the same flat scalar schema offered by `pilot_fill`. Supply
+numbers in mm, integer counts, booleans, and listed string choices; omit unstated
+optional features. Every recipe file owns its field names and slot paths in
+`schema.x-pilot-fill`. Pilot maps these fields to the existing typed slots in one
+shared conversion. `pilot_build` also accepts the earlier nested arguments.
+
+For a plate use `length`, `width`, `thickness`, `plane`, `centred`,
+`bore_diameter`, `bolt_hole_count`, `bolt_hole_diameter`,
+`bolt_circle_diameter`, `bolt_start_deg`, `grid_rows`, `grid_columns`,
+`grid_pitch_x`, `grid_pitch_y`, `grid_hole_diameter`, `corner_kind`,
+`corner_size`, and `corner_edges`. A bolt pattern needs its count, hole diameter,
+and circle diameter; a grid needs both counts, both pitches, and its hole diameter.
+Corners need kind and size; edges default to vertical. An enclosure lip uses
+`lip_width`, `lip_height`, `lip_side` (default inner). A supplied feature field
+activates that feature; incomplete features name the missing field in the error.
+No missing dimension or count is guessed.
+
+Vector slots use scalar coordinates: `delta_x/y/z`, `corner_x/y/z`, and
+`origin_x/y/z` where offered. Cross-drilled boxes offer `hole_x_diameter`,
+`hole_y_diameter`, `hole_z_diameter`, with optional `hole_x_position_x/y/z`
+(and the equivalent Y/Z-hole fields). At least one hole diameter is required;
+a supplied position requires all three coordinates.
+
+Before validating `pilot_fill`, numeric strings such as `"56"`, `"56 mm"`,
+and `"2 in"` are converted to numbers (lengths to mm), `"true"`/`"yes"`
+and `"false"`/`"no"` become booleans, and enum case and common synonyms
+(round/fillet, bevel/chamfer, corners/side/vertical) are normalized. Each changed
+field is audited as `fill_coerced`. Counts and angles do not accept length units.
+A number supplied under an old container name, such as `bolt_circle: 56`, is
+rejected with the scalar field names to use. Each compact fill schema plus its
+system line stays below 1,200 characters, including the `decline` field.
