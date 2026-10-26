@@ -125,3 +125,22 @@ use --no-how or --no-hints to disable those additions.
 Use --prompt-help for extra bounded command guidance. See the
 [flags](flags.md), [behavior](details.md), and [security note](../SECURITY.md).
 Keep the listener on loopback and do not expose it to a network.
+
+Normal model requests omit local `pilot_find` and `pilot_build` schemas. Use
+`--offer-recipe-tools` for models that call these tools. Forced fill and route
+keep their small replacement tool lists without that flag; `--no-shortcuts`
+disables all four paths, and `--no-fill` disables fill and route only.
+
+Facts and hints are offered once per conversation, matched by the client's
+retained history (bounded to 256 conversations), and existing facts still deduplicate.
+Repeated next-step hints keep at most 256 identities per conversation; further
+new next-step hints are omitted at that cap.
+Relevant facts and hints always send, regardless of the client's character count;
+they are never deferred to meet a size budget. `how` remains available unless
+disabled with `--no-how`. Normal requests add 303 fixed characters for `how`
+(including its tool-list separator), down from 5,487 characters for the previous
+schemas and find-first message. Facts and hints add context-dependent characters
+once; explicit prompt modes and recovery retries can add further instructions.
+The `how` schema is 302 characters on the model wire, down from 366.
+MCP uses its separate tool-list path: it continues advertising `how` and putting
+facts in tool descriptions; this model flag and conversation tracking do not apply.

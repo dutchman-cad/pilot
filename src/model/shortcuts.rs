@@ -59,19 +59,23 @@ pub(super) fn strip(body: &mut Value) {
         }
     }
 }
+pub(super) fn supported(body: &Value) -> bool {
+    body["tools"].as_array().is_some_and(|tools| {
+        tools.iter().any(|t| {
+            t["function"]["name"] == "execute"
+                && t["function"]["parameters"]["properties"]
+                    .get("command")
+                    .is_some()
+        })
+    })
+}
 pub(super) fn offer(body: &mut Value) -> Result<bool, String> {
+    if !supported(body) {
+        return Ok(false);
+    }
     let Some(tools) = body.get_mut("tools").and_then(Value::as_array_mut) else {
         return Ok(false);
     };
-    // The creation expanders require execute; the public SolidCraft tools identify this dialect.
-    if !tools.iter().any(|t| {
-        t["function"]["name"] == "execute"
-            && t["function"]["parameters"]["properties"]
-                .get("command")
-                .is_some()
-    }) {
-        return Ok(false);
-    }
     if tools.len() > 126 {
         return Err("cannot inject recipe tools: tools would exceed 128 entries".into());
     }

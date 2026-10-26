@@ -291,14 +291,16 @@ inspection, edit, and measured completion without upstream traffic, plus refusal
 on ambiguous, partial, failed, and missing inspections. Existing fixtures retain
 their expectations; no held-out benchmark requests are read or embedded.
 
-Compound plates combine a centred or corner-origin plate on XY, XZ or YZ with a centred through bore, equally spaced bolt-circle holes (diameter, radius or PCD), a centred rectangular hole grid, and fillets or chamfers on the four vertical corner edges or all edges. Sizes accept mm, cm and inches, including fractions. An unstated bolt-circle start uses +X and is disclosed in the reply. Construction creates the plate, cuts the holes, then rounds the selected edges; four-edge rounding selects only corner midpoints at half thickness. Hole tangency, overlap, plate-edge contact, corner radii at least half the smaller side, uncertain placement or unsupported wording defer to the model; holes near blends are conservatively refused. All-edge rounding includes hole rims and leaves volume verification to measured state. Edge-format and missing-edge errors receive one model-face hint per turn to use model.edges midpoints.
+Compound plates combine a centred or corner-origin plate on XY, XZ or YZ with a centred through bore, equally spaced bolt-circle holes (diameter, radius or PCD), a centred rectangular hole grid, and fillets or chamfers on the four vertical corner edges or all edges. Sizes accept mm, cm and inches, including fractions. An unstated bolt-circle start uses +X and is disclosed in the reply. Construction creates the plate, cuts the holes, then rounds the selected edges; four-edge rounding selects only corner midpoints at half thickness. Hole tangency, overlap, plate-edge contact, corner radii at least half the smaller side, uncertain placement or unsupported wording defer to the model; holes near blends are conservatively refused. All-edge rounding includes hole rims and leaves volume verification to measured state. Edge-format and missing-edge errors receive one model-face hint per retained conversation to use model.edges midpoints.
 
 Shell lips require positive explicit sizes and width smaller than the wall. Walls must be smaller than half the smaller planar side; wall and floor must be below the box height. Each number has exactly one role, with at most seven sizes. Unknown wording, nonprincipal directions, conflicting positions, grooves, recesses, and cuts defer. Separate floor thickness adjusts the inward shell floor without changing the specified exterior height. Centred boxes place their three-dimensional bounding-box centre at the origin before adding the lip. Existing uniform top-open shell commands remain unchanged.
 
 ## Typed model shortcut
 
-The model face offers local `pilot_find` and `pilot_build` tools when SolidCraft's native tools are
-available. The legacy build form accepts a `shape` tag: `profile` (L, T, U, C, rectangle), `plate`,
+Normal model requests omit `pilot_find` and `pilot_build` by default. Pass
+`--offer-recipe-tools` for a model that uses them; they require SolidCraft's native tools.
+The profile records `offer_recipe_tools` (older profiles default to false).
+There is no upfront “call pilot_find first” fact. The legacy build form accepts a `shape` tag: `profile` (L, T, U, C, rectangle), `plate`,
 `enclosure`, or `revolute_joint`. Convert all lengths to mm before calling
 (1 in = 25.4 mm). Profiles use `thickness` or both `web_thickness` and
 `flange_thickness`; U uses web for its bottom and flange for its two sides.
@@ -320,7 +322,7 @@ Pilot removes the shortcut for that turn and hands back to the model. Audits rec
 
 ## Find before build
 
-The model receives `pilot_find({"request":"a mounting plate with six holes"})`
+With `--offer-recipe-tools`, the model can call `pilot_find({"request":"a mounting plate with six holes"})`
 first, then `pilot_build({"recipe":"plate","args":{...}})`. Search returns three
 ids, descriptions, parameter schemas and BM25 scores. Native SolidCraft tools
 remain available. `--no-shortcuts` disables both local tools, including text mode;
@@ -437,7 +439,7 @@ command argument. Body patterns cannot request a join.
 
 When three equal explicit creation/copy calls in one user turn have a constant
 position step, the model receives one short `solid.pattern.rectangular` /
-`linear_pattern` hint. The hint is audited, deduplicated per turn and disabled by
+`linear_pattern` hint. The hint is audited, deduplicated per retained conversation and disabled by
 `--no-hints`; it never executes or replaces the calls.
 ## Cross-drilled boxes
 
@@ -460,12 +462,13 @@ construction planes are created. Equal centred diameters use exact cylinder
 intersection volumes; other positions or diameters use measured volume.
 
 With hints enabled, requests or calls involving XZ/YZ sketches or side holes
-receive the shared, audited `SKETCH_AXES` fact once per request. Sketch (u,v)
+receive the shared, audited `SKETCH_AXES` fact once per retained conversation. Sketch (u,v)
 maps to XY (X,Y), normal +Z; XZ (X,-Z), normal +Y; YZ (Y,Z), normal +X.
 World Z=+10 therefore needs XZ v=-10. Prefer `solid.hole` for holes. A profile
 whose XZ centre falls outside every known body's Z range while reversing v
-would put it inside gets one sign hint per turn. Unreferenced construction
-planes created during the turn get one cleanup hint before finishing.
+would put it inside gets one sign hint per retained conversation. Unreferenced
+construction planes created during the turn get one cleanup hint per retained
+conversation before finishing.
 `--no-hints` disables the facts and both hints. The public CLI smoke test
 checks all mappings and extrusion normals, hole volume/bounds/round faces,
 and the absence of auxiliary timeline features.
@@ -521,9 +524,9 @@ report the supplied field value, numeric limit, and a suggested change.
 An invalid form gets two retries with its latest field error and the same schema (three attempts total). Decline,
 text (including JSON written as text), another tool, mixed calls, or a third invalid
 form restores the ordinary tools for the rest of the turn. The rejected proposal
-is discarded. Normal find/build remain available. There is no fill on tool-result
-continuations or SolidCraft 98. `--no-fill` skips forms while keeping find/build;
-`--no-shortcuts` also removes forms and the upfront find-first line. Exact direct
+is discarded. Normal find/build are available only with `--offer-recipe-tools`. There is no fill on tool-result
+continuations or SolidCraft 98. `--no-fill` skips forced fill and route;
+`--no-shortcuts` disables fill, route and both recipe tools even with the offer flag. Exact direct
 matches retain priority; use `--no-direct-recipes` to exercise forms for those requests.
 
 The find hit/miss threshold remains **1.8**. Retrieval uses bounded per-recipe

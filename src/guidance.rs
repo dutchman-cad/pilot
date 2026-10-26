@@ -394,7 +394,7 @@ pub(crate) fn sketch_hints(
 
 #[cfg(feature = "proxy")]
 pub(crate) fn how_tool() -> Value {
-    json!({"name":"how","description":"Find a SolidCraft command, a typed template, and a concrete example when possible. Templates must be filled from the request and current model; never executes anything.","inputSchema":{"type":"object","properties":{"task":{"type":"string","maxLength":256}},"required":["task"],"additionalProperties":false},"annotations":{"readOnlyHint":true,"destructiveHint":false}})
+    json!({"name":"how","description":"Find commands, typed templates and examples. Fill templates from the request and model state. Read-only.","inputSchema":{"type":"object","properties":{"task":{"type":"string","maxLength":256}},"required":["task"],"additionalProperties":false},"annotations":{"readOnlyHint":true,"destructiveHint":false}})
 }
 
 #[cfg(feature = "proxy")]

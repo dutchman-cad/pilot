@@ -125,6 +125,7 @@ pub fn profiles(dir: Option<&Path>, model: Option<&str>, json: bool) -> Result<S
             "request characters (trim={}, keep={}): mean / max per upstream request ({} requests)\n",
             p.trim_enabled, p.trim_keep, p.upstream_requests
         ));
+        text.push_str(&format!("  offer_recipe_tools: {}\n", p.offer_recipe_tools));
         for (part, total) in &p.request_chars_total {
             let mean = if p.upstream_requests == 0 {
                 0.0

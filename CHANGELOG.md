@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Keep recipe tools opt-in with `--offer-recipe-tools`, always send relevant facts/hints once per conversation, and shorten the `how` schema.
+
 - Lay out honeycomb rows along the plate's longer side by default, preserving explicit orientations and matching swapped dimensions by rotation.
 
 - Calibrate recipe retrieval with bounded synonyms, stemming and field hits, and route uncertain requests through one audited recipe choice before filling.

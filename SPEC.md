@@ -41,8 +41,8 @@ real endpoint (`--upstream http://localhost:11434/v1`, Ollama by default; any Op
 URL; an API key is passed through from the client's Authorization header, never stored).
 
 Request side:
-- With SolidCraft tools, offer local `pilot_find` and `pilot_build` functions by default (except the
-  SolidCraft 98 dialect); `--no-shortcuts` disables both. Search the embedded Markdown
+- With SolidCraft tools, `--offer-recipe-tools` offers local `pilot_find` and `pilot_build`
+  functions (default off; unavailable in the SolidCraft 98 dialect); `--no-shortcuts` disables both. Search the embedded Markdown
   recipe library first with `{request}`; retrieve three ids, descriptions, schemas and BM25
   scores. A score below 1.8 returns an explicit miss and guidance to describe supported
   recipes or ask one question, without blocking native tools. Build with `{recipe, args}`.
@@ -69,9 +69,13 @@ Request side:
   invalid fill restores the ordinary tools for the rest of the turn. Local forms never
   reach the client. Audit `fill_offered` (recipe, score), `fill_accepted`, `fill_declined`,
   `fill_invalid`, `fill_fallback`, and `fill_defaulted` for inferred non-dimensional choices. Offer once per user turn; no continuation or SC98
-  fills. `--no-fill` keeps find/build but skips forms; `--no-shortcuts` disables both.
-  When shortcuts are offered, add: "For plates, profiles, enclosures, patterns,
-  honeycombs, cross-drilled boxes and joints, call pilot_find first."
+  fills. Forced fill and route do not require `--offer-recipe-tools`. `--no-fill` skips
+  fill and route; `--no-shortcuts` disables forms and local recipe tools even with the offer flag.
+  No upfront find-first fact is added.
+- Facts and hints are sent once per retained conversation, with existing-history deduplication.
+  Relevant guidance is always sent regardless of the client's character count.
+  `how` remains available unless disabled with `--no-how`; its shorter schema saves
+  64 characters. MCP retains its separate tool-list behavior.
 - Pass other request fields through unchanged unless a feature below applies.
 - `--fallback-prompt auto|on|off`: for a model that can't do native tools (detected from Ollama's
   `/api/show` capabilities, or after a turn that wrote a call as text), append ONE conditional

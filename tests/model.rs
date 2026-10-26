@@ -196,6 +196,7 @@ impl Harness {
             no_how: !how,
             no_hints: false,
             // Tool injections (how and pilot_build) are tested together.
+            offer_recipe_tools: true,
             no_shortcuts: !how,
             no_fill: false,
             no_trim: false,
@@ -463,7 +464,7 @@ fn local_how_hints_and_clean_tools_capability_profile() {
     let chats = h.chats();
     assert_eq!(chats.len(), 5);
     for chat in &chats {
-        // The only system line is the shortcut tools' find-first fact.
+        // No find-first fact is injected.
         assert!(chat["messages"]
             .as_array()
             .unwrap()
@@ -471,7 +472,7 @@ fn local_how_hints_and_clean_tools_capability_profile() {
             .filter(|m| m["role"] == "system")
             .all(|m| m["content"]
                 .as_str()
-                .is_some_and(|c| c.contains("call pilot_find first."))));
+                .is_some_and(|c| !c.contains("call pilot_find first."))));
         assert!(chat["tools"]
             .as_array()
             .unwrap()
@@ -1066,6 +1067,7 @@ fn report_capture_endpoint_and_disabled_buffer() {
             no_report_buffer: disabled,
             no_how: true,
             no_hints: true,
+            offer_recipe_tools: true,
             no_shortcuts: false,
             no_fill: false,
             no_trim: false,
@@ -1145,6 +1147,7 @@ fn report_endpoint_rejects_non_loopback_peer() {
         no_report_buffer: false,
         no_how: true,
         no_hints: true,
+        offer_recipe_tools: true,
         no_shortcuts: false,
         no_fill: false,
         no_trim: false,
