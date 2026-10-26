@@ -16,8 +16,15 @@ command line. The same commands also come as a standalone download,
 
 - [SolidCraft 98](docs/solidcraft98.md) screen tools, a bounded model driver, and
   offline help, using its public remote protocol (SolidCraft 98 1.2 or later).
-- Typed recipes for primitives, hole layouts, sketch extrusions, edge finishes,
-  movement, renaming, mirror, shell, revolve, and measured queries.
+- Recipe forms: Pilot finds the recipe that fits a request and asks the model only to
+  fill in its typed form, in a short separate request, then builds the part with checked
+  calls. Recipes cover primitives, hole layouts, profiles (L, T, U, C, rectangle), plates
+  with bores, bolt circles, and rounded corners, enclosures with a locating lip,
+  cross-drilled boxes, honeycomb hole patterns, patterns of existing parts, a revolute
+  joint on a pin, edge finishes, movement, renaming, mirror, shell, revolve, and
+  measured queries.
+- Fewer input tokens: older tool results are trimmed inside long tasks (`--no-trim` to
+  keep them), and Pilot adds no unused tool schemas.
 - Millimetres, metric and inch units, fractions, and deterministic expansions.
 - Opt-in `--planner`: recipe suggestions, matching prose conversion, continuations,
   and one measured completion check. These plan-text features are off by default;
@@ -39,7 +46,10 @@ as an MCP server, or attach with `--connect 127.0.0.1:9898` to an application st
 
 See [recipes and their limits](docs/recipes.md).
 
-**Small models:** For 3–8B models, exact matches are on by default with your upstream URL.
+**Small models:** For 3–8B models, recipe forms and exact matches are on by default with
+your upstream URL. On four blind test sets, gemma4 e4b went from 2 to 27 passes of 56
+without exact matches, and from 2 to 30 with them, measured on the beta.5 development
+builds ([results and builds](https://github.com/dutchman-cad/pilot/issues/1)).
 Use `--no-direct-recipes` to send everything to the model. Exact matches bypass the model,
 and their replies are marked **"Exact match (no model):"**.
 The proposed calls still go through SolidCraft's approval and validation.
