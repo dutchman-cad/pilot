@@ -37,7 +37,10 @@ fn response(
         retry_after: None,
     })
 }
-fn calls(request: &Value, plan: &planner::Plan, index: usize) -> Value {
+pub(super) fn native(request: &Value, message: Value, rewrites: usize) -> Result<Reply, String> {
+    response(request, message, "tool_calls", rewrites)
+}
+pub(super) fn calls(request: &Value, plan: &planner::Plan, index: usize) -> Value {
     let mut planned = plan.calls.clone();
     let batch = request["tools"]
         .as_array()
@@ -45,13 +48,29 @@ fn calls(request: &Value, plan: &planner::Plan, index: usize) -> Value {
     let inspect = planned
         .last()
         .is_some_and(|c| c["arguments"]["command"] == "document.inspect");
-    if batch && planned.len() > 1 + usize::from(inspect) {
+    // The Assistant truncates each tool message at 20,000 characters. Keep
+    // topology reads separate: even two bodies can overflow a combined batch.
+    let topology = planned.iter().any(|c| {
+        matches!(
+            c["arguments"]["command"].as_str(),
+            Some("model.faces" | "model.edges")
+        )
+    });
+    if batch && !topology && planned.len() > 1 + usize::from(inspect) {
         let verification = if inspect { planned.pop() } else { None };
         let commands: Vec<_> = planned.iter().map(|c| c["arguments"].clone()).collect();
         planned = vec![json!({"tool":"batch","arguments":{"commands":commands}})];
         planned.extend(verification);
     }
-    json!(planned.iter().enumerate().map(|(i,c)| json!({"id":format!("pilot_direct_{index}_{}_{}", plan.rule, i),"type":"function","function":{"name":c["tool"],"arguments":c["arguments"].to_string()}})).collect::<Vec<_>>())
+    json!(planned.iter().enumerate().map(|(i,c)| {
+        let mut id = format!("pilot_direct_{index}_{}_{}", plan.rule, i);
+        if let Some(messages) = request["messages"].as_array() {
+            if messages.iter().any(|m| m["tool_calls"].as_array().is_some_and(|cs| cs.iter().any(|c| c["id"] == id))) {
+                id = format!("{id}_{}", messages.len());
+            }
+        }
+        json!({"id":id,"type":"function","function":{"name":c["tool"],"arguments":c["arguments"].to_string()}})
+    }).collect::<Vec<_>>())
 }
 impl Proxy {
     pub(super) fn direct_turn(
@@ -95,6 +114,10 @@ impl Proxy {
                 });
                 let difference = if !valid {
                     Some("Recipe completion failed: a tool returned an error, or the expected tool results are missing or invalid. Inspect the design and recover; do not repeat accepted changes.".to_string())
+                } else if previous.rule == "resolve_pattern" {
+                    recipe.is_none().then(|| "Pattern target is unresolved: inspect a single body or last feature and clarify count or overlap. No pattern was created.".into())
+                } else if previous.rule == "resolve_joint" {
+                    recipe.is_none().then(|| "Joint target is unresolved: inspect exactly one matching pin and hole pair. No joint was created.".into())
                 } else if previous.rule == "resolve_body" {
                     recipe.as_ref().is_none_or(|p| p.rule == "resolve_body").then(||
                         "Recipe target is unresolved: inspection must identify exactly one requested body. No change was made.".into())
@@ -132,7 +155,12 @@ impl Proxy {
                     // The caller adds this hand-back before entering the ordinary model path.
                     return Ok(None);
                 }
-                if previous.continuation.is_none() && previous.rule != "resolve_body" {
+                if previous.continuation.is_none()
+                    && !matches!(
+                        previous.rule,
+                        "resolve_body" | "resolve_joint" | "resolve_pattern"
+                    )
+                {
                     let summary_plan = if previous.expected.is_none() {
                         recipe.as_ref().unwrap_or(&previous)
                     } else {
@@ -160,9 +188,15 @@ impl Proxy {
             )?;
             return Ok(Some(reply(request, text, audit.count)?));
         }
+        if plan.rule == "resolve_pattern" {
+            if conversation.pattern_inspections >= 4 {
+                return Ok(Some(reply(request, "Pattern inspection limit reached; clarify the target or geometry. No pattern was created.".into(), audit.count)?));
+            }
+            conversation.pattern_inspections += 1;
+        }
         let message =
             json!({"role":"assistant","content":null,"tool_calls":calls(request, plan, index)});
-        audit.record("direct_recipe_calls", &Value::Null, &json!({"rule":plan.rule,"slots":plan.slots,"expected":plan.expected,"message":message,"from_model":false}))?;
+        audit.record("direct_recipe_calls", &Value::Null, &json!({"request":last_user(request),"rule":plan.rule,"slots":plan.slots,"expected":plan.expected,"calls":plan.calls,"message":message,"from_model":false}))?;
         conversation.direct = Some((index, plan.clone(), message.clone()));
         conversation.recipe = plan.expected.clone().map(|e| (index, e));
         conversation.pending_recipe = plan.continuation.as_ref().map(|_| plan.clone());
@@ -171,12 +205,13 @@ impl Proxy {
 }
 
 // JSON ingress already bounds size and nesting, including batch result trees.
-fn has_error(value: &Value) -> bool {
+pub(super) fn has_error(value: &Value) -> bool {
     match value {
         Value::Object(object) => object.iter().any(|(key, value)| {
             (key == "error" && !value.is_null())
                 || (key == "isError" && value == true)
                 || (key == "success" && value == false)
+                || (key == "ok" && value == false)
                 || has_error(value)
         }),
         Value::Array(values) => values.iter().any(has_error),

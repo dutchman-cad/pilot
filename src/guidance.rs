@@ -3,8 +3,398 @@ use crate::catalog::Catalog;
 use serde_json::{json, Value};
 
 #[cfg(feature = "proxy")]
+pub(crate) const XZ_SIGN_HINT: &str =
+    "XZ sketch v is -world Z; use negative v for positive world Z.";
+#[cfg(feature = "proxy")]
+pub(crate) const PLANE_CLEANUP_HINT: &str = "Before finishing, delete construction planes created this turn that no later feature references.";
+
+/// Bounded evidence from successful public calls; no geometry is rewritten.
+#[cfg(feature = "proxy")]
+#[derive(Default)]
+pub(crate) struct PlaneGuidance {
+    ranges: Vec<(String, f64, f64)>,
+    xz: bool,
+    planes: Vec<Vec<String>>,
+    misplaced: bool,
+}
+#[cfg(feature = "proxy")]
+impl PlaneGuidance {
+    pub(crate) fn new_turn(&mut self) {
+        self.planes.clear();
+        self.misplaced = false;
+    }
+    pub(crate) fn hints(&self) -> [Option<&'static str>; 2] {
+        [
+            self.misplaced.then_some(XZ_SIGN_HINT),
+            (!self.planes.is_empty()).then_some(PLANE_CLEANUP_HINT),
+        ]
+    }
+    pub(crate) fn visit(&mut self, name: &str, args: &Value, result: &Value) {
+        let data = payload(result);
+        if !paging(&data).is_empty() {
+            self.ranges.clear();
+            return;
+        }
+        if name == "batch" {
+            if let Some((calls, results)) =
+                args["commands"].as_array().zip(data["results"].as_array())
+            {
+                for (call, result) in calls.iter().zip(results).take(128) {
+                    self.visit("execute", call, result);
+                }
+            }
+            return;
+        }
+        if result["isError"] == true
+            || result["result"]["isError"] == true
+            || data["isError"] == true
+            || data["ok"] == false
+            || data.get("error").is_some_and(|e| !e.is_null())
+        {
+            return;
+        }
+        if let Some(bodies) = data.get("after").unwrap_or(&data)["bodies"]
+            .as_array()
+            .filter(|a| {
+                a.len() <= 1024
+                    && a.iter().all(|b| b.is_object() && b["bbox"].is_object())
+                    && (!a.is_empty()
+                        || matches!(name, "inspect" | "inspect_design")
+                        || data.get("timeline").is_some()
+                        || data.get("after").is_some())
+            })
+        {
+            self.ranges.clear();
+            for b in bodies {
+                if let (Some(n), Some(lo), Some(hi)) = (
+                    b["name"].as_str(),
+                    b["bbox"]["min"][2].as_f64(),
+                    b["bbox"]["max"][2].as_f64(),
+                ) {
+                    if lo.is_finite() && hi.is_finite() {
+                        self.ranges.push((n.to_string(), lo, hi));
+                    }
+                }
+            }
+        }
+        if name != "execute" {
+            return;
+        }
+        if let Some(removed) = data["removed_bodies"].as_array() {
+            for name in removed.iter().take(1024).filter_map(Value::as_str) {
+                self.ranges.retain(|(old, _, _)| old != name);
+            }
+        }
+        let command = args["command"].as_str().unwrap_or("");
+        let p = &args["params"];
+        // Only structural parameter references count, never diagnostic text.
+        fn references(v: &Value, names: &[String], depth: usize) -> bool {
+            if depth > 16 {
+                return false;
+            }
+            match v {
+                Value::String(s) => names.contains(s),
+                Value::Array(a) => a.iter().take(128).any(|v| references(v, names, depth + 1)),
+                Value::Object(o) => o
+                    .values()
+                    .take(128)
+                    .any(|v| references(v, names, depth + 1)),
+                _ => false,
+            }
+        }
+        if command == "sketch.create"
+            || command.starts_with("construct.")
+            || command.starts_with("solid.")
+            || matches!(
+                command,
+                "feature.delete" | "timeline.delete" | "model.delete"
+            )
+        {
+            self.planes.retain(|names| !references(p, names, 0));
+        }
+        if command.starts_with("construct.plane.") && self.planes.len() < 128 {
+            let names: Vec<_> = [
+                p.get("name"),
+                data.get("name"),
+                data.get("id"),
+                data.get("feature"),
+            ]
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .filter(|s| !s.is_empty() && s.len() <= 256)
+            .map(str::to_string)
+            .collect();
+            if !names.is_empty() {
+                self.planes.push(names);
+            }
+        }
+        if command == "sketch.create" {
+            self.xz = p["plane"]
+                .as_str()
+                .is_some_and(|s| s.eq_ignore_ascii_case("XZ"))
+                && p.get("flip").is_none_or(|v| *v == false);
+        } else if command == "sketch.finish" || command == "sketch.edit" {
+            self.xz = false;
+        }
+        if command == "solid.box" && self.ranges.len() < 1024 {
+            if let Some(height) = p["height"]
+                .as_f64()
+                .filter(|n| n.is_finite() && *n > 0.0 && *n <= 1_000_000.0)
+            {
+                let lo = if let Some(c) = p.get("center") {
+                    c[2].as_f64().map(|z| z - height / 2.0)
+                } else {
+                    p.get("corner").map_or(Some(0.0), |c| c[2].as_f64())
+                };
+                if let (Some(lo), Some(names)) = (lo, data["created_bodies"].as_array()) {
+                    for n in names.iter().take(4).filter_map(Value::as_str) {
+                        self.ranges.retain(|(old, _, _)| old != n);
+                        self.ranges.push((n.into(), lo, lo + height));
+                    }
+                }
+            }
+        } else if matches!(
+            command,
+            "model.move"
+                | "model.rotate"
+                | "model.scale"
+                | "model.delete"
+                | "solid.move"
+                | "solid.rotate"
+                | "solid.scale"
+        ) {
+            self.ranges.clear();
+        }
+        if self.xz
+            && (command.starts_with("sketch.circle")
+                || command.starts_with("sketch.rectangle")
+                || command == "sketch.point")
+        {
+            let v = p
+                .get("center")
+                .or_else(|| p.get("point"))
+                .and_then(|c| c[1].as_f64())
+                .or_else(|| {
+                    if command.ends_with("two_point") || command.ends_with("rounded") {
+                        Some((p["p0"][1].as_f64()? + p["p1"][1].as_f64()?) / 2.0)
+                    } else {
+                        None
+                    }
+                });
+            if let Some(v) = v.filter(|v| v.is_finite() && v.abs() <= 1_000_000.0) {
+                let inside = |z: f64| self.ranges.iter().any(|(_, lo, hi)| z >= *lo && z <= *hi);
+                self.misplaced |= !inside(-v) && inside(v);
+            }
+        }
+    }
+}
+
+#[cfg(all(test, feature = "proxy"))]
+mod plane_tests {
+    use super::*;
+    fn run(s: &mut PlaneGuidance, command: &str, params: Value) {
+        s.visit(
+            "execute",
+            &json!({"command":command,"params":params}),
+            &json!({}),
+        );
+    }
+    #[test]
+    fn sign_uses_all_body_ranges_and_profile_centres() {
+        for (command, params) in [
+            ("sketch.circle.center", json!({"center":[10,10]})),
+            (
+                "sketch.rectangle.two_point",
+                json!({"p0":[8,8],"p1":[12,12]}),
+            ),
+            ("sketch.point", json!({"point":[10,10]})),
+        ] {
+            let mut s = PlaneGuidance::default();
+            s.visit(
+                "inspect",
+                &Value::Null,
+                &json!({"bodies":[{"name":"A","bbox":{"min":[0,0,0],"max":[20,20,20]}}]}),
+            );
+            run(&mut s, "sketch.create", json!({"plane":"XZ"}));
+            run(&mut s, command, params);
+            assert_eq!(s.hints()[0], Some(XZ_SIGN_HINT));
+        }
+        for (plane, v, ranges) in [
+            ("XY", 10., vec![(0., 20.)]),
+            ("YZ", 10., vec![(0., 20.)]),
+            ("XZ", -10., vec![(0., 20.)]),
+            ("XZ", 10., vec![(-20., 20.)]),
+            ("XZ", 10., vec![(0., 20.), (-20., -1.)]),
+            ("XZ", 10., vec![]),
+        ] {
+            let mut s = PlaneGuidance {
+                ranges: ranges
+                    .into_iter()
+                    .map(|(lo, hi)| ("A".into(), lo, hi))
+                    .collect(),
+                ..PlaneGuidance::default()
+            };
+            run(&mut s, "sketch.create", json!({"plane":plane}));
+            run(&mut s, "sketch.circle.center", json!({"center":[10,v]}));
+            assert_eq!(s.hints()[0], None);
+        }
+    }
+    #[test]
+    fn cleanup_counts_only_successful_unreferenced_planes() {
+        let mut s = PlaneGuidance::default();
+        run(
+            &mut s,
+            "construct.plane.offset",
+            json!({"name":"P_Z10","base":"XY","offset":10}),
+        );
+        assert_eq!(s.hints()[1], Some(PLANE_CLEANUP_HINT));
+        run(&mut s, "timeline.inspect", json!({"feature":"P_Z10"}));
+        assert_eq!(s.hints()[1], Some(PLANE_CLEANUP_HINT));
+        run(&mut s, "sketch.create", json!({"plane":"P_Z10"}));
+        assert_eq!(s.hints()[1], None);
+        s.visit(
+            "execute",
+            &json!({"command":"construct.plane.offset","params":{"name":"failed"}}),
+            &json!({"error":"bad plane"}),
+        );
+        assert_eq!(s.hints()[1], None);
+        run(
+            &mut s,
+            "construct.plane.offset",
+            json!({"name":"Unused","base":"XY","offset":4}),
+        );
+        run(&mut s, "feature.delete", json!({"feature":"Unused"}));
+        assert_eq!(s.hints()[1], None);
+    }
+}
+
+#[cfg(feature = "proxy")]
+pub(crate) const EDGE_HINT: &str = "HINT: Edges accept [x,y,z], {point:[x,y,z]}, or {body,index}; take edge midpoints from model.edges (box vertical edges: corners at mid-height).";
+
+#[cfg(feature = "proxy")]
+pub(crate) fn edge_hints(
+    name: &str,
+    args: &Value,
+    result: &Value,
+    seen: &mut bool,
+) -> Vec<&'static str> {
+    if *seen {
+        return Vec::new();
+    }
+    let data = payload(result);
+    let pairs: Vec<(&Value, &Value)> = match name {
+        "execute" => vec![(args, result)],
+        "batch" => args["commands"]
+            .as_array()
+            .zip(data["results"].as_array())
+            .map(|(a, b)| a.iter().zip(b).take(128).collect())
+            .unwrap_or_default(),
+        _ => Vec::new(),
+    };
+    for (call, result) in pairs {
+        if !matches!(
+            call["command"].as_str(),
+            Some("solid.fillet" | "solid.chamfer")
+        ) {
+            continue;
+        }
+        let text = result
+            .to_string()
+            .chars()
+            .take(8192)
+            .collect::<String>()
+            .to_ascii_lowercase();
+        if text.contains("no edge at")
+            || text.contains("an edge is a point")
+            || (text.contains("edge")
+                && text.contains("{body")
+                && text.contains("index")
+                && text.contains("error"))
+        {
+            *seen = true;
+            return vec![EDGE_HINT];
+        }
+    }
+    Vec::new()
+}
+
+#[cfg(feature = "proxy")]
+pub(crate) const SKETCH_ENTITY_HINT: &str = "HINT: One line's length: entities:[\"l1\"], value:<mm number>; distance between two lines: entities:[\"l2\",\"l5\"].";
+#[cfg(feature = "proxy")]
+pub(crate) const SKETCH_EXISTING_HINT: &str = "HINT: sketch.line with infer:true already adds coincident/horizontal/vertical constraints; move on to dimensions.";
+
+/// Two bounded hints per sketch turn, shared by both proxy faces.
+#[cfg(feature = "proxy")]
+pub(crate) fn sketch_hints(
+    name: &str,
+    args: &Value,
+    result: &Value,
+    seen: &mut [bool; 2],
+) -> Vec<&'static str> {
+    fn visit(call: &Value, result: &Value, seen: &mut [bool; 2], out: &mut Vec<&'static str>) {
+        let Some(command) = call["command"].as_str() else {
+            return;
+        };
+        let data = payload(result);
+        // Result sizes are capped by the caller; inspect only a bounded diagnostic.
+        let text: String = result
+            .to_string()
+            .chars()
+            .take(8192)
+            .collect::<String>()
+            .to_ascii_lowercase();
+        let entities = &call["params"]["entities"];
+        let bad_entities = entities.as_array().is_none_or(|a| a.len() > 2);
+        let failed = result["isError"] == true
+            || result["result"]["isError"] == true
+            || data["isError"] == true
+            || data["ok"] == false
+            || data.get("error").is_some_and(|v| !v.is_null())
+            || result.get("error").is_some_and(|v| !v.is_null());
+        let hint = if command == "sketch.dimension"
+            && failed
+            && text.contains("entities")
+            && (bad_entities
+                || text.contains("one or two")
+                || text.contains("array")
+                || text.contains("list")
+                || text.contains("two"))
+        {
+            Some((0, SKETCH_ENTITY_HINT))
+        } else if command.starts_with("sketch.constraint.") && data["existing"] == true {
+            Some((1, SKETCH_EXISTING_HINT))
+        } else {
+            None
+        };
+        if let Some((index, hint)) = hint {
+            if !seen[index] {
+                seen[index] = true;
+                out.push(hint);
+            }
+        }
+    }
+    let mut out = Vec::new();
+    match name {
+        "execute" => visit(args, result, seen, &mut out),
+        "batch" => {
+            let data = payload(result);
+            if let Some((calls, results)) =
+                args["commands"].as_array().zip(data["results"].as_array())
+            {
+                for (call, result) in calls.iter().zip(results).take(128) {
+                    visit(call, result, seen, &mut out);
+                }
+            }
+        }
+        _ => (),
+    }
+    out
+}
+
+#[cfg(feature = "proxy")]
 pub(crate) fn how_tool() -> Value {
-    json!({"name":"how","description":"Find a SolidCraft command, a typed template, and a concrete example when possible. Templates must be filled from the request and current model; never executes anything.","inputSchema":{"type":"object","properties":{"task":{"type":"string","maxLength":256}},"required":["task"],"additionalProperties":false},"annotations":{"readOnlyHint":true,"destructiveHint":false}})
+    json!({"name":"how","description":"Find commands, typed templates and examples. Fill templates from the request and model state. Read-only.","inputSchema":{"type":"object","properties":{"task":{"type":"string","maxLength":256}},"required":["task"],"additionalProperties":false},"annotations":{"readOnlyHint":true,"destructiveHint":false}})
 }
 
 #[cfg(feature = "proxy")]
@@ -309,6 +699,68 @@ pub(crate) fn placement_hints(name: &str, args: &Value, result: &Value) -> Vec<S
 mod placement_tests {
     use super::*;
 
+    #[test]
+    fn sketch_entity_errors_existing_constraints_and_bounded_batches() {
+        for entities in [json!(["l1", "l2", "l3"]), json!("l1"), json!({"line":"l1"})] {
+            let call = json!({"command":"sketch.dimension","params":{"entities":entities}});
+            for result in [
+                json!({"error":"`entities` must list one or two sketch entities"}),
+                json!({"isError":true,"content":[{"type":"text","text":"entities must be a list"}]}),
+                json!({"error":{"message":"entities must be an array"}}),
+            ] {
+                let mut seen = [false; 2];
+                assert_eq!(
+                    sketch_hints("execute", &call, &result, &mut seen),
+                    [SKETCH_ENTITY_HINT]
+                );
+                assert!(sketch_hints("execute", &call, &result, &mut seen).is_empty());
+            }
+        }
+        let dimension = json!({"command":"sketch.dimension","params":{"entities":["l1"]}});
+        for result in [
+            json!({"ok":true,"entities":["l1"]}),
+            json!({"error":"value must be a number"}),
+            json!({"isError":false,"entities":["l1"]}),
+        ] {
+            assert!(sketch_hints("execute", &dimension, &result, &mut [false; 2]).is_empty());
+        }
+        let constraint = json!({"command":"sketch.constraint.coincident"});
+        assert_eq!(
+            sketch_hints(
+                "execute",
+                &constraint,
+                &json!({"content":[{"type":"text","text":"{\"existing\":true}"}]}),
+                &mut [false; 2]
+            ),
+            [SKETCH_EXISTING_HINT]
+        );
+        assert!(sketch_hints(
+            "execute",
+            &constraint,
+            &json!({"existing":false}),
+            &mut [false; 2]
+        )
+        .is_empty());
+        assert!(sketch_hints(
+            "execute",
+            &dimension,
+            &json!({"existing":true}),
+            &mut [false; 2]
+        )
+        .is_empty());
+        let calls = vec![constraint; 200];
+        let results = vec![json!({"existing":true}); 200];
+        assert_eq!(
+            sketch_hints(
+                "batch",
+                &json!({"commands":calls}),
+                &json!({"results":results}),
+                &mut [false; 2]
+            ),
+            [SKETCH_EXISTING_HINT]
+        );
+    }
+
     fn call(params: Value) -> Value {
         json!({"command":"solid.box", "params":params})
     }
@@ -386,6 +838,56 @@ mod placement_tests {
             "execute",
             &json!({"command":"solid.sphere","params":{"radius":5}}),
             &created("Body1")
+        )
+        .is_empty());
+    }
+}
+
+#[cfg(all(test, feature = "proxy"))]
+mod edge_tests {
+    use super::*;
+    #[test]
+    fn edge_errors_are_scoped_bounded_and_deduplicated() {
+        for command in ["solid.fillet", "solid.chamfer"] {
+            for error in [
+                "an edge is a point [x,y,z], {point} or {body, index}",
+                "no edge at [0, 0, 0]: the nearest edge is 40.000 mm away",
+            ] {
+                let args = json!({"command":command});
+                for result in [
+                    json!({"error":error}),
+                    json!({"isError":true,"content":[{"type":"text","text":error}]}),
+                ] {
+                    let mut seen = false;
+                    assert_eq!(
+                        edge_hints("execute", &args, &result, &mut seen),
+                        [EDGE_HINT]
+                    );
+                    assert!(edge_hints("execute", &args, &result, &mut seen).is_empty());
+                    assert_eq!(
+                        edge_hints(
+                            "batch",
+                            &json!({"commands":[args,args]}),
+                            &json!({"results":[result,result]}),
+                            &mut false
+                        ),
+                        [EDGE_HINT]
+                    );
+                }
+            }
+        }
+        assert!(edge_hints(
+            "execute",
+            &json!({"command":"solid.box"}),
+            &json!({"error":"no edge at [0,0,0]"}),
+            &mut false
+        )
+        .is_empty());
+        assert!(edge_hints(
+            "execute",
+            &json!({"command":"solid.fillet"}),
+            &json!({"ok":true}),
+            &mut false
         )
         .is_empty());
     }

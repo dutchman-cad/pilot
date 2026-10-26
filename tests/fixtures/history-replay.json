@@ -1,0 +1,15 @@
+{
+  "description": "Independently authored synthetic Assistant session; expand each listing to 180 rows in Rust. No external recordings.",
+  "rows": 180,
+  "turns": [
+    "Show the available modelling commands.",
+    "Explain the box command before I use it.",
+    "List the current bodies and faces.",
+    "Show the edges on the first body.",
+    "Check the current design state again.",
+    "Show those faces once more.",
+    "Compare the edges with the earlier listing.",
+    "Summarize the design and suggest the next step."
+  ],
+  "tools": ["list_commands", "describe_command", "inspect", "execute", "inspect", "execute", "execute", "inspect"]
+}

@@ -5,26 +5,35 @@ pub(crate) mod cases;
 mod english;
 #[cfg(test)]
 mod first_turn;
+#[cfg(feature = "proxy")]
+pub(crate) mod form_context;
+mod honeycomb;
+mod patterns;
 mod recipes;
 #[cfg(test)]
 mod robust;
 mod slots;
 use crate::{catalog::Catalog, guidance, repair};
+pub use honeycomb::schema as honeycomb_schema;
+pub use patterns::{intent as pattern_intent, repetition_hint, schema as pattern_schema};
 use serde_json::{json, Value};
 use slots::{dimensions, intent_tokens, labelled, tokens};
 
 const MAX_TEXT: usize = 4096;
-const MAX_BODIES: usize = 256;
+const MAX_BODIES: usize = 1024;
 const MAX_MM: f64 = 1_000_000.0;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Expected {
     pub bodies: Option<usize>,
     pub volume_mm3: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub volume_range_mm3: Option<(f64, f64)>,
     pub name: Option<String>,
     pub created_volume_mm3: Option<f64>,
     pub placement: Option<Placement>,
     pub feature: Option<(String, usize)>,
+    pub joint: Option<recipes::revolute::JointExpected>,
 }
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Placement {
@@ -51,6 +60,11 @@ pub struct EdgeContinuation {
 impl Plan {
     pub fn message(&self) -> String {
         let mut message = format!("For this request, run exactly this plan: {}. Don't change it; then reply using the tool results. Slots are converted to mm (including inches and fractions): {}.", json!(self.calls), self.slots);
+        if self.slots["CompoundPlate"]["default_start"] == true {
+            message.push_str(
+                " Tell the user the bolt circle starts at +X because no start angle was specified.",
+            );
+        }
         if let Some(facts) = &self.facts {
             message.push_str(&format!(
                 " Computed from the latest tool result: {facts}. Use these exact facts."
@@ -98,7 +112,9 @@ pub fn matches_prose(
     let Some(index) = messages.iter().rposition(|m| m["role"] == "user") else {
         return Ok(false);
     };
-    messages.truncate(index + 1);
+    if expected.rule != "revolute_joint" {
+        messages.truncate(index + 1);
+    }
     let user = &mut messages[index];
     let text = message["content"].as_str().unwrap_or("").trim();
     let lower = text.to_ascii_lowercase();
@@ -134,12 +150,16 @@ fn tool_payload(message: &Value) -> Option<Value> {
         content.clone()
     };
     repair::check_value(&data).ok()?;
-    if data.get("isError") == Some(&json!(true)) || data.get("error").is_some() {
+    if data.get("isError") == Some(&json!(true))
+        || data.get("error").is_some_and(|e| !e.is_null())
+        || data["ok"] == false
+    {
         return None;
     }
     let data = guidance::payload(&data);
     if data.get("isError") == Some(&json!(true))
-        || data.get("error").is_some()
+        || data.get("error").is_some_and(|e| !e.is_null())
+        || data["ok"] == false
         || !guidance::paging(&data).is_empty()
     {
         return None;
@@ -147,7 +167,32 @@ fn tool_payload(message: &Value) -> Option<Value> {
     Some(data)
 }
 fn state(messages: &[Value]) -> Option<Value> {
-    let data = tool_payload(messages.iter().rev().find(|m| m["role"] == "tool")?)?;
+    let mut found = None;
+    for message in messages.iter().rev().filter(|m| m["role"] == "tool") {
+        let data = tool_payload(message)?;
+        if [
+            "created_bodies",
+            "changed_bodies",
+            "removed_bodies",
+            "feature",
+        ]
+        .iter()
+        .any(|key| data.get(key).is_some())
+        {
+            return None;
+        }
+        if data["definition"].is_object()
+            || data["components"].is_array()
+            || data["joints"].is_array()
+            || data["faces"].is_array()
+            || data["edges"].is_array()
+        {
+            continue;
+        }
+        found = Some(data);
+        break;
+    }
+    let data = found?;
     let bodies = data.get("bodies")?.as_array()?;
     if bodies.len() > MAX_BODIES
         || bodies.iter().any(|b| !b.is_object())
@@ -158,6 +203,22 @@ fn state(messages: &[Value]) -> Option<Value> {
         return None;
     }
     Some(data)
+}
+/// Names from the same complete latest snapshot used by recipe expansion.
+#[cfg(feature = "proxy")]
+pub(crate) fn recipe_targets(request: &Value) -> Vec<String> {
+    request["messages"]
+        .as_array()
+        .and_then(|ms| state(ms))
+        .into_iter()
+        .flat_map(|data| data["bodies"].as_array().cloned().unwrap_or_default())
+        .filter_map(|body| {
+            body["name"]
+                .as_str()
+                .filter(|s| !s.is_empty() && s.len() <= 128)
+                .map(String::from)
+        })
+        .collect()
 }
 fn body(text: &str, data: Option<&Value>) -> Option<String> {
     let bodies = data?.get("bodies")?.as_array()?;
@@ -324,6 +385,11 @@ fn volume(data: &Value) -> Option<f64> {
 }
 /// Compare only a complete latest snapshot. Missing measurements request one lookup.
 pub fn completion(request: &Value, expected: &Expected) -> Option<String> {
+    if let Some(joint) = &expected.joint {
+        if let Some(reason) = joint.check(request) {
+            return Some(reason);
+        }
+    }
     let messages = request["messages"].as_array()?;
     let Some(data) = state(messages) else {
         return Some("Recipe completion is unverified: call execute document.inspect with {\"measure\":true}, then finish or explain the difference. Do not repeat accepted changes.".into());
@@ -342,6 +408,13 @@ pub fn completion(request: &Value, expected: &Expected) -> Option<String> {
                 "expected volume {want:.6} mm³, observed {actual:.6} mm³"
             )),
             None => differences.push("volume measurement is missing".into()),
+        }
+    }
+    if let Some((min, max)) = expected.volume_range_mm3 {
+        if volume(&data).is_none_or(|v| v < min || v > max) {
+            differences.push(format!(
+                "pattern volume must be measured within {min:.6}..{max:.6} mm³"
+            ));
         }
     }
     if let Some(want) = expected.created_volume_mm3 {
@@ -400,6 +473,9 @@ pub fn completion(request: &Value, expected: &Expected) -> Option<String> {
         }
     }
     if let Some((kind, want)) = &expected.feature {
+        if kind.ends_with("PatternFeature") && volume(&data).is_none_or(|v| v <= 0.0) {
+            differences.push("pattern volume measurement is missing or nonpositive".into());
+        }
         let actual = data["timeline"]
             .as_array()
             .filter(|t| t.len() <= 4096)
@@ -494,6 +570,9 @@ fn plan_impl(
         || text.to_ascii_lowercase().contains("would you ");
     let normalized = slots::normalize(text);
     let text = normalized.as_str();
+    if recipes::revolute::candidate(text) {
+        return recipes::revolute::select(request, text, catalog);
+    }
     let t = intent_tokens(text);
     let has = |w: &str| t.iter().any(|s| s == w);
     let data = state(messages);
@@ -675,6 +754,9 @@ fn plan_impl(
     if slots::has_question(text) && !polite_question {
         return Ok(None);
     }
+    if honeycomb::candidate(text) {
+        return honeycomb::select(text, request, catalog);
+    }
     recipes::select(text, data.as_ref(), messages, catalog)
 }
 /// A read-only prerequisite is offered only when every edit slot already parses.
@@ -732,7 +814,13 @@ fn body_inspection(call: &Value) -> bool {
 }
 /// Names come from the same bounded table that selects recipes.
 pub fn supported_recipes() -> Vec<&'static str> {
-    recipes::names().chain(["body count", "volume"]).collect()
+    recipes::names()
+        .chain(["honeycomb pattern", "body count", "volume"])
+        .collect()
+}
+#[cfg(feature = "proxy")]
+pub(crate) fn joint_hint(request: &Value) -> Option<&'static str> {
+    recipes::revolute::result_hint(request).then_some(recipes::revolute::JOINT_HINT)
 }
 /// Report measured facts only after the ordinary completion check succeeds.
 pub fn direct_summary(request: &Value, plan: &Plan) -> String {
@@ -765,6 +853,9 @@ pub fn direct_summary(request: &Value, plan: &Plan) -> String {
         "Exact match (no model): {} completed.",
         plan.rule.replace('_', " ")
     );
+    if plan.slots["CompoundPlate"]["default_start"] == true {
+        text.push_str(" Bolt circle starts at +X (no start angle was specified).");
+    }
     if let Some(data) = request["messages"].as_array().and_then(|m| state(m)) {
         if let Some(bodies) = data["bodies"].as_array() {
             text.push_str(&format!(" Measured {} bodies.", bodies.len()));
@@ -1043,6 +1134,40 @@ fn report_input_tokens(text: &str) -> Vec<String> {
         }
     }
     tokens
+}
+
+/// Typed model shortcut, using the same recipe validators and expanders.
+pub fn shortcut(args: &Value, request: &Value, catalog: &Catalog) -> Result<Plan, String> {
+    repair::check_value(args)?;
+    if args.get("recipe").is_some() {
+        return crate::recipe_library::Library::embedded()?.build(args, request, catalog);
+    }
+    recipes::shortcuts::build(args, request, catalog)
+}
+/// File-backed recipe dispatch into the existing checked expanders.
+pub fn recipe_expand(
+    id: &str,
+    args: &Value,
+    request: &Value,
+    catalog: &Catalog,
+) -> Result<Plan, String> {
+    if id == "cross_drilled_box" {
+        return recipes::cross_drilled::build(args, request, catalog);
+    }
+    if id == "honeycomb_pattern" {
+        return honeycomb::build(args, request, catalog);
+    }
+    if id.ends_with("_pattern") {
+        return patterns::build(id, args, request, catalog);
+    }
+    recipes::shortcuts::file_build(id, args, request, catalog)
+}
+pub fn cross_drilled_schema() -> Value {
+    recipes::cross_drilled::schema()
+}
+/// Legacy typed shape schema, also the source of the four original file contracts.
+pub fn shortcut_tool() -> Value {
+    recipes::shortcuts::tool()
 }
 
 #[cfg(test)]

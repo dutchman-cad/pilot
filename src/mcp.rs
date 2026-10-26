@@ -98,6 +98,10 @@ struct Proxy {
     inspect: String,
     cfg: Config,
     audit: Audit,
+    sketch_seen: [bool; 2],
+    plane_guidance: crate::guidance::PlaneGuidance,
+    plane_seen: [bool; 2],
+    axes_seen: bool,
 }
 impl Proxy {
     // While a call is outstanding, relay reverse requests and client replies immediately.
@@ -352,6 +356,20 @@ impl Proxy {
                     }
                     modified = true;
                 }
+                if !self.cfg.no_hints && crate::prompting::describe_sketch(tools) {
+                    if let Err(message) = self.audit.record(
+                        "sketch_fact",
+                        &Value::Null,
+                        &json!(crate::prompting::SKETCH_FACT),
+                    ) {
+                        eprintln!(
+                            "{}: {message}; passing tools/list through unchanged",
+                            crate::identity::BINARY
+                        );
+                        return write_raw(&mut self.output, &response);
+                    }
+                    modified = true;
+                }
             }
         }
         if method == "tools/call" {
@@ -363,7 +381,39 @@ impl Proxy {
             if !page.is_empty() {
                 modified |= self.append(&mut reply, &page.join("\n"), true, "paging")?;
             }
+            if !self.cfg.no_hints {
+                let args = &v["params"]["arguments"];
+                self.plane_guidance.visit(name, args, &reply);
+                // Sketch setup changes no body, so plane guidance does not wait for a change.
+                let mut context = json!({"tools":[{"function":{"name":"execute"}}],"messages":[{"role":"user","content":args.to_string()},{"role":"assistant","tool_calls":[{"function":{"name":name,"arguments":args.to_string()}}]}]});
+                if !self.axes_seen && crate::prompting::append_sketch_axes(&mut context)? {
+                    modified |= self.append(
+                        &mut reply,
+                        crate::prompting::SKETCH_AXES,
+                        false,
+                        "sketch_axes_fact",
+                    )?;
+                    self.axes_seen = true;
+                }
+                for (i, hint) in self.plane_guidance.hints().into_iter().enumerate() {
+                    if let Some(hint) = hint.filter(|_| !self.plane_seen[i]) {
+                        modified |= self.append(&mut reply, hint, false, "plane_hint")?;
+                        self.plane_seen[i] = true;
+                    }
+                }
+            }
             if !self.cfg.no_hints && change {
+                let args = &v["params"]["arguments"];
+                // MCP has no turn history; a new sketch starts a new hint scope.
+                if name == "execute" && args["command"] == "sketch.create" {
+                    self.sketch_seen = [false; 2];
+                }
+                let sketch =
+                    crate::guidance::sketch_hints(name, args, &reply, &mut self.sketch_seen);
+                if !sketch.is_empty() {
+                    modified |=
+                        self.append(&mut reply, &sketch.join("\n"), false, "next_step_hint")?;
+                }
                 let hints =
                     crate::guidance::placement_hints(name, &v["params"]["arguments"], &data);
                 if !hints.is_empty() {
@@ -646,6 +696,10 @@ pub fn serve(cfg: Config) -> Result<(), String> {
         inspect: "inspect_design".into(),
         cfg,
         audit,
+        sketch_seen: [false; 2],
+        plane_guidance: crate::guidance::PlaneGuidance::default(),
+        plane_seen: [false; 2],
+        axes_seen: false,
     }
     .run()
 }

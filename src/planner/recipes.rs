@@ -1,6 +1,12 @@
 //! Recipe table, typed slots, and deterministic catalogue-checked expansions.
 use super::*;
 use std::f64::consts::PI;
+mod closed_profile;
+mod compound_plate;
+pub(crate) mod cross_drilled;
+pub(crate) mod revolute;
+mod shell_box;
+pub(crate) mod shortcuts;
 
 #[derive(Clone, Copy)]
 enum Kind {
@@ -10,6 +16,8 @@ enum Kind {
     Holes,
     Hole,
     Sketch,
+    ClosedProfile,
+    CompoundPlate,
     Fillet,
     Chamfer,
     Move,
@@ -21,12 +29,14 @@ enum Kind {
     Revolve,
 }
 const LIBRARY: &[(&str, Kind)] = &[
+    ("compound_plate", Kind::CompoundPlate),
     ("box", Kind::Box),
     ("cylinder", Kind::Cylinder),
     ("sphere", Kind::Sphere),
     ("plate_holes", Kind::Holes),
     ("hole", Kind::Hole),
     ("sketch_extrude", Kind::Sketch),
+    ("closed_profile", Kind::ClosedProfile),
     ("fillet", Kind::Fillet),
     ("chamfer", Kind::Chamfer),
     ("move", Kind::Move),
@@ -64,6 +74,17 @@ enum Slots {
         size: Vec<f64>,
         distance: f64,
     },
+    LProfile {
+        plane: String,
+        width: f64,
+        height: f64,
+        horizontal: f64,
+        vertical: f64,
+        distance: f64,
+    },
+    ClosedProfile(closed_profile::Profile),
+    CompoundPlate(compound_plate::Plate),
+    CrossDrilled(cross_drilled::BoxHoles),
     Edges {
         body: String,
         edges: Vec<Value>,
@@ -97,6 +118,7 @@ enum Slots {
         size: [f64; 3],
         wall: f64,
     },
+    ShellBox(shell_box::ShellBox),
     Revolve {
         radius: f64,
         height: f64,
@@ -244,6 +266,15 @@ pub(super) const UNSUPPORTED: &[&str] = &[
     "but",
 ];
 fn vocabulary(kind: Kind, input: &Input<'_>) -> bool {
+    if matches!(kind, Kind::CompoundPlate) {
+        return true;
+    }
+    if matches!(kind, Kind::ClosedProfile) {
+        return closed_profile::vocabulary(input);
+    }
+    if matches!(kind, Kind::Shell) {
+        return shell_box::vocabulary(input);
+    }
     // Unknown conversational words are fine. Known unsupported geometry is not.
     if input.any(UNSUPPORTED) {
         return false;
@@ -383,6 +414,8 @@ fn parse(kind: Kind, input: &Input<'_>) -> Option<Slots> {
     let has = |w| input.has(w);
     let t = &input.t;
     match kind {
+        Kind::CompoundPlate => compound_plate::parse(input),
+        Kind::ClosedProfile => closed_profile::parse(input),
         Kind::Hole if input.any(&["drill", "bore", "cut"]) && has("hole") && has("through") => {
             // No inferred hole location or direction: the public command uses Z,
             // and the request must supply all three position coordinates.
@@ -697,26 +730,12 @@ fn parse(kind: Kind, input: &Input<'_>) -> Option<Slots> {
         {
             holes(input)
         }
-        Kind::Shell if has("shell") && has("box") => {
-            // Explicit new box, inward wall, top removed. Other shell profiles defer.
-            if !has("top")
-                || !input.any(&["open", "remove"])
-                || input.any(&["outside", "both", "closed"])
-            {
-                return None;
-            }
-            let d = dimensions(t)?;
-            if d.len() != 4 || !positive(&d) || !labelled(t, d[3], &["wall", "thickness"]) {
-                return None;
-            }
-            let size = box_size(t, &d[..3], false)?;
-            let wall = d[3].value;
-            if wall * 2.0 >= size[0].min(size[1]) || wall >= size[2] {
-                return None;
-            }
-            Some(Slots::Shell { size, wall })
-        }
-        Kind::Sketch if has("extrude") && input.any(&["rectangle", "circle"]) => {
+        Kind::Shell => shell_box::parse(input),
+        Kind::Sketch
+            if has("extrude")
+                && input.any(&["rectangle", "circle"])
+                && !closed_profile::candidate(input) =>
+        {
             if has("rectangle") && has("circle") {
                 return None;
             }
@@ -1138,6 +1157,20 @@ fn expand(slots: &Slots, catalog: &Catalog) -> Result<Expansion, String> {
     let mut name = None;
     let box_params = |s: &[f64; 3]| json!({"length":s[0],"width":s[1],"height":s[2]});
     match slots {
+        Slots::CrossDrilled(b) => {
+            for (id, params) in b.commands() {
+                add(id, params)?;
+            }
+            v = b.volume();
+            creates = true;
+        }
+        Slots::CompoundPlate(plate) => {
+            for (id, params) in plate.commands() {
+                add(id, params)?;
+            }
+            v = plate.volume();
+            creates = true;
+        }
         Slots::Box { size } => {
             add("solid.box", box_params(size))?;
             v = Some(size.iter().product());
@@ -1182,6 +1215,39 @@ fn expand(slots: &Slots, catalog: &Catalog) -> Result<Expansion, String> {
                 "solid.hole",
                 json!({"targets":[body],"diameter":diameter,"position":position}),
             )?;
+        }
+        Slots::ClosedProfile(profile) => {
+            for (id, params) in profile.commands() {
+                add(id, params)?;
+            }
+            v = Some(profile.area() * profile.distance);
+            creates = true;
+        }
+        Slots::LProfile {
+            plane,
+            width,
+            height,
+            horizontal,
+            vertical,
+            distance,
+        } => {
+            add("sketch.create", json!({"plane":plane,"name":"L profile"}))?;
+            add(
+                "sketch.line",
+                json!({"points":[[0,0],[width,0],[width,horizontal],[vertical,horizontal],[vertical,height],[0,height]],"closed":true,"infer":true,"ids":["l1","l2","l3","l4","l5","l6"]}),
+            )?;
+            for (id, value) in [
+                ("l1", width),
+                ("l6", height),
+                ("l2", horizontal),
+                ("l5", vertical),
+            ] {
+                add("sketch.dimension", json!({"entities":[id],"value":value}))?;
+            }
+            add("sketch.finish", json!({}))?;
+            add("solid.extrude", json!({"distance":distance}))?;
+            v = Some((width * horizontal + (height - horizontal) * vertical) * distance);
+            creates = true;
         }
         Slots::Sketch {
             plane,
@@ -1267,6 +1333,13 @@ fn expand(slots: &Slots, catalog: &Catalog) -> Result<Expansion, String> {
             v = Some(PI * (outer_radius.powi(2) - inner_radius.powi(2)) * height);
             creates = true;
         }
+        Slots::ShellBox(shell) => {
+            for (command, params) in shell.commands() {
+                add(command, params)?;
+            }
+            v = Some(shell.volume());
+            creates = true;
+        }
         Slots::Shell { size, wall } => {
             let mut p = box_params(size);
             p["operation"] = json!("new");
@@ -1322,10 +1395,13 @@ const ACTION_FAMILIES: &[&[&str]] = &[
     &["chamfer", "bevel"],
     &["shell"],
     &["revolve"],
-    &["extrude"],
+    &["extrude", "pad"],
     &["drill", "bore", "cut"],
 ];
 fn intent_decline(input: &Input<'_>) -> Option<&'static str> {
+    if shell_box::parse(input).is_some() {
+        return None;
+    }
     // Reject multiple action families before parsing; sketch + extrude is one recipe.
     if ACTION_FAMILIES
         .iter()
@@ -1354,24 +1430,27 @@ fn intent_decline(input: &Input<'_>) -> Option<&'static str> {
     {
         // An explicit new primitive followed by an edit is two intents, even
         // when the creation lacks dimensions and the edit alone would parse.
-        if input.t[..edit].iter().enumerate().any(|(i, w)| {
-            matches!(
-                w.as_str(),
-                "box"
-                    | "block"
-                    | "cube"
-                    | "sphere"
-                    | "plate"
-                    | "cylinder"
-                    | "rod"
-                    | "disc"
-                    | "tube"
-            ) && (input.t[..i]
-                .iter()
-                .any(|v| matches!(v.as_str(), "make" | "draw" | "create" | "build" | "add"))
-                || i.checked_sub(1)
-                    .is_some_and(|i| input.t[i] == "a" || input.t[i] == "an"))
-        }) {
+        if !(closed_profile::candidate(input)
+            && matches!(input.t[edit].as_str(), "extrude" | "pad"))
+            && input.t[..edit].iter().enumerate().any(|(i, w)| {
+                matches!(
+                    w.as_str(),
+                    "box"
+                        | "block"
+                        | "cube"
+                        | "sphere"
+                        | "plate"
+                        | "cylinder"
+                        | "rod"
+                        | "disc"
+                        | "tube"
+                ) && (input.t[..i]
+                    .iter()
+                    .any(|v| matches!(v.as_str(), "make" | "draw" | "create" | "build" | "add"))
+                    || i.checked_sub(1)
+                        .is_some_and(|i| input.t[i] == "a" || input.t[i] == "an"))
+            })
+        {
             return Some("multiple intents");
         }
     }
@@ -1452,9 +1531,17 @@ pub(super) fn select(
         data,
         messages,
     };
+    if cross_drilled::candidate(&input) {
+        return match cross_drilled::parse(&input) {
+            Some(b) => from_slots("cross_drilled_box", Slots::CrossDrilled(b), data, catalog),
+            None => Ok(None),
+        };
+    }
     // Measurement verbs are separate work; dimension participles (`measuring`,
     // `that measures`) and `solid` describe the primitive instead.
-    if input.any(&["measure", "count", "report"]) || intent_decline(&input).is_some() {
+    if input.any(&["measure", "count", "report"])
+        || (!compound_plate::candidate(&input) && intent_decline(&input).is_some())
+    {
         return Ok(None);
     }
     let create = input.any(&[
@@ -1473,13 +1560,37 @@ pub(super) fn select(
     ]);
     let mut found = Vec::new();
     for (rule, kind) in LIBRARY {
+        if compound_plate::candidate(&input) && !matches!(kind, Kind::CompoundPlate) {
+            // Keep the original recipes and their calls untouched. Compound
+            // requests either match completely or return to the model.
+            continue;
+        }
+        if shell_box::candidate(&input) && !matches!(kind, Kind::Shell) {
+            continue;
+        }
+        // A dimensioned profile is a distinct creation intent, including when
+        // its extrusion is expressed as a depth instead of an action verb.
+        if closed_profile::candidate(&input)
+            && matches!(
+                kind,
+                Kind::Box
+                    | Kind::Cylinder
+                    | Kind::Sphere
+                    | Kind::Holes
+                    | Kind::Tube
+                    | Kind::Shell
+                    | Kind::Revolve
+            )
+        {
+            continue;
+        }
         let shapes: &[&str] = match kind {
             Kind::Box => &["box", "block", "plate", "cube"],
             Kind::Cylinder => &["cylinder", "rod", "disc"],
             Kind::Sphere => &["sphere"],
             Kind::Tube => &["tube"],
             Kind::Sketch => &["rectangle", "circle"],
-            Kind::Shell => &["box"],
+            Kind::Shell => &[],
             Kind::Revolve => &["rectangle"],
             _ => &[],
         };
@@ -1518,7 +1629,18 @@ pub(super) fn select(
     if found.len() != 1 {
         return Ok(None);
     }
-    let (mut rule, slots) = found.remove(0);
+    let (rule, slots) = found.remove(0);
+    from_slots(rule, slots, data, catalog)
+}
+fn from_slots(
+    mut rule: &'static str,
+    slots: Slots,
+    data: Option<&Value>,
+    catalog: &Catalog,
+) -> Result<Option<Plan>, String> {
+    if matches!(slots, Slots::LProfile { .. }) {
+        rule = "l_profile";
+    }
     if matches!(&slots,Slots::Holes{centers,..} if centers.len()==1) {
         rule = "plate_hole";
     }
@@ -1535,7 +1657,12 @@ pub(super) fn select(
     // Explicit targets keep compound changes away from older overlapping bodies.
     if matches!(
         slots,
-        Slots::Holes { .. } | Slots::Tube { .. } | Slots::Shell { .. }
+        Slots::Holes { .. }
+            | Slots::Tube { .. }
+            | Slots::Shell { .. }
+            | Slots::CompoundPlate(_)
+            | Slots::ShellBox(_)
+            | Slots::CrossDrilled(_)
     ) {
         let names: Vec<_> = data
             .and_then(|d| d["bodies"].as_array())
@@ -1550,8 +1677,25 @@ pub(super) fn select(
         calls[0]["arguments"]["params"]["body_name"] = json!(created);
         for c in &mut calls[1..] {
             let params = &mut c["arguments"]["params"];
-            if matches!(slots, Slots::Holes { .. } | Slots::Tube { .. }) {
+            if matches!(slots, Slots::CompoundPlate(_)) {
+                if c["arguments"]["command"] == "solid.hole" {
+                    c["arguments"]["params"]["targets"] = json!([created]);
+                } else {
+                    c["arguments"]["params"]["body"] = json!(created);
+                }
+            } else if matches!(
+                slots,
+                Slots::Holes { .. } | Slots::Tube { .. } | Slots::CrossDrilled(_)
+            ) {
                 params["targets"] = json!([created]);
+            } else if matches!(slots, Slots::ShellBox(_)) {
+                match c["arguments"]["command"].as_str().unwrap_or("") {
+                    "solid.shell" => c["arguments"]["params"]["body"] = json!(created),
+                    "solid.box" | "solid.extrude" => {
+                        c["arguments"]["params"]["targets"] = json!([created])
+                    }
+                    _ => {}
+                }
             } else {
                 params["body"] = json!(created);
             }
@@ -1613,9 +1757,16 @@ pub(super) fn select(
         None
     };
     // Without a baseline, verification requests a measurement but cannot claim a total.
+    let rounding_kind = match &slots {
+        Slots::Edges { fillet, .. } => Some(*fillet),
+        Slots::CompoundPlate(p) => p.rounding.map(|(fillet, _, _)| fillet),
+        _ => None,
+    };
     let expected = Expected {
-        feature: if let Slots::Edges { fillet, .. } = &slots {
-            let kind = if *fillet {
+        volume_range_mm3: None,
+        joint: None,
+        feature: if let Some(fillet) = rounding_kind {
+            let kind = if fillet {
                 "FilletFeature"
             } else {
                 "ChamferFeature"
@@ -1658,6 +1809,15 @@ pub(super) fn select(
         name,
     };
     let continuation = match &slots {
+        Slots::CompoundPlate(p) if p.rounding.is_some_and(|(_, all, _)| all) => p
+            .rounding
+            .zip(expected.name.as_ref())
+            .map(|((fillet, _, amount), body)| EdgeContinuation {
+                body: body.clone(),
+                amount,
+                fillet,
+                top: false,
+            }),
         Slots::Edges {
             body,
             edges,
@@ -1702,7 +1862,14 @@ pub(super) fn resume(
         data: None,
         messages,
     };
-    let Some(edges) = topology(&input, &c.body, c.top) else {
+    let selected = if previous.rule == "compound_plate" {
+        // Recover the typed geometry from its audited slots, without replaying
+        // the accepted creation prefix.
+        compound_plate::all_edges(&previous.slots, messages, &c.body)
+    } else {
+        topology(&input, &c.body, c.top)
+    };
+    let Some(edges) = selected else {
         return Ok(None);
     };
     let slots = Slots::Edges {
@@ -1717,11 +1884,33 @@ pub(super) fn resume(
     let mut next = previous.clone();
     next.calls = calls;
     next.continuation = None;
-    next.slots =
-        serde_json::to_value(slots).map_err(|e| format!("cannot audit edge slots: {e}"))?;
+    if previous.rule != "compound_plate" {
+        next.slots =
+            serde_json::to_value(slots).map_err(|e| format!("cannot audit edge slots: {e}"))?;
+    }
     Ok(Some(next))
 }
 
 pub(super) fn names() -> impl Iterator<Item = &'static str> {
-    LIBRARY.iter().map(|(name, _)| *name)
+    LIBRARY
+        .iter()
+        .map(|(name, _)| *name)
+        .chain(["revolute_joint", "cross_drilled_box"])
+}
+
+fn positive_mm(field: &str, value: f64) -> Result<(), String> {
+    if !value.is_finite() || value <= 0.0 || value > MAX_MM {
+        return Err(format!(
+            "{field} {value} must be above 0 and at most {MAX_MM} mm; supply a positive length in mm"
+        ));
+    }
+    Ok(())
+}
+fn valid_plane(plane: &str) -> Result<(), String> {
+    if !matches!(plane, "XY" | "XZ" | "YZ") {
+        return Err(format!(
+            "plane {plane:?} must be 1 of XY, XZ, YZ; use the requested sketch plane"
+        ));
+    }
+    Ok(())
 }

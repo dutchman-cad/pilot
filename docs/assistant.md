@@ -4,6 +4,36 @@ Start your model server, then Pilot, then add an API agent in SolidCraft's
 Assistant. Pilot is the agent's base URL; the real model endpoint is Pilot's
 upstream. Select the same model id that the upstream serves.
 
+Pilot trims older tool results on the upstream copy of each request by default.
+The newest two tool results stay whole (`--trim-keep N`, range 0–4096), across
+the whole history including the current user turn. The trailing result block
+the model is answering always stays whole, including parallel calls and with
+`--trim-keep 0`. Client-visible results and local recipe readers retain the
+original history. While a recipe, fill, continuation or completion check is
+pending, the upstream history also stays whole. Earlier catalogue results become
+command ids; command descriptions become ids plus one-line parameter docs
+(at most 400 characters). For catalogue results already truncated by the client,
+Pilot retains only complete command fields and marks the source incomplete.
+Identical tool/arguments/results outside the kept
+window leave a reference to the latest occurrence in their result envelopes.
+Other results over `--trim-cap 1500` characters keep JSON keys, scalar fields and
+the first/last two array entries, with an explicit recall note. Long strings and
+deep nesting are bounded. This is a trigger threshold, not a strict summary size:
+preserving keys and scalar fields can require more characters. `--no-trim`
+disables history reduction. These flags also apply to `model --dialect solidcraft98`;
+the separate `drive98` history limits are unchanged.
+
+Each upstream attempt (including retries) logs a `dutchman-pilot` size field:
+client system/tools/user/assistant content, results by tool name, Pilot facts,
+hints and local schemas, and final upstream character sizes. These are Unicode
+character counts, not tokenizer estimates; JSON totals include envelopes and
+escaping. Each request includes `trimmed_chars`, the serialized characters saved
+by history trimming before other wire transformations. `profile` reports mean/max
+per attempt, whether trimming is enabled, and the configured kept-result window.
+Facts already present in client history are reused; missing facts are inserted
+once at the latest system position for that request. Pilot never relies on the
+client retaining an upstream-only fact.
+
 ## Ollama
 
 Pull a model that fits your machine and keep Ollama running. For example:
@@ -95,3 +125,22 @@ use --no-how or --no-hints to disable those additions.
 Use --prompt-help for extra bounded command guidance. See the
 [flags](flags.md), [behavior](details.md), and [security note](../SECURITY.md).
 Keep the listener on loopback and do not expose it to a network.
+
+Normal model requests omit local `pilot_find` and `pilot_build` schemas. Use
+`--offer-recipe-tools` for models that call these tools. Forced fill and route
+keep their small replacement tool lists without that flag; `--no-shortcuts`
+disables all four paths, and `--no-fill` disables fill and route only.
+
+Facts and hints are offered once per conversation, matched by the client's
+retained history (bounded to 256 conversations), and existing facts still deduplicate.
+Repeated next-step hints keep at most 256 identities per conversation; further
+new next-step hints are omitted at that cap.
+Relevant facts and hints always send, regardless of the client's character count;
+they are never deferred to meet a size budget. `how` remains available unless
+disabled with `--no-how`. Normal requests add 303 fixed characters for `how`
+(including its tool-list separator), down from 5,487 characters for the previous
+schemas and find-first message. Facts and hints add context-dependent characters
+once; explicit prompt modes and recovery retries can add further instructions.
+The `how` schema is 302 characters on the model wire, down from 366.
+MCP uses its separate tool-list path: it continues advertising `how` and putting
+facts in tool descriptions; this model flag and conversation tracking do not apply.

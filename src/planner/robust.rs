@@ -2,6 +2,324 @@
 #![allow(clippy::unwrap_used, clippy::panic)]
 use super::*;
 
+#[test]
+fn public_revolute_prompt_inspects_before_editing() {
+    let c = Catalog::bundled().unwrap();
+    let tasks: Value =
+        serde_json::from_str(include_str!("../../bench/sets/v2/tasks.json")).unwrap();
+    let task = tasks["tasks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|t| t["id"] == "09-revolute-joint")
+        .unwrap();
+    let mut req = cases::revolute_request(task["prompt"].as_str().unwrap());
+    assert_eq!(plan(&req, &c).unwrap().unwrap().rule, "revolute_joint");
+    req["messages"].as_array_mut().unwrap().truncate(1);
+    let p = plan(&req, &c).unwrap().unwrap();
+    assert_eq!(p.rule, "resolve_joint");
+    assert!(p.calls.iter().all(|c| matches!(
+        c["arguments"]["command"].as_str(),
+        Some("document.inspect" | "component.list" | "joint.list")
+    )));
+}
+
+#[test]
+fn revolute_lookup_never_retries_missing_topology() {
+    let c = Catalog::bundled().unwrap();
+    let mut req = cases::revolute_request("Connect Base and Arm with a hinge.");
+    req["messages"].as_array_mut().unwrap().retain(|m| {
+        m["role"] != "tool"
+            || serde_json::from_str::<Value>(m["content"].as_str().unwrap())
+                .unwrap()
+                .get("body")
+                .is_none()
+    });
+    let p = plan(&req, &c).unwrap().unwrap();
+    assert_eq!(p.rule, "resolve_joint");
+    req["messages"].as_array_mut().unwrap().extend([
+        json!({"role":"assistant","tool_calls":[{"id":"lookup","function":{"name":"execute","arguments":p.calls[0]["arguments"].to_string()}}]}),
+        json!({"role":"tool","tool_call_id":"lookup","content":"{}"}),
+    ]);
+    assert!(plan(&req, &c).unwrap().is_none());
+}
+
+#[cfg(feature = "proxy")]
+#[test]
+fn revolute_hints_accept_compact_occurrence_lists() {
+    for fault in 0..3 {
+        let mut req = cases::revolute_finished(
+            cases::revolute_request("Connect Base and Arm with a hinge."),
+            fault,
+        );
+        for m in req["messages"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .filter(|m| m["role"] == "tool")
+        {
+            let mut d: Value = serde_json::from_str(m["content"].as_str().unwrap()).unwrap();
+            if let Some(cs) = d.get_mut("components").and_then(Value::as_array_mut) {
+                for c in cs {
+                    c["bodies"] = json!(c["bodies"].as_array().unwrap().len());
+                    for o in c["occurrences"].as_array_mut().unwrap() {
+                        if o["transform"]
+                            == json!([
+                                [1., 0., 0., 0.],
+                                [0., 1., 0., 0.],
+                                [0., 0., 1., 0.],
+                                [0., 0., 0., 1.]
+                            ])
+                        {
+                            o.as_object_mut().unwrap().remove("transform");
+                        }
+                    }
+                }
+            }
+            m["content"] = json!(d.to_string());
+        }
+        assert_eq!(joint_hint(&req).is_some(), fault != 0);
+    }
+}
+
+#[test]
+fn revolute_verification_rejects_lift_flip_base_motion_wrong_angle_or_missing_joint() {
+    let c = Catalog::bundled().unwrap();
+    let req =
+        cases::revolute_request("Connect Base and Arm with a revolute joint and drive 45 degrees.");
+    let p = plan(&req, &c).unwrap().unwrap();
+    assert!(matches_prose(&req,&c,&p,&json!({"content":"I will connect Base and Arm with a revolute joint and drive 45 degrees."})).unwrap());
+    for fault in 0..6 {
+        let finished = cases::revolute_finished(req.clone(), fault);
+        assert_eq!(
+            completion(&finished, p.expected.as_ref().unwrap()).is_none(),
+            fault == 0,
+            "fault {fault}"
+        );
+        #[cfg(feature = "proxy")]
+        assert_eq!(
+            joint_hint(&finished).is_some(),
+            matches!(fault, 1..=3),
+            "hint fault {fault}"
+        );
+        assert!(plan(&finished, &c).unwrap().is_none());
+    }
+}
+
+#[test]
+fn revolute_refuses_ambiguous_requests_and_geometry() {
+    let c = Catalog::bundled().unwrap();
+    for text in [
+        "Connect Base and Arm with a revolute joint then swing it.",
+        "Connect Base and Arm with a hinge then drive 30 or 60 degrees.",
+        "Connect Base and Arm with a hinge then turn about 30 degrees.",
+        "Connect Base and Arm with a hinge then turn 30 radians.",
+        "Connect Base and Arm with a hinge then turn 30 mm.",
+        "Connect Base and Arm with a hinge then turn clockwise 30 degrees.",
+        "Connect Base and Arm with a hinge then drive 400 degrees.",
+        "Do not connect Base and Arm with a hinge.",
+        "Connect Base and Arm with a hinge and fillet the hole 2mm.",
+        "Connect Base and Arm with a hinge then drive 30 degrees and 60 degrees.",
+        "Connect Base and Arm with a hinge, pin diameter 9mm.",
+        "Connect Pedestal and Lever with a hinge then swing 45 degrees.",
+        "Connect Base and Arm with a hinge then turn Base 45 degrees.",
+        "Connect Base and Arm with a hinge. Keep Arm fixed and drive 45 degrees.",
+        "Connect Base and Arm with a hinge. Base must move. Drive 45 degrees.",
+    ] {
+        assert!(
+            plan(&cases::revolute_request(text), &c).unwrap().is_none(),
+            "{text}"
+        );
+    }
+    let req = cases::revolute_request(
+        "Connect Base and Arm with a revolute joint then drive 45 degrees.",
+    );
+    for change in 0..11 {
+        let mut req = req.clone();
+        for m in req["messages"].as_array_mut().unwrap().iter_mut().skip(1) {
+            let mut d: Value = serde_json::from_str(m["content"].as_str().unwrap()).unwrap();
+            let arm = d["body"] == "Arm";
+            if let Some(fs) = d.get_mut("faces").and_then(Value::as_array_mut) {
+                for f in fs.iter_mut().filter(|f| f.get("cylinder").is_some()) {
+                    match change {
+                        0 => f["cylinder"]["axis"] = json!([1, 0, 0]),
+                        1 => f["exact"] = json!(false),
+                        2 => f["cylinder"]["radius"] = json!(0),
+                        _ => (),
+                    }
+                }
+                if change == 3 {
+                    fs.clear();
+                }
+                if change == 8 && arm {
+                    let mut extra: Vec<_> = fs
+                        .iter()
+                        .filter(|f| f.get("cylinder").is_some())
+                        .cloned()
+                        .collect();
+                    for f in &mut extra {
+                        f["name"] = json!(f["name"].as_str().unwrap().replace("F8:", "F80:"));
+                        f["cylinder"]["origin"][0] =
+                            json!(f["cylinder"]["origin"][0].as_f64().unwrap() + 0.1);
+                    }
+                    fs.extend(extra);
+                }
+                if change == 9 && arm {
+                    for f in fs.iter_mut().filter(|f| f.get("cylinder").is_some()) {
+                        f["cylinder"]["origin"][0] = json!(2);
+                    }
+                }
+            }
+            if change == 8 && arm {
+                if let Some(es) = d.get_mut("edges").and_then(Value::as_array_mut) {
+                    let mut extra: Vec<_> = es
+                        .iter()
+                        .filter(|e| e["name"].as_str().unwrap().contains("F8:"))
+                        .cloned()
+                        .collect();
+                    for e in &mut extra {
+                        e["name"] = json!(e["name"].as_str().unwrap().replace("F8:", "F80:"));
+                        for key in ["start", "mid", "end"] {
+                            e[key][0] = json!(e[key][0].as_f64().unwrap() + 0.1);
+                        }
+                    }
+                    es.extend(extra);
+                }
+            }
+            if d.get("components").is_some() {
+                match change {
+                    4 => d["components"][2]["occurrences"][0]["grounded"] = json!(true),
+                    5 => d["components"][2]["name"] = json!(""),
+                    6 => d["components"][2]["occurrences"][0]["transform"][3][2] = json!(12),
+                    _ => (),
+                }
+            }
+            if change == 7 && d.get("joints").is_some() {
+                d["joints"] = json!([{"name":"Existing"}]);
+            }
+            if change == 10 {
+                d["truncated"] = json!(true);
+            }
+            m["content"] = json!(d.to_string());
+        }
+        assert!(plan(&req, &c).unwrap().is_none(), "mutation {change}");
+    }
+}
+
+#[test]
+fn l_profiles_match_public_constraints_and_exact_commands() {
+    let catalog = Catalog::bundled().unwrap();
+    let tasks: Value =
+        serde_json::from_str(include_str!("../../bench/sets/constraints/tasks.json")).unwrap();
+    for task in tasks["tasks"].as_array().unwrap() {
+        let mut request = cases::request(task["prompt"].as_str().unwrap());
+        request["messages"][0]["content"] =
+            json!(json!({"bodies":[],"sketches":[],"active_sketch":null}).to_string());
+        let p = plan(&request, &catalog).unwrap().unwrap();
+        assert_eq!(p.rule, "l_profile");
+        let values = task["check"]["sketch_defined"]["values"]
+            .as_array()
+            .unwrap();
+        let w = values[0].as_f64().unwrap();
+        let h = values[1].as_f64().unwrap();
+        let t = values[2].as_f64().unwrap();
+        // Eight construction calls, followed by the shared measured verification.
+        assert_eq!(p.calls.len(), 9);
+        assert_eq!(
+            p.calls[0]["arguments"],
+            json!({"command":"sketch.create","params":{"plane":p.slots["LProfile"]["plane"],"name":"L profile"}})
+        );
+        assert_eq!(
+            p.calls[1]["arguments"],
+            json!({"command":"sketch.line","params":{"points":[[0,0],[w,0],[w,t],[t,t],[t,h],[0,h]],"closed":true,"infer":true,"ids":["l1","l2","l3","l4","l5","l6"]}})
+        );
+        for (i, (id, value)) in [("l1", w), ("l6", h), ("l2", t), ("l5", t)]
+            .iter()
+            .enumerate()
+        {
+            assert_eq!(
+                p.calls[i + 2]["arguments"],
+                json!({"command":"sketch.dimension","params":{"entities":[id],"value":value}})
+            );
+        }
+        assert_eq!(
+            p.calls[6]["arguments"],
+            json!({"command":"sketch.finish","params":{}})
+        );
+        assert_eq!(
+            p.calls[7]["arguments"],
+            json!({"command":"solid.extrude","params":{"distance":p.slots["LProfile"]["distance"]}})
+        );
+        assert_eq!(
+            p.calls[8]["arguments"],
+            json!({"command":"document.inspect","params":{"measure":true}})
+        );
+        assert_eq!(
+            p.expected.unwrap().volume_mm3,
+            task["check"]["volume"].as_f64()
+        );
+    }
+    let text = "Sketch an L profile 35mm wide, 55mm tall, both legs 5mm thick then extrude 12mm";
+    for (from, to) in [
+        ("35mm wide", ""),
+        ("55mm tall", ""),
+        ("5mm thick", "thick"),
+        ("12mm", ""),
+        ("legs 5mm", "legs 35mm"),
+        ("legs 5mm", "legs 55mm"),
+        ("legs 5mm", "legs 0mm"),
+        ("legs 5mm", "legs -1mm"),
+        ("legs 5mm", "legs 1000001mm"),
+        ("L", "T"),
+        ("L", "L on FixtureDatum"),
+        ("L", "L on XY and YZ"),
+    ] {
+        let negative = text.replace(from, to);
+        assert!(
+            plan(&cases::request(&negative), &catalog)
+                .unwrap()
+                .is_none(),
+            "{negative}"
+        );
+    }
+    for extra in [
+        "hole",
+        "fillet",
+        "chamfer",
+        "cut",
+        "revolve",
+        "slot",
+        "pocket",
+        "sweep",
+        "rotate",
+        "at (2,3)",
+        "with a circle",
+    ] {
+        let negative = format!("{text} with {extra}");
+        assert!(
+            plan(&cases::request(&negative), &catalog)
+                .unwrap()
+                .is_none(),
+            "{negative}"
+        );
+    }
+    let p = plan(&cases::request("Sketch an L profile 35mm wide, 55mm tall, horizontal leg 4mm thick and vertical leg 6mm thick then extrude 12mm"), &catalog).unwrap().unwrap();
+    assert_eq!(
+        p.calls[1]["arguments"]["params"]["points"],
+        json!([
+            [0, 0],
+            [35.0, 0],
+            [35.0, 4.0],
+            [6.0, 4.0],
+            [6.0, 55.0],
+            [0, 55.0]
+        ])
+    );
+    assert_eq!(p.slots["LProfile"]["plane"], "XY");
+    assert_eq!(p.calls[4]["arguments"]["params"]["value"], 4.0);
+    assert_eq!(p.calls[5]["arguments"]["params"]["value"], 6.0);
+}
+
 // Every row asserts the complete typed slots, not merely a non-empty plan.
 fn groups() -> Vec<(&'static str, Value, Vec<&'static str>)> {
     vec![
@@ -537,4 +855,226 @@ fn field_cube_hole_expansion_remains_targeted_at_top_centre() {
         p.calls[1]["arguments"],
         json!({"command":"solid.hole","params":{"position":[10.0,10.0,20.0],"diameter":5.0,"targets":["PilotRecipe1"]}})
     );
+}
+
+#[test]
+fn closed_profiles_defer_ambiguous_sizes_and_extra_geometry() {
+    let catalog = Catalog::bundled().unwrap();
+    for text in [
+        "Make a T width 40 height 30 flange 4 stem 6 offset from the left then extrude 12",
+        "Make a T width 40 height 30 flange 4 stem 6 offset 5 then extrude 12",
+        "Make a T width 40 height 30 flange 4 stem 6 offset 39 from the left then extrude 12",
+        "Make a T width 40 height 30 flange 4 then extrude 12",
+        "Make a T width 40 height 30 flange 30 stem 6 then extrude 12",
+        "Make a U width 40 height 30 wall 20 then extrude 12",
+        "Make a U width 40 height 30 web 30 flange 4 then extrude 12",
+        "Make a T width 40 height 30 flange 4 stem 6 thickness 7 then extrude 12",
+        "Make a C width 40 height 30 wall 15 then extrude 12",
+        "Make an L width 40 height 30 thickness 30 then extrude 12",
+        "Make a U width 40 height 30 wall 3 and 7 then extrude 12",
+        "Make a C width 40 width 30 wall 3 then extrude 12",
+        "Make a U width 40 height 30 wall 3 then extrude 12 and 13",
+        "Make a U width 40 height 30 wall 3 then extrude 12 furlongs",
+        "Make a C width 40 height 30 wall 3 opening forward then extrude 12",
+        "Make a C width 40 height 30 wall 3 opening left and right then extrude 12",
+        "Make a U width 40 height 30 wall 3 opening backward then extrude 12",
+        "Make a dimensioned rectangle 40x30 on FixtureDatum then extrude 12",
+        "Make a T width 40 height 30 flange 4 stem 6 on XY and XZ then extrude 12",
+        "Make a U width 40 height 30 wall -3 then extrude 12",
+        "Make a U width 40 height 30 wall 0 then extrude 12",
+        "Make a U width 1000001 height 30 wall 3 then extrude 12",
+        "Make a U width 40 height 30 wall 3 at 2 then extrude 12",
+    ] {
+        assert!(
+            plan(&cases::request(text), &catalog).unwrap().is_none(),
+            "{text}"
+        );
+    }
+    for extra in [
+        "hole", "fillet", "chamfer", "slot", "revolve", "cut", "pattern", "mirror", "shell", "arc",
+        "radius", "rounded", "pocket", "sweep", "loft", "triangle", "circle",
+    ] {
+        let text = format!("Make a U width 40 height 30 wall 3 then extrude 12 with {extra}");
+        assert!(
+            plan(&cases::request(&text), &catalog).unwrap().is_none(),
+            "{text}"
+        );
+    }
+}
+
+#[test]
+fn closed_profiles_have_driving_sizes_and_computed_volume() {
+    let catalog = Catalog::bundled().unwrap();
+    for (shape, sizes, count, area) in [
+        ("L", "thickness 3", 4, 201.0),
+        ("T", "flange 4 stem 6", 4, 316.0),
+        (
+            "T",
+            "flange 4 stem 6 stem offset 15 from the left",
+            5,
+            316.0,
+        ),
+        ("U", "wall 3", 4, 282.0),
+        ("U", "web 3 flange 4", 5, 336.0),
+        ("U", "web 3 flange 3", 4, 282.0),
+        ("C", "wall 3", 4, 312.0),
+        ("C", "web 3 flange 4", 5, 386.0),
+        ("C", "web 3 flange 3", 4, 312.0),
+        ("dimensioned rectangle", "", 2, 1200.0),
+    ] {
+        let text = format!("Make a {shape} width 40 height 30 {sizes} then extrude 12");
+        let p = plan(&cases::request(&text), &catalog)
+            .unwrap()
+            .unwrap_or_else(|| panic!("{text}"));
+        assert_eq!(
+            p.calls
+                .iter()
+                .filter(|c| c["arguments"]["command"] == "sketch.dimension")
+                .count(),
+            count,
+            "{text}"
+        );
+        assert_eq!(
+            p.expected.unwrap().volume_mm3,
+            Some(area * 12.0 + 1000.0),
+            "{text}"
+        );
+    }
+}
+
+#[test]
+fn closed_profile_units_labels_and_extrusion_aliases_preserve_slots() {
+    let catalog = Catalog::bundled().unwrap();
+    for size in [
+        "width 2 inch height 1 inch wall 1/8 inch",
+        "2 in wide and 1 in tall with 0.125 in thick walls",
+        "2\" wide and 1\" tall wall 1/8\"",
+        "5.08 by 2.54 cm wall 0.3175 cm",
+        "width 50.8 mm height 25.4 mm wall 3.175 mm",
+    ] {
+        let text = format!("Make a U in the XZ plane {size} then pad 1/2 inch");
+        let p = plan(&cases::request(&text), &catalog)
+            .unwrap()
+            .unwrap_or_else(|| panic!("{text}"));
+        let s = &p.slots["ClosedProfile"];
+        assert_eq!(s["plane"], "XZ");
+        for (key, value) in [
+            ("width", 50.8),
+            ("height", 25.4),
+            ("web", 3.175),
+            ("flange", 3.175),
+            ("distance", 12.7),
+        ] {
+            assert!(
+                (s[key].as_f64().unwrap() - value).abs() < 1e-10,
+                "{text}: {s}"
+            );
+        }
+    }
+    for ending in [
+        "extrude it 12",
+        "pad 12",
+        "12 mm deep",
+        "12 long",
+        "extrude 12 mm",
+    ] {
+        let text = format!("Make a U width 40 height 30 wall 3 then {ending}");
+        let p = plan(&cases::request(&text), &catalog)
+            .unwrap()
+            .unwrap_or_else(|| panic!("{text}"));
+        assert_eq!(p.slots["ClosedProfile"]["distance"], 12.0);
+    }
+}
+
+#[test]
+fn compound_plates_defer_unsafe_or_unclear_requests() {
+    let catalog = Catalog::bundled().unwrap();
+    for feature in [
+        "with six 8mm holes on a 56mm bolt circle",
+        "with six 8mm holes evenly spaced on a 100mm bolt circle",
+        "with six 40mm holes evenly spaced on a 56mm bolt circle",
+        "with a centred 50mm bore and six 8mm holes evenly spaced on a 56mm bolt circle",
+        "then round the four vertical edges radius 40mm",
+        "then fillet the top edges radius 2mm",
+        "then chamfer some edges distance 2mm",
+        "with a blind bore diameter 8mm",
+        "with six 8mm holes evenly spaced on PCD 56mm starting at -X",
+        "with six 8mm holes evenly spaced on PCD 56mm and a slot",
+        "with holes diameter 8mm in a grid 2 rows 3 columns pitch 2x2mm centred",
+        "with a centred 8mm bore and a centred 12mm bore",
+        "with holes diameter 4mm in a grid 2 rows 3 columns pitch 20x20mm",
+        "with holes diameter 4mm in a centred grid 2 rows 3 columns pitch -20x20mm",
+        "with a centred 8mm cm bore",
+        "with 1000 2mm holes equally spaced on PCD 40mm",
+        "with six 4mm holes equally spaced on a bolt circle radius diameter 28mm",
+        "with a centred 30mm bore through and six 8mm holes evenly spaced on PCD 36mm",
+    ] {
+        let text = format!("Make a plate 80x80x8mm centred on the origin on XY {feature}");
+        assert!(
+            plan(&cases::request(&text), &catalog).unwrap().is_none(),
+            "{text}"
+        );
+    }
+}
+
+#[test]
+fn ambiguous_or_unsupported_enclosures_defer() {
+    let c = Catalog::bundled().unwrap();
+    for tail in [
+        "lip width 2mm height 3mm",
+        "lip width 3mm height 3mm",
+        "lip width 1mm",
+        "lip height 3mm",
+        "lip 1mm 3mm",
+        "lip width 1mm height 3mm groove 1mm",
+        "recess 1mm",
+        "cut a lip width 1mm height 3mm",
+        "lip width 1mm height 3mm rotate 30",
+        "lip width 1mm height 3mm at 10mm",
+        "lip width 1mm height 3mm floor 24mm",
+        "lip width 1mm height 3mm outer inner",
+        "lip width 1mm height 3mm wall 3mm",
+        "lip width 1mm height 3mm on diagonal plane",
+        "lip width 1mm height 3mm fillet 1mm",
+        "lip width 1mm height 3mm and make a sphere 5mm",
+    ] {
+        let text = format!("shell a box 64x44x24mm wall 2mm open top {tail}");
+        assert!(
+            plan(&cases::request(&text), &c).unwrap().is_none(),
+            "{text}"
+        );
+    }
+    for text in [
+        "shell a box 64x44x24mm wall 22mm open top lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open top and bottom lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open top lip width 1mm height 3mm width 4mm",
+    ] {
+        assert!(plan(&cases::request(text), &c).unwrap().is_none(), "{text}");
+    }
+}
+
+#[test]
+fn enclosure_changes_target_only_the_new_body() {
+    let c = Catalog::bundled().unwrap();
+    let p = plan(
+        &cases::request(
+            "make a box 64x44x24mm wall 2mm floor 4mm open top lip width 1mm height 3mm",
+        ),
+        &c,
+    )
+    .unwrap()
+    .unwrap();
+    let created = &p.calls[0]["arguments"]["params"]["body_name"];
+    assert!(created.as_str().unwrap().starts_with("PilotRecipe"));
+    for call in &p.calls[1..] {
+        let args = &call["arguments"];
+        match args["command"].as_str().unwrap() {
+            "solid.shell" => assert_eq!(&args["params"]["body"], created),
+            "solid.box" | "solid.extrude" => {
+                assert_eq!(args["params"]["targets"], json!([created]))
+            }
+            _ => assert!(args["params"].get("body").is_none()),
+        }
+    }
 }

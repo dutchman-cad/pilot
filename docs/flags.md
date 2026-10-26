@@ -10,12 +10,16 @@ Pilot — a local helper for SolidCraft
 
 Usage:
   dutchman-pilot how "<task>"
+  dutchman-pilot recipe new --from-audit FILE --turn N
   dutchman-pilot model [--listen 127.0.0.1:11500] [--upstream URL|none] [--no-direct-recipes]
                        [--upstream-timeout SECONDS (default 300, max 3600)]
                        [--fallback-prompt auto|on|off] [--prompt-help] [--log FILE]
                        [--profile-dir DIR] [--model-settings [FILE]] [--seed INTEGER]
                        [--no-report-buffer] [--dialect solidcraft|solidcraft98]
-                       [--no-how] [--no-hints] [--planner] [--no-plan (alias --no-planner)]
+                       [--no-how] [--no-hints] [--offer-recipe-tools] [--no-shortcuts] [--no-fill] [--no-trim] [--trim-cap CHARS (default 1500)]
+                       [--trim-keep N (default 2, range 0..4096)]
+                       [--planner] [--no-plan (alias --no-planner)]
+                       [--recipes-dir DIR]
   dutchman-pilot report [--listen ADDR] [--turn N] [--include-request] [--out FILE]
                         [--from-request FILE] [--open]
   dutchman-pilot profile [model] [--profile-dir DIR] [--json]
@@ -60,6 +64,7 @@ Flags (including aliases):
 - `--dialect`
 - `--direct-recipes`
 - `--fallback-prompt`
+- `--from-audit`
 - `--from-request`
 - `--headless`
 - `--help`
@@ -70,11 +75,15 @@ Flags (including aliases):
 - `--model`
 - `--model-settings`
 - `--no-direct-recipes`
+- `--no-fill`
 - `--no-hints`
 - `--no-how`
 - `--no-plan`
 - `--no-planner`
 - `--no-report-buffer`
+- `--no-shortcuts`
+- `--no-trim`
+- `--offer-recipe-tools`
 - `--open`
 - `--out`
 - `--plain`
@@ -82,8 +91,11 @@ Flags (including aliases):
 - `--profile-dir`
 - `--program`
 - `--prompt-help`
+- `--recipes-dir`
 - `--seed`
 - `--solidcraft-cli`
+- `--trim-cap`
+- `--trim-keep`
 - `--turn`
 - `--upstream`
 - `--upstream-timeout`

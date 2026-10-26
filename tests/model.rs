@@ -195,6 +195,14 @@ impl Harness {
             fallback_prompt: fallback,
             no_how: !how,
             no_hints: false,
+            // Tool injections (how and pilot_build) are tested together.
+            offer_recipe_tools: true,
+            no_shortcuts: !how,
+            no_fill: false,
+            no_trim: false,
+            trim_cap: 1500,
+            trim_keep: 2,
+            recipes_dir: None,
             planner,
             log: Some(dir.join("audit.jsonl")),
             profile_dir: Some(dir.clone()),
@@ -456,19 +464,32 @@ fn local_how_hints_and_clean_tools_capability_profile() {
     let chats = h.chats();
     assert_eq!(chats.len(), 5);
     for chat in &chats {
+        // No find-first fact is injected.
         assert!(chat["messages"]
             .as_array()
             .unwrap()
             .iter()
-            .all(|m| m["role"] != "system"));
+            .filter(|m| m["role"] == "system")
+            .all(|m| m["content"]
+                .as_str()
+                .is_some_and(|c| !c.contains("call pilot_find first."))));
         assert!(chat["tools"]
             .as_array()
             .unwrap()
             .iter()
             .any(|t| t["function"]["name"] == "how"));
     }
+    let without_system = |chat: &Value| -> Vec<Value> {
+        chat["messages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|m| m["role"] != "system")
+            .cloned()
+            .collect()
+    };
     for index in [1, 3] {
-        let messages = chats[index]["messages"].as_array().unwrap();
+        let messages = without_system(&chats[index]);
         assert_eq!(messages[1]["tool_calls"][0]["function"]["name"], "how");
         assert_eq!(messages[2]["role"], "tool");
         assert_eq!(
@@ -478,7 +499,7 @@ fn local_how_hints_and_clean_tools_capability_profile() {
         assert!(messages[2]["content"].as_str().unwrap().contains("fillet"));
     }
     assert_eq!(
-        chats[4]["messages"][2]["content"],
+        without_system(&chats[4])[2]["content"],
         format!("{state}\n[dutchman-pilot hint] Empty design: start with a sketch or a primitive.")
     );
     let log = fs::read_to_string(h.dir.join("audit.jsonl")).unwrap();
@@ -768,6 +789,30 @@ fn malformed_or_oversized_requests_are_rejected_before_upstream() {
 }
 
 #[test]
+fn shortcut_tool_is_offered_upstream_by_default() {
+    let h = Harness::with_dialect(
+        vec![ok(prose("Ready."))],
+        1,
+        FallbackPrompt::Off,
+        None,
+        json!({"capabilities":["tools"]}),
+        true,
+        false,
+    );
+    let (status, _, text) = h.chat(&request("hello, what can you do?"));
+    assert_eq!(status, 200, "{text}");
+    assert!(!text.contains("pilot_build"));
+    let names: Vec<String> = h.chats()[0]["tools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t["function"]["name"].as_str().unwrap_or("").to_string())
+        .collect();
+    assert!(names.iter().any(|n| n == "pilot_build"), "{names:?}");
+    h.finish();
+}
+
+#[test]
 fn default_has_no_recipe_prompt_or_prose_conversion() {
     let text = "I will make a 20 mm cube";
     let h = Harness::new(
@@ -1022,6 +1067,13 @@ fn report_capture_endpoint_and_disabled_buffer() {
             no_report_buffer: disabled,
             no_how: true,
             no_hints: true,
+            offer_recipe_tools: true,
+            no_shortcuts: false,
+            no_fill: false,
+            no_trim: false,
+            trim_cap: 1500,
+            trim_keep: 2,
+            recipes_dir: None,
             planner: true,
             direct_recipes: true,
             log: Some(dir.join("audit.jsonl")),
@@ -1095,6 +1147,13 @@ fn report_endpoint_rejects_non_loopback_peer() {
         no_report_buffer: false,
         no_how: true,
         no_hints: true,
+        offer_recipe_tools: true,
+        no_shortcuts: false,
+        no_fill: false,
+        no_trim: false,
+        trim_cap: 1500,
+        trim_keep: 2,
+        recipes_dir: None,
         planner: true,
         direct_recipes: true,
         log: Some(dir.join("audit.jsonl")),

@@ -2,7 +2,57 @@
 #![allow(clippy::unwrap_used, clippy::panic)]
 use super::*;
 
+#[test]
+fn ordinary_pin_joint_requests() {
+    let c = Catalog::bundled().unwrap();
+    for text in [
+        "Connect Base and Arm with a revolute joint, then swing Arm 45 degrees.",
+        "Join Base and Arm with a pin joint and drive it to 30 degrees.",
+        "Attach Arm to Base with a hinge, then turn Arm 60 degrees.",
+        "Make Arm pivot on the pin on Base and rotate it 90 degrees.",
+        "Use a revolute joint on Base and Arm. Keep Base fixed. Swing Arm 15 degrees.",
+        "Connect the existing components with a revolute joint and drive 25 degrees.",
+        "Join the two components with a hinge and swing 70 degrees.",
+        "Add a revolute joint to Base and Arm.",
+        "Create a hinge with Base and Arm.",
+        "Connect Arm and Base with a pin joint.",
+        "Make a revolute joint with the hole on Arm over the pin on Base.",
+        "Connect Arm to Base so Arm pivots on the pin.",
+        "Join Base and Arm with a revolute joint then drive 120 deg.",
+        "Attach Arm to Base with a hinge and swing it 22.5 degrees.",
+        "Use a pin joint with Base and Arm then turn 180 degrees.",
+        "Connect Base and Arm with a revolute joint then rotate 0 degrees.",
+        "Make a hinge with Base and Arm and drive -20 degrees.",
+        "Connect Base and Arm with a revolute joint then swing 45°.",
+        "Join Arm and Base with a revolute joint. Keep Arm upright and Base stationary.",
+        "Put a hinge on Base and Arm and turn Arm 10 degrees.",
+        "Connect Base and Arm with a revolute joint. Base must not move. Arm should stay flat on top of Base. Swing Arm 35 degrees.",
+        "Use a revolute joint with Base and Arm, pin diameter 10mm and hole diameter 10.5mm, then drive 45 degrees.",
+        "Use a revolute joint with Base and Arm, pin diameter 1cm and hole diameter 1.05cm, then drive 45 degrees.",
+        "Use a revolute joint with Base and Arm, pin radius 5mm and hole radius 5.25mm, then drive 45 degrees.",
+        "Use a revolute joint with Base and Arm, pin diameter 0.3937007874 inch, then drive 45 degrees.",
+        "Please connect Base and Arm with a hinge and swing Arm 33 degrees.",
+    ] {
+        let req=cases::revolute_request(text);
+        let p=plan(&req,&c).unwrap().unwrap_or_else(|| panic!("{text}"));
+        assert_eq!(p.rule,"revolute_joint","{text}");
+        assert_eq!(p.calls[1]["arguments"]["params"]["flip"],true);
+        assert!((p.slots["pin_circle"][2].as_f64().unwrap()-10.).abs()<0.001);
+        assert!((p.slots["hole_circle"][2].as_f64().unwrap()-10.).abs()<0.001);
+    }
+}
+
 const FORMS: &[(&str, &[&str])] = &[
+    ("l_profile", &[
+        "Sketch an L profile 35mm wide, 55mm tall, both legs 5mm thick, then extrude 12mm.",
+        "On XY, draw an L-shaped profile width 35mm, height 55mm, both legs 5mm thick then extrude 12mm.",
+        "Make an angle bracket sketch 35mm wide and 55mm high with 5mm thick legs then extrude 12mm.",
+        "On XZ sketch an L bracket width 35mm and height 55mm with horizontal leg thickness 4mm and vertical leg thickness 6mm then extrude 12mm.",
+        "Draw an L profile on YZ, 35mm wide, 55mm tall, horizontal leg 4mm thick and vertical leg 6mm thick then extrude 12mm.",
+        "Build an angle profile 3.5cm wide, 5.5cm tall, both legs 0.5cm thick then extrude 1.2cm.",
+        "Sketch an L shaped bracket on XY width 35mm height 55mm both legs 5mm thick then extrude 12mm.",
+        "Create a fully constrained closed L profile 35mm wide and 55mm tall with 5mm thick legs then extrude 12mm.",
+    ]),
     ("box", &[
         "Make a 19 mm cube.", "BUILD a block 31 mm long, 22 mm wide and 4 mm thick!",
         "Create a plate length 31mm, width 22mm, thickness 4mm.",
@@ -298,5 +348,221 @@ fn missing_conflicting_and_ambiguous_slots_defer() {
         req["messages"][0]["content"] =
             json!(json!({"bodies":[{"name":"Alpha"},{"name":"Beta"}]}).to_string());
         assert!(plan(&req, &c).unwrap().is_none(), "{text}");
+    }
+}
+
+#[test]
+fn dimensioned_bottom_span_profiles() {
+    let catalog = Catalog::bundled().unwrap();
+    let expected = plan(&cases::request("Sketch an L profile on XZ width 50mm height 40mm both legs 8mm thick then extrude 30mm"), &catalog).unwrap().unwrap();
+    for text in [
+        "Draw an L profile on XZ with its outer corner at the origin, 50mm along the bottom and 40mm high, both legs 8mm thick. Dimension it and constrain it so it is fully defined, then extrude it 30mm.",
+        "Draw an L on XZ 50mm along the bottom, 40mm high, legs 8mm thick. Fully constrain it, then extrude it 30mm.",
+        "Make a fully defined L profile on XZ 50 mm along bottom and 40 mm tall with 8 mm thick legs; extrude it 30 mm.",
+        "Create an L bracket on XZ, width 50mm height 40mm legs 8mm thick. Dimension and constrain it, then extrude 30mm.",
+        "Sketch an L on XZ 50mm wide 40mm tall both legs 8mm thick. Constrain it so it is fully defined. Extrude it 30mm.",
+        "On XZ draw an L shaped profile 50mm along the bottom, height 40mm, thickness 8mm, then pad it 30mm.",
+        "Please sketch a dimensioned L profile on XZ, 50mm along bottom, 40mm high, both legs 8mm thick, depth 30mm.",
+        "Build a closed L profile on XZ 5cm along the bottom, 4cm tall, legs 0.8cm thick. Dimension it and extrude it 3cm.",
+        "On XZ make a fully defined angle profile width 50 height 40 thickness 8 then extrude 30.",
+        "Sketch an L bracket on XZ 50 along the bottom and 40 tall with both legs 8 thick; dimension it and constrain it; then extrude it 30.",
+        "DRAW an L profile on XZ: 50mm along bottom, 40mm tall, both legs 8mm thick! Fully constrain it; extrude 30mm.",
+        "Create a fully constrained L on XZ, 50mm wide, 40mm high, 8mm thick legs, then extrude it 30mm.",
+    ] {
+        let actual = plan(&cases::request(text), &catalog).unwrap().unwrap_or_else(|| panic!("{text}"));
+        assert_eq!(actual.slots, expected.slots, "{text}");
+        assert_eq!(actual.calls, expected.calls, "{text}");
+    }
+}
+
+#[test]
+fn ordinary_closed_profile_wording() {
+    let catalog = Catalog::bundled().unwrap();
+    for text in [
+        "Please make me an angle 40 wide and 30 high with legs 3 thick, extrude it 12",
+        "Can you sketch an L-bracket width 40 mm height 30 mm thickness 3 mm then pad 12 mm?",
+        "I need an angle bracket 4 by 3 cm with 0.3 cm thick legs, 1.2 cm deep",
+        "Draw an L cross-section 40x30 with bottom leg 3 mm thick and upright leg 4 mm thick, 12 long",
+        "Make an L 40 mm wide 30 mm tall thickness 3 mm, extrude 12 mm",
+        "On the front plane draw an angle 40x30 mm thickness 3 mm then extrude 12 mm",
+        "Sketch an L on XZ width 40 height 30 leg thickness 3 then pad 12",
+        "Make an angle on the right plane width 40 height 30 horizontal leg thickness 3 and vertical leg thickness 4 then extrude 12",
+        "Sketch an L in the XZ plane width 2 inch height 1 inch thickness 1/8 inch then pad 1/2 inch",
+        "Make an L width 2 in height 1 in thickness 0.125 in then extrude 0.5 in",
+        "Make a T-section width 40 height 30 flange thickness 4 stem thickness 6 then extrude 12",
+        "Sketch a tee on XZ 40 mm wide and 30 mm tall with flange 4 mm and web 6 mm then pad 12 mm",
+        "Please make a rail overall width 40 overall height 30 cap thickness 4 stem thickness 6, 12 mm deep",
+        "Draw a T cross-section 40 by 30 mm with top thickness 4 mm and stem 6 mm, extrude it 12",
+        "I need a tee flange width 4 cm height 3 cm flange thickness 0.4 cm stem thickness 0.6 cm, 1.2 cm long",
+        "Make a T 40x30 mm flange 4 mm stem 6 mm then extrude 12 mm",
+        "Sketch a T on the top plane width 40 height 30 flange 4 stem 6 then pad 12",
+        "Sketch a tee on the right plane width 40 height 30 flange 4 stem 6 then extrude 12",
+        "Make a rail width 2 inch height 1 inch flange 1/8 inch web 1/4 inch then pad 1/2 inch",
+        "Make a T width 40 height 30 flange 4 stem 6 stem offset 15 mm from the left then extrude 12",
+        "Make a U width 40 height 30 wall 3 then extrude 12",
+        "Please sketch a channel 40 mm wide and 30 mm high thickness 3 mm, 12 mm deep",
+        "Can you make a U-section on XZ 40x30 mm wall 3 mm then pad 12 mm?",
+        "I need a channel on the front plane width 4 cm height 3 cm wall 0.3 cm, 1.2 cm long",
+        "Make a U on the right plane width 40 height 30 web 3 flange 4 then extrude 12",
+        "Draw a channel width 40 height 30 web thickness 3 and leg thickness 4 then pad 12",
+        "Make a U 40 by 30 mm with 3 mm thick walls then extrude 12 mm",
+        "Sketch a U width 2 inch height 1 inch wall 1/8 inch then extrude 1/2 inch",
+        "Make a C-section width 40 height 30 wall 3 then extrude 12",
+        "Please sketch a C-channel 40 mm wide and 30 mm high thickness 3 mm, 12 mm deep",
+        "Can you make a C on XZ 40x30 mm wall 3 mm then pad 12 mm?",
+        "I need a C-section on the front plane width 4 cm height 3 cm wall 0.3 cm, 1.2 cm long",
+        "Make a C on the right plane width 40 height 30 web 3 flange 4 then extrude 12",
+        "Draw a C-channel width 40 height 30 web thickness 3 and flange thickness 4 then pad 12",
+        "Make a C 40 by 30 mm with 3 mm thick walls then extrude 12 mm",
+        "Sketch a C width 2 inch height 1 inch wall 1/8 inch then extrude 1/2 inch",
+        "Make a fully constrained rectangle width 40 height 30 then extrude 12",
+        "Please sketch a dimensioned plate 40 mm wide and 30 mm high, 12 mm deep",
+        "Can you make a fully constrained bar on XZ 40x30 mm then pad 12 mm?",
+        "I need a dimensioned rectangle on the front plane width 4 cm height 3 cm, 1.2 cm long",
+        "Make a fully constrained plate on the right plane width 40 height 30 then extrude 12",
+        "Draw a dimensioned rectangle width 40 and height 30 then pad 12",
+        "Make a fully constrained rectangle 40 by 30 mm then extrude 12 mm",
+        "Sketch a dimensioned rectangle width 2 inch height 1 inch then extrude 1/2 inch",
+        "Make a fully constrained rectangle width 2\" height 1\" then pad 1/2\"",
+        "Sketch a U centred on the origin width 40 height 30 wall 3 then extrude 12",
+        "Sketch a C centered on the origin width 40 height 30 web 3 flange 4 then extrude 12",
+        "Make a T centred on the origin width 40 height 30 flange 4 stem 6 then pad 12",
+        "Make a tee width 40 height 30 flange 4 stem 6 with the stem centred under the flange then pad 12",
+        "Make a T width 40 height 30 flange 4 stem 6 stem offset 0 from the centre then extrude 12",
+        "Make a T width 40 height 30 flange 4 stem 6 stem offset -3 from the centre then extrude 12",
+        "Make a T flange 40 mm wide 30 mm high flange 4 mm thick and stem 6 mm thick then extrude 12",
+        "Make a tee with its bottom left corner at the origin width 40 height 30 flange 4 stem 6 stem offset 3 from the centre then pad 12",
+        "Sketch a fully constrained rectangular cross-section 40x30 mm then extrude 12 mm",
+        "Make a dimensioned plate width 40 height 30 and 12 deep",
+        "Make a U width 40 height 30 wall 3 opening down then extrude 12",
+        "Make a C width 40 height 30 wall 3 opening left then extrude 12",
+    ] {
+        let p = plan(&cases::request(text), &catalog).unwrap().unwrap_or_else(|| panic!("{text}"));
+        assert!(matches!(p.rule,"l_profile"|"closed_profile"),"{text}: {}",p.rule);
+        assert_eq!(p.calls[1]["arguments"]["command"],"sketch.line","{text}");
+        assert_eq!(p.calls[1]["arguments"]["params"]["closed"],true);
+        assert_eq!(p.calls[1]["arguments"]["params"]["infer"],true);
+    }
+}
+
+#[test]
+fn compound_plates_match_ordinary_phrasings() {
+    let catalog = Catalog::bundled().unwrap();
+    let bases = [
+        "Make a square mounting plate 80 x 80 x 8 mm, centred on the origin and lying on the XY plane",
+        "Build a plate 80 by 80 by 8 mm centered at the origin on XZ",
+        "Create a plate 8x8x0.8 cm centred on the origin on YZ",
+        "Make a plate 4x4x0.5 inch with its bottom left corner at the origin",
+        "Please build a rectangular plate 80x90x8mm centered on the origin",
+    ];
+    let features = [
+        "with a centred bore diameter 12mm through",
+        "with one centred 12mm hole through",
+        "with six 4mm holes equally spaced on a 48mm bolt circle",
+        "with a centred 12mm bore through and six 4mm holes evenly spaced on PCD 48mm",
+        "then fillet the four vertical edges radius 4mm",
+        "with a centred bore diameter 12mm through then chamfer the four side edges distance 2mm",
+        "with holes diameter 4mm in a centred grid 2 rows 3 columns pitch 20x20mm",
+        "with holes diameter 4mm in a centred 2 x 3 grid pitch 20mm",
+    ];
+    for base in bases {
+        for feature in features {
+            let text = format!("{base} {feature}");
+            let p = plan(&cases::request(&text), &catalog)
+                .unwrap()
+                .unwrap_or_else(|| panic!("{text}"));
+            assert_eq!(p.rule, "compound_plate", "{text}");
+            assert_eq!(p.calls[0]["arguments"]["command"], "solid.box");
+        }
+    }
+}
+
+#[test]
+fn compound_bolt_circle_sizes_and_default_start_are_explicit() {
+    let catalog = Catalog::bundled().unwrap();
+    for text in [
+        "Make a square mounting plate 80 x 80 x 8 mm, centred on the origin and lying on the XY plane. Put a 30 mm bore through the middle and six 8 mm bolt holes evenly spaced on a 56 mm bolt circle around it, then round the four vertical corner edges with a 10 mm radius.",
+        "Build a plate 100x100x10mm centered on the origin with a centred hole diameter 10mm through and eight 4mm holes equally spaced on a bolt circle radius 30mm then fillet the four side edges radius 6mm",
+        "Build a plate 10x10x1cm centered on the origin with eight 0.4cm holes evenly spaced on a bolt circle diameter 6cm starting at +X",
+        "Make a plate 4x4x1/2 inch centered on the origin with six 1/8 inch holes evenly spaced on a 2 inch bolt circle then chamfer all edges distance 1/32 inch",
+        "Make a plate 120x100x10mm with its corner at the origin with a centred bore radius 5mm through then round all edges radius 1mm",
+        "Make a plate 160x160x10mm centred on the origin with six 4mm holes evenly spaced on PCD 40mm and holes diameter 4mm in a centred grid 2 rows 2 columns pitch 80x80mm then round the four vertical edges radius 8mm",
+    ] {
+        let req=cases::request(text);
+        let p=plan(&req,&catalog).unwrap().unwrap_or_else(||panic!("{text}"));
+        assert_eq!(p.rule,"compound_plate");
+        if p.slots["CompoundPlate"]["default_start"]==true {
+            assert!(direct_summary(&req,&p).contains("starts at +X"));
+            assert!(p.message().contains("no start angle"));
+        }
+    }
+}
+
+#[test]
+fn enclosures_with_locating_rings() {
+    let catalog = Catalog::bundled().unwrap();
+    let forms = [
+        "Make an enclosure, a box 64x44x24mm with one corner at the origin, hollowed out with 2mm walls and the top left open. Then add a locating lip around the top rim, 1mm wide and 3mm tall for the lid to locate on.",
+        "shell a box 64x44x24mm wall 2mm open top lip width 1mm height 3mm",
+        "build a hollow box 64x44x24mm walls 2mm open top rim 1mm wide 3mm high",
+        "make a shelled enclosure 64x44x24mm wall 2mm remove top ridge width 1mm height 3mm",
+        "make a container 64x44x24mm wall 2mm open top lid lip width 1mm height 3mm",
+        "shell a box 6.4x4.4x2.4cm wall 0.2cm open top lip width 0.1cm height 0.3cm",
+        "shell a box 0.064x0.044x0.024m wall 0.002m open top lip width 0.001m height 0.003m",
+        "shell a box 64 by 44 by 24mm wall 2mm open top lip 1mm wide and 3mm tall",
+        "shell a box 64×44×24mm wall 2mm open top lip width 1mm height 3mm",
+        "shell a box length 64mm width 44mm height 24mm wall 2mm open top lip width 1mm height 3mm",
+        "shell a box 64mm long 44mm wide 24mm high wall 2mm open top lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open top inner lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open top inside lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open top outer lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open top outside lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open bottom lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm remove bottom lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open top floor 4mm lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open top floor 4mm thick lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open top floor 1mm lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open top base thickness 4mm lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open top at the origin lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open top with one corner at the origin lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open top centred on the origin lip width 1mm height 3mm",
+        "shell a box 64x44x24mm wall 2mm open top centered lip width 1mm height 3mm",
+        "shell a box 3x2x1 inches wall 1/8 inch open top lip width 1/16 inch height 1/8 inch",
+        "shell a box 64x44x24mm wall 2mm open at the top lip width 1mm height 3mm",
+        "Make a 64 by 44 by 24 mm open-top rectangular enclosure with 2 mm thick walls and an inner locating lip 1 mm wide and 3 mm tall.",
+        "Build a rectangular box 64x44x24mm with 2mm walls leaving the top open and a lid lip width 1mm height 3mm.",
+        "shell a box 64x44x24mm wall 2mm open bottom",
+        "make a hollowed out box 64x44x24mm wall 2mm open top floor 4mm",
+    ];
+    for text in forms {
+        let p = plan(&cases::request(text), &catalog)
+            .unwrap()
+            .unwrap_or_else(|| panic!("{text}"));
+        assert_eq!(p.rule, "shell", "{text}");
+        assert!(p.calls.len() <= 10, "{text}");
+        if !text.contains("inches") {
+            assert_eq!(
+                p.slots["ShellBox"]["size"],
+                json!([64.0, 44.0, 24.0]),
+                "{text}"
+            );
+            assert_eq!(p.slots["ShellBox"]["wall"], 2.0, "{text}");
+        }
+
+        if text.contains("lip") || text.contains("ridge") || text.contains("rim") {
+            assert_eq!(
+                p.calls
+                    .iter()
+                    .filter(|c| c["arguments"]["command"] == "sketch.rectangle.two_point")
+                    .count(),
+                2,
+                "{text}"
+            );
+            assert_eq!(
+                p.calls[p.calls.len() - 2]["arguments"]["params"]["operation"],
+                "join",
+                "{text}"
+            );
+        }
     }
 }

@@ -39,4 +39,6 @@ cargo run --locked --example generate_flags
 The display name lives in src/identity.rs. Keep the crate, executable, data-directory,
 and protocol names stable when updating product wording.
 
+Adding a recipe: add the file and one line in src/recipe_library/files.rs (the test lists any missing one).
+
 To release, follow [Releasing Pilot](docs/releasing.md).

@@ -29,6 +29,9 @@ pub(crate) fn record_events(profile: &mut Profile, kinds: &BTreeMap<String, u64>
             "plan" => &mut profile.plans_used,
             "how_answer" => &mut profile.how_answers,
             "next_step_hint" => &mut profile.hints_added,
+            "find" => &mut profile.finds,
+            "find_hit" => &mut profile.find_hits,
+            "find_miss" => &mut profile.find_misses,
             _ => continue,
         };
         *target = target.saturating_add(*count);
@@ -98,6 +101,9 @@ pub fn profiles(dir: Option<&Path>, model: Option<&str>, json: bool) -> Result<S
             ("plans-used", p.plans_used.to_string()),
             ("how-answers", p.how_answers.to_string()),
             ("hints-added", p.hints_added.to_string()),
+            ("finds", p.finds.to_string()),
+            ("find-hits", p.find_hits.to_string()),
+            ("find-misses", p.find_misses.to_string()),
         ];
         for header in [true, false] {
             let row = cells
@@ -115,6 +121,24 @@ pub fn profiles(dir: Option<&Path>, model: Option<&str>, json: bool) -> Result<S
             "repairs by kind: {}\n",
             counts_text(&p.repairs_by_kind)
         ));
+        text.push_str(&format!(
+            "request characters (trim={}, keep={}): mean / max per upstream request ({} requests)\n",
+            p.trim_enabled, p.trim_keep, p.upstream_requests
+        ));
+        text.push_str(&format!("  offer_recipe_tools: {}\n", p.offer_recipe_tools));
+        for (part, total) in &p.request_chars_total {
+            let mean = if p.upstream_requests == 0 {
+                0.0
+            } else {
+                *total as f64 / p.upstream_requests as f64
+            };
+            text.push_str(&format!(
+                "  {}: {:.1} / {}\n",
+                label(part),
+                mean,
+                p.request_chars_max.get(part).copied().unwrap_or(0)
+            ));
+        }
     }
     Ok(text)
 }

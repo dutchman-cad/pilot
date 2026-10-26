@@ -53,7 +53,7 @@ impl Audit {
         let mut record =
             json!({"time":now(),"model":self.model,"kind":kind,"before":before,"after":after});
         if let (Some(record), Some(context)) = (record.as_object_mut(), context.as_object()) {
-            for key in ["session", "observation", "transport"] {
+            for key in ["session", "observation", "transport", "dutchman-pilot"] {
                 if let Some(value) = context.get(key) {
                     record.insert(key.into(), value.clone());
                 }
@@ -73,7 +73,10 @@ impl Audit {
             .and_then(|()| self.file.flush())
             .map_err(|e| format!("cannot write rewrite log: {e}"))?;
         self.size += bytes.len() as u64;
-        self.count += 1;
+        // Size observations are audit records, not request rewrites.
+        if kind != "request_size" && kind != "form_request" {
+            self.count += 1;
+        }
         let kind = kind.split(':').next().unwrap_or(kind);
         let count = self.kinds.entry(kind.to_owned()).or_default();
         *count = count.saturating_add(1);

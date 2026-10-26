@@ -48,6 +48,10 @@ fn help_version_and_flag_errors() {
     assert!(String::from_utf8(output.stderr)
         .unwrap()
         .contains("auto, on, or off"));
+    for count in ["-1", "4097", "many"] {
+        let output = run(&["model", "--trim-keep", count]);
+        assert!(!output.status.success());
+    }
 }
 
 #[test]
@@ -83,7 +87,12 @@ fn documented_flags_match_binary_help() {
     let main = String::from_utf8(main.stdout).unwrap();
     let eval = String::from_utf8(eval.stdout).unwrap();
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("docs/flags.md");
-    let doc = std::fs::read_to_string(path).unwrap().replace("\r\n", "\n");
+    let doc = std::fs::read_to_string(path).unwrap();
+    let doc = doc
+        .strip_prefix('\u{feff}')
+        .unwrap_or(&doc)
+        .replace("\r\n", "\n")
+        .replace('\r', "\n");
     assert_eq!(
         doc,
         flags::reference(&main, &eval),

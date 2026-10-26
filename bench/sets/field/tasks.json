@@ -3,6 +3,34 @@
   "format": 1,
   "tasks": [
     {
+      "id": "cube-six-face-holes",
+      "prompt": "draw a 20mm cube with 8mm holes through the centre of all six faces",
+      "check": {
+        "bodies": 1,
+        "volume": 5708.148396488824,
+        "tol": 0.001,
+        "bbox_size": [
+          20,
+          20,
+          20
+        ],
+        "round": [
+          {
+            "d": 8,
+            "count": 3,
+            "centers": [
+              [
+                10,
+                10
+              ]
+            ]
+          }
+        ]
+      },
+      "reference": "references/cube-six-face-holes.json",
+      "setup_steps": 0
+    },
+    {
       "id": "cube-centre-hole",
       "prompt": "draw a 20mm cube with a 5mm hole through the center",
       "check": {
@@ -16,6 +44,24 @@
         ]
       },
       "reference": "references/cube-centre-hole.json",
+      "setup_steps": 0
+    },
+    {
+      "id": "honeycomb-plate",
+      "prompt": "Draw a 150x300 rectangle with a 3mm depth, and create a hexagon pattern on it that was 7mm edge to edge and a spacing of 1.5mm from each other. Leave a border of 4mm around the edges.",
+      "check": {
+        "bodies": 1,
+        "volume": 52760.49560582214,
+        "tol": 0.0001,
+        "bbox_size": [
+          150,
+          300,
+          3
+        ],
+        "faces": 3882
+      },
+      "hex_count": 646,
+      "reference": "references/honeycomb-plate.json",
       "setup_steps": 0
     }
   ]

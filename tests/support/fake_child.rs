@@ -71,6 +71,11 @@ fn main() {
                     result = json!({"isError":true,"content":[{"type":"text","text":"unknown parameter Height; missing required height"}]});
                     Value::Null
                 }
+                "execute" if args["command"] == "sketch.dimension" => {
+                    result = json!({"isError":true,"content":[{"type":"text","text":"`entities` must list one or two sketch entities"}]});
+                    Value::Null
+                }
+                "execute" if args["command"].as_str().is_some_and(|s| s.starts_with("sketch.constraint.")) => json!({"existing":true}),
                 "execute" if args["command"] == "solid.box" && args["params"]["length"].is_number() => {
                     changes += 1;
                     json!({"created_bodies":["Body1"]})

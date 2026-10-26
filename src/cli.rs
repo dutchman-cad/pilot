@@ -12,12 +12,16 @@ const HELP_TEMPLATE: &str = r#"{display} — a local helper for SolidCraft
 
 Usage:
   {binary} how "<task>"
+  {binary} recipe new --from-audit FILE --turn N
   {binary} model [--listen 127.0.0.1:11500] [--upstream URL|none] [--no-direct-recipes]
   {pad}       [--upstream-timeout SECONDS (default 300, max 3600)]
   {pad}       [--fallback-prompt auto|on|off] [--prompt-help] [--log FILE]
   {pad}       [--profile-dir DIR] [--model-settings [FILE]] [--seed INTEGER]
   {pad}       [--no-report-buffer] [--dialect solidcraft|solidcraft98]
-  {pad}       [--no-how] [--no-hints] [--planner] [--no-plan (alias --no-planner)]
+  {pad}       [--no-how] [--no-hints] [--offer-recipe-tools] [--no-shortcuts] [--no-fill] [--no-trim] [--trim-cap CHARS (default 1500)]
+  {pad}       [--trim-keep N (default 2, range 0..4096)]
+  {pad}       [--planner] [--no-plan (alias --no-planner)]
+  {pad}       [--recipes-dir DIR]
   {binary} report [--listen ADDR] [--turn N] [--include-request] [--out FILE]
   {pad}        [--from-request FILE] [--open]
   {binary} profile [model] [--profile-dir DIR] [--json]
@@ -85,6 +89,11 @@ pub struct Command {
 
 #[derive(Debug, Subcommand)]
 enum Action {
+    /// Draft a recipe for human review; never activates it.
+    Recipe {
+        #[command(subcommand)]
+        action: RecipeAction,
+    },
     /// Find commands and example calls for a task using the bundled catalogue.
     How {
         #[arg(value_parser = task)]
@@ -124,6 +133,16 @@ enum Action {
     },
 }
 
+#[derive(Debug, Subcommand)]
+enum RecipeAction {
+    New {
+        #[arg(long)]
+        from_audit: PathBuf,
+        #[arg(long, value_parser = clap::value_parser!(u32).range(1..=4096))]
+        turn: u32,
+    },
+}
+
 #[derive(Debug, clap::Args)]
 struct ModelArgs {
     #[arg(long, default_value = "solidcraft", value_parser = ["solidcraft", "solidcraft98"], help = "SolidCraft 98 uses only screen tools and repairs; disables SolidCraft catalogue plans, how, and hints")]
@@ -156,6 +175,27 @@ struct ModelArgs {
     no_how: bool,
     #[arg(long)]
     no_hints: bool,
+    /// Offer pilot_find and pilot_build on normal model requests (default off).
+    #[arg(long)]
+    offer_recipe_tools: bool,
+    /// Disable recipe forms and the local pilot_find and pilot_build tools.
+    #[arg(long)]
+    no_shortcuts: bool,
+    /// Skip forced fill and route; recipe tools require --offer-recipe-tools.
+    #[arg(long)]
+    no_fill: bool,
+    /// Preserve older tool results on the upstream wire (trimming is on by default).
+    #[arg(long)]
+    no_trim: bool,
+    /// Character threshold for older tool results; JSON keeps keys and scalar fields.
+    #[arg(long, default_value_t = model::DEFAULT_TRIM_CAP as u32, value_parser = clap::value_parser!(u32).range(256..=65536))]
+    trim_cap: u32,
+    /// Keep the newest N tool results whole across all user turns.
+    #[arg(long, default_value_t = model::DEFAULT_TRIM_KEEP as u32, value_parser = clap::value_parser!(u32).range(0..=4096))]
+    trim_keep: u32,
+    /// Load development recipes from this directory instead of the embedded set.
+    #[arg(long)]
+    recipes_dir: Option<PathBuf>,
     /// Enable plan-text recipe suggestions, prose conversion, and completion checks.
     #[arg(long)]
     planner: bool,
@@ -292,6 +332,16 @@ pub fn run(cmd: Command) -> Result<i32, Error> {
 pub fn run_named(cmd: Command, bin: &str) -> Result<i32, Error> {
     validate_bounds(&cmd)?;
     let result = match cmd.action {
+        Some(Action::Recipe {
+            action: RecipeAction::New { from_audit, turn },
+        }) => {
+            let path = crate::recipe_library::draft(
+                &from_audit,
+                turn,
+                std::path::Path::new("recipe-review"),
+            )?;
+            output(&format!("{}\n", path.display()))
+        }
         None => output(&help_named(bin)),
         Some(Action::Model(args)) => {
             let direct_recipes = args.direct_recipes_enabled()?;
@@ -314,6 +364,13 @@ pub fn run_named(cmd: Command, bin: &str) -> Result<i32, Error> {
                 prompt_help: args.prompt_help,
                 no_how: args.no_how,
                 no_hints: args.no_hints,
+                no_shortcuts: args.no_shortcuts,
+                offer_recipe_tools: args.offer_recipe_tools,
+                no_fill: args.no_fill,
+                no_trim: args.no_trim,
+                trim_cap: args.trim_cap as usize,
+                trim_keep: args.trim_keep as usize,
+                recipes_dir: args.recipes_dir,
                 planner: args.planner,
             })
         }
@@ -384,6 +441,9 @@ fn validate_bounds(cmd: &Command) -> Result<(), Error> {
         count = count.saturating_add(1);
     };
     match &cmd.action {
+        Some(Action::Recipe {
+            action: RecipeAction::New { from_audit, .. },
+        }) => add(from_audit.as_os_str().len()),
         Some(Action::How { task } | Action::How98 { task }) => add(task.len()),
         Some(Action::Drive98(args)) => {
             add(args.task.len());
@@ -417,6 +477,7 @@ fn validate_bounds(cmd: &Command) -> Result<(), Error> {
                 .iter()
                 .chain(args.profile_dir.iter())
                 .chain(args.model_settings.iter().flatten())
+                .chain(args.recipes_dir.iter())
             {
                 add(path.as_os_str().len());
             }
@@ -463,6 +524,39 @@ mod tests {
         Command::try_parse_from(std::iter::once("dutchman-pilot").chain(args.iter().copied()))
     }
 
+    #[test]
+    fn shortcut_controls_keep_forms_on_and_recipe_tools_opt_in() {
+        for (argv, disabled) in [
+            (vec!["pilot", "model"], false),
+            (vec!["pilot", "model", "--no-shortcuts"], true),
+        ] {
+            let cli = Command::try_parse_from(argv).unwrap();
+            let Some(Action::Model(args)) = cli.action else {
+                panic!("model args");
+            };
+            assert_eq!(args.no_shortcuts, disabled);
+            assert!(!args.offer_recipe_tools);
+        }
+    }
+    #[test]
+    fn recipe_tools_flag_is_parsed() {
+        let Some(Action::Model(args)) = parse(&["model", "--offer-recipe-tools", "--no-shortcuts"])
+            .unwrap()
+            .action
+        else {
+            panic!("model args");
+        };
+        assert!(args.offer_recipe_tools);
+        assert!(args.no_shortcuts);
+    }
+    #[test]
+    fn no_fill_keeps_shortcuts() {
+        let Some(Action::Model(args)) = parse(&["model", "--no-fill"]).unwrap().action else {
+            panic!("model args");
+        };
+        assert!(args.no_fill);
+        assert!(!args.no_shortcuts);
+    }
     #[test]
     fn defaults_and_all_flags() {
         let Some(Action::Model(args)) = parse(&["model"]).unwrap().action else {

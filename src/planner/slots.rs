@@ -138,7 +138,7 @@ fn rename_name_range(text: &str, t: &[String]) -> Option<std::ops::Range<usize>>
     }
     None
 }
-fn number(s: &str) -> Option<f64> {
+pub(super) fn number(s: &str) -> Option<f64> {
     if let Some((n, d)) = s.split_once('/') {
         let n = n.parse::<f64>().ok()?;
         let d = d.parse::<f64>().ok()?;
@@ -220,6 +220,24 @@ pub(super) fn dimensions(t: &[String]) -> Option<Vec<Dimension>> {
                     | "width"
                     | "depth"
                     | "thickness"
+                    | "flange"
+                    | "flanges"
+                    | "stem"
+                    | "web"
+                    | "leg"
+                    | "legs"
+                    | "cap"
+                    | "pad"
+                    | "horizontal"
+                    | "vertical"
+                    | "upright"
+                    | "bottom"
+                    | "offset"
+                    | "overall"
+                    | "opening"
+                    | "opens"
+                    | "faces"
+                    | "facing"
                     | "cube"
                     | "box"
                     | "block"

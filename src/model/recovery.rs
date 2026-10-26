@@ -5,6 +5,8 @@ use std::hash::{Hash, Hasher};
 #[derive(Default)]
 pub(super) struct Conversation {
     pub model: String,
+    pub facts_seen: [bool; 3],
+    pub next_hints_seen: std::collections::BTreeSet<u64>,
     pub history: Vec<u64>,
     counts: BTreeMap<String, usize>,
     pub recipe: Option<(usize, planner::Expected)>,
@@ -13,7 +15,16 @@ pub(super) struct Conversation {
     pub direct_failed: bool,
     pub direct_index: usize,
     pub direct_handback: Option<String>,
+    pub shortcut_args: Option<(usize, Value)>,
     pub pending_recipe: Option<planner::Plan>,
+    pub sketch_hint_index: usize,
+    pub sketch_hints_seen: [bool; 2],
+    pub edge_hint_seen: bool,
+    pub joint_hint_seen: bool,
+    pub pattern_hint_seen: bool,
+    pub plane_hints_seen: [bool; 2],
+    pub pattern_inspections: usize,
+    pub form_pending: Option<(usize, Value, Value, usize)>,
 }
 impl Conversation {
     pub fn allow(&mut self, command: &str, count: usize) -> bool {

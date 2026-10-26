@@ -41,7 +41,55 @@ real endpoint (`--upstream http://localhost:11434/v1`, Ollama by default; any Op
 URL; an API key is passed through from the client's Authorization header, never stored).
 
 Request side:
-- Pass the request through unchanged by default.
+- With SolidCraft tools, `--offer-recipe-tools` offers local `pilot_find` and `pilot_build`
+  functions (default off; unavailable in the SolidCraft 98 dialect); `--no-shortcuts` disables both. Search the embedded Markdown
+  recipe library first with `{request}`; retrieve three ids, descriptions, schemas and BM25
+  scores. A score below 1.8 returns an explicit miss and guidance to describe supported
+  recipes or ask one question, without blocking native tools. Build with `{recipe, args}`.
+  `--recipes-dir DIR` replaces the embedded library for development. Its legacy `shape` union accepts typed
+  profiles, plates, enclosures and revolute joints, in mm (convert inches first).
+  Shared recipe validators and catalogue-checked expanders replace a valid call with
+  real client tools through the direct-recipe completion and measured verification path.
+  Exact English recipes still win. Reject invalid arguments inside the turn with a field
+  and rule tool error, at most two retries, then hand back with the shortcut removed.
+  Audit `shortcut` (arguments and rule) and `shortcut_rejected` (reason). Local shortcut
+  calls and results never reach SolidCraft and are stripped from returned client history.
+  Audit `find` (query, top ids/scores) and `find_hit`/`find_miss`; profiles count finds,
+  hits and misses. Two local searches per turn; existing wire/retry caps still apply.
+  `recipe new --from-audit FILE --turn N` drafts the Nth recorded recipe emission to
+  `recipe-review/`; it never activates a recipe. Reviewed sequences substitute typed
+  parameters in at most 64 catalogue-checked calls. See docs/recipes.md for file format.
+- On a fresh user turn after exact direct matching, Pilot searches with the same ranker.
+  A top score >= 4.5 (find hit/miss remains 1.8), with available recipe state or
+  inspection first, offers only `pilot_fill`: the typed recipe schema plus boolean
+  `decline`, with forced function `tool_choice`. Fill and route are separate extraction
+  requests built from client model/sampling settings, one short Pilot system message,
+  the latest user message only, and exactly one tool. No client system prompt, history,
+  or tools are included. Existing-target recipes first request public inspection through
+  the client, then append a compact design summary (at most 8,192 characters and 12
+  bodies): names, bounds, centres, last created body, last feature and definition,
+  selection, and component/contact geometry for joints. Implicit this/these/it targets
+  use selection, then the last created body, then the only body; ambiguous targets
+  produce a clear form error. Fill requests ask for mm (inches × 25.4, cm × 10), omitted
+  unstated optionals, and decline for mismatches. Reuse build validation and expansion.
+  Scores from 1.5 inclusive to 4.5 exclusive offer a top-four `pilot_route`
+  question first; lower scores use ordinary tools. A declined fill never routes.
+  Invalid fills get at most two field-error retries (three attempts). An off-form or text
+  reply gets one retry of the same clean request with a one-line problem note, then
+  restores ordinary tools. Decline or a third invalid fill also restores ordinary tools.
+  All form calls including retries share the four-request per-turn cap; the wire cap
+  remains eight. Audit `form_request` records clean request bytes/characters, and
+  `request_size` and profile accounting include every extraction request. Local forms never
+  reach the client. Audit `fill_offered` (recipe, score), `fill_accepted`, `fill_declined`,
+  `fill_invalid`, `fill_fallback`, and `fill_defaulted` for inferred non-dimensional choices. Offer once per user turn; no continuation or SC98
+  fills. Forced fill and route do not require `--offer-recipe-tools`. `--no-fill` skips
+  fill and route; `--no-shortcuts` disables forms and local recipe tools even with the offer flag.
+  No upfront find-first fact is added.
+- Facts and hints are sent once per retained conversation, with existing-history deduplication.
+  Relevant guidance is always sent regardless of the client's character count.
+  `how` remains available unless disabled with `--no-how`; its shorter schema saves
+  64 characters. MCP retains its separate tool-list behavior.
+- Pass other request fields through unchanged unless a feature below applies.
 - `--fallback-prompt auto|on|off`: for a model that can't do native tools (detected from Ollama's
   `/api/show` capabilities, or after a turn that wrote a call as text), append ONE conditional
   block to the system prompt: "If you cannot call tools, and only then, reply with exactly one
