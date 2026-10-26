@@ -691,3 +691,43 @@ fn pattern_hint_for_cylinders_copies_and_copied_sketch_extrusions() {
     let req = json!({"messages":[{"role":"user","content":"repeat these extrusions"},{"role":"assistant","tool_calls":[{"function":{"name":"batch","arguments":json!({"commands":commands}).to_string()}}]}]});
     assert!(repetition_hint(&req).is_some());
 }
+
+#[test]
+fn fill_calibration() {
+    let lib = Library::embedded().unwrap();
+    for (query, id, fill, hit) in [
+        (
+            "Extrude an L profile on XZ 47 wide 33 tall legs 5 thick depth 22",
+            "profile",
+            true,
+            true,
+        ),
+        (
+            "A mounting plate with a bore and bolt circle holes and rounded corners",
+            "plate",
+            true,
+            true,
+        ),
+        (
+            "An open enclosure with walls and an inner lip",
+            "enclosure",
+            true,
+            true,
+        ),
+        (
+            "Write a story about an enclosure with a lip",
+            "enclosure",
+            false,
+            true,
+        ),
+        ("a cuboid please", "box", false, true),
+        ("translate French poetry", "move", false, false),
+        ("write a sonnet", "box", false, false),
+    ] {
+        let found = lib.find(query, &Bm25).unwrap();
+        let score = found["recipes"][0]["score"].as_f64().unwrap();
+        assert_eq!(found["recipes"][0]["id"], id, "{query}");
+        assert_eq!(score >= FILL_THRESHOLD, fill, "{query}: {score}");
+        assert_eq!(found["hit"], hit, "{query}");
+    }
+}

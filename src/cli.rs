@@ -18,7 +18,7 @@ Usage:
   {pad}       [--fallback-prompt auto|on|off] [--prompt-help] [--log FILE]
   {pad}       [--profile-dir DIR] [--model-settings [FILE]] [--seed INTEGER]
   {pad}       [--no-report-buffer] [--dialect solidcraft|solidcraft98]
-  {pad}       [--no-how] [--no-hints] [--no-shortcuts] [--no-trim] [--trim-cap CHARS (default 1500)]
+  {pad}       [--no-how] [--no-hints] [--no-shortcuts] [--no-fill] [--no-trim] [--trim-cap CHARS (default 1500)]
   {pad}       [--planner] [--no-plan (alias --no-planner)]
   {pad}       [--recipes-dir DIR]
   {binary} report [--listen ADDR] [--turn N] [--include-request] [--out FILE]
@@ -174,9 +174,12 @@ struct ModelArgs {
     no_how: bool,
     #[arg(long)]
     no_hints: bool,
-    /// Disable the local pilot_find and pilot_build tools.
+    /// Disable recipe forms and the local pilot_find and pilot_build tools.
     #[arg(long)]
     no_shortcuts: bool,
+    /// Skip forced recipe forms while keeping find and build.
+    #[arg(long)]
+    no_fill: bool,
     /// Preserve older tool results on the upstream wire (trimming is on by default).
     #[arg(long)]
     no_trim: bool,
@@ -355,6 +358,7 @@ pub fn run_named(cmd: Command, bin: &str) -> Result<i32, Error> {
                 no_how: args.no_how,
                 no_hints: args.no_hints,
                 no_shortcuts: args.no_shortcuts,
+                no_fill: args.no_fill,
                 no_trim: args.no_trim,
                 trim_cap: args.trim_cap as usize,
                 recipes_dir: args.recipes_dir,
@@ -523,6 +527,14 @@ mod tests {
             };
             assert_eq!(args.no_shortcuts, disabled);
         }
+    }
+    #[test]
+    fn no_fill_keeps_shortcuts() {
+        let Some(Action::Model(args)) = parse(&["model", "--no-fill"]).unwrap().action else {
+            panic!("model args");
+        };
+        assert!(args.no_fill);
+        assert!(!args.no_shortcuts);
     }
     #[test]
     fn defaults_and_all_flags() {

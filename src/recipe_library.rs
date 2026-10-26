@@ -7,6 +7,8 @@ use std::collections::{BTreeMap, BTreeSet};
 pub const FIND_DESCRIPTION: &str = "Search recipes before building. Returns the closest three schemas. On no good hit, do not improvise CAD: tell the user what Pilot can build or ask one question. Then use pilot_build with recipe and args. Lengths are mm.";
 pub const BUILD_DESCRIPTION: &str = "Build a recipe found with pilot_find: supply its id and typed args. Lengths are mm. Legacy shape arguments also work. Inspect before selecting existing bodies or a contact joint.";
 pub const HIT_THRESHOLD: f64 = 1.8;
+/// Conservative forced-form gate; calibrated independently in tests.
+pub const FILL_THRESHOLD: f64 = 4.5;
 pub const IDS: &[&str] = &[
     "cross_drilled_box",
     "honeycomb_pattern",
@@ -538,7 +540,26 @@ impl Ranker for Bm25 {
             .collect();
         let n = docs.iter().map(Vec::len).sum::<usize>() as f64;
         let avg = docs.iter().flatten().map(Vec::len).sum::<usize>() as f64 / n.max(1.0);
-        let pattern = planner::pattern_intent(query);
+        let words = tokens(query);
+        let has = |word: &str| words.iter().any(|w| w == word);
+        // A hole circle in a new plate and a rim around an enclosure are compound
+        // creations, not repetition of an existing body. Explicit pattern requests win.
+        let creation = (has("plate") || has("enclosure"))
+            && !["pattern", "array", "repeat", "copy", "copie", "instance"]
+                .iter()
+                .any(|w| has(w));
+        let pattern = if creation && planner::pattern_intent(query) != Some("honeycomb_pattern") {
+            None
+        } else {
+            planner::pattern_intent(query)
+        };
+        let lipped = has("enclosure") && has("lip") && (has("open") || has("wall"));
+        let section = ["l", "t", "u", "c"].iter().any(|w| has(w))
+            && (has("profile")
+                || ((has("sketch") || has("extrude"))
+                    && ["width", "height", "wide", "tall", "leg", "thickness"]
+                        .iter()
+                        .any(|w| has(w))));
         let query: BTreeSet<_> = tokens(query).into_iter().collect();
         let idfs: BTreeMap<_, _> = query
             .iter()
@@ -580,6 +601,13 @@ impl Ranker for Bm25 {
                         }
                     } else {
                         best * coverage
+                            + if recipes[i].id == "profile" && section {
+                                6.0
+                            } else if recipes[i].id == "enclosure" && lipped {
+                                3.0
+                            } else {
+                                0.0
+                            }
                     },
                 )
             })

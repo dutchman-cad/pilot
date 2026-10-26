@@ -5,6 +5,7 @@ use std::hash::{Hash, Hasher};
 #[derive(Default)]
 pub(super) struct Conversation {
     pub model: String,
+    pub fill_index: Option<usize>,
     pub history: Vec<u64>,
     counts: BTreeMap<String, usize>,
     pub recipe: Option<(usize, planner::Expected)>,

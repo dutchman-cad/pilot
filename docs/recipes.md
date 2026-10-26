@@ -495,3 +495,47 @@ along +Z (XY), -Y (XZ), or +X (YZ). At most two seed cuts and two feature patter
 produce one body, with no per-hex tool calls. Completion checks measured volume
 and bounds. The CLI integration test independently reconstructs finished hex
 loops to verify count, minimum web and border.
+
+## Fill a found recipe first
+
+On a fresh user turn that reaches the model, Pilot runs the `pilot_find` BM25 ranker
+itself. At **4.5 or higher**, the first request offers exactly one `pilot_fill`
+function, with the selected typed schema plus boolean `decline`, and forces that
+function with `tool_choice`. The line naming the recipe asks the model to use the
+user's words, convert inches to mm, omit unstated optional fields and decline a
+mismatch. Accepted arguments use the same validators, expanders, approval calls,
+and measured verification as `pilot_build`; a form never reaches the client.
+
+An invalid form gets one retry with its field error and the same schema. Decline,
+text (including JSON written as text), another tool, mixed calls, or another invalid
+form restores the ordinary tools for the rest of the turn. The rejected proposal
+is discarded. Normal find/build remain available. There is no fill on tool-result
+continuations or SolidCraft 98. `--no-fill` skips forms while keeping find/build;
+`--no-shortcuts` also removes forms and the upfront find-first line. Exact direct
+matches retain priority; use `--no-direct-recipes` to exercise forms for those requests.
+
+The find hit/miss threshold remains **1.8**. Independent calibration lives in
+`tests/recipe_library.rs::fill_calibration`: an L extrusion scores 11.80, a
+mounting plate with bore and bolt circle 14.01, and an open lipped enclosure 15.31.
+“A cuboid please” scores 4.44 and stays a search hit without a forced form;
+“Write a story about an enclosure with a lip” scores 3.27. French poetry scores
+1.17 and a sonnet scores 0, both misses. These are lexical retrieval scores, not
+probabilities. General section cues help an L sketch without the word “profile”;
+a new plate's hole circle or an enclosure rim does not select an existing-body
+pattern unless repetition is explicitly requested. Explanation, negation and
+unsupported geometry cues (including loft, sweep and gear) conservatively skip
+forms even with high lexical overlap. Tests cover those near misses as well.
+
+Creation recipes need no existing target; patterns and joints inspect first.
+Existing-body edit forms require a complete latest recipe snapshot and accept
+only body names from it. Unknown development sequence state requirements stay on
+the normal path. Three verbatim public Assistant requests are replayed from
+`tests/fixtures/fill-*.json` with direct recipes disabled, selecting profile,
+plate and enclosure. They were not used as recipe examples. The optional ignored
+`live_gemma_fill_public_probes` test sends at most three requests to Ollama on
+127.0.0.1:11435, with 30-second timeouts, and executes no CAD operations.
+
+Audit kinds: `fill_offered` records recipe and score; `fill_accepted` records the
+validated envelope and rule; `fill_declined`, `fill_invalid` and `fill_fallback`
+record why the normal path resumes. Existing wire, size, search and retry caps
+still apply; two fill attempts are additional to the bounded normal retry budget.

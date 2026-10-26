@@ -177,6 +177,22 @@ fn state(messages: &[Value]) -> Option<Value> {
     }
     Some(data)
 }
+/// Names from the same complete latest snapshot used by recipe expansion.
+#[cfg(feature = "proxy")]
+pub(crate) fn recipe_targets(request: &Value) -> Vec<String> {
+    request["messages"]
+        .as_array()
+        .and_then(|ms| state(ms))
+        .into_iter()
+        .flat_map(|data| data["bodies"].as_array().cloned().unwrap_or_default())
+        .filter_map(|body| {
+            body["name"]
+                .as_str()
+                .filter(|s| !s.is_empty() && s.len() <= 128)
+                .map(String::from)
+        })
+        .collect()
+}
 fn body(text: &str, data: Option<&Value>) -> Option<String> {
     let bodies = data?.get("bodies")?.as_array()?;
     let lower = text.to_ascii_lowercase();

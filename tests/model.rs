@@ -197,6 +197,7 @@ impl Harness {
             no_hints: false,
             // Tool injections (how and pilot_build) are tested together.
             no_shortcuts: !how,
+            no_fill: false,
             no_trim: false,
             trim_cap: 1500,
             recipes_dir: None,
@@ -461,19 +462,32 @@ fn local_how_hints_and_clean_tools_capability_profile() {
     let chats = h.chats();
     assert_eq!(chats.len(), 5);
     for chat in &chats {
+        // The only system line is the shortcut tools' find-first fact.
         assert!(chat["messages"]
             .as_array()
             .unwrap()
             .iter()
-            .all(|m| m["role"] != "system"));
+            .filter(|m| m["role"] == "system")
+            .all(|m| m["content"]
+                .as_str()
+                .is_some_and(|c| c.contains("call pilot_find first."))));
         assert!(chat["tools"]
             .as_array()
             .unwrap()
             .iter()
             .any(|t| t["function"]["name"] == "how"));
     }
+    let without_system = |chat: &Value| -> Vec<Value> {
+        chat["messages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|m| m["role"] != "system")
+            .cloned()
+            .collect()
+    };
     for index in [1, 3] {
-        let messages = chats[index]["messages"].as_array().unwrap();
+        let messages = without_system(&chats[index]);
         assert_eq!(messages[1]["tool_calls"][0]["function"]["name"], "how");
         assert_eq!(messages[2]["role"], "tool");
         assert_eq!(
@@ -483,7 +497,7 @@ fn local_how_hints_and_clean_tools_capability_profile() {
         assert!(messages[2]["content"].as_str().unwrap().contains("fillet"));
     }
     assert_eq!(
-        chats[4]["messages"][2]["content"],
+        without_system(&chats[4])[2]["content"],
         format!("{state}\n[dutchman-pilot hint] Empty design: start with a sketch or a primitive.")
     );
     let log = fs::read_to_string(h.dir.join("audit.jsonl")).unwrap();
@@ -1052,6 +1066,7 @@ fn report_capture_endpoint_and_disabled_buffer() {
             no_how: true,
             no_hints: true,
             no_shortcuts: false,
+            no_fill: false,
             no_trim: false,
             trim_cap: 1500,
             recipes_dir: None,
@@ -1129,6 +1144,7 @@ fn report_endpoint_rejects_non_loopback_peer() {
         no_how: true,
         no_hints: true,
         no_shortcuts: false,
+        no_fill: false,
         no_trim: false,
         trim_cap: 1500,
         recipes_dir: None,

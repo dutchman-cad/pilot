@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Find recipes automatically and ask the model to fill one typed form first, with one validation retry, audited fallback, and `--no-fill`.
+
 - Map sketch planes to world axes with audited hints, flag unused construction planes, and build cross-drilled boxes with world-space through holes.
 - Trim older upstream tool history by default, preserve recipe evidence, and audit per-request character sizes with profile mean/max; opt out with `--no-trim`.
 - Cut staggered honeycomb plates in one recipe, with across-flats/corners sizing, bounded fill or exact counts, web and border, and measured public CLI verification.

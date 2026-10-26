@@ -59,6 +59,19 @@ Request side:
   `recipe new --from-audit FILE --turn N` drafts the Nth recorded recipe emission to
   `recipe-review/`; it never activates a recipe. Reviewed sequences substitute typed
   parameters in at most 64 catalogue-checked calls. See docs/recipes.md for file format.
+- On a fresh user turn after exact direct matching, Pilot searches with the same ranker.
+  A top score >= 4.5 (find hit/miss remains 1.8), with available recipe state or
+  inspection first, offers only `pilot_fill`: the typed recipe schema plus boolean
+  `decline`, with forced function `tool_choice`. A short system line names the recipe,
+  requests fields from the user's words, inch-to-mm conversion, omitted unstated
+  optionals, and decline for mismatches. Reuse build validation and expansion.
+  One invalid fill gets one field-error retry; decline, text, another tool or second
+  invalid fill restores the ordinary tools for the rest of the turn. Local forms never
+  reach the client. Audit `fill_offered` (recipe, score), `fill_accepted`, `fill_declined`,
+  `fill_invalid`, `fill_fallback`. Offer once per user turn; no continuation or SC98
+  fills. `--no-fill` keeps find/build but skips forms; `--no-shortcuts` disables both.
+  When shortcuts are offered, add: "For plates, profiles, enclosures, patterns,
+  honeycombs, cross-drilled boxes and joints, call pilot_find first."
 - Pass other request fields through unchanged unless a feature below applies.
 - `--fallback-prompt auto|on|off`: for a model that can't do native tools (detected from Ollama's
   `/api/show` capabilities, or after a turn that wrote a call as text), append ONE conditional

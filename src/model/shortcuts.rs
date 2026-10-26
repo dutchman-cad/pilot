@@ -3,7 +3,7 @@ use super::*;
 fn named(call: &Value) -> bool {
     matches!(
         call["function"]["name"].as_str(),
-        Some("pilot_build" | "pilot_find")
+        Some("pilot_build" | "pilot_find" | "pilot_fill")
     )
 }
 pub(super) fn strip(body: &mut Value) {
@@ -27,8 +27,10 @@ pub(super) fn strip(body: &mut Value) {
         .collect();
     messages.retain(|m| {
         !(m["role"] == "tool"
-            && (matches!(m["name"].as_str(), Some("pilot_build" | "pilot_find"))
-                || ids.contains(&m["tool_call_id"])))
+            && (matches!(
+                m["name"].as_str(),
+                Some("pilot_build" | "pilot_find" | "pilot_fill")
+            ) || ids.contains(&m["tool_call_id"])))
     });
     for m in messages {
         if m["role"] == "system" {
