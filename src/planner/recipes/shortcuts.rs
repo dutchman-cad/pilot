@@ -156,7 +156,7 @@ pub(crate) fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<
                         Ok(v + extra)
                     }
                     _ => Err(format!(
-                        "{field}: supply exactly one outside or alternative size"
+                        "{field}: these sizes disagree; give the outside size only if the request states it, or the inside gap/stem only if it states that, not both"
                     )),
                 }
             };
@@ -166,22 +166,27 @@ pub(crate) fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<
             if stem_height.is_some() && (shape != "T" || inside_height.is_some()) {
                 return Err("stem_height requires T and replaces height".into());
             }
-            let width = choose(
-                width,
-                inside_width,
-                if shape == "U" { 2.0 * flange } else { web },
-                "width/inside_width",
-            )?;
+            let width_extra = if shape == "U" { 2.0 * flange } else { web };
+            let height_extra = if shape == "C" {
+                2.0 * flange
+            } else if shape == "T" {
+                flange
+            } else {
+                web
+            };
+            // A model often fills both an outside size and its matching inside size.
+            // When they agree, keep the outside size, which most requests state.
+            let agrees = |outside: Option<f64>, inside: Option<f64>, extra: f64| matches!((outside, inside), (Some(o), Some(i)) if (o - (i + extra)).abs() <= 1e-6 * o.abs().max(1.0));
+            let (inside_width, inside_height, stem_height) = (
+                inside_width.filter(|_| !agrees(width, inside_width, width_extra)),
+                inside_height.filter(|_| !agrees(height, inside_height, height_extra)),
+                stem_height.filter(|_| !agrees(height, stem_height, height_extra)),
+            );
+            let width = choose(width, inside_width, width_extra, "width/inside_width")?;
             let height = choose(
                 height,
                 inside_height.or(stem_height),
-                if shape == "C" {
-                    2.0 * flange
-                } else if shape == "T" {
-                    flange
-                } else {
-                    web
-                },
+                height_extra,
                 "height/inside_height/stem_height",
             )?;
             let slots = closed_profile::Profile {

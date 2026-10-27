@@ -1597,3 +1597,29 @@ fn profile_fills_accept_kind_and_plane_wording_and_specific_thickness() {
     assert_eq!(slots["thickness"], 4);
     assert_eq!(slots.get("web_thickness"), None);
 }
+
+#[test]
+fn profile_outside_and_matching_inside_sizes_both_given() {
+    let lib = Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    let req = json!({"messages":[]});
+    let build = |args: Value| lib.build(&json!({"recipe":"profile","args":args}), &req, &cat);
+    let outside = json!({"kind":"U","width":26,"height":28,"depth":40,"thickness":3});
+    let mut both = outside.clone();
+    both["inside_width"] = json!(20);
+    both["inside_height"] = json!(25);
+    assert_eq!(
+        build(outside).unwrap().calls,
+        build(both.clone()).unwrap().calls
+    );
+    both["inside_width"] = json!(18);
+    let error = build(both).unwrap_err();
+    assert!(
+        error.contains("disagree") && error.contains("inside"),
+        "{error}"
+    );
+    let t = json!({"kind":"T","width":40,"height":35,"depth":25,"web_thickness":4,"flange_thickness":5});
+    let mut stem = t.clone();
+    stem["stem_height"] = json!(30);
+    assert_eq!(build(t).unwrap().calls, build(stem).unwrap().calls);
+}
