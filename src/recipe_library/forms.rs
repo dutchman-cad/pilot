@@ -257,6 +257,9 @@ pub fn flat(schema: &Value) -> Value {
         out["description"] =
             json!("Holes are centred unless you give offset_u/offset_v from the face centre.");
     }
+    if schema["x-pilot-expander"] == "profile" {
+        out["description"] = json!("width and height are the overall outside section, flange and stem included; add the walls to inside sizes. thickness sets every wall; web_thickness and flange_thickness set them separately.");
+    }
     out
 }
 

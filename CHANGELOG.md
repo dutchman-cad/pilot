@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The profile form says that width and height are the overall outside section, so inside sizes are converted by adding the walls.
 - Profile forms accept common wording for the section (angle, channel, tee, rectangular) and the plane (["X","Z"], "XZ plane"), and a specific web or flange thickness now takes priority over a general thickness instead of being refused.
 
 ## 0.1.0-beta.6 (2026-10-27)
