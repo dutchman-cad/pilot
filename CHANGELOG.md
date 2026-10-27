@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- One joint form now connects inspected components with any joint or relation type,
+  at box centres or named origins, with aligned axes and ordered motion limits.
+  It accepts common joint names, word or vector axes, and approximate component names;
+  existing pin-and-hole revolute joints still work.
 - Plate forms build rectangular or round bases with joined pegs/bosses, a single offset boss, and centred rows, grids or circles of raised features or holes. New-part pattern requests route to plate; existing-part edits retain pattern forms. Grid fields specify X columns, Y rows and centre spacing.
 
 - Profile forms accept common wording for the section (angle, channel, tee, rectangular) and the plane (["X","Z"], "XZ plane"), and a specific web or flange thickness now takes priority over a general thickness instead of being refused.

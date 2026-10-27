@@ -242,8 +242,15 @@ impl Drop for Session {
 }
 impl Session {
     fn new(path: &std::ffi::OsStr) -> Self {
-        let mut child = Command::new(path)
-            .arg("mcp")
+        Self::with_start(path, None)
+    }
+    fn with_start(path: &std::ffi::OsStr, start: Option<&std::path::Path>) -> Self {
+        let mut command = Command::new(path);
+        command.arg("mcp");
+        if let Some(start) = start {
+            command.arg("--in").arg(start);
+        }
+        let mut child = command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
@@ -1953,5 +1960,193 @@ fn public_binary_plate_boss_planes_and_existing_body_isolation() {
             (b["volume_mm3"].as_f64().unwrap() - want).abs() < want * 0.001,
             "{measured}"
         );
+    }
+}
+
+#[test]
+fn public_binary_joint_forms_replay_public_start_states() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let tasks: Value =
+        serde_json::from_str(include_str!("../bench/sets/joints/tasks.json")).unwrap();
+    let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    for (task, word) in tasks["tasks"].as_array().unwrap().iter().zip([
+        "hinge",
+        "prismatic",
+        "Cylindrical joint",
+        "pin slot",
+        "ball and socket",
+    ]) {
+        let start = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("bench/sets/joints")
+            .join(task["start"].as_str().unwrap());
+        let mut s = Session::with_start(&path, Some(&start));
+        let doc = s.execute("document.inspect", json!({"measure":true}));
+        let components = s.execute("component.list", json!({}));
+        let mut req = json!({"messages":[{"role":"user","content":task["prompt"]},{"role":"tool","content":doc.to_string()},{"role":"tool","content":components.to_string()}]});
+        let mut args =
+            json!({"joint_type":word,"component_a":"base","component_b":"the Link","axis":[0,0,1]});
+        // Near names use the same punctuation/case/substring resolution as pattern forms.
+        for (i, pair) in task["check"]["joints"][0]["limits"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .enumerate()
+        {
+            args[format!("limit{}_min", i + 1)] = pair[0].clone();
+            args[format!("limit{}_max", i + 1)] = pair[1].clone();
+        }
+        let plan = lib
+            .build(&json!({"recipe":"revolute_joint","args":args}), &req, &cat)
+            .unwrap();
+        for c in &plan.calls {
+            let result = s.execute(
+                c["arguments"]["command"].as_str().unwrap(),
+                c["arguments"]["params"].clone(),
+            );
+            req["messages"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({"role":"tool","content":result.to_string()}));
+        }
+        let listed = s.execute("joint.list", json!({}));
+        assert!(listed["errors"].as_array().unwrap().is_empty(), "{listed}");
+        assert!(
+            listed["conflicts"].as_array().unwrap().is_empty(),
+            "{listed}"
+        );
+        let joints = listed["joints"].as_array().unwrap();
+        assert_eq!(joints.len(), 1, "{listed}");
+        let joint = &joints[0];
+        assert_eq!(joint["type"], task["check"]["joints"][0]["type"]);
+        assert_eq!(
+            joint["a"],
+            components["components"][1]["occurrences"][0]["id"]
+        );
+        assert_eq!(
+            joint["b"],
+            components["components"][2]["occurrences"][0]["id"]
+        );
+        let actual: Vec<_> = joint["values"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v["limits"].clone())
+            .collect();
+        for (actual, expected) in actual
+            .iter()
+            .zip(task["check"]["joints"][0]["limits"].as_array().unwrap())
+        {
+            for end in 0..2 {
+                let got = actual[end].as_f64().unwrap();
+                let want = expected[end].as_f64().unwrap();
+                assert!((got - want).abs() < 1e-8, "{word}: {actual} != {expected}");
+            }
+        }
+        assert_eq!(
+            actual.len(),
+            task["check"]["joints"][0]["limits"]
+                .as_array()
+                .unwrap()
+                .len()
+        );
+        assert_eq!(joint["frame_a"]["z"], json!([0., 0., 1.]));
+        assert_eq!(joint["frame_b"]["z"], joint["frame_a"]["z"]);
+        // The input picks are box centres, before the joint solver moves Link.
+        assert_eq!(
+            plan.calls[0]["arguments"]["params"]["a"]["point"],
+            json!([5., 5., 5.])
+        );
+        assert_eq!(
+            plan.calls[0]["arguments"]["params"]["b"]["point"],
+            json!([35., 5., 5.])
+        );
+        let after = s.execute("document.inspect", json!({"measure":true}));
+        assert_eq!(after["bodies"].as_array().unwrap().len(), 3);
+        let volume: f64 = after["bodies"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|b| b["volume_mm3"].as_f64().unwrap())
+            .sum();
+        assert!((volume - task["check"]["volume"].as_f64().unwrap()).abs() < 0.0001);
+        let after_components = s.execute("component.list", json!({}));
+        for name in ["Base", "Link", "Spare"] {
+            let c = after_components["components"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|c| c["name"] == name)
+                .unwrap();
+            assert_eq!(c["bodies"], json!([name]));
+        }
+        let spare = &after["bodies"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|b| b["name"] == "Spare")
+            .unwrap();
+        assert_eq!(spare["bbox"], doc["bodies"][2]["bbox"]);
+    }
+}
+
+#[test]
+fn public_binary_remaining_joint_types_and_named_origins() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    let start = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("bench/sets/joints/start/joints-revolute-limits.solidcraft");
+    for (kind, units) in [
+        ("rigid", vec![]),
+        ("planar", vec!["mm", "mm", "deg"]),
+        ("parallel", vec!["mm", "mm", "mm", "deg"]),
+        ("perpendicular", vec!["mm", "mm", "mm", "deg", "deg"]),
+        ("angle", vec!["mm", "mm", "mm", "deg", "deg"]),
+        ("point_on_plane", vec!["mm", "mm", "deg", "deg", "deg"]),
+        ("point_on_line", vec!["mm", "deg", "deg", "deg"]),
+        ("line_on_plane", vec!["mm", "mm", "deg", "deg"]),
+    ] {
+        let mut s = Session::with_start(&path, Some(&start));
+        for (name, occurrence, point) in [
+            ("BaseAnchor", "Base:1", [5, 5, 5]),
+            ("LinkAnchor", "Link:1", [35, 5, 5]),
+        ] {
+            s.execute(
+                "joint.origin",
+                json!({"name":name,"occurrence":occurrence,"point":point,"z":[1,0,0]}),
+            );
+        }
+        let doc = s.execute("document.inspect", json!({"measure":true}));
+        let components = s.execute("component.list", json!({}));
+        let origins = s.execute("joint.list", json!({}));
+        let req = json!({"messages":[{"role":"user","content":"connect components"},{"role":"tool","content":doc.to_string()},{"role":"tool","content":components.to_string()},{"role":"tool","content":origins.to_string()}]});
+        let mut args = json!({"joint_type":kind,"component_a":"Base","component_b":"Link","point_a":"BaseAnchor","point_b":"LinkAnchor","axis":"X axis"});
+        for i in 1..=units.len() {
+            args[format!("limit{i}_min")] = json!(-100);
+            args[format!("limit{i}_max")] = json!(100);
+        }
+        let plan = lib
+            .build(&json!({"recipe":"revolute_joint","args":args}), &req, &cat)
+            .unwrap();
+        assert_eq!(plan.calls[0]["arguments"]["params"]["a"], "BaseAnchor");
+        for c in &plan.calls {
+            s.execute(
+                c["arguments"]["command"].as_str().unwrap(),
+                c["arguments"]["params"].clone(),
+            );
+        }
+        let listed = s.execute("joint.list", json!({}));
+        let values = listed["joints"][0]["values"].as_array().unwrap();
+        assert_eq!(values.len(), units.len(), "{kind}: {listed}");
+        for (v, unit) in values.iter().zip(&units) {
+            assert_eq!(v["unit"], *unit);
+            assert_eq!(v["limits"][0].as_f64(), Some(-100.));
+            assert_eq!(v["limits"][1].as_f64(), Some(100.));
+        }
     }
 }

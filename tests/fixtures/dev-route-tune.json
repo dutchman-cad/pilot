@@ -894,13 +894,13 @@
  },
  {
   "text": "rigid joint the cover to the base",
-  "recipe": "none",
-  "args": null
+  "recipe": "revolute_joint",
+  "args": {"joint_type":"rigid","component_a":"cover","component_b":"base"}
  },
  {
   "text": "ball joint between the arm and the socket",
-  "recipe": "none",
-  "args": null
+  "recipe": "revolute_joint",
+  "args": {"joint_type":"ball","component_a":"arm","component_b":"socket"}
  },
  {
   "text": "how do I export this to STL?",

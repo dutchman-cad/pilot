@@ -193,6 +193,15 @@ pub(crate) fn summary(request: &Value, joint: bool) -> String {
         );
     }
     if joint {
+        summary["joint_origins"] = json!(data
+            .iter()
+            .rev()
+            .find_map(|d| d["origins"].as_array())
+            .into_iter()
+            .flatten()
+            .take(24)
+            .map(|o| fields(o, &["name", "occurrence"]))
+            .collect::<Vec<_>>());
         summary["components"] = json!(data
             .iter()
             .rev()
@@ -219,7 +228,7 @@ pub(crate) fn summary(request: &Value, joint: bool) -> String {
     while summary.to_string().chars().count() > MAX_CONTEXT_CHARS {
         summary["partial"] = json!(true);
         let mut removed = false;
-        for key in ["pins_and_holes", "components", "bodies"] {
+        for key in ["pins_and_holes", "joint_origins", "components", "bodies"] {
             if let Some(a) = summary[key].as_array_mut() {
                 if a.pop().is_some() {
                     removed = true;
@@ -258,6 +267,17 @@ mod tests {
             json!(json!({"bodies":[{"name":"Only"}],"timeline":[]}).to_string());
         assert_eq!(default_body(&req).unwrap(), "Only");
     }
+    #[test]
+    fn joint_summary_shows_named_origins_with_owning_occurrences() {
+        let mut req = request();
+        req["messages"].as_array_mut().unwrap().push(json!({"role":"tool","content":json!({"origins":[{"name":"BaseAnchor","occurrence":2},{"name":"LinkAnchor","occurrence":5}]}).to_string()}));
+        let shown: Value = serde_json::from_str(&summary(&req, true)).unwrap();
+        assert_eq!(
+            shown["joint_origins"],
+            json!([{"name":"BaseAnchor","occurrence":2},{"name":"LinkAnchor","occurrence":5}])
+        );
+    }
+
     #[test]
     fn summary_has_strict_character_and_body_caps_and_ignores_old_history() {
         let mut req = request();

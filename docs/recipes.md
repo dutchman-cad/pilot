@@ -538,7 +538,8 @@ the user message. Accepted arguments use the same validators, expanders, approva
 calls and measured verification as `pilot_build`; a form never reaches the client.
 
 Forms use a compact presentation of the full validation schema, with a tested
-1,200-character budget including the system line. File schemas retain numeric
+1,200-character budget including the system line (3,000 for the joint form
+with its five limit pairs). File schemas retain numeric
 limits and field guidance; the compact form keeps the actionable enum meanings
 and defaults. Unstated plate/profile planes default to XY, placement to uncentred,
 enclosure openings to top, and lip sides to inner (flush with the inner wall
@@ -681,8 +682,8 @@ and `"false"`/`"no"` become booleans, and enum case and common synonyms
 (round/fillet, bevel/chamfer, corners/side/vertical) are normalized. Each changed
 field is audited as `fill_coerced`. Counts and angles do not accept length units.
 A number supplied under an old container name, such as `bolt_circle: 56`, is
-rejected with the scalar field names to use. Each compact fill schema plus its
-system line stays below 1,200 characters, including the `decline` field.
+rejected with the scalar field names to use. Compact fill schemas plus their system line stay below 1,200 characters, including
+`decline`, except the joint form (3,000 characters for all types and five limit pairs).
 
 The independent public context regressions live in
 `src/model/tests/context_tests.rs`. They build a plate and peg, a joined boss and
@@ -693,3 +694,38 @@ identify "these". The tests now drive row, grid and circular forms through clien
 execution and measured completion, exercise every existing-target form, verify
 selection precedence and inspection failure, and check extraction-size accounting.
 They do not use private evaluation tasks or model-specific prompt examples.
+
+
+The `revolute_joint` form also handles every public joint and relation type. Set
+`joint_type`, `component_a` and `component_b`; component names resolve by exact
+name, normalized name or an unambiguous substring. Omit names only when the two
+candidates are unique. `hinge`/`pin`, `prismatic`/`slide`, and
+`ball and socket`/`spherical` normalize to revolute, slider and ball. `axis` accepts
+X/Y/Z words or unit vectors and defaults to Z. Each component's combined box
+centre supplies its origin; `point_a`/`point_b` instead select named joint origins
+from `joint.list`, belonging to the selected occurrence and retaining their frames.
+
+Supply `limit1_min`, `limit1_max`, etc. in the public CLI's `joint.list` value
+order below. Both ends are required, min must not exceed max, and values must
+be finite within ±1,000,000. Omitted pairs remain unlimited; surplus pairs fail.
+These orders were checked through the public 0.20 MCP binary.
+
+| Type | Ordered motion values and units |
+| --- | --- |
+| rigid | none |
+| revolute | angle (deg) |
+| slider | distance (mm) |
+| cylindrical | angle (deg), distance (mm) |
+| pin_slot | angle (deg), slide (mm) |
+| planar | x (mm), y (mm), angle (deg) |
+| ball | yaw, pitch, roll (deg) |
+| parallel | x, y, z (mm), angle (deg) |
+| perpendicular, angle | x, y, z (mm), turn, spin (deg) |
+| point_on_plane | x, y (mm), yaw, pitch, roll (deg) |
+| point_on_line | slide (mm), yaw, pitch, roll (deg) |
+| line_on_plane | x, y (mm), turn, spin (deg) |
+
+For example, a cylindrical joint can use
+`{"joint_type":"cylindrical","component_a":"Base","component_b":"Link","axis":"Z","limit1_min":-45,"limit1_max":45,"limit2_min":0,"limit2_max":20}`.
+Omit all new fields to keep the original contact pin/hole form with
+`pin_component`, `hole_component` and `angle_deg`.
