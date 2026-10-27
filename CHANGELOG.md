@@ -2,9 +2,21 @@
 
 ## Unreleased
 
+## 0.1.0-beta.6 (2026-10-27)
+
+- Field tester fixes: a cube with holes through its faces now builds from the form (holes
+  are centred unless offsets from the face centre are given, and blind depths work), and a
+  centred honeycomb plate no longer fails (Pilot builds it at the origin and moves it).
+- Pattern forms (row, grid, and around an axis) accept what small models write: axes as
+  words or vectors, the only body in the design, and common target names. The overlap check
+  measures the patterned feature, rotates copies for circular patterns, and is skipped
+  (logged) when a feature can't be measured.
+- SolidCraft 98: the model's action budget counts only its own steps.
+
+### Details
+
 - Check circular pattern bounds by rotation, accept vector strings, and audit skipped checks for unmeasurable features.
 - Accept common axis and body descriptions in pattern forms, and check spacing against the patterned feature.
-
 - Build honeycomb plates at the origin before placing them, fixing failed centred patterns.
 - Centre cross-drilled holes by default; accept body-centre points, face-centre offsets and blind depths.
 - SolidCraft 98: the model's action budget counts only its own steps, a dialog left open is
