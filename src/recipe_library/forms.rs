@@ -364,6 +364,21 @@ pub fn coerce(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> {
             continue;
         };
         let before = value.clone();
+        // A choice written as ["X","Z"], ["XZ"] or {"plane":"XZ"} is read as its text.
+        if field["enum"].is_array() {
+            let parts: Option<Vec<&str>> = match &*value {
+                Value::Array(items) if (1..=3).contains(&items.len()) => {
+                    items.iter().map(Value::as_str).collect()
+                }
+                Value::Object(map) if map.len() == 1 => {
+                    map.values().next().and_then(Value::as_str).map(|s| vec![s])
+                }
+                _ => None,
+            };
+            if let Some(parts) = parts.filter(|p| p.iter().all(|s| s.len() <= 32)) {
+                *value = json!(parts.concat());
+            }
+        }
         if let Some(text) = value.as_str() {
             let text = text.trim();
             if field["type"] == "boolean" {
@@ -397,13 +412,28 @@ pub fn coerce(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> {
                 }
             } else if let Some(choices) = field["enum"].as_array() {
                 let lower = text.to_ascii_lowercase();
-                let synonym = match lower.as_str() {
+                let lower = lower
+                    .strip_suffix(" plane")
+                    .or_else(|| lower.strip_suffix("-plane"))
+                    .unwrap_or(&lower);
+                let synonym = match lower {
                     "round" | "rounded" => "fillet",
                     "bevel" | "beveled" => "chamfer",
                     "corners" | "side" | "sides" => "vertical",
                     "inside" => "inner",
                     "outside" => "outer",
-                    _ => lower.as_str(),
+                    "angle" | "equal angle" | "unequal angle" | "angle iron" | "l-angle"
+                    | "l-profile" | "l profile" | "l-shape" | "l shape" | "l-bracket" => "L",
+                    "tee" | "t-bar" | "t bar" | "t-beam" | "t beam" | "t-profile" | "t profile"
+                    | "t-shape" | "t shape" | "inverted t" => "T",
+                    "channel" | "u-channel" | "u channel" | "u-profile" | "u profile"
+                    | "u-shape" | "u shape" => "U",
+                    "c-channel" | "c channel" | "c-profile" | "c profile" | "c-shape"
+                    | "c shape" => "C",
+                    "rect" | "rectangular" | "flat bar" | "flat" | "bar" | "rectangle profile" => {
+                        "rectangle"
+                    }
+                    _ => lower,
                 };
                 if let Some(choice) = choices
                     .iter()
@@ -526,21 +556,20 @@ fn merge(out: &mut Value, value: &Value, path: &str) -> Result<(), String> {
 /// Reconcile alternative representations once, before typed recipe validation.
 pub(crate) fn consistent(out: &mut Value) -> Result<(), String> {
     if let Some(t) = out.get("thickness").cloned() {
-        let mut expanded = false;
-        for key in ["web_thickness", "flange_thickness"] {
-            if let Some(value) = out.get(key) {
-                expanded = true;
-                if !agrees(&t, value) {
-                    return Err(format!(
-                        "thickness {t} conflicts with {key} {value}; supply agreeing values"
-                    ));
-                }
-            }
-        }
-        if expanded {
+        let web = out.get("web_thickness").cloned();
+        let flange = out.get("flange_thickness").cloned();
+        if web.is_some() || flange.is_some() {
             let object = out.as_object_mut().ok_or("slots require an object")?;
-            object.remove("web_thickness");
-            object.remove("flange_thickness");
+            let same = |v: &Option<Value>| v.as_ref().is_none_or(|v| agrees(&t, v));
+            if same(&web) && same(&flange) {
+                object.remove("web_thickness");
+                object.remove("flange_thickness");
+            } else {
+                // A specific web or flange value wins; the general thickness fills the other.
+                object.remove("thickness");
+                object.insert("web_thickness".into(), web.unwrap_or_else(|| t.clone()));
+                object.insert("flange_thickness".into(), flange.unwrap_or(t));
+            }
         }
     }
     if let (Some(s), Some(t), Some(n)) = (

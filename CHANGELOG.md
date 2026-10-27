@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Profile forms accept common wording for the section (angle, channel, tee, rectangular) and the plane (["X","Z"], "XZ plane"), and a specific web or flange thickness now takes priority over a general thickness instead of being refused.
+
 ## 0.1.0-beta.6 (2026-10-27)
 
 - Field tester fixes: a cube with holes through its faces now builds from the form (holes

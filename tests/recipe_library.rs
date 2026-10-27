@@ -1225,11 +1225,15 @@ fn consistent_representations_and_corner_defaults() {
                 build("profile", base.clone()).unwrap().calls,
                 build("profile", redundant.clone()).unwrap().calls
             );
+            // A specific web value wins over the general thickness, which fills the flange.
             redundant["web_thickness"] = json!(7);
-            let error = build("profile", redundant).unwrap_err();
-            assert!(
-                error.contains("thickness 8") && error.contains("web_thickness 7"),
-                "{error}"
+            let mut specific = base.clone();
+            specific.as_object_mut().unwrap().remove("thickness");
+            specific["web_thickness"] = json!(7);
+            specific["flange_thickness"] = json!(8);
+            assert_eq!(
+                build("profile", redundant).unwrap().calls,
+                build("profile", specific).unwrap().calls
             );
         }
     }
@@ -1542,4 +1546,50 @@ fn joined_sketch_extrusions_skip_unmeasurable_overlap_checks() {
         assert!(expected.volume_mm3.is_none());
         assert!(expected.volume_range_mm3.is_some());
     }
+}
+
+#[test]
+fn profile_fills_accept_kind_and_plane_wording_and_specific_thickness() {
+    let lib = Library::embedded().unwrap();
+    let schema = &lib
+        .recipes
+        .iter()
+        .find(|r| r.id == "profile")
+        .unwrap()
+        .schema;
+    let flat = forms::flat(schema);
+    for (kind, expected) in [
+        ("equal angle", "L"),
+        ("Angle", "L"),
+        ("channel", "U"),
+        ("T-bar", "T"),
+        ("C channel", "C"),
+        ("rectangular", "rectangle"),
+    ] {
+        let mut args = json!({"kind":kind});
+        forms::coerce(&mut args, &flat).unwrap();
+        assert_eq!(args["kind"], expected, "{kind}");
+    }
+    for plane in [
+        json!(["X", "Z"]),
+        json!(["XZ"]),
+        json!({"plane":"XZ"}),
+        json!("XZ plane"),
+    ] {
+        let mut args = json!({"plane":plane.clone()});
+        let changes = forms::coerce(&mut args, &flat).unwrap();
+        assert_eq!(args["plane"], "XZ", "{plane}");
+        assert_eq!(changes.len(), 1);
+    }
+    let args =
+        json!({"kind":"L","width":25,"height":45,"depth":20,"thickness":5,"flange_thickness":8});
+    let slots = forms::to_slots(&args, schema).unwrap();
+    assert_eq!(slots.get("thickness"), None);
+    assert_eq!(slots["web_thickness"], 5);
+    assert_eq!(slots["flange_thickness"], 8);
+    let agreeing =
+        json!({"kind":"U","width":50,"height":30,"depth":150,"thickness":4,"web_thickness":4});
+    let slots = forms::to_slots(&agreeing, schema).unwrap();
+    assert_eq!(slots["thickness"], 4);
+    assert_eq!(slots.get("web_thickness"), None);
 }
