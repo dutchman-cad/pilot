@@ -57,7 +57,12 @@ pub(crate) fn coerce(args: &mut Value) -> Result<Vec<Value>, String> {
         let Some(value) = obj.get_mut(key) else {
             continue;
         };
-        let parsed = if let Some(text) = value.as_str() {
+        let numeric = axis_vector(value);
+        let parsed = if let Some(v) = numeric {
+            (0..3)
+                .find(|i| v[*i].abs() == 1. && (0..3).all(|j| j == *i || v[j] == 0.))
+                .map(|i| (i, v[i] < 0.))
+        } else if let Some(text) = value.as_str() {
             let lower = text.trim().to_ascii_lowercase();
             let stripped = lower.strip_prefix("along ").unwrap_or(&lower);
             let stripped = stripped.strip_prefix("positive ").unwrap_or(stripped);
@@ -74,27 +79,20 @@ pub(crate) fn coerce(args: &mut Value) -> Result<Vec<Value>, String> {
                 _ => None,
             }
         } else {
-            let v = vector(value).or_else(|| {
-                let o = value.as_object()?;
-                if o.is_empty() || o.keys().any(|k| !matches!(k.as_str(), "x" | "y" | "z")) {
-                    return None;
-                }
-                Some([
-                    o.get("x").map_or(Some(0.), Value::as_f64)?,
-                    o.get("y").map_or(Some(0.), Value::as_f64)?,
-                    o.get("z").map_or(Some(0.), Value::as_f64)?,
-                ])
-            });
-            v.and_then(|v| {
-                (0..3)
-                    .find(|i| v[*i].abs() == 1. && (0..3).all(|j| j == *i || v[j] == 0.))
-                    .map(|i| (i, v[i] < 0.))
-            })
+            None
         };
-        let (i, negative) = parsed
-            .ok_or_else(|| format!("args.{key} {value} requires a unit axis; use X or [1,0,0]"))?;
+        let nearest = numeric.map_or(0, |v| {
+            (0..3)
+                .max_by(|a, b| v[*a].abs().total_cmp(&v[*b].abs()))
+                .unwrap_or(0)
+        });
+        let letter = ["X", "Y", "Z"][nearest];
+        let example: [u8; 3] = std::array::from_fn(|k| u8::from(k == nearest));
+        let (i, negative) = parsed.ok_or_else(|| {
+            format!("args.{key} {value} requires a unit axis; use {letter} or {example:?}")
+        })?;
         if negative && key != "direction" {
-            return Err(format!("args.{key} {value} requires a positive world axis in this form; use X (or an inspected edge for a signed linear direction)"));
+            return Err(format!("args.{key} {value} requires a positive world axis in this form; use {} (or an inspected edge for a signed linear direction)", ["X", "Y", "Z"][i]));
         }
         *value = json!(if negative {
             ["-X", "-Y", "-Z"][i]
@@ -103,6 +101,41 @@ pub(crate) fn coerce(args: &mut Value) -> Result<Vec<Value>, String> {
         });
     }
     Ok(changes(&before, args))
+}
+
+fn axis_vector(value: &Value) -> Option<[f64; 3]> {
+    if let Some(text) = value.as_str().filter(|s| s.len() <= 128) {
+        let text = text.trim();
+        let text = text
+            .strip_prefix('[')
+            .and_then(|s| s.strip_suffix(']'))
+            .or_else(|| text.strip_prefix('(').and_then(|s| s.strip_suffix(')')))
+            .unwrap_or(text);
+        let mut numbers = text
+            .split(|c: char| c == ',' || c.is_whitespace())
+            .filter(|s| !s.is_empty());
+        let v = [
+            numbers.next()?.parse::<f64>().ok()?,
+            numbers.next()?.parse::<f64>().ok()?,
+            numbers.next()?.parse::<f64>().ok()?,
+        ];
+        return (numbers.next().is_none() && v.iter().all(|n| n.is_finite() && n.abs() <= MAX_MM))
+            .then_some(v);
+    }
+    vector(value).or_else(|| {
+        let o = value.as_object()?;
+        if o.is_empty() || o.keys().any(|k| !matches!(k.as_str(), "x" | "y" | "z")) {
+            return None;
+        }
+        let v = [
+            o.get("x").map_or(Some(0.), Value::as_f64)?,
+            o.get("y").map_or(Some(0.), Value::as_f64)?,
+            o.get("z").map_or(Some(0.), Value::as_f64)?,
+        ];
+        v.iter()
+            .all(|n| n.is_finite() && n.abs() <= MAX_MM)
+            .then_some(v)
+    })
 }
 
 fn changes(before: &Value, after: &Value) -> Vec<Value> {
@@ -129,6 +162,34 @@ fn owner_names(def: &Value) -> Option<&Vec<Value>> {
 pub(crate) fn resolve(args: &mut Value, request: &Value) -> Result<Vec<Value>, String> {
     let before = args.clone();
     crate::repair::check_value(args)?;
+    // Models sometimes supply the step of a full circle as the total arc.
+    // Correct only that exact equivalence, for an unqualified around-axis request.
+    let text = request["messages"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .rev()
+        .find(|m| m["role"] == "user")
+        .and_then(|m| m["content"].as_str())
+        .filter(|s| s.len() <= MAX_TEXT)
+        .unwrap_or("")
+        .to_lowercase();
+    if text.split_whitespace().any(|w| w == "around")
+        && ![
+            "degree", "deg", "°", "partial", "arc", "radian", "half", "quarter", "semi", "span",
+            "sweep", "angle", "sector", "between",
+        ]
+        .iter()
+        .any(|w| text.contains(w))
+        && args["count"].as_u64().is_some_and(|n| {
+            (2..=500).contains(&n)
+                && args["angle_deg"]
+                    .as_f64()
+                    .is_some_and(|a| (a.abs() * n as f64 - 360.).abs() < 1e-8)
+        })
+    {
+        args["angle_deg"] = json!(args["angle_deg"].as_f64().unwrap_or(360.).signum() * 360.);
+    }
     let original_target = args["target"]
         .as_str()
         .map(|s| s.trim().to_ascii_lowercase());
@@ -189,6 +250,12 @@ pub(crate) fn resolve(args: &mut Value, request: &Value) -> Result<Vec<Value>, S
     let bodies = data["bodies"]
         .as_array()
         .ok_or("pattern needs inspected bodies")?;
+    if bodies.is_empty() {
+        return Err(
+            "args.body requires an existing solid body; create the part before patterning it"
+                .into(),
+        );
+    }
     let mut chosen = args["body"].as_str().map(str::to_owned);
     if args["target"] == "last_feature" {
         let last = data["timeline"].as_array().and_then(|t| t.last());
@@ -218,6 +285,9 @@ pub(crate) fn resolve(args: &mut Value, request: &Value) -> Result<Vec<Value>, S
             .collect::<String>()
     };
     let names: Vec<_> = bodies.iter().filter_map(|b| b["name"].as_str()).collect();
+    if names.is_empty() {
+        return Err("args.body requires inspected body names; inspect the document again".into());
+    }
     let exact: Vec<_> = names
         .iter()
         .copied()
@@ -483,6 +553,12 @@ pub(super) fn build(
             args["body"]
         )
     })?;
+    if bodies.is_empty() {
+        return Err(
+            "args.body requires an existing solid body; create the part before patterning it"
+                .into(),
+        );
+    }
     let feature_mode = args["target"] == "last_feature";
     let mut chosen = args.get("body").cloned();
     if feature_mode && chosen.is_none() && bodies.len() > 1 {
@@ -562,6 +638,7 @@ pub(super) fn build(
     let mut new_bodies = !feature_mode;
     let mut cut = false;
     let mut expected_volume = Some(baseline + seed_volume * (n * m - 1) as f64);
+    let mut overlap_skipped = false;
     if feature_mode {
         let last = timeline
             .last()
@@ -713,9 +790,7 @@ pub(super) fn build(
                     max[k] = base[k].max(base[k] + h * normal[k]) + radial;
                 }
             } else if !new_bodies {
-                return Err(
-                    "target last_feature has unresolved joined extrude bounds requiring 1 measurable primitive; select target body or a box/cylinder feature".into(),
-                );
+                overlap_skipped = true;
             }
         }
         if args["join"] == true && def["operation"] != "join" {
@@ -780,6 +855,7 @@ pub(super) fn build(
                     min,
                     max,
                     args["axis"].as_str().ok_or("circular pattern needs axis")?,
+                    [0.; 3], // World axes pass through the origin, as in the emitted call.
                     (angle * i as f64 / denom as f64).to_radians(),
                 )
             } else {
@@ -798,12 +874,17 @@ pub(super) fn build(
             {
                 return Err(format!("count {n} rows {m} produce bounds {lo:?}..{hi:?} outside -1000000..1000000 mm; reduce count or spacing"));
             }
-            if args["join"] != true
+            if !overlap_skipped
+                && args["join"] != true
                 && boxes.iter().any(|(a, b): &([f64; 3], [f64; 3])| {
                     (0..3).all(|k| lo[k] < b[k] - 1e-8 && hi[k] > a[k] + 1e-8)
                 })
             {
-                return Err(format!("spacing [{spacing},{spacing2}] angle_deg {} produce overlapping instance bounds {lo:?}..{hi:?} with limit 0 overlaps; increase spacing or explicitly request joined last features", args["angle_deg"]));
+                return Err(if id == "circular_pattern" {
+                    format!("circular_pattern axis {} centre [0,0,0] angle_deg {} produces overlapping rotated instance bounds {lo:?}..{hi:?} with limit 0 overlaps; increase the arc angle or explicitly request joined last features", args["axis"], args["angle_deg"])
+                } else {
+                    format!("spacing [{spacing},{spacing2}] produce overlapping instance bounds {lo:?}..{hi:?} with limit 0 overlaps; increase spacing or explicitly request joined last features")
+                });
             }
             boxes.push((lo, hi));
         }
@@ -833,6 +914,10 @@ pub(super) fn build(
     if total_bodies > MAX_BODIES {
         return Err(format!("count {n} rows {m} produce {total_bodies} bodies, exceeding {MAX_BODIES}; reduce counts or remove bodies"));
     }
+    let mut slots = args.clone();
+    if overlap_skipped {
+        slots["overlap_precheck"] = json!({"status":"skipped","reason":"last feature extent is unmeasurable; SolidCraft validates the pattern"});
+    }
     Ok(Plan {
         rule: match id {
             "linear_pattern" => "linear_pattern",
@@ -844,7 +929,7 @@ pub(super) fn build(
             call(catalog, "document.inspect", json!({"measure":true}))?,
         ],
         facts: None,
-        slots: args.clone(),
+        slots,
         expected: Some(Expected {
             bodies: Some(total_bodies),
             volume_mm3: expected_volume,
@@ -871,7 +956,13 @@ pub(super) fn build(
         continuation: None,
     })
 }
-fn rotated(min: [f64; 3], max: [f64; 3], axis: &str, angle: f64) -> ([f64; 3], [f64; 3]) {
+fn rotated(
+    min: [f64; 3],
+    max: [f64; 3],
+    axis: &str,
+    centre: [f64; 3],
+    angle: f64,
+) -> ([f64; 3], [f64; 3]) {
     let (a, b) = match axis {
         "X" => (1, 2),
         "Y" => (2, 0),
@@ -882,10 +973,10 @@ fn rotated(min: [f64; 3], max: [f64; 3], axis: &str, angle: f64) -> ([f64; 3], [
     for mask in 0..8 {
         let mut p: [f64; 3] =
             std::array::from_fn(|k| if mask & (1 << k) == 0 { min[k] } else { max[k] });
-        let x = p[a];
-        let y = p[b];
-        p[a] = x * angle.cos() - y * angle.sin();
-        p[b] = x * angle.sin() + y * angle.cos();
+        let x = p[a] - centre[a];
+        let y = p[b] - centre[b];
+        p[a] = centre[a] + x * angle.cos() - y * angle.sin();
+        p[b] = centre[b] + x * angle.sin() + y * angle.cos();
         for k in 0..3 {
             lo[k] = lo[k].min(p[k]);
             hi[k] = hi[k].max(p[k]);
@@ -1039,10 +1130,22 @@ mod form_tests {
             coerce(&mut args).unwrap();
             assert_eq!(args["direction"], "-X");
         }
-        for input in [json!("z"), json!("Z Axis"), json!([0, 0, 1])] {
+        for input in [
+            json!("z"),
+            json!("Z Axis"),
+            json!([0, 0, 1]),
+            json!("0, 0, 1"),
+            json!("[0, 0, 1]"),
+            json!("(0 0 1)"),
+        ] {
             let mut args = json!({"axis":input});
             coerce(&mut args).unwrap();
             assert_eq!(args["axis"], "Z");
+        }
+        let error = coerce(&mut json!({"axis":"0, 0.1, 2"})).unwrap_err();
+        assert!(error.contains("use Z or [0, 0, 1]"), "{error}");
+        for bad in ["(0 0 1", "[0,0,1,2]", "0,NaN,1", "0,0,inf"] {
+            assert!(coerce(&mut json!({"axis":bad})).is_err(), "{bad}");
         }
         for input in [json!([1, 1, 0]), json!({"x":1,"typo":2}), json!("-z")] {
             let error = coerce(&mut json!({"axis":input})).unwrap_err();
@@ -1070,5 +1173,58 @@ mod form_tests {
         let mut args = json!({"target":"last_feature"});
         resolve(&mut args, &request).unwrap();
         assert_eq!(args["body"], "Post");
+    }
+    #[test]
+    fn empty_design_error_never_offers_empty_choices() {
+        let request = json!({"messages":[{"role":"user","content":"a post at X=30, 6 copies around Z"},{"role":"tool","content":json!({"bodies":[],"timeline":[]}).to_string()}]});
+        for body in [Value::Null, json!("post")] {
+            let error = resolve(&mut json!({"target":"body","body":body}), &request).unwrap_err();
+            assert!(error.contains("create the part"), "{error}");
+            assert!(!error.contains("[]"), "{error}");
+        }
+        let unnamed = json!({"messages":[{"role":"user","content":"copy the part"},{"role":"tool","content":json!({"bodies":[{}],"timeline":[]}).to_string()}]});
+        let error = resolve(&mut json!({"target":"body"}), &unnamed).unwrap_err();
+        assert!(error.contains("inspect the document again"), "{error}");
+        assert!(!error.contains("[]"), "{error}");
+    }
+    #[test]
+    fn rotated_bounds_use_the_axis_and_centre() {
+        for (axis, min, max, expected_min, expected_max) in [
+            (
+                "Z",
+                [26., -4., 0.],
+                [34., 4., 8.],
+                [-4., 26., 0.],
+                [4., 34., 8.],
+            ),
+            (
+                "X",
+                [0., 26., -4.],
+                [8., 34., 4.],
+                [0., -4., 26.],
+                [8., 4., 34.],
+            ),
+            (
+                "Y",
+                [-4., 0., 26.],
+                [4., 8., 34.],
+                [26., 0., -4.],
+                [34., 8., 4.],
+            ),
+        ] {
+            let centre = [7., 9., 11.];
+            let shift = |p: [f64; 3]| std::array::from_fn(|k| p[k] + centre[k]);
+            let (lo, hi) = rotated(
+                shift(min),
+                shift(max),
+                axis,
+                centre,
+                std::f64::consts::FRAC_PI_2,
+            );
+            for k in 0..3 {
+                assert!((lo[k] - shift(expected_min)[k]).abs() < 1e-9);
+                assert!((hi[k] - shift(expected_max)[k]).abs() < 1e-9);
+            }
+        }
     }
 }

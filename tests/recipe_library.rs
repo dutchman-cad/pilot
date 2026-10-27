@@ -1486,3 +1486,60 @@ fn joined_boss_pattern_spacing_uses_tool_extent() {
         .unwrap_err()
         .contains("does not match"));
 }
+
+#[test]
+fn circular_post_bounds_rotate_and_step_angle_is_not_a_short_arc() {
+    let library = Library::embedded().unwrap();
+    let catalog = Catalog::bundled().unwrap();
+    let mut request = json!({"messages":[{"role":"user","content":"a post at X=30, 6 copies around Z"},{"role":"tool","content":json!({"bodies":[{"name":"Post","volume_mm3":1608.495,"bbox":{"min":[26,-4,0],"max":[34,4,8]}}],"timeline":[]}).to_string()}]});
+    for axis in ["0, 0, 1", "[0, 0, 1]", "(0 0 1)"] {
+        let envelope = json!({"recipe":"circular_pattern","args":{"target":"body","body":"post","axis":axis,"count":6,"angle_deg":60}});
+        let plan = library.build(&envelope, &request, &catalog).unwrap();
+        assert_eq!(plan.calls[0]["arguments"]["params"]["angle"], 360.);
+        assert_eq!(plan.calls[0]["arguments"]["params"]["axis"], "Z");
+        assert_eq!(plan.expected.as_ref().unwrap().bodies, Some(6));
+        request["messages"][0]["content"] =
+            json!("pattern this post over a partial arc of 60 degrees around Z");
+        let error = library.build(&envelope, &request, &catalog).unwrap_err();
+        assert!(
+            error.contains("overlapping rotated instance bounds"),
+            "{error}"
+        );
+        assert!(!error.contains("spacing [0,0]"), "{error}");
+        request["messages"][0]["content"] = json!("a post at X=30, 6 copies around Z");
+    }
+}
+
+#[test]
+fn joined_sketch_extrusions_skip_unmeasurable_overlap_checks() {
+    let library = Library::embedded().unwrap();
+    let catalog = Catalog::bundled().unwrap();
+    let request = json!({"messages":[{"role":"user","content":"Pattern the existing boss"},{"role":"tool","content":json!({"bodies":[{"name":"Base","volume_mm3":10251.3,"bbox":{"min":[0,0,0],"max":[50,50,9]}}],"timeline":[{"id":3,"name":"Extrude1","type":"ExtrudeFeature"}]}).to_string()},{"role":"tool","content":json!({"id":3,"name":"Extrude1","type":"ExtrudeFeature","definition":{"operation":"join","participants":["Base"],"distance":"5 mm"}}).to_string()}]});
+    for (id, args) in [
+        (
+            "grid_pattern",
+            json!({"target":"last_feature","rows":3,"columns":3,"spacing1":16,"spacing2":16,"plane":"XY"}),
+        ),
+        (
+            "circular_pattern",
+            json!({"target":"last_feature","axis":"[0, 0, 1]","count":6,"angle_deg":360}),
+        ),
+        (
+            "linear_pattern",
+            json!({"target":"last_feature","direction":"X","count":3,"spacing":16}),
+        ),
+    ] {
+        let plan = library
+            .build(&json!({"recipe":id,"args":args}), &request, &catalog)
+            .unwrap();
+        assert_eq!(plan.slots["overlap_precheck"]["status"], "skipped");
+        assert_eq!(
+            plan.calls[0]["arguments"]["params"]["features"],
+            json!(["Extrude1"])
+        );
+        let expected = plan.expected.unwrap();
+        assert_eq!(expected.bodies, Some(1));
+        assert!(expected.volume_mm3.is_none());
+        assert!(expected.volume_range_mm3.is_some());
+    }
+}

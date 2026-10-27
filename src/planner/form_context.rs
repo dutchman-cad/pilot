@@ -35,6 +35,10 @@ fn document(data: &[Value]) -> Option<&Value> {
         }) && d["timeline"].is_array()
     })
 }
+pub(crate) fn empty_design(request: &Value) -> bool {
+    document(&payloads(request))
+        .is_some_and(|doc| doc["bodies"].as_array().is_some_and(Vec::is_empty))
+}
 fn active_features(doc: &Value) -> Vec<&Value> {
     doc["timeline"]
         .as_array()

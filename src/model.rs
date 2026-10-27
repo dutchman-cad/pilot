@@ -1268,13 +1268,33 @@ impl Proxy {
         } else {
             (None, 0)
         };
-        let band = if let Some(band) = continued_band {
+        let mut band = if let Some(band) = continued_band {
             band
         } else if shortcuts_enabled && !self.cfg.no_fill && form_allowed && recipe.is_none() {
             self.recipes.form_band(last_user(&original))?
         } else {
             json!({"band":"low"})
         };
+        if planner::form_context::empty_design(&original) {
+            let eligible = matches!(band["band"].as_str(), Some("fill" | "route"));
+            if let Some(recipes) = band["recipes"].as_array_mut() {
+                let previous_len = recipes.len();
+                recipes.retain(|r| !planner::patterns::is_pattern(r["id"].as_str().unwrap_or("")));
+                if recipes.len() != previous_len && eligible {
+                    let score = recipes
+                        .first()
+                        .and_then(|r| r["score"].as_f64())
+                        .unwrap_or(0.);
+                    band["band"] = json!(if score >= crate::recipe_library::FILL_THRESHOLD {
+                        "fill"
+                    } else if score >= crate::recipe_library::ROUTE_THRESHOLD {
+                        "route"
+                    } else {
+                        "low"
+                    });
+                }
+            }
+        }
         let all_candidates = band["recipes"].as_array().map(Vec::as_slice).unwrap_or(&[]);
         let candidates =
             &all_candidates[..all_candidates
@@ -1622,6 +1642,13 @@ impl Proxy {
                 };
                 match fill::accept(&response, found, &original, &self.recipes, &self.catalog) {
                     fill::Outcome::Build(args, plan) => {
+                        if !plan.slots["overlap_precheck"].is_null() {
+                            audit.record(
+                                "pattern_overlap_precheck",
+                                &Value::Null,
+                                &plan.slots["overlap_precheck"],
+                            )?;
+                        }
                         let raw = &response["choices"][0]["message"]["tool_calls"][0]["function"]
                             ["arguments"];
                         let supplied: Value = raw
@@ -6876,6 +6903,109 @@ mod tests {
         f.proxy.cfg.planner = false;
         f.proxy.cfg.no_fill = false;
         f
+    }
+    #[test]
+    fn empty_design_never_offers_existing_part_pattern_forms() {
+        for text in [
+            "a 50x50x4 base with a centred 3x3 grid of bosses",
+            "round plate with 8 pegs on a 50 mm circle",
+            "a post at X=30, 6 copies around Z",
+            "repeat this body in a linear pattern 6 times along X",
+            "grid pattern 3 rows 3 columns 16 mm spacing",
+        ] {
+            let mut f = fill_fixture(vec![reply("Ready."), reply("Ready."), reply("Ready.")]);
+            let mut req = request();
+            req["messages"] = json!([{"role":"user","content":text}]);
+            assert_eq!(chat_forms(&mut f, req).status, 200);
+            let script = f.proxy.scripted.as_ref().unwrap().borrow();
+            assert!(!script.requests.is_empty(), "{text}");
+            for wire in &script.requests {
+                let tools = wire["tools"].to_string();
+                for id in ["linear_pattern", "grid_pattern", "circular_pattern"] {
+                    assert!(!tools.contains(id), "{text}: {tools}");
+                }
+            }
+            let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+            assert!(!log.contains("from []"), "{log}");
+        }
+    }
+    #[test]
+    fn pattern_coercions_and_unmeasurable_skips_are_audited_in_both_modes() {
+        for direct in [false, true] {
+            for circular in [false, true] {
+                let text = if circular {
+                    "6 copies of this post around Z"
+                } else {
+                    "grid pattern this boss 3 rows 3 columns 16 mm spacing on XY"
+                };
+                let id = if circular {
+                    "circular_pattern"
+                } else {
+                    "grid_pattern"
+                };
+                let args = if circular {
+                    json!({"target":"body","body":"post","count":6,"axis":"0, 0, 1","angle_deg":60})
+                } else {
+                    json!({"target":"last_feature","rows":3,"columns":3,"spacing1":16,"spacing2":16,"plane":"XY"})
+                };
+                let mut req = request();
+                let snapshot = if circular {
+                    json!({"bodies":[{"name":"Post","volume_mm3":1608.495,"bbox":{"min":[26,-4,0],"max":[34,4,8]}}],"timeline":[]})
+                } else {
+                    json!({"bodies":[{"name":"Base","volume_mm3":10251.3,"bbox":{"min":[0,0,0],"max":[50,50,9]}}],"timeline":[{"id":3,"name":"Extrude1","type":"ExtrudeFeature"}]})
+                };
+                req["messages"] = json!([{"role":"user","content":text}]);
+                let library = crate::recipe_library::Library::embedded().unwrap();
+                let mut replies = Vec::new();
+                if library.form_band(text).unwrap()["band"] == "route" {
+                    replies.push(call("pilot_route", json!({"recipe":id})));
+                }
+                replies.push(call("pilot_fill", args));
+                let mut f = fill_fixture(replies);
+                f.proxy.cfg.direct_recipes = direct;
+                for _ in 0..4 {
+                    let out = f.chat(req.clone());
+                    assert_eq!(out.status, 200);
+                    let out: Value = serde_json::from_slice(&out.body).unwrap();
+                    let message = out["choices"][0]["message"].clone();
+                    let calls = message["tool_calls"].as_array().unwrap();
+                    if !calls
+                        .iter()
+                        .all(|c| c["id"].as_str().unwrap().starts_with("pilot_context_"))
+                    {
+                        break;
+                    }
+                    req["messages"]
+                        .as_array_mut()
+                        .unwrap()
+                        .push(message.clone());
+                    for c in calls {
+                        let arguments: Value =
+                            serde_json::from_str(c["function"]["arguments"].as_str().unwrap())
+                                .unwrap();
+                        let data = if arguments["command"] == "timeline.inspect" {
+                            json!({"id":3,"name":"Extrude1","type":"ExtrudeFeature","definition":{"operation":"join","participants":["Base"]}})
+                        } else {
+                            snapshot.clone()
+                        };
+                        req["messages"].as_array_mut().unwrap().push(json!({"role":"tool","tool_call_id":c["id"],"content":data.to_string()}));
+                    }
+                }
+                let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+                assert!(log.contains("fill_accepted"), "{log}");
+                if circular {
+                    assert!(
+                        log.contains("fill_coerced") && log.contains("angle_deg"),
+                        "{log}"
+                    );
+                } else {
+                    assert!(
+                        log.contains("pattern_overlap_precheck") && log.contains("skipped"),
+                        "{log}"
+                    );
+                }
+            }
+        }
     }
     fn filled() -> Value {
         call(

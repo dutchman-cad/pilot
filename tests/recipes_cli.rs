@@ -1692,3 +1692,142 @@ fn development_pattern_fills_replay_reference_measurements() {
         }
     }
 }
+
+#[test]
+fn development_dp08_dp12_fills_after_part_creation() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let library = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    let catalog = Catalog::bundled().unwrap();
+    // Development dp-08 and dp-12. Existing-part forms apply only after these
+    // public creation calls have established a measurable part and seed feature.
+    for (id, args, circular, extrude) in [
+        (
+            "circular_pattern",
+            json!({"target":"body","body":"post","count":6,"axis":"0, 0, 1","angle_deg":60}),
+            true,
+            false,
+        ),
+        (
+            "grid_pattern",
+            json!({"target":"boss","rows":3,"columns":3,"spacing1":16,"spacing2":16,"plane":"XY"}),
+            false,
+            false,
+        ),
+        (
+            "grid_pattern",
+            json!({"target":"boss","rows":3,"columns":3,"spacing1":16,"spacing2":16,"plane":"XY"}),
+            false,
+            true,
+        ),
+        (
+            "circular_pattern",
+            json!({"target":"boss","count":6,"axis":"[0, 0, 1]","angle_deg":360}),
+            true,
+            true,
+        ),
+    ] {
+        let mut session = Session::new(&path);
+        if !circular || extrude {
+            session.execute("solid.box", json!({"length":if circular {100} else {50},"width":if circular {100} else {50},"height":4,"corner":if circular {json!([-50,-50,0])} else {json!([0,0,0])},"body_name":"Base"}));
+        }
+        if extrude {
+            session.execute("sketch.create", json!({"plane":"XY","offset":4}));
+            session.execute(
+                "sketch.circle.center",
+                json!({"center":if circular {json!([30,0])} else {json!([9,9])},"radius":4}),
+            );
+            session.execute("sketch.finish", json!({}));
+            session.execute(
+                "solid.extrude",
+                json!({"distance":5,"operation":"join","targets":["Base"]}),
+            );
+        } else {
+            session.execute("solid.cylinder", if circular {
+                json!({"diameter":8,"height":40,"base":[30,0,0],"body_name":"Post"})
+            } else {
+                json!({"diameter":8,"height":5,"base":[9,9,4],"operation":"join","targets":["Base"]})
+            });
+        }
+        let mut request = json!({"messages":[{"role":"user","content":if circular {"6 copies around Z"} else {"repeat the boss in a centred 3 by 3 grid at 16 mm spacing"}}]});
+        let mut expected = None;
+        for _ in 0..4 {
+            let plan = library
+                .build(&json!({"recipe":id,"args":args}), &request, &catalog)
+                .unwrap();
+            if plan.rule == id && extrude {
+                assert_eq!(plan.slots["overlap_precheck"]["status"], "skipped");
+            }
+            for call in &plan.calls {
+                let result = session.execute(
+                    call["arguments"]["command"].as_str().unwrap(),
+                    call["arguments"]["params"].clone(),
+                );
+                request["messages"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(json!({"role":"tool","content":result.to_string()}));
+            }
+            if plan.expected.is_some() {
+                expected = plan.expected;
+                break;
+            }
+        }
+        assert_eq!(
+            planner::completion(&request, expected.as_ref().unwrap()),
+            None,
+            "{request}"
+        );
+        let state = session.execute("document.inspect", json!({"measure":true}));
+        let bodies = state["bodies"].as_array().unwrap();
+        assert_eq!(bodies.len(), if circular && !extrude { 6 } else { 1 });
+        let volume: f64 = bodies
+            .iter()
+            .map(|b| b["volume_mm3"].as_f64().unwrap())
+            .sum();
+        let want = if circular && !extrude {
+            12061.71196211915
+        } else if circular {
+            40000. + 6. * std::f64::consts::PI * 16. * 5.
+        } else {
+            12261.570992899198
+        };
+        assert!((volume - want).abs() <= want * 0.001, "{state}");
+        let axes: std::collections::BTreeSet<[i64; 2]> = bodies
+            .iter()
+            .flat_map(|body| {
+                let faces = session.execute("model.faces", json!({"body":body["name"]}));
+                faces["faces"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .filter(|face| {
+                        face["cylinder"]["radius"]
+                            .as_f64()
+                            .is_some_and(|r| (r - 4.).abs() < 0.001)
+                    })
+                    .map(|face| {
+                        std::array::from_fn(|k| {
+                            (face["cylinder"]["origin"][k].as_f64().unwrap() * 1000.).round() as i64
+                        })
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        assert_eq!(axes.len(), if circular { 6 } else { 9 }, "{state}");
+        if circular {
+            assert!(axes
+                .iter()
+                .all(|p| ((p[0] as f64).hypot(p[1] as f64) / 1000. - 30.).abs() < 0.01));
+        } else {
+            assert_eq!(
+                axes,
+                [9, 25, 41]
+                    .into_iter()
+                    .flat_map(|x| [9, 25, 41].into_iter().map(move |y| [x * 1000, y * 1000]))
+                    .collect()
+            );
+        }
+    }
+}
