@@ -306,7 +306,20 @@ There is no upfront “call pilot_find first” fact. The legacy build form acce
 `flange_thickness`; U uses web for its bottom and flange for its two sides.
 `stem_offset` is the T stem centre measured from the left edge. Profiles start
 at the sketch origin; plates use the selected plane and placement; enclosure
-centring includes Z. Hole grids and bolt circles are centred on the plate.
+centring includes Z. Hole grids, bolt circles and rows are centred on the plate.
+The plate form accepts either `length` and `width` or a round `diameter`, plus
+`thickness`. `boss_diameter` and `boss_height` add joined round pegs/bosses on
+the top face. Without a layout there is one boss at the plate centre;
+`boss_offset_x`/`boss_offset_y` are signed sketch-plane offsets from that centre.
+A `row` has `count`, centre-to-centre `pitch` and optional `axis` (X by default,
+or Y). The flat equivalents are `row_count`, `row_pitch`, `row_axis`. Circles
+use the existing `bolt_hole_count` and `bolt_circle_diameter` fields for either
+holes or bosses. Omit hole diameters for raised features. Grid columns run along
+sketch X and rows along sketch Y; an unqualified A×B grid puts A along the
+longer side unless directed otherwise. Thus a 7×5 grid on a 120×80 plate uses
+7 columns, 5 rows, and a stated 15 mm pitch maps to both grid pitches.
+Patterns are capped at 64 features and must fit within the base without
+overlap. A centre bore can accompany bosses with sufficient clearance.
 `bore_diameter` sizes the centre bore; `hole_diameter` sizes pattern holes,
 while `bolt_circle.diameter` is the pitch circle diameter. Start angles default
 to zero degrees (+X). Joint names (`pin_component`, `hole_component`) are optional;

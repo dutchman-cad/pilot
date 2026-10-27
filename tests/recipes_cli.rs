@@ -1831,3 +1831,127 @@ fn development_dp08_dp12_fills_after_part_creation() {
         }
     }
 }
+
+#[test]
+fn public_binary_plate_base_and_pattern_forms() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    // Flat scalar fills, matching the development requests. Offsets are from base centre.
+    for (args, volume, min, max) in [
+        (
+            json!({"length":60,"width":20,"thickness":5,"boss_diameter":6,"boss_height":10,"row_count":4,"row_pitch":15}),
+            7130.7854964486805,
+            [0., 0., 0.],
+            [60., 20., 15.],
+        ),
+        (
+            json!({"diameter":70,"thickness":5,"centred":true,"boss_diameter":5,"boss_height":8,"bolt_hole_count":8,"bolt_circle_diameter":50}),
+            20498.448327338087,
+            [-35., -35., 0.],
+            [35., 35., 13.],
+        ),
+        (
+            json!({"length":90,"width":90,"thickness":6,"boss_diameter":10,"boss_height":6,"boss_offset_x":-30,"boss_offset_y":-30}),
+            49071.16062352067,
+            [0., 0., 0.],
+            [90., 90., 12.],
+        ),
+        (
+            json!({"length":120,"width":80,"thickness":3,"grid_columns":7,"grid_rows":5,"grid_pitch_x":15,"grid_pitch_y":15,"grid_hole_diameter":6}),
+            25831.688071818775,
+            [0., 0., 0.],
+            [120., 80., 3.],
+        ),
+        (
+            json!({"length":50,"width":50,"thickness":4,"boss_diameter":8,"boss_height":5,"grid_columns":3,"grid_rows":3,"grid_pitch_x":16,"grid_pitch_y":16}),
+            12261.570992899198,
+            [0., 0., 0.],
+            [50., 50., 9.],
+        ),
+        // A centred single boss, a Y row of holes, and a round plate with circular holes.
+        (
+            json!({"length":20,"width":20,"thickness":3,"boss_diameter":4,"boss_height":5}),
+            1200. + 20. * std::f64::consts::PI,
+            [0., 0., 0.],
+            [20., 20., 8.],
+        ),
+        (
+            json!({"length":20,"width":40,"thickness":3,"row_count":3,"row_pitch":10,"row_axis":"Y","hole_diameter":4}),
+            2400. - 36. * std::f64::consts::PI,
+            [0., 0., 0.],
+            [20., 40., 3.],
+        ),
+        (
+            json!({"diameter":40,"thickness":3,"bolt_hole_count":4,"bolt_circle_diameter":20,"bolt_hole_diameter":4}),
+            1152. * std::f64::consts::PI,
+            [0., 0., 0.],
+            [40., 40., 3.],
+        ),
+    ] {
+        let p = lib
+            .build(
+                &json!({"recipe":"plate","args":args}),
+                &json!({"messages":[]}),
+                &cat,
+            )
+            .unwrap();
+        assert!(
+            (p.expected.as_ref().unwrap().created_volume_mm3.unwrap() - volume).abs()
+                < volume * 0.001
+        );
+        let mut s = Session::new(&path);
+        s.run(&p);
+        check_shortcut_body(&mut s, volume, min, max, false);
+    }
+}
+
+#[test]
+fn public_binary_plate_boss_planes_and_existing_body_isolation() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    for (plane, min, max) in [
+        ("XY", [-15., -10., 0.], [15., 10., 8.]),
+        ("XZ", [-15., 0., -10.], [15., 8., 10.]),
+        ("YZ", [0., -15., -10.], [8., 15., 10.]),
+    ] {
+        let p = lib.build(&json!({"recipe":"plate","args":{"length":30,"width":20,"thickness":3,"centred":true,"plane":plane,"boss_diameter":4,"boss_height":5,"row_count":2,"row_pitch":10}}), &json!({"messages":[]}), &cat).unwrap();
+        let mut s = Session::new(&path);
+        s.run(&p);
+        check_shortcut_body(&mut s, 1800. + 40. * std::f64::consts::PI, min, max, false);
+    }
+    let mut s = Session::new(&path);
+    s.execute(
+        "solid.box",
+        json!({"length":40,"width":40,"height":20,"body_name":"PilotRecipe1"}),
+    );
+    let data = s.execute("document.inspect", json!({"measure":true}));
+    let p = lib.build(&json!({"recipe":"plate","args":{"length":30,"width":20,"thickness":3,"boss_diameter":4,"boss_height":5}}), &json!({"messages":[{"role":"tool","content":data.to_string()}]}), &cat).unwrap();
+    assert_eq!(
+        p.calls[0]["arguments"]["params"]["body_name"],
+        "PilotRecipe2"
+    );
+    assert_eq!(
+        p.calls[1]["arguments"]["params"]["targets"],
+        json!(["PilotRecipe2"])
+    );
+    s.run(&p);
+    let measured = s.execute("document.inspect", json!({"measure":true}));
+    let bodies = measured["bodies"].as_array().unwrap();
+    assert_eq!(bodies.len(), 2);
+    for (name, want) in [
+        ("PilotRecipe1", 32000.),
+        ("PilotRecipe2", 1800. + 20. * std::f64::consts::PI),
+    ] {
+        let b = bodies.iter().find(|b| b["name"] == name).unwrap();
+        assert!(
+            (b["volume_mm3"].as_f64().unwrap() - want).abs() < want * 0.001,
+            "{measured}"
+        );
+    }
+}

@@ -138,6 +138,9 @@ fn field_type(name: &str, s: &Value) -> Value {
         "plane" => json!({"$ref":"#/$defs/Plane"}),
         "count" | "rows" | "columns" => json!({"$ref":"#/$defs/Count"}),
         "angle_deg" | "start_deg" => json!({"$ref":"#/$defs/Angle"}),
+        "boss_offset_x" | "boss_offset_y" => {
+            json!({"type":"number","minimum":-1000000,"maximum":1000000})
+        }
         "stem_offset" => json!({"type":"number","minimum":0,"maximum":1000000}),
         "body" | "pin_component" | "hole_component" => {
             json!({"type":"string","minLength":1,"maxLength":128,"pattern":"^[^\\u0000-\\u001f\\u007f]+$"})
@@ -713,12 +716,43 @@ impl Ranker for Bm25 {
         let non_pattern = ["clipboard", "file", "poem", "text", "spreadsheet", "volume"]
             .iter()
             .any(|w| has(w));
-        // A hole circle in a new plate and a rim around an enclosure are compound
-        // creations, not repetition of an existing body. Explicit pattern requests win.
-        let creation = (has("plate") || has("enclosure"))
-            && !["pattern", "array", "repeat", "copy", "copie", "instance"]
+        let edge_edit = words
+            .first()
+            .is_some_and(|w| matches!(w.as_str(), "add" | "apply"))
+            && words
+                .get(1)
+                .is_some_and(|w| matches!(w.as_str(), "fillet" | "chamfer"))
+            && query
+                .split(|c: char| !c.is_alphabetic())
+                .any(|w| w.eq_ignore_ascii_case("fillet") || w.eq_ignore_ascii_case("chamfer"));
+        // New base dimensions plus features belong to the compound plate form.
+        // Pronouns and copy/repeat verbs keep edits on existing-part forms.
+        let existing = [
+            "that", "this", "existing", "copy", "copie", "repeat", "these", "those", "selected",
+            "current", "last", "already", "into",
+        ]
+        .iter()
+        .any(|w| has(w))
+            || words
+                .first()
+                .is_some_and(|w| matches!(w.as_str(), "pattern" | "array"))
+            || edge_edit;
+        let plate_creation = !existing
+            && ["plate", "base", "panel", "pegboard"]
                 .iter()
-                .any(|w| has(w));
+                .any(|w| has(w))
+            && [
+                "peg", "pegs", "bos", "boss", "bosse", "bosses", "hole", "holes", "bore", "grid",
+                "row", "circle",
+            ]
+            .iter()
+            .any(|w| has(w));
+        let creation = plate_creation
+            || (!existing
+                && (has("plate") || has("enclosure"))
+                && !["pattern", "array", "repeat", "copy", "copie", "instance"]
+                    .iter()
+                    .any(|w| has(w)));
         let pattern = if creation && planner::pattern_intent(query) != Some("honeycomb_pattern") {
             None
         } else {
@@ -748,6 +782,9 @@ impl Ranker for Bm25 {
         docs.iter()
             .enumerate()
             .map(|(i, ds)| {
+                if edge_edit && recipes[i].id == "plate" {
+                    return (i, 0.0);
+                }
                 let best = ds
                     .iter()
                     .map(|d| {
@@ -777,7 +814,7 @@ impl Ranker for Bm25 {
                     i,
                     id_hit
                         + if recipes[i].id.ends_with("_pattern") {
-                            if non_pattern {
+                            if plate_creation || non_pattern {
                                 0.0
                             } else if pattern == Some(recipes[i].id.as_str()) {
                                 3.0 + best * coverage
@@ -786,7 +823,9 @@ impl Ranker for Bm25 {
                             }
                         } else {
                             best * coverage
-                                + if recipes[i].id == "profile" && section {
+                                + if recipes[i].id == "plate" && plate_creation {
+                                    8.0
+                                } else if recipes[i].id == "profile" && section {
                                     6.0
                                 } else if recipes[i].id == "enclosure" && lipped {
                                     3.0

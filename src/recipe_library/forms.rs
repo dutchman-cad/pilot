@@ -34,13 +34,28 @@ pub(crate) fn describe(s: &mut Value) {
                 "depth" => ("Extrusion distance normal to plane", None),
                 "floor" => ("Base thickness; omitted: wall", None),
                 "lip" => ("Raised locating ring at opening", None),
-                "bolt_circle" => ("Hole centres on this circle", None),
-                "grid" => ("Hole centres in rows and columns", None),
+                "boss_diameter" => ("Joined round peg/boss diameter; requires boss_height", None),
+                "boss_height" => ("Rise above plate top; requires boss_diameter", None),
+                "boss_offset_x" | "boss_offset_y" => {
+                    ("Single boss offset from plate centre; omitted: 0", None)
+                }
+                "row" => (
+                    "Centred feature row; count includes all; pitch is centre spacing",
+                    None,
+                ),
+                "bolt_circle" => ("Feature centres on this circle", None),
+                "grid" => (
+                    "Feature centres: columns along sketch X, rows along sketch Y",
+                    None,
+                ),
                 "corners" => ("Outside corner treatment", None),
                 "bore_diameter" => ("Centre through bore", None),
-                "hole_diameter" => ("Pattern hole diameter; requires bolt_circle or grid", None),
+                "hole_diameter" => (
+                    "Pattern hole diameter; requires bolt_circle, grid or row",
+                    None,
+                ),
                 "start_deg" => ("From +X toward +Y", Some(json!(0))),
-                "pitch_x" | "pitch_y" => ("Hole centre spacing", None),
+                "pitch_x" | "pitch_y" => ("Feature centre spacing", None),
                 "size" => (
                     "Fillet radius/chamfer distance; hex span for honeycomb",
                     None,
@@ -136,6 +151,22 @@ pub fn compact(s: &Value) -> Value {
             "web_thickness" => "Vertical leg; U bottom",
             "flange_thickness" => "Horizontal leg; U sides",
             "stem_offset" => "T centre from left; omit: centred",
+            "length" if root["x-pilot-expander"] == "plate" => {
+                "Rectangle X; length+width OR diameter"
+            }
+            "width" if root["x-pilot-expander"] == "plate" => "Rectangle Y; omit with diameter",
+            "diameter" if root["x-pilot-expander"] == "plate" => "Round base; omit length/width",
+            "boss_diameter" => "Joined peg/boss; needs boss_height",
+            "boss_height" => "Rise above plate top",
+            "boss_offset_x" | "boss_offset_y" => "From plate centre; single boss only; omit: 0",
+            "row_count" => "Total features in centred row",
+            "row_pitch" => "Centre spacing",
+            "row_axis" => "Sketch axis; omit: X",
+            "grid_columns" => "Along X; A x B: A along longer side unless stated",
+            "grid_rows" => "Along Y; 7 x 5 on 120 x 80: rows=5, columns=7",
+            "grid_pitch_x" | "grid_pitch_y" => "Centre spacing; single pitch: use for both",
+            "bolt_hole_count" => "Circle feature count (holes OR bosses)",
+            "bolt_circle_diameter" => "Feature-centre circle diameter",
             "hole_diameter" => "Pattern holes",
             "size" if root["x-pilot-expander"] == "honeycomb_pattern" => "Hex span",
             "size" => "Radius/bevel",
@@ -167,7 +198,10 @@ pub fn compact(s: &Value) -> Value {
     }
     let s = flat(s);
     let mut out = walk(&s, &s, "");
-    if s["x-pilot-expander"] == "cross_drilled_box" {
+    if matches!(
+        s["x-pilot-expander"].as_str(),
+        Some("cross_drilled_box" | "plate")
+    ) {
         out["description"] = s["description"].clone();
     }
     out
@@ -253,6 +287,11 @@ pub fn flat(schema: &Value) -> Value {
         return schema.clone();
     };
     let mut out = json!({"type":"object","additionalProperties":false,"properties":fill["properties"],"required":fill["required"],"x-pilot-expander":schema["x-pilot-expander"]});
+    if schema["x-pilot-expander"] == "plate" {
+        out["description"] = json!(
+            "Base plus holes OR joined bosses. Layout centred on base; no layout: single boss."
+        );
+    }
     if schema["x-pilot-expander"] == "cross_drilled_box" {
         out["description"] =
             json!("Holes are centred unless you give offset_u/offset_v from the face centre.");
@@ -810,5 +849,19 @@ pub fn to_slots(args: &Value, schema: &Value) -> Result<Value, String> {
         }
     }
     consistent(&mut out)?;
+    if schema["x-pilot-expander"] == "plate"
+        && out.get("hole_diameter").is_none()
+        && out.get("boss_diameter").is_none()
+    {
+        for (layout, field) in [
+            ("bolt_circle", "bolt_hole_diameter"),
+            ("grid", "grid_hole_diameter"),
+            ("row", "hole_diameter"),
+        ] {
+            if out.get(layout).is_some() {
+                return Err(format!("args.{field} missing; supply {field} for holes, or boss_diameter and boss_height for joined raised features"));
+            }
+        }
+    }
     Ok(out)
 }

@@ -4,6 +4,10 @@ use super::*;
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub(super) struct Plate {
     pub(super) size: [f64; 3],
+    #[serde(default)]
+    pub(super) diameter: Option<f64>,
+    #[serde(default)]
+    pub(super) bosses: Vec<([f64; 2], f64, f64)>,
     pub(super) plane: String,
     pub(super) centred: bool,
     pub(super) holes: Vec<([f64; 2], f64)>,
@@ -408,7 +412,12 @@ pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
                 let [pair] = pairs.as_slice() else {
                     return None;
                 };
-                (pair[0], pair[1])
+                // Unlabelled A x B puts A on the longer sketch side.
+                if size[0] >= size[1] {
+                    (pair[1], pair[0])
+                } else {
+                    (pair[0], pair[1])
+                }
             };
             let rows = count(&t[row_at])?;
             let cols = count(&t[col_at])?;
@@ -502,6 +511,8 @@ pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
         return None;
     }
     let plate = Plate {
+        diameter: None,
+        bosses: Vec::new(),
         size,
         plane,
         centred,
@@ -558,6 +569,39 @@ impl Plate {
             ..
         } = self;
         valid_plane(&self.plane)?;
+        if self.diameter.is_some() && rounding.is_some() {
+            return Err("corners require a rectangular plate; omit corners with diameter".into());
+        }
+        if !self.bosses.is_empty() && rounding.is_some() {
+            return Err("corners with bosses are unsupported; omit corners".into());
+        }
+        if self.bosses.len() > 64 {
+            return Err("boss count must be at most 64".into());
+        }
+        for (n, (p, r, h)) in self.bosses.iter().enumerate() {
+            positive_mm("boss_diameter", 2.0 * r)?;
+            positive_mm("boss_height", *h)?;
+            if size[2] + h > MAX_MM || p.iter().any(|v| !v.is_finite() || v.abs() > MAX_MM) {
+                return Err("boss offsets and combined thickness/height must be finite and within 1000000 mm".into());
+            }
+            if p[0].abs() + r >= size[0] / 2.0
+                || p[1].abs() + r >= size[1] / 2.0
+                || self
+                    .diameter
+                    .is_some_and(|d| p[0].hypot(p[1]) + r >= d / 2.0)
+            {
+                return Err(format!("bosses[{n}] must fit strictly inside the plate; reduce diameter, offset or pitch"));
+            }
+            if self.bosses[..n]
+                .iter()
+                .any(|(q, s, _)| (p[0] - q[0]).hypot(p[1] - q[1]) <= r + s)
+                || holes
+                    .iter()
+                    .any(|(q, s)| (p[0] - q[0]).hypot(p[1] - q[1]) <= r + s)
+            {
+                return Err(format!("bosses[{n}] overlaps another boss or hole; increase spacing or reduce diameters"));
+            }
+        }
         for (field, value) in [
             ("length", size[0]),
             ("width", size[1]),
@@ -593,7 +637,12 @@ impl Plate {
         }
         // Refuse tangent/overlapping holes, and conservatively keep holes out of corner blends.
         for (n, (p, r)) in holes.iter().enumerate() {
-            if p[0].abs() + r >= size[0] / 2.0 || p[1].abs() + r >= size[1] / 2.0 {
+            if p[0].abs() + r >= size[0] / 2.0
+                || p[1].abs() + r >= size[1] / 2.0
+                || self
+                    .diameter
+                    .is_some_and(|d| p[0].hypot(p[1]) + r >= d / 2.0)
+            {
                 return Err(format!("holes[{n}] centre {p:?} radius {r} must fit strictly inside half-sides [{},{}]; reduce bore_diameter/hole_diameter or pattern spacing", size[0] / 2.0, size[1] / 2.0));
             }
             if let Some((_, all, a)) = rounding {
@@ -643,6 +692,20 @@ impl Plate {
             "solid.box",
             json!({"length":extent[0],"width":extent[1],"height":extent[2],"corner":min,"operation":"new"}),
         )];
+        let axis = match self.plane.as_str() {
+            "XZ" => "Y",
+            "YZ" => "X",
+            _ => "Z",
+        };
+        if let Some(diameter) = self.diameter {
+            out[0] = (
+                "solid.cylinder",
+                json!({"diameter":diameter,"height":d,"base":self.point(x+w/2.0,y+h/2.0,0.0),"axis":axis,"operation":"new"}),
+            );
+        }
+        for (p, r, height) in &self.bosses {
+            out.push(("solid.cylinder", json!({"radius":r,"height":height,"base":self.point(x+w/2.0+p[0],y+h/2.0+p[1],d),"axis":axis,"operation":"join"})));
+        }
         for (p, r) in &self.holes {
             out.push((
                 "solid.hole",
@@ -675,7 +738,15 @@ impl Plate {
     }
     pub(super) fn volume(&self) -> Option<f64> {
         let [w, h, d] = self.size;
-        let mut v = w * h * d - self.holes.iter().map(|(_, r)| PI * r * r * d).sum::<f64>();
+        let area = self
+            .diameter
+            .map_or(w * h, |diameter| PI * (diameter / 2.0).powi(2));
+        let mut v = area * d - self.holes.iter().map(|(_, r)| PI * r * r * d).sum::<f64>()
+            + self
+                .bosses
+                .iter()
+                .map(|(_, r, height)| PI * r * r * height)
+                .sum::<f64>();
         if let Some((fillet, all, a)) = self.rounding {
             if all {
                 return None;

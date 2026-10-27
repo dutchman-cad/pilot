@@ -945,7 +945,9 @@ fn fill_forms_are_short_and_documented() {
         form["properties"]["decline"] = json!({"type":"boolean"});
         let size = form.to_string().chars().count() + line(&r.id).chars().count();
         eprintln!("{}: {size} characters", r.id);
-        assert!(size <= 1200, "{}: {size}", r.id);
+        // Plate includes both base outlines and three feature layouts.
+        let cap = if r.id == "plate" { 2400 } else { 1200 };
+        assert!(size <= cap, "{}: {size}", r.id);
     }
     documented(&dutchman_pilot::planner::shortcut_tool());
 }
@@ -1596,4 +1598,114 @@ fn profile_fills_accept_kind_and_plane_wording_and_specific_thickness() {
     let slots = forms::to_slots(&agreeing, schema).unwrap();
     assert_eq!(slots["thickness"], 4);
     assert_eq!(slots.get("web_thickness"), None);
+}
+
+#[test]
+fn compound_plate_creation_and_existing_pattern_retrieval() {
+    let lib = Library::embedded().unwrap();
+    for prompt in [
+        "60x20x5 base with a row of 4 pegs on top, pegs 6mm dia and 10mm tall, 15mm apart, centred on the base",
+        "round plate 70mm dia, 5mm thick, centred at the origin, with 8 pegs (5mm dia, 8mm tall) evenly around a 50mm circle on top",
+        "90x90 base plate, 6mm thick, with a 10mm round boss 6mm tall on top, 15mm in from both edges at one corner",
+        "pegboard panel 120 x 80 x 3 with a 7 x 5 grid of 6mm holes, 15mm pitch, grid centred on the panel",
+        "50x50 base 4mm thick with a 3 by 3 grid of bosses on top, 8mm diameter 5mm tall, 16mm spacing, centred",
+        "Make a 60x30x4 base with a pattern of five pegs on top",
+        "Add a round plate 70mm across and 5mm thick with eight pegs on a 50mm circle",
+    ] {
+        let found = lib.find(prompt, &Bm25).unwrap();
+        assert_eq!(found["recipes"][0]["id"], "plate", "{prompt}: {found}");
+    }
+    for (prompt, expected) in [
+        ("make that hole into a row of 5 along X, 12mm apart", "linear_pattern"),
+        ("pattern the hole on the base plate in a row of 5 along X, 12mm apart", "linear_pattern"),
+        ("now copy that hole along the strip so there are 9 holes, 10mm apart", "linear_pattern"),
+        ("pattern the small bolt hole around the centre so there are 6 of them evenly spaced", "circular_pattern"),
+        ("copy that hole around the middle so I get 4 holes spread over a 90 degree arc, the first one stays where it is", "circular_pattern"),
+        ("turn that hole into a grid, 4 across X and 3 along Y, 15mm spacing both ways", "grid_pattern"),
+        ("now make that boss a 4x4 grid with 20mm spacing", "grid_pattern"),
+    ] {
+        let found = lib.find(prompt, &Bm25).unwrap();
+        assert_eq!(found["recipes"][0]["id"], expected, "{prompt}: {found}");
+    }
+}
+
+#[test]
+fn plate_grid_has_exact_count_pitch_and_explicit_axes() {
+    let lib = Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    for (length, width, columns, rows) in [(120, 80, 7, 5), (80, 120, 5, 7)] {
+        let p = lib.build(&json!({"recipe":"plate","args":{"length":length,"width":width,"thickness":3,"grid_columns":columns,"grid_rows":rows,"grid_pitch_x":15,"grid_pitch_y":15,"grid_hole_diameter":6}}), &json!({"messages":[]}), &cat).unwrap();
+        let holes: Vec<_> = p
+            .calls
+            .iter()
+            .filter(|c| c["arguments"]["command"] == "solid.hole")
+            .collect();
+        assert_eq!(holes.len(), 35);
+        for (i, call) in holes.iter().enumerate() {
+            let params = &call["arguments"]["params"];
+            assert_eq!(params["diameter"], 6.);
+            assert_eq!(
+                params["position"],
+                json!([
+                    length as f64 / 2. + (i % columns as usize) as f64 * 15.
+                        - (columns - 1) as f64 * 7.5,
+                    width as f64 / 2. + (i / columns as usize) as f64 * 15.
+                        - (rows - 1) as f64 * 7.5,
+                    3.
+                ])
+            );
+            assert_eq!(params["targets"], json!(["PilotRecipe1"]));
+        }
+    }
+}
+
+#[test]
+fn plate_rejects_unbounded_or_ambiguous_features() {
+    let lib = Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    let base = json!({"length":60,"width":40,"thickness":5});
+    for extra in [
+        json!({"diameter":60}),
+        json!({"boss_diameter":6}),
+        json!({"boss_height":10}),
+        json!({"boss_offset_x":3}),
+        json!({"boss_diameter":6,"boss_height":10,"boss_offset_x":29}),
+        json!({"boss_diameter":6,"boss_height":10,"row_count":4,"row_pitch":5}),
+        json!({"boss_diameter":6,"boss_height":10,"row_count":65,"row_pitch":15}),
+        json!({"boss_diameter":6,"boss_height":10,"grid_columns":9,"grid_rows":9,"grid_pitch_x":10,"grid_pitch_y":10}),
+        json!({"boss_diameter":6,"boss_height":10,"row_count":3,"row_pitch":10,"boss_offset_y":2}),
+        json!({"hole_diameter":6,"row_count":3,"row_pitch":10,"grid_columns":2,"grid_rows":2,"grid_pitch_x":10,"grid_pitch_y":10}),
+        json!({"boss_diameter":6,"boss_height":10,"bore_diameter":6}),
+        json!({"boss_diameter":6,"boss_height":10,"hole_diameter":4,"row_count":3,"row_pitch":10}),
+    ] {
+        let mut args = base.clone();
+        args.as_object_mut()
+            .unwrap()
+            .extend(extra.as_object().unwrap().clone());
+        assert!(
+            lib.build(
+                &json!({"recipe":"plate","args":args}),
+                &json!({"messages":[]}),
+                &cat
+            )
+            .is_err(),
+            "{args}"
+        );
+    }
+    assert!(lib.build(&json!({"recipe":"plate","args":{"diameter":40,"thickness":3,"hole_diameter":4,"grid":{"rows":2,"columns":2,"pitch_x":28,"pitch_y":28}}}), &json!({"messages":[]}), &cat).is_err());
+}
+
+#[test]
+fn existing_edge_treatments_do_not_become_plate_creations() {
+    let lib = Library::embedded().unwrap();
+    for (query, recipe) in [
+        ("Apply a fillet where a peg joins its base plate", "fillet"),
+        (
+            "Please add a chamfer to the boss at the plate surface",
+            "chamfer",
+        ),
+    ] {
+        let found = lib.form_band(query).unwrap();
+        assert_eq!(found["recipes"][0]["id"], recipe, "{query}: {found}");
+    }
 }

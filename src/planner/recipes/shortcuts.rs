@@ -18,8 +18,9 @@ enum Build {
         depth: f64,
     },
     Plate {
-        length: f64,
-        width: f64,
+        length: Option<f64>,
+        width: Option<f64>,
+        diameter: Option<f64>,
         thickness: f64,
         #[serde(default = "xy")]
         plane: String,
@@ -28,7 +29,12 @@ enum Build {
         bore_diameter: Option<f64>,
         hole_diameter: Option<f64>,
         bolt_circle: Option<Circle>,
-        grid: Option<Grid>,
+        grid: Option<Box<Grid>>,
+        row: Option<Row>,
+        boss_diameter: Option<f64>,
+        boss_height: Option<f64>,
+        boss_offset_x: Option<f64>,
+        boss_offset_y: Option<f64>,
         corners: Option<Corners>,
     },
     Enclosure {
@@ -63,6 +69,16 @@ struct Grid {
     columns: usize,
     pitch_x: f64,
     pitch_y: f64,
+}
+#[derive(Deserialize)]
+struct Row {
+    count: usize,
+    pitch: f64,
+    #[serde(default = "x_axis")]
+    axis: String,
+}
+fn x_axis() -> String {
+    "X".into()
 }
 #[derive(Deserialize)]
 struct Corners {
@@ -175,6 +191,7 @@ pub(crate) fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<
         Build::Plate {
             length,
             width,
+            diameter,
             thickness,
             plane,
             centred,
@@ -182,57 +199,111 @@ pub(crate) fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<
             hole_diameter,
             bolt_circle,
             grid,
+            row,
+            boss_diameter,
+            boss_height,
+            boss_offset_x,
+            boss_offset_y,
             corners,
         } => {
+            let (length, width) = match (length, width, diameter) {
+                (Some(l), Some(w), None) => (l, w),
+                (None, None, Some(d)) => (d, d),
+                _ => return Err("plate requires length and width OR diameter, with thickness; omit the other base dimensions".into()),
+            };
             let mut holes = Vec::new();
             if let Some(d) = bore_diameter {
                 positive_mm("bore_diameter", d)?;
                 holes.push(([0.0, 0.0], d / 2.0));
             }
-            if bolt_circle.is_some() || grid.is_some() {
-                let d =
-                    hole_diameter.ok_or("hole_diameter <missing> requires 1 diameter for bolt_circle or grid; supply the pattern hole diameter in mm")?;
+            let layouts = usize::from(bolt_circle.is_some())
+                + usize::from(grid.is_some())
+                + usize::from(row.is_some());
+            if row.is_some() && layouts > 1 {
+                return Err(
+                    "row cannot be combined with bolt_circle or grid; supply one row layout".into(),
+                );
+            }
+            let mut positions = Vec::new();
+            if let Some(c) = bolt_circle {
+                count("bolt_circle.count", c.count)?;
+                positive_mm("bolt_circle.diameter", c.diameter)?;
+                revolute::validate_angle(c.start_deg).map_err(|_| {
+                    format!("bolt_circle.start_deg {} must be within -360..360 degrees; use 0 for a start on +X", c.start_deg)
+                })?;
+                for k in 0..c.count {
+                    let a = c.start_deg.to_radians() + 2.0 * PI * k as f64 / c.count as f64;
+                    positions.push([c.diameter / 2.0 * a.cos(), c.diameter / 2.0 * a.sin()]);
+                }
+            }
+            if let Some(g) = grid {
+                count("grid.rows", g.rows)?;
+                count("grid.columns", g.columns)?;
+                if g.rows * g.columns > 64 {
+                    return Err(format!("grid.rows * grid.columns {} * {} = {} must be at most 64 features; reduce rows or columns", g.rows, g.columns, g.rows * g.columns));
+                }
+                positive_mm("grid.pitch_x", g.pitch_x)?;
+                positive_mm("grid.pitch_y", g.pitch_y)?;
+                for r in 0..g.rows {
+                    for c in 0..g.columns {
+                        positions.push([
+                            (c as f64 - (g.columns - 1) as f64 / 2.0) * g.pitch_x,
+                            (r as f64 - (g.rows - 1) as f64 / 2.0) * g.pitch_y,
+                        ]);
+                    }
+                }
+            }
+            if let Some(r) = row {
+                count("row.count", r.count)?;
+                positive_mm("row.pitch", r.pitch)?;
+                if !matches!(r.axis.as_str(), "X" | "Y") {
+                    return Err("row.axis must be X or Y in the plate plane".into());
+                }
+                for k in 0..r.count {
+                    let v = (k as f64 - (r.count - 1) as f64 / 2.0) * r.pitch;
+                    positions.push(if r.axis == "X" { [v, 0.0] } else { [0.0, v] });
+                }
+            }
+            if positions.len() > 64 {
+                return Err("combined layouts require at most 64 features; reduce counts".into());
+            }
+            let mut bosses = Vec::new();
+            match (boss_diameter, boss_height) {
+                (Some(d), Some(h)) => {
+                    positive_mm("boss_diameter", d)?;
+                    positive_mm("boss_height", h)?;
+                    if positions.is_empty() { positions.push([0.0, 0.0]); }
+                    if layouts > 0 && (boss_offset_x.is_some() || boss_offset_y.is_some()) {
+                        return Err("boss_offset_x/y apply to a single boss only; omit offsets with a layout".into());
+                    }
+                    let offset = [boss_offset_x.unwrap_or(0.0), boss_offset_y.unwrap_or(0.0)];
+                    for p in &positions {
+                        bosses.push(([p[0] + offset[0], p[1] + offset[1]], d / 2.0, h));
+                    }
+                }
+                (None, None) if boss_offset_x.is_none() && boss_offset_y.is_none() => {},
+                _ => return Err("boss_diameter and boss_height are both required for a boss; offsets are measured from the plate centre".into()),
+            }
+            if let Some(d) = hole_diameter {
                 positive_mm("hole_diameter", d)?;
-                if let Some(c) = bolt_circle {
-                    count("bolt_circle.count", c.count)?;
-                    positive_mm("bolt_circle.diameter", c.diameter)?;
-                    revolute::validate_angle(c.start_deg).map_err(|_| {
-                        format!("bolt_circle.start_deg {} must be within -360..360 degrees; use 0 for a start on +X", c.start_deg)
-                    })?;
-                    for k in 0..c.count {
-                        let a = c.start_deg.to_radians() + 2.0 * PI * k as f64 / c.count as f64;
-                        holes.push((
-                            [c.diameter / 2.0 * a.cos(), c.diameter / 2.0 * a.sin()],
-                            d / 2.0,
-                        ));
-                    }
+                if layouts == 0 {
+                    return Err("hole_diameter requires 1 pattern; add bolt_circle, grid or row, or use bore_diameter for a centre hole".into());
                 }
-                if let Some(g) = grid {
-                    count("grid.rows", g.rows)?;
-                    count("grid.columns", g.columns)?;
-                    if g.rows * g.columns > 64 {
-                        return Err(format!("grid.rows * grid.columns {} * {} = {} must be at most 64 holes; reduce rows or columns", g.rows, g.columns, g.rows * g.columns));
-                    }
-                    positive_mm("grid.pitch_x", g.pitch_x)?;
-                    positive_mm("grid.pitch_y", g.pitch_y)?;
-                    for r in 0..g.rows {
-                        for c in 0..g.columns {
-                            holes.push((
-                                [
-                                    (c as f64 - (g.columns - 1) as f64 / 2.0) * g.pitch_x,
-                                    (r as f64 - (g.rows - 1) as f64 / 2.0) * g.pitch_y,
-                                ],
-                                d / 2.0,
-                            ));
-                        }
-                    }
+                if !bosses.is_empty() {
+                    return Err("hole_diameter and boss_diameter cannot share a layout; use bore_diameter for a centre bore with bosses".into());
                 }
-            } else if hole_diameter.is_some() {
-                return Err(format!("hole_diameter {} requires 1 pattern; add bolt_circle or grid, or use bore_diameter for a centre hole", args["hole_diameter"]));
+                holes.extend(positions.iter().map(|p| (*p, d / 2.0)));
+            } else if layouts > 0 && bosses.is_empty() {
+                return Err(
+                    "hole_diameter or boss_diameter with boss_height is required for the layout"
+                        .into(),
+                );
             }
             let rounding = corners.map(|c| (c.kind == "fillet", c.edges == "all", c.size));
             let plate = compound_plate::Plate {
                 size: [length, width, thickness],
+                diameter,
+                bosses,
                 plane,
                 centred,
                 holes,
@@ -375,7 +446,7 @@ pub(crate) fn tool() -> Value {
     let grid = object(
         &[
             ("rows", i.clone()),
-            ("columns", i),
+            ("columns", i.clone()),
             ("pitch_x", n.clone()),
             ("pitch_y", n.clone()),
         ],
@@ -394,6 +465,28 @@ pub(crate) fn tool() -> Value {
             ("shape", json!({"const":"plate"})),
             ("length", n.clone()),
             ("width", n.clone()),
+            ("diameter", n.clone()),
+            ("boss_diameter", n.clone()),
+            ("boss_height", n.clone()),
+            (
+                "boss_offset_x",
+                json!({"type":"number","minimum":-1000000,"maximum":1000000}),
+            ),
+            (
+                "boss_offset_y",
+                json!({"type":"number","minimum":-1000000,"maximum":1000000}),
+            ),
+            (
+                "row",
+                object(
+                    &[
+                        ("count", i),
+                        ("pitch", n.clone()),
+                        ("axis", choice(&["X", "Y"])),
+                    ],
+                    &["count", "pitch"],
+                ),
+            ),
             ("thickness", n.clone()),
             ("plane", plane),
             ("centred", b.clone()),
@@ -406,7 +499,7 @@ pub(crate) fn tool() -> Value {
             ("grid", grid),
             ("corners", corners),
         ],
-        &["shape", "length", "width", "thickness", "plane", "centred"],
+        &["shape", "thickness", "plane", "centred"],
     );
     let lip = object(
         &[
@@ -893,8 +986,9 @@ mod tests {
         }
         let chars = descriptions(&tool());
         // Legacy union documents all four shapes; each forced form has its own
-        // stricter 1,200-character schema + system-line budget.
-        assert!(chars < 1400, "{chars} description characters");
+        // schema + system-line budget (1,200, or 2,400 for compound plates).
+        // The union now also describes round bases, rows and joined bosses.
+        assert!(chars < 1600, "{chars} description characters");
         for mut a in [
             profile("L"),
             plate(),

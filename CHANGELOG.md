@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Plate forms build rectangular or round bases with joined pegs/bosses, a single offset boss, and centred rows, grids or circles of raised features or holes. New-part pattern requests route to plate; existing-part edits retain pattern forms. Grid fields specify X columns, Y rows and centre spacing.
+
 - Profile forms accept common wording for the section (angle, channel, tee, rectangular) and the plane (["X","Z"], "XZ plane"), and a specific web or flange thickness now takes priority over a general thickness instead of being refused.
 
 ## 0.1.0-beta.6 (2026-10-27)
