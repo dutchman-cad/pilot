@@ -311,10 +311,13 @@ fn legacy_hole_coordinates(args: &mut Value, schema: &Value) -> Result<Vec<Value
             let centre = lo + size / 2.;
             let centred = (number - centre).abs() < 1e-8;
             let entry = (number - lo).abs() < 1e-8 || (number - lo - size).abs() < 1e-8;
-            if !centred
-                && (coordinate == axis && !entry
-                    || coordinate != axis && !(number > lo && number < lo + size))
-            {
+            let supported = centred
+                || if coordinate == axis {
+                    entry
+                } else {
+                    number > lo && number < lo + size
+                };
+            if !supported {
                 return Err(format!(
                     "args.{key} {number} is not a supported hole coordinate; {fix}"
                 ));
