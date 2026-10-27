@@ -48,7 +48,14 @@ fn report(text: &str, enforce: bool) -> Result<(), Box<dyn std::error::Error>> {
             negatives += 1;
             false_fill += usize::from(band == "fill");
             if band == "fill" {
-                eprintln!("FALSE FILL {text}");
+                eprintln!(
+                    "FALSE FILL {text} candidates={:?}",
+                    found["recipes"].as_array().map(|rs| rs
+                        .iter()
+                        .take(3)
+                        .map(|r| (r["id"].clone(), r["score"].clone()))
+                        .collect::<Vec<_>>())
+                );
             }
         }
     }

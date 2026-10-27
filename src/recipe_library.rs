@@ -806,6 +806,10 @@ impl Ranker for Bm25 {
                 if edge_edit && recipes[i].id == "plate" {
                     return (i, 0.0);
                 }
+                // "Align the lid with the box" moves existing parts; it never creates one.
+                if words.first().is_some_and(|w| w == "align") {
+                    return (i, 0.0);
+                }
                 let best = ds
                     .iter()
                     .map(|d| {
