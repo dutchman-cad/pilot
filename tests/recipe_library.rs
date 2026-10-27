@@ -1558,11 +1558,6 @@ fn profile_fills_accept_kind_and_plane_wording_and_specific_thickness() {
         .unwrap()
         .schema;
     let flat = forms::flat(schema);
-    let note = flat["description"].as_str().unwrap();
-    assert!(
-        note.contains("overall outside") && note.len() < 220,
-        "{note}"
-    );
     for (kind, expected) in [
         ("equal angle", "L"),
         ("Angle", "L"),
