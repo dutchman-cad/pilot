@@ -1570,6 +1570,10 @@ fn profile_fills_accept_kind_and_plane_wording_and_specific_thickness() {
         ("T-bar", "T"),
         ("C channel", "C"),
         ("rectangular", "rectangle"),
+        ("T-section", "T"),
+        ("U_CHANNEL", "U"),
+        ("inverted T", "T"),
+        ("flat bar", "rectangle"),
     ] {
         let mut args = json!({"kind":kind});
         forms::coerce(&mut args, &flat).unwrap();

@@ -425,17 +425,7 @@ pub fn coerce(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> {
                     "corners" | "side" | "sides" => "vertical",
                     "inside" => "inner",
                     "outside" => "outer",
-                    "angle" | "equal angle" | "unequal angle" | "angle iron" | "l-angle"
-                    | "l-profile" | "l profile" | "l-shape" | "l shape" | "l-bracket" => "L",
-                    "tee" | "t-bar" | "t bar" | "t-beam" | "t beam" | "t-profile" | "t profile"
-                    | "t-shape" | "t shape" | "inverted t" => "T",
-                    "channel" | "u-channel" | "u channel" | "u-profile" | "u profile"
-                    | "u-shape" | "u shape" => "U",
-                    "c-channel" | "c channel" | "c-profile" | "c profile" | "c-shape"
-                    | "c shape" => "C",
-                    "rect" | "rectangular" | "flat bar" | "flat" | "bar" | "rectangle profile" => {
-                        "rectangle"
-                    }
+                    _ if choices.iter().any(|c| c == "U") => section_kind(lower).unwrap_or(lower),
                     _ => lower,
                 };
                 if let Some(choice) = choices
@@ -453,6 +443,39 @@ pub fn coerce(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> {
     changes.extend(defaults(args, schema)?);
     changes.extend(legacy_hole_coordinates(args, schema)?);
     Ok(changes)
+}
+
+/// Read a profile section name such as "T-section", "U_CHANNEL" or "equal angle".
+fn section_kind(text: &str) -> Option<&'static str> {
+    let words: Vec<&str> = text
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .collect();
+    let has = |w: &str| words.contains(&w);
+    // A leading single letter names the section: "T-section", "u channel", "inverted T".
+    if let Some(letter) = words.iter().find(|w| w.len() == 1) {
+        return match *letter {
+            "l" => Some("L"),
+            "t" => Some("T"),
+            "u" => Some("U"),
+            "c" => Some("C"),
+            _ => None,
+        };
+    }
+    if has("angle") {
+        Some("L")
+    } else if has("tee") {
+        Some("T")
+    } else if has("channel") {
+        Some("U")
+    } else if words
+        .iter()
+        .any(|w| matches!(*w, "rect" | "rectangular" | "rectangle" | "bar" | "flat"))
+    {
+        Some("rectangle")
+    } else {
+        None
+    }
 }
 
 /// Infer only file-declared, conditional non-dimensional defaults.
