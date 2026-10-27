@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Check circular pattern bounds by rotation, accept vector strings, audit skipped checks for unmeasurable features, and keep existing-part pattern forms out of empty designs.
+- Check circular pattern bounds by rotation, accept vector strings, and audit skipped checks for unmeasurable features.
 - Accept common axis and body descriptions in pattern forms, and check spacing against the patterned feature.
 
 - Build honeycomb plates at the origin before placing them, fixing failed centred patterns.

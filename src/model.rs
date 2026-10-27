@@ -1268,33 +1268,13 @@ impl Proxy {
         } else {
             (None, 0)
         };
-        let mut band = if let Some(band) = continued_band {
+        let band = if let Some(band) = continued_band {
             band
         } else if shortcuts_enabled && !self.cfg.no_fill && form_allowed && recipe.is_none() {
             self.recipes.form_band(last_user(&original))?
         } else {
             json!({"band":"low"})
         };
-        if planner::form_context::empty_design(&original) {
-            let eligible = matches!(band["band"].as_str(), Some("fill" | "route"));
-            if let Some(recipes) = band["recipes"].as_array_mut() {
-                let previous_len = recipes.len();
-                recipes.retain(|r| !planner::patterns::is_pattern(r["id"].as_str().unwrap_or("")));
-                if recipes.len() != previous_len && eligible {
-                    let score = recipes
-                        .first()
-                        .and_then(|r| r["score"].as_f64())
-                        .unwrap_or(0.);
-                    band["band"] = json!(if score >= crate::recipe_library::FILL_THRESHOLD {
-                        "fill"
-                    } else if score >= crate::recipe_library::ROUTE_THRESHOLD {
-                        "route"
-                    } else {
-                        "low"
-                    });
-                }
-            }
-        }
         let all_candidates = band["recipes"].as_array().map(Vec::as_slice).unwrap_or(&[]);
         let candidates =
             &all_candidates[..all_candidates
@@ -6903,31 +6883,6 @@ mod tests {
         f.proxy.cfg.planner = false;
         f.proxy.cfg.no_fill = false;
         f
-    }
-    #[test]
-    fn empty_design_never_offers_existing_part_pattern_forms() {
-        for text in [
-            "a 50x50x4 base with a centred 3x3 grid of bosses",
-            "round plate with 8 pegs on a 50 mm circle",
-            "a post at X=30, 6 copies around Z",
-            "repeat this body in a linear pattern 6 times along X",
-            "grid pattern 3 rows 3 columns 16 mm spacing",
-        ] {
-            let mut f = fill_fixture(vec![reply("Ready."), reply("Ready."), reply("Ready.")]);
-            let mut req = request();
-            req["messages"] = json!([{"role":"user","content":text}]);
-            assert_eq!(chat_forms(&mut f, req).status, 200);
-            let script = f.proxy.scripted.as_ref().unwrap().borrow();
-            assert!(!script.requests.is_empty(), "{text}");
-            for wire in &script.requests {
-                let tools = wire["tools"].to_string();
-                for id in ["linear_pattern", "grid_pattern", "circular_pattern"] {
-                    assert!(!tools.contains(id), "{text}: {tools}");
-                }
-            }
-            let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
-            assert!(!log.contains("from []"), "{log}");
-        }
     }
     #[test]
     fn pattern_coercions_and_unmeasurable_skips_are_audited_in_both_modes() {
