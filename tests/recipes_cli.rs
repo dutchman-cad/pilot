@@ -1831,3 +1831,210 @@ fn development_dp08_dp12_fills_after_part_creation() {
         }
     }
 }
+
+/// Build the flat form and measure both the saved sketch and resulting body.
+fn stated_profile(args: Value, driving: &[f64], volume: f64, mut bounds: [f64; 3]) {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    let p = lib
+        .build(
+            &json!({"recipe":"profile","args":args}),
+            &json!({"messages":[]}),
+            &Catalog::bundled().unwrap(),
+        )
+        .unwrap();
+    let mut s = Session::new(&path);
+    s.run(&p);
+    let state = s.execute("document.inspect", json!({"measure":true}));
+    let sketch = s.execute(
+        "sketch.inspect",
+        json!({"sketch":state["sketches"][0]["id"]}),
+    );
+    assert_eq!(sketch["fully_constrained"], true, "{args}: {sketch}");
+    assert_eq!(sketch["dof"], 0, "{args}: {sketch}");
+    let dimensions = sketch["constraints"].as_array().unwrap();
+    let values: Vec<f64> = dimensions
+        .iter()
+        .filter(|d| d.get("param").is_some() && d["reference"] != true)
+        .map(|d| d["value"].as_f64().unwrap())
+        .collect();
+    for v in driving {
+        assert!(
+            values.iter().any(|d| (d - v).abs() < 0.0001),
+            "missing driving {v}: {sketch}"
+        );
+    }
+    for v in &values {
+        assert!(
+            driving.iter().any(|d| (d - v).abs() < 0.0001),
+            "unexpected driving {v}: {sketch}"
+        );
+    }
+    assert_eq!(state["bodies"].as_array().unwrap().len(), 1, "{state}");
+    if let Some(radius) = args["inside_fillet"].as_f64() {
+        assert!(
+            dimensions.iter().any(|d| d["type"] == "radius"
+                && d.get("param").is_some()
+                && (d["value"].as_f64().unwrap() - radius).abs() < 0.0001),
+            "{sketch}"
+        );
+    }
+    if let Some(lip) = args["lip"].as_f64() {
+        assert_eq!(
+            values.iter().filter(|d| (*d - lip).abs() < 0.0001).count(),
+            1,
+            "{sketch}"
+        );
+    }
+    let body = &state["bodies"][0];
+    assert!(
+        (body["volume_mm3"].as_f64().unwrap() - volume).abs() < (volume * 0.001).max(0.01),
+        "{args}: {state}"
+    );
+    let mut actual: Vec<_> = (0..3)
+        .map(|i| {
+            body["bbox"]["max"][i].as_f64().unwrap() - body["bbox"]["min"][i].as_f64().unwrap()
+        })
+        .collect();
+    actual.sort_by(f64::total_cmp);
+    bounds.sort_by(f64::total_cmp);
+    for (a, b) in actual.iter().zip(bounds) {
+        assert!((a - b).abs() < 0.001, "{args}: {state}");
+    }
+    if args["symmetric"] == true {
+        let axis = match args["plane"].as_str().unwrap_or("XY") {
+            "XZ" => 1,
+            "YZ" => 0,
+            _ => 2,
+        };
+        assert!(
+            (body["bbox"]["min"][axis].as_f64().unwrap() + args["depth"].as_f64().unwrap() / 2.0)
+                .abs()
+                < 0.001,
+            "{state}"
+        );
+        assert!(
+            (body["bbox"]["max"][axis].as_f64().unwrap() - args["depth"].as_f64().unwrap() / 2.0)
+                .abs()
+                < 0.001,
+            "{state}"
+        );
+    }
+}
+
+#[test]
+fn public_binary_profiles_preserve_stated_driving_sizes() {
+    for kind in ["L", "T", "U", "C", "rectangle"] {
+        let mut args = json!({"kind":kind,"width":40,"height":30,"depth":12});
+        let (dims, area) = match kind {
+            "L" => (vec![40., 30., 3.], 201.),
+            "T" => (vec![40., 30., 3.], 201.),
+            "U" => (vec![40., 30., 3.], 282.),
+            "C" => (vec![40., 30., 3.], 312.),
+            _ => (vec![40., 30.], 1200.),
+        };
+        if kind != "rectangle" {
+            args["thickness"] = json!(3);
+        }
+        stated_profile(args.clone(), &dims, area * 12., [40., 30., 12.]);
+        args["symmetric"] = json!(true);
+        stated_profile(args, &dims, area * 12., [40., 30., 12.]);
+    }
+    // Development profile replays: dpr-03, 06, 09, 10, 11 and 12.
+    stated_profile(
+        json!({"kind":"L","width":50,"height":30,"thickness":6,"inside_fillet":6,"depth":80}),
+        &[50., 30., 6.],
+        36138.45856671237,
+        [50., 30., 80.],
+    );
+    for offset in [None, Some(13.)] {
+        let mut args = json!({"kind":"T","plane":"YZ","width":40,"stem_height":30,"web_thickness":4,"flange_thickness":5,"depth":25});
+        let mut dims = vec![40., 30., 4., 5.];
+        if let Some(v) = offset {
+            args["stem_offset"] = json!(v);
+            dims.push(v);
+        }
+        stated_profile(args, &dims, 8000., [25., 40., 35.]);
+    }
+    stated_profile(
+        json!({"kind":"U","width":80,"height":40,"web_thickness":6,"flange_thickness":5,"depth":60,"symmetric":true}),
+        &[80., 40., 6., 5.],
+        49200.,
+        [80., 40., 60.],
+    );
+    stated_profile(
+        json!({"kind":"U","inside_width":20,"inside_height":25,"thickness":3,"depth":40}),
+        &[20., 25., 3.],
+        9120.,
+        [26., 28., 40.],
+    );
+    stated_profile(
+        json!({"kind":"U","width":26,"inside_height":25,"thickness":3,"depth":40}),
+        &[26., 25., 3.],
+        9120.,
+        [26., 28., 40.],
+    );
+    stated_profile(
+        json!({"kind":"U","inside_width":20,"height":28,"thickness":3,"depth":40}),
+        &[20., 28., 3.],
+        9120.,
+        [26., 28., 40.],
+    );
+    stated_profile(
+        json!({"kind":"C","inside_width":20,"inside_height":25,"lip":8,"thickness":3,"depth":40}),
+        &[20., 25., 8., 3.],
+        9720.,
+        [23., 31., 40.],
+    );
+    stated_profile(
+        json!({"kind":"C","inside_width":20,"inside_height":25,"thickness":3,"depth":40}),
+        &[20., 25., 3.],
+        8520.,
+        [23., 31., 40.],
+    );
+    stated_profile(
+        json!({"kind":"C","width":30,"height":60,"lip":10,"thickness":2,"depth":300}),
+        &[30., 60., 10., 2.],
+        79200.,
+        [30., 60., 300.],
+    );
+    stated_profile(
+        json!({"kind":"C","plane":"XZ","width":25,"height":40,"lip":8,"thickness":3,"depth":70}),
+        &[25., 40., 8., 3.],
+        19740.,
+        [25., 70., 40.],
+    );
+}
+
+#[test]
+fn profile_form_rejects_conflicting_or_impossible_sizes() {
+    let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    let catalog = Catalog::bundled().unwrap();
+    for args in [
+        json!({"kind":"U","width":30,"inside_width":20,"height":40,"thickness":3,"depth":20}),
+        json!({"kind":"C","width":30,"height":40,"inside_height":30,"thickness":3,"depth":20}),
+        json!({"kind":"T","width":30,"height":40,"stem_height":30,"thickness":3,"depth":20}),
+        json!({"kind":"L","inside_width":20,"height":40,"thickness":3,"depth":20}),
+        json!({"kind":"U","width":30,"height":40,"stem_height":30,"thickness":3,"depth":20}),
+        json!({"kind":"U","width":30,"height":40,"lip":8,"thickness":3,"depth":20}),
+        json!({"kind":"C","width":30,"height":40,"lip":20,"thickness":3,"depth":20}),
+        json!({"kind":"C","width":30,"height":40,"lip":2,"thickness":3,"depth":20}),
+        json!({"kind":"L","width":30,"height":40,"inside_fillet":28,"thickness":3,"depth":20}),
+        json!({"kind":"T","width":30,"height":40,"inside_fillet":2,"thickness":3,"depth":20}),
+        json!({"kind":"U","inside_width":1000000,"inside_height":25,"thickness":3,"depth":20}),
+        json!({"kind":"U","inside_width":0,"inside_height":25,"thickness":3,"depth":20}),
+        json!({"kind":"U","inside_width":20,"thickness":3,"depth":20}),
+    ] {
+        assert!(
+            lib.build(
+                &json!({"recipe":"profile","args":args}),
+                &json!({"messages":[]}),
+                &catalog
+            )
+            .is_err(),
+            "{args}"
+        );
+    }
+}

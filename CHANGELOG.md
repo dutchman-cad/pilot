@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Profile forms keep stated inside gaps and T stem heights as driving sketch dimensions, and support lipped C sections, dimensioned inside fillets on angles, and symmetric extrusion. All remain fully constrained.
+
 - Profile forms accept common wording for the section (angle, channel, tee, rectangular) and the plane (["X","Z"], "XZ plane"), and a specific web or flange thickness now takes priority over a general thickness instead of being refused.
 
 ## 0.1.0-beta.6 (2026-10-27)

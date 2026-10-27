@@ -30,6 +30,14 @@ pub(crate) fn describe(s: &mut Value) {
                 "thickness" => ("Plate thickness or uniform profile legs", None),
                 "web_thickness" => ("Vertical leg/stem/web; U bottom; omit with thickness", None),
                 "flange_thickness" => ("Horizontal leg/flange; U sides; omit with thickness", None),
+                "inside_width" => ("U/C gap width; replaces width", None),
+                "inside_height" => ("U/C gap height; replaces height", None),
+                "stem_height" => ("T stem below flange; replaces height", None),
+                "inside_fillet" => ("L inside radius", None),
+                "symmetric" => ("Half depth each side of plane", None),
+                "lip" if v["type"] == "number" || v.get("$ref").is_some() => {
+                    ("C lip from outside flange face", None)
+                }
                 "stem_offset" => ("T stem centre from left; omitted: centred", None),
                 "depth" => ("Extrusion distance normal to plane", None),
                 "floor" => ("Base thickness; omitted: wall", None),
@@ -135,6 +143,12 @@ pub fn compact(s: &Value) -> Value {
             "mode" => "fill: fit; exact: rows and columns",
             "web_thickness" => "Vertical leg; U bottom",
             "flange_thickness" => "Horizontal leg; U sides",
+            "inside_width" => "U/C gap; omit width",
+            "inside_height" => "U/C gap; omit height",
+            "stem_height" => "T stem; omit height",
+            "inside_fillet" => "L inside radius",
+            "symmetric" => "Half depth per side",
+            "lip" if out["type"] == "number" => "C lip incl. flange",
             "stem_offset" => "T centre from left; omit: centred",
             "hole_diameter" => "Pattern holes",
             "size" if root["x-pilot-expander"] == "honeycomb_pattern" => "Hex span",

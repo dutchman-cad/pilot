@@ -9,8 +9,15 @@ enum Build {
         kind: String,
         #[serde(default = "xy")]
         plane: String,
-        width: f64,
-        height: f64,
+        width: Option<f64>,
+        height: Option<f64>,
+        inside_width: Option<f64>,
+        inside_height: Option<f64>,
+        stem_height: Option<f64>,
+        lip: Option<f64>,
+        inside_fillet: Option<f64>,
+        #[serde(default)]
+        symmetric: bool,
         thickness: Option<f64>,
         web_thickness: Option<f64>,
         flange_thickness: Option<f64>,
@@ -112,6 +119,12 @@ pub(crate) fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<
             plane,
             width,
             height,
+            inside_width,
+            inside_height,
+            stem_height,
+            lip,
+            inside_fillet,
+            symmetric,
             thickness,
             web_thickness,
             flange_thickness,
@@ -131,6 +144,46 @@ pub(crate) fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<
                     _ => return Err(format!("thickness {} web_thickness {} flange_thickness {} require 1 uniform or 2 separate leg sizes; supply thickness alone or both web_thickness and flange_thickness", args["thickness"], args["web_thickness"], args["flange_thickness"])),
                 }
             };
+            let choose = |outside: Option<f64>,
+                          inside: Option<f64>,
+                          extra: f64,
+                          field: &str|
+             -> Result<f64, String> {
+                match (outside, inside) {
+                    (Some(v), None) => Ok(v),
+                    (None, Some(v)) => {
+                        positive_mm(field, v)?;
+                        Ok(v + extra)
+                    }
+                    _ => Err(format!(
+                        "{field}: supply exactly one outside or alternative size"
+                    )),
+                }
+            };
+            if (inside_width.is_some() || inside_height.is_some()) && !matches!(shape, "U" | "C") {
+                return Err("inside_width/inside_height require U or C".into());
+            }
+            if stem_height.is_some() && (shape != "T" || inside_height.is_some()) {
+                return Err("stem_height requires T and replaces height".into());
+            }
+            let width = choose(
+                width,
+                inside_width,
+                if shape == "U" { 2.0 * flange } else { web },
+                "width/inside_width",
+            )?;
+            let height = choose(
+                height,
+                inside_height.or(stem_height),
+                if shape == "C" {
+                    2.0 * flange
+                } else if shape == "T" {
+                    flange
+                } else {
+                    web
+                },
+                "height/inside_height/stem_height",
+            )?;
             let slots = closed_profile::Profile {
                 shape: shape.into(),
                 plane,
@@ -138,6 +191,12 @@ pub(crate) fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<
                 height,
                 web,
                 flange,
+                inside_width,
+                inside_height,
+                stem_height,
+                lip,
+                inside_fillet,
+                symmetric,
                 offset: stem_offset,
                 separate: web != flange,
                 centred: false,
@@ -360,9 +419,15 @@ pub(crate) fn tool() -> Value {
                 "stem_offset",
                 json!({"type":"number","description":"T stem centre from left."}),
             ),
+            ("inside_width", n.clone()),
+            ("inside_height", n.clone()),
+            ("stem_height", n.clone()),
+            ("lip", n.clone()),
+            ("inside_fillet", n.clone()),
+            ("symmetric", b.clone()),
             ("depth", n.clone()),
         ],
-        &["shape", "kind", "plane", "width", "height", "depth"],
+        &["shape", "kind", "plane", "depth"],
     );
     let circle = object(
         &[

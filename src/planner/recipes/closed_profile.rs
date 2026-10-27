@@ -9,6 +9,12 @@ pub(super) struct Profile {
     pub(super) height: f64,
     pub(super) web: f64,
     pub(super) flange: f64,
+    pub(super) inside_width: Option<f64>,
+    pub(super) inside_height: Option<f64>,
+    pub(super) stem_height: Option<f64>,
+    pub(super) lip: Option<f64>,
+    pub(super) inside_fillet: Option<f64>,
+    pub(super) symmetric: bool,
     pub(super) offset: Option<f64>,
     pub(super) separate: bool,
     pub(super) centred: bool,
@@ -545,6 +551,12 @@ pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
         height,
         web,
         flange,
+        inside_width: None,
+        inside_height: None,
+        stem_height: None,
+        lip: None,
+        inside_fillet: None,
+        symmetric: false,
         offset,
         separate: web != flange && get(Role::Web).is_some() && get(Role::Flange).is_some(),
         centred,
@@ -590,7 +602,26 @@ impl Profile {
                 return Err(format!("stem_offset {x} requires kind T and must be above {} and below {}; move the stem centre inside the width or omit stem_offset", self.web / 2.0, self.width - self.web / 2.0));
             }
         }
-        if self.shape == "L" {
+        if let Some(lip) = self.lip {
+            positive_mm("lip", lip)?;
+            if self.shape != "C"
+                || lip <= self.flange
+                || 2.0 * lip >= self.height
+                || self.width <= 2.0 * self.web
+            {
+                return Err("lip: requires C, longer than flange thickness, below half height, and room beyond the web".into());
+            }
+        }
+        if let Some(radius) = self.inside_fillet {
+            positive_mm("inside_fillet", radius)?;
+            if self.shape != "L" || radius >= (self.width - self.web).min(self.height - self.flange)
+            {
+                return Err(
+                    "inside_fillet: requires L and radius below both inside leg lengths".into(),
+                );
+            }
+        }
+        if self.shape == "L" && !self.symmetric && self.inside_fillet.is_none() {
             return Ok(Slots::LProfile {
                 plane: self.plane,
                 width: self.width,
@@ -613,7 +644,14 @@ impl Profile {
         match self.shape.as_str() {
             "T" => w * f + (h - f) * b,
             "U" => w * b + 2.0 * f * (h - b),
-            "C" => h * b + 2.0 * f * (w - b),
+            "C" => h * b + 2.0 * f * (w - b) + self.lip.map_or(0.0, |lip| 2.0 * b * (lip - f)),
+            "L" => {
+                w * f
+                    + (h - f) * b
+                    + self
+                        .inside_fillet
+                        .map_or(0.0, |r| r * r * (1.0 - std::f64::consts::PI / 4.0))
+            }
             _ => w * h,
         }
     }
@@ -627,6 +665,7 @@ impl Profile {
         } = *self;
         let center = self.offset.unwrap_or(w / 2.0);
         let (l, r) = (center - b / 2.0, center + b / 2.0);
+        let lip = self.lip.unwrap_or(0.0);
         let mut points = match self.shape.as_str() {
             "T" => vec![
                 [0.0, h],
@@ -646,6 +685,21 @@ impl Profile {
                 [w - f, b],
                 [f, b],
                 [f, h],
+                [0.0, h],
+            ],
+            "L" => vec![[0.0, 0.0], [w, 0.0], [w, f], [b, f], [b, h], [0.0, h]],
+            "C" if self.lip.is_some() => vec![
+                [0.0, 0.0],
+                [w, 0.0],
+                [w, lip],
+                [w - b, lip],
+                [w - b, f],
+                [b, f],
+                [b, h - f],
+                [w - b, h - f],
+                [w - b, h - lip],
+                [w, h - lip],
+                [w, h],
                 [0.0, h],
             ],
             "C" => vec![
@@ -738,11 +792,61 @@ impl Profile {
             ));
         }
         let mut dims: Vec<(Value, f64, Option<&str>)> = vec![(json!(["p1"]), w, None)];
+        if let Some(v) = self.inside_width {
+            dims[0] = (
+                if self.shape == "U" {
+                    json!(["p5"])
+                } else if self.lip.is_some() {
+                    json!(["p6.start", "p2.start"])
+                } else {
+                    json!(["p3"])
+                },
+                v,
+                Some("horizontal"),
+            );
+        }
         match self.shape.as_str() {
+            "L" => dims.extend([
+                (json!(["p6"]), h, None),
+                (json!(["p2"]), f, None),
+                (json!(["p5"]), b, None),
+            ]),
+            "C" if self.lip.is_some() => {
+                out.extend([
+                    ("sketch.constraint.collinear", json!({"a":"p2","b":"p10"})),
+                    ("sketch.constraint.collinear", json!({"a":"p4","b":"p8"})),
+                    ("sketch.constraint.equal", json!({"a":"p2","b":"p10"})),
+                    ("sketch.constraint.equal", json!({"a":"p3","b":"p9"})),
+                ]);
+                dims.extend([
+                    (
+                        if self.inside_height.is_some() {
+                            json!(["p6"])
+                        } else {
+                            json!(["p12"])
+                        },
+                        self.inside_height.unwrap_or(h),
+                        None,
+                    ),
+                    (json!(["p1.start", "p5.end"]), b, Some("horizontal")),
+                    (json!(["p1.start", "p5.start"]), f, Some("vertical")),
+                    (json!(["p7.start", "p11.end"]), f, Some("vertical")),
+                    (json!(["p3"]), b, None),
+                    (json!(["p2"]), lip, None),
+                ]);
+            }
             "T" => {
                 out.push(("sketch.constraint.collinear", json!({"a":"p3","b":"p7"})));
                 dims.extend([
-                    (json!(["p1.start", "p5.start"]), h, Some("vertical")),
+                    (
+                        if self.stem_height.is_some() {
+                            json!(["p4"])
+                        } else {
+                            json!(["p1.start", "p5.start"])
+                        },
+                        self.stem_height.unwrap_or(h),
+                        Some("vertical"),
+                    ),
                     (json!(["p2"]), f, None),
                     (json!(["p5"]), b, None),
                 ]);
@@ -775,7 +879,15 @@ impl Profile {
             "U" => {
                 out.push(("sketch.constraint.collinear", json!({"a":"p3","b":"p7"})));
                 dims.extend([
-                    (json!(["p2"]), h, None),
+                    (
+                        if self.inside_height.is_some() {
+                            json!(["p4"])
+                        } else {
+                            json!(["p2"])
+                        },
+                        self.inside_height.unwrap_or(h),
+                        None,
+                    ),
                     (json!(["p1.start", "p4.end"]), b, Some("vertical")),
                     (json!(["p3"]), f, None),
                 ]);
@@ -788,7 +900,15 @@ impl Profile {
             "C" => {
                 out.push(("sketch.constraint.collinear", json!({"a":"p2","b":"p6"})));
                 dims.extend([
-                    (json!(["p8"]), h, None),
+                    (
+                        if self.inside_height.is_some() {
+                            json!(["p4"])
+                        } else {
+                            json!(["p8"])
+                        },
+                        self.inside_height.unwrap_or(h),
+                        None,
+                    ),
                     (json!(["p1.start", "p3.end"]), b, Some("horizontal")),
                     (json!(["p2"]), f, None),
                 ]);
@@ -807,8 +927,11 @@ impl Profile {
             }
             out.push(("sketch.dimension", p));
         }
+        if let Some(radius) = self.inside_fillet {
+            out.push(("sketch.fillet", json!({"point":"p3.end","radius":radius})));
+        }
         out.push(("sketch.finish", json!({})));
-        out.push(("solid.extrude", json!({"distance":self.distance})));
+        out.push(("solid.extrude", json!({"distance":self.distance,"direction":if self.symmetric {"symmetric"} else {"positive"}})));
         out
     }
 }
