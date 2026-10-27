@@ -454,7 +454,12 @@ Missing diameters, blind holes, extra operations and ambiguous positions decline
 `args:{length:24,width:30,height:36,holes:[{axis:"X",diameter:6},{axis:"Z",diameter:4}]}`.
 Lengths are millimetres. An optional `corner:[x,y,z]` places the box; otherwise
 it starts at the origin. Each hole may supply a world `position:[x,y,z]` on
-either face normal to its axis. Without a position, the opening is centred.
+either face normal to its axis, or the body centre (normalized to the upper
+entry face). Without a position, the opening is centred. Optional `offset_u`
+and `offset_v` displace it from the face centre: X uses Y/Z, Y uses X/Z, and
+Z uses X/Y. Each offset defaults to zero. Optional `depth` makes a blind hole;
+omitting it drills through. Interior points other than the body centre are
+ambiguous and rejected with an example.
 One to three distinct axes are allowed, with positive bounded dimensions and
 openings strictly inside their faces. Each axis uses one `solid.hole` with an
 explicit world position, inward direction and target body. No sketches or
@@ -481,6 +486,9 @@ plate. `pilot_build` takes `length`, `width`, `thickness`, `size`, `size_kind`
 `plane` (XY default, XZ, YZ), `centred` (false), `orientation` (omitted: rows
 along the longer side, X for squares; explicit `pointy_top`: X rows or
 `flat_top`: Y rows overrides this), and `mode` (`fill` default or `exact`).
+An optional `corner:[x,y,z]` sets the final minimum bounding-box corner and
+cannot be combined with `centred:true`. Patterns are cut at the origin, then
+the finished body is placed with one rigid move.
 Length stays along sketch X and width along sketch Y. Exact mode needs
 `rows` and `columns`; fill rejects explicit counts. See the
 [recipe](../recipes/honeycomb_pattern.md) for the full placement contract.
@@ -645,9 +653,14 @@ the profile, the defaulted and corrected plate (42446 mm³), and the enclosure r
 
 Vector slots use scalar coordinates: `delta_x/y/z`, `corner_x/y/z`, and
 `origin_x/y/z` where offered. Cross-drilled boxes offer `hole_x_diameter`,
-`hole_y_diameter`, `hole_z_diameter`, with optional `hole_x_position_x/y/z`
-(and the equivalent Y/Z-hole fields). At least one hole diameter is required;
-a supplied position requires all three coordinates.
+`hole_y_diameter`, `hole_z_diameter`, with optional `hole_x_offset_u`,
+`hole_x_offset_v`, `hole_x_depth` (and equivalent Y/Z-hole fields).
+Offsets are from the face centre in the directions above; omit them for centred
+holes and omit depth for through holes. At least one hole diameter is required.
+Retired flat `hole_x_position_x/y/z` keys are coerced independently: centre
+coordinates and axial entry faces are ignored; other coordinates strictly inside
+the face become offsets. Face edges are rejected with an offset example.
+Nested `holes[].position` still accepts a complete world point.
 
 Before validating `pilot_fill`, numeric strings such as `"56"`, `"56 mm"`,
 and `"2 in"` are converted to numbers (lengths to mm), `"true"`/`"yes"`

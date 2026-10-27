@@ -9,6 +9,7 @@ pub fn schema() -> Value {
     props["border"] = json!({"type":"number","minimum":0,"maximum":1000000});
     props["plane"] = json!({"$ref":"#/$defs/Plane"});
     props["centred"] = json!({"type":"boolean"});
+    props["corner"] = json!({"$ref":"#/$defs/Point3"});
     props["size_kind"] = json!({"type":"string","enum":["across_flats","across_corners"]});
     props["orientation"] = json!({"type":"string","enum":["pointy_top","flat_top"]});
     props["mode"] = json!({"type":"string","enum":["fill","exact"]});
@@ -160,13 +161,28 @@ pub(super) fn build(a: &Value, request: &Value, catalog: &Catalog) -> Result<Pla
         "YZ" => [thickness, length, width],
         _ => [length, width, thickness],
     };
+    if a["centred"] == true && a.get("corner").is_some() {
+        return Err("corner conflicts with centred; omit corner for centred placement".into());
+    }
     let mut corner = origin;
     if plane == "XZ" {
         corner[1] -= thickness;
     }
+    if let Some(p) = a["corner"].as_array() {
+        for i in 0..3 {
+            corner[i] = p[i].as_f64().ok_or("corner requires three numbers")?;
+        }
+    }
+    if (0..3).any(|i| corner[i].abs() > 1_000_000. || (corner[i] + dims[i]).abs() > 1_000_000.) {
+        return Err("corner plus plate size must stay within -1000000..1000000 mm".into());
+    }
     // Build Y-row fields as X-row fields, then turn the completed part. The
     // public 0.20 CLI exceeds its planar comparison budget for large Y arrays.
-    let build_origin = if f.flat { [0.; 3] } else { origin };
+    let build_origin = if plane == "XZ" {
+        [0., thickness, 0.]
+    } else {
+        [0.; 3]
+    };
     let build_dims = if f.flat {
         match plane {
             "XZ" => [width, thickness, length],
@@ -176,10 +192,7 @@ pub(super) fn build(a: &Value, request: &Value, catalog: &Catalog) -> Result<Pla
     } else {
         dims
     };
-    let mut build_corner = build_origin;
-    if plane == "XZ" {
-        build_corner[1] -= thickness;
-    }
+    let build_corner = [0.; 3];
     let mut calls = vec![call(
         catalog,
         "solid.box",
@@ -217,9 +230,15 @@ pub(super) fn build(a: &Value, request: &Value, catalog: &Catalog) -> Result<Pla
             "YZ" => [1., 0., 0.],
             _ => [0., 0., 1.],
         };
-        let translate: [f64; 3] =
-            std::array::from_fn(|i| u[i] * offset[0] + v[i] * (width + offset[1]));
+        let translate: [f64; 3] = std::array::from_fn(|i| corner[i] + v[i] * width);
         calls.push(call(catalog, "solid.move", json!({"bodies":["HoneycombPlate"],"axis":axis,"angle":-90,"translate":translate,"copy":false}))?);
+    } else if corner != build_corner {
+        let translate: [f64; 3] = std::array::from_fn(|i| corner[i] - build_corner[i]);
+        calls.push(call(
+            catalog,
+            "solid.move",
+            json!({"bodies":["HoneycombPlate"],"translate":translate,"copy":false}),
+        )?);
     }
     calls.push(call(catalog, "document.inspect", json!({"measure":true}))?);
     let cut_volume = f.count() as f64 * 3_f64.sqrt() / 2. * f.af * f.af * thickness;

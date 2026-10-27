@@ -107,6 +107,34 @@ fn public_binary_sketch_axes_and_world_holes() {
 }
 
 #[test]
+fn public_binary_offset_blind_cross_holes() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    for axis in ["x", "y", "z"] {
+        let args = json!({"length":20,"width":20,"height":20,"corner_x":-4,"corner_y":5,"corner_z":-6,format!("hole_{axis}_diameter"):4,format!("hole_{axis}_offset_u"):2,format!("hole_{axis}_offset_v"):-3,format!("hole_{axis}_depth"):5});
+        let p = lib
+            .build(
+                &json!({"recipe":"cross_drilled_box","args":args}),
+                &json!({"messages":[]}),
+                &cat,
+            )
+            .unwrap();
+        let mut s = Session::new(&path);
+        s.run(&p);
+        check_shortcut_body(
+            &mut s,
+            8000. - 20. * std::f64::consts::PI,
+            [-4., 5., -6.],
+            [16., 25., 14.],
+            false,
+        );
+    }
+}
+
+#[test]
 fn public_binary_construction_plane_result_contract() {
     let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
         return;
@@ -146,6 +174,65 @@ fn public_binary_offset_box_with_explicit_side_hole() {
         [16., 35., 34.],
         false,
     );
+}
+
+#[test]
+fn public_binary_centred_cross_hole_fills() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    for (position, partial) in [
+        (None, false),
+        (None, true),
+        (Some([10, 10, 10]), false),
+        (Some([0, 10, 10]), false),
+        (Some([20, 10, 10]), false),
+    ] {
+        let mut args = json!({"length":20,"width":20,"height":20,"hole_x_diameter":8,"hole_y_diameter":8,"hole_z_diameter":8});
+        if partial {
+            args["hole_x_position_y"] = json!(10);
+        }
+        if let Some(p) = position {
+            for (axis, point) in [
+                ("x", p),
+                ("y", [p[1], p[0], p[2]]),
+                ("z", [p[1], p[2], p[0]]),
+            ] {
+                for (key, n) in ["x", "y", "z"].into_iter().zip(point) {
+                    args[format!("hole_{axis}_position_{key}")] = json!(n);
+                }
+            }
+        }
+        let p = lib
+            .build(
+                &json!({"recipe":"cross_drilled_box","args":args}),
+                &json!({"messages":[]}),
+                &cat,
+            )
+            .unwrap();
+        let mut s = Session::new(&path);
+        s.run(&p);
+        check_shortcut_body(&mut s, 5708.1, [0.; 3], [20.; 3], false);
+        let faces = s.execute("model.faces", json!({"body":"PilotRecipe1"}));
+        let mut axes = std::collections::BTreeSet::new();
+        for f in faces["faces"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|f| f.get("cylinder").is_some())
+        {
+            let c = &f["cylinder"];
+            assert!((c["radius"].as_f64().unwrap() - 4.).abs() < 0.001);
+            axes.insert(
+                (0..3)
+                    .find(|i| c["axis"][i].as_f64().unwrap().abs() > 0.99)
+                    .unwrap(),
+            );
+        }
+        assert_eq!(axes.len(), 3);
+    }
 }
 impl Drop for Session {
     fn drop(&mut self) {
@@ -1219,6 +1306,8 @@ fn public_binary_honeycomb_recipe() {
     let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
     for (plane, flat, centred, fill) in [
         ("XY", false, false, true),
+        ("XY", false, true, true),
+        ("XY", true, true, true),
         ("XY", true, true, false),
         ("XZ", false, true, false),
         ("XZ", true, false, false),
@@ -1226,6 +1315,10 @@ fn public_binary_honeycomb_recipe() {
         ("YZ", true, true, false),
     ] {
         let mut args = json!({"length":if fill{150}else{60},"width":if fill{300}else{50},"thickness":3,"size":7,"size_kind":"across_flats","web":1.5,"border":4,"plane":plane,"orientation":if flat{"flat_top"}else{"pointy_top"},"centred":centred});
+        if fill && centred && !flat {
+            args["length"] = json!(300);
+            args["width"] = json!(150);
+        }
         if fill {
             args.as_object_mut().unwrap().remove("orientation");
         }
@@ -1242,6 +1335,14 @@ fn public_binary_honeycomb_recipe() {
             )
             .unwrap();
         let mut s = Session::new(&path);
+        assert_eq!(
+            p.calls[0]["arguments"]["params"]["corner"],
+            json!([0., 0., 0.])
+        );
+        assert_eq!(
+            p.facts.as_ref().unwrap()["hex_count"],
+            if fill { 646 } else { 12 }
+        );
         s.run(&p);
         let state = s.execute("document.inspect", json!({"measure":true}));
         let count = if fill { 646 } else { 12 };
@@ -1271,8 +1372,62 @@ fn public_binary_honeycomb_recipe() {
         assert!(border >= 4. - 1e-6, "border {border}");
         if fill {
             assert!((border - 4.125).abs() < 1e-6);
+            assert!((state["bodies"][0]["volume_mm3"].as_f64().unwrap() - 52760.5).abs() < 0.1);
         }
         eprintln!("Honeycomb {plane} flat={flat}: {count} cuts, volume {volume:.9}, measured web {web:.9}, border {border:.9}");
+    }
+}
+
+#[test]
+fn public_binary_honeycomb_given_corner() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let cat = Catalog::bundled().unwrap();
+    let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    for plane in ["XY", "XZ", "YZ"] {
+        for orientation in ["pointy_top", "flat_top"] {
+            let args = json!({"length":60,"width":50,"thickness":3,"size":7,"size_kind":"across_flats","web":1.5,"border":4,"plane":plane,"orientation":orientation,"mode":"exact","rows":3,"columns":4,"corner_x":-37,"corner_y":19,"corner_z":-11});
+            let p = lib
+                .build(
+                    &json!({"recipe":"honeycomb_pattern","args":args}),
+                    &json!({"messages":[]}),
+                    &cat,
+                )
+                .unwrap();
+            assert_eq!(
+                p.calls[0]["arguments"]["params"]["corner"],
+                json!([0., 0., 0.])
+            );
+            assert_eq!(
+                p.calls
+                    .iter()
+                    .filter(|c| c["arguments"]["command"] == "solid.move")
+                    .count(),
+                1
+            );
+            let mut s = Session::new(&path);
+            s.run(&p);
+            let state = s.execute("document.inspect", json!({"measure":true}));
+            let measured = json!({"messages":[{"role":"tool","content":state.to_string()}]});
+            assert_eq!(
+                planner::completion(&measured, p.expected.as_ref().unwrap()),
+                None,
+                "{state}"
+            );
+            let dims = match plane {
+                "XZ" => [60., 3., 50.],
+                "YZ" => [3., 60., 50.],
+                _ => [60., 50., 3.],
+            };
+            check_shortcut_body(
+                &mut s,
+                9000. - 12. * 3_f64.sqrt() / 2. * 49. * 3.,
+                [-37., 19., -11.],
+                std::array::from_fn(|i| [-37., 19., -11.][i] + dims[i]),
+                false,
+            );
+        }
     }
 }
 
@@ -1437,5 +1592,242 @@ fn public_binary_probe_fill_plate_and_inner_lip() {
                 .all(|f| f["error"].is_null() || f["error"] == ""),
             "{state}"
         );
+    }
+}
+
+#[test]
+fn development_pattern_fills_replay_reference_measurements() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let fixtures: Value =
+        serde_json::from_str(include_str!("fixtures/dev_pattern_forms.json")).unwrap();
+    let library = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    let catalog = Catalog::bundled().unwrap();
+    for fixture in fixtures.as_array().unwrap() {
+        let mut session = Session::new(&path);
+        for command in fixture["commands"].as_array().unwrap() {
+            session.execute(
+                command["command"].as_str().unwrap(),
+                command["params"].clone(),
+            );
+        }
+        let (id, args) = match fixture["id"].as_str().unwrap() {
+            "dp-01" => (
+                "linear_pattern",
+                json!({"last_feature":true,"count":5,"spacing":12,"direction":[1,0,0]}),
+            ),
+            "dp-05" => (
+                "circular_pattern",
+                json!({"target":"the hole","count":6,"axis":"Z Axis","angle_deg":360}),
+            ),
+            "dp-09" => (
+                "grid_pattern",
+                json!({"target":"hole","columns":4,"rows":3,"spacing1":15,"spacing2":15,"plane":"XY"}),
+            ),
+            "dp-10" => (
+                "grid_pattern",
+                json!({"target":"boss","columns":4,"rows":4,"spacing1":20,"spacing2":20,"plane":"XY"}),
+            ),
+            _ => panic!("unknown development fixture"),
+        };
+        let mut request =
+            json!({"messages":[{"role":"user","content":"Pattern the existing feature"}]});
+        let mut built = false;
+        for _ in 0..4 {
+            let plan = library
+                .build(&json!({"recipe":id,"args":args}), &request, &catalog)
+                .unwrap();
+            for call in &plan.calls {
+                let result = session.execute(
+                    call["arguments"]["command"].as_str().unwrap(),
+                    call["arguments"]["params"].clone(),
+                );
+                request["messages"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(json!({"role":"tool","content":result.to_string()}));
+            }
+            if plan.rule == id {
+                built = true;
+                break;
+            }
+        }
+        assert!(built, "{request}");
+        let state = session.execute("document.inspect", json!({"measure":true}));
+        assert_eq!(
+            state["bodies"].as_array().unwrap().len(),
+            fixture["check"]["bodies"].as_u64().unwrap() as usize
+        );
+        let volume: f64 = state["bodies"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|b| b["volume_mm3"].as_f64().unwrap())
+            .sum();
+        let expected = fixture["check"]["volume"].as_f64().unwrap();
+        assert!((volume - expected).abs() <= expected * 0.001, "{state}");
+        let faces = session.execute("model.faces", json!({"body":state["bodies"][0]["name"]}));
+        for round in fixture["check"]["round"].as_array().unwrap() {
+            let radius = round["d"].as_f64().unwrap() / 2.;
+            // The public kernel may split a round wall at its seam. Count
+            // distinct cylinder axes, as the task's round checks do.
+            let cylinders: std::collections::BTreeSet<[i64; 2]> = faces["faces"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|face| {
+                    face["cylinder"]["radius"]
+                        .as_f64()
+                        .is_some_and(|r| (r - radius).abs() < 0.001)
+                })
+                .map(|face| {
+                    std::array::from_fn(|k| {
+                        (face["cylinder"]["origin"][k].as_f64().unwrap() * 1000.).round() as i64
+                    })
+                })
+                .collect();
+            let count = cylinders.len();
+            assert_eq!(count, round["count"].as_u64().unwrap() as usize, "{faces}");
+        }
+    }
+}
+
+#[test]
+fn development_dp08_dp12_fills_after_part_creation() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let library = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    let catalog = Catalog::bundled().unwrap();
+    // Development dp-08 and dp-12. Existing-part forms apply only after these
+    // public creation calls have established a measurable part and seed feature.
+    for (id, args, circular, extrude) in [
+        (
+            "circular_pattern",
+            json!({"target":"body","body":"post","count":6,"axis":"0, 0, 1","angle_deg":60}),
+            true,
+            false,
+        ),
+        (
+            "grid_pattern",
+            json!({"target":"boss","rows":3,"columns":3,"spacing1":16,"spacing2":16,"plane":"XY"}),
+            false,
+            false,
+        ),
+        (
+            "grid_pattern",
+            json!({"target":"boss","rows":3,"columns":3,"spacing1":16,"spacing2":16,"plane":"XY"}),
+            false,
+            true,
+        ),
+        (
+            "circular_pattern",
+            json!({"target":"boss","count":6,"axis":"[0, 0, 1]","angle_deg":360}),
+            true,
+            true,
+        ),
+    ] {
+        let mut session = Session::new(&path);
+        if !circular || extrude {
+            session.execute("solid.box", json!({"length":if circular {100} else {50},"width":if circular {100} else {50},"height":4,"corner":if circular {json!([-50,-50,0])} else {json!([0,0,0])},"body_name":"Base"}));
+        }
+        if extrude {
+            session.execute("sketch.create", json!({"plane":"XY","offset":4}));
+            session.execute(
+                "sketch.circle.center",
+                json!({"center":if circular {json!([30,0])} else {json!([9,9])},"radius":4}),
+            );
+            session.execute("sketch.finish", json!({}));
+            session.execute(
+                "solid.extrude",
+                json!({"distance":5,"operation":"join","targets":["Base"]}),
+            );
+        } else {
+            session.execute("solid.cylinder", if circular {
+                json!({"diameter":8,"height":40,"base":[30,0,0],"body_name":"Post"})
+            } else {
+                json!({"diameter":8,"height":5,"base":[9,9,4],"operation":"join","targets":["Base"]})
+            });
+        }
+        let mut request = json!({"messages":[{"role":"user","content":if circular {"6 copies around Z"} else {"repeat the boss in a centred 3 by 3 grid at 16 mm spacing"}}]});
+        let mut expected = None;
+        for _ in 0..4 {
+            let plan = library
+                .build(&json!({"recipe":id,"args":args}), &request, &catalog)
+                .unwrap();
+            if plan.rule == id && extrude {
+                assert_eq!(plan.slots["overlap_precheck"]["status"], "skipped");
+            }
+            for call in &plan.calls {
+                let result = session.execute(
+                    call["arguments"]["command"].as_str().unwrap(),
+                    call["arguments"]["params"].clone(),
+                );
+                request["messages"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(json!({"role":"tool","content":result.to_string()}));
+            }
+            if plan.expected.is_some() {
+                expected = plan.expected;
+                break;
+            }
+        }
+        assert_eq!(
+            planner::completion(&request, expected.as_ref().unwrap()),
+            None,
+            "{request}"
+        );
+        let state = session.execute("document.inspect", json!({"measure":true}));
+        let bodies = state["bodies"].as_array().unwrap();
+        assert_eq!(bodies.len(), if circular && !extrude { 6 } else { 1 });
+        let volume: f64 = bodies
+            .iter()
+            .map(|b| b["volume_mm3"].as_f64().unwrap())
+            .sum();
+        let want = if circular && !extrude {
+            12061.71196211915
+        } else if circular {
+            40000. + 6. * std::f64::consts::PI * 16. * 5.
+        } else {
+            12261.570992899198
+        };
+        assert!((volume - want).abs() <= want * 0.001, "{state}");
+        let axes: std::collections::BTreeSet<[i64; 2]> = bodies
+            .iter()
+            .flat_map(|body| {
+                let faces = session.execute("model.faces", json!({"body":body["name"]}));
+                faces["faces"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .filter(|face| {
+                        face["cylinder"]["radius"]
+                            .as_f64()
+                            .is_some_and(|r| (r - 4.).abs() < 0.001)
+                    })
+                    .map(|face| {
+                        std::array::from_fn(|k| {
+                            (face["cylinder"]["origin"][k].as_f64().unwrap() * 1000.).round() as i64
+                        })
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        assert_eq!(axes.len(), if circular { 6 } else { 9 }, "{state}");
+        if circular {
+            assert!(axes
+                .iter()
+                .all(|p| ((p[0] as f64).hypot(p[1] as f64) / 1000. - 30.).abs() < 0.01));
+        } else {
+            assert_eq!(
+                axes,
+                [9, 25, 41]
+                    .into_iter()
+                    .flat_map(|x| [9, 25, 41].into_iter().map(move |y| [x * 1000, y * 1000]))
+                    .collect()
+            );
+        }
     }
 }

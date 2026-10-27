@@ -1,4 +1,4 @@
-//! World-space through holes, using only the public primitive API.
+//! Face-centred holes, using only the public primitive API.
 use super::*;
 
 pub(crate) fn schema() -> Value {
@@ -6,6 +6,11 @@ pub(crate) fn schema() -> Value {
         "$defs":{"Length":{"type":"number","exclusiveMinimum":0,"maximum":1000000},"Point3":{"type":"array","minItems":3,"maxItems":3,"items":{"type":"number","minimum":-1000000,"maximum":1000000}}},
         "properties":{"length":{"$ref":"#/$defs/Length"},"width":{"$ref":"#/$defs/Length"},"height":{"$ref":"#/$defs/Length"},"corner":{"$ref":"#/$defs/Point3"},"holes":{"type":"array","minItems":1,"maxItems":3,"items":{"type":"object","additionalProperties":false,"properties":{"axis":{"type":"string","enum":["X","Y","Z"]},"diameter":{"$ref":"#/$defs/Length"},"position":{"$ref":"#/$defs/Point3"}},"required":["axis","diameter"]}}},"required":["length","width","height","holes"]});
     crate::recipe_library::forms::describe(&mut schema);
+    let props = &mut schema["properties"]["holes"]["items"]["properties"];
+    for key in ["offset_u", "offset_v"] {
+        props[key] = json!({"type":"number","minimum":-1000000,"maximum":1000000});
+    }
+    props["depth"] = json!({"$ref":"#/$defs/Length"});
     schema
 }
 
@@ -15,6 +20,9 @@ pub(crate) struct Hole {
     axis: String,
     diameter: f64,
     position: Option<[f64; 3]>,
+    offset_u: Option<f64>,
+    offset_v: Option<f64>,
+    depth: Option<f64>,
 }
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -39,11 +47,19 @@ impl BoxHoles {
         }
     }
     fn position(&self, h: &Hole, axis: usize) -> [f64; 3] {
-        h.position.unwrap_or_else(|| {
-            std::array::from_fn(|i| {
-                self.corner[i] + self.size()[i] * if i == axis { 1.0 } else { 0.5 }
-            })
-        })
+        let mut p = h.position.unwrap_or_else(|| self.centre());
+        if (p[axis] - self.centre()[axis]).abs() < 1e-8 {
+            p[axis] = self.corner[axis] + self.size()[axis];
+        }
+        for (i, offset) in (0..3).filter(|i| *i != axis).zip([h.offset_u, h.offset_v]) {
+            if let Some(offset) = offset {
+                p[i] = self.centre()[i] + offset;
+            }
+        }
+        p
+    }
+    fn centre(&self) -> [f64; 3] {
+        std::array::from_fn(|i| self.corner[i] + self.size()[i] / 2.)
     }
     pub(crate) fn validate(&self) -> Result<(), String> {
         for n in self.size() {
@@ -68,6 +84,23 @@ impl BoxHoles {
             }
             seen[a] = true;
             positive_mm("hole diameter", h.diameter)?;
+            if let Some(p) = h.position {
+                let mid = self.centre();
+                for (i, offset) in (0..3).filter(|i| *i != a).zip([h.offset_u, h.offset_v]) {
+                    if offset.is_some_and(|o| (mid[i] + o - p[i]).abs() > 1e-8) {
+                        return Err(format!("holes[{n}].position conflicts with offset_u/offset_v; use offsets alone, e.g. offset_u:0, offset_v:0"));
+                    }
+                }
+                if (p[a] - mid[a]).abs() < 1e-8 && (0..3).any(|i| (p[i] - mid[i]).abs() > 1e-8) {
+                    return Err(format!("holes[{n}].position {p:?} is ambiguous inside the body; use the body centre {mid:?} or offsets, e.g. offset_u:0, offset_v:0"));
+                }
+            }
+            if let Some(depth) = h.depth {
+                positive_mm(&format!("holes[{n}].depth (e.g. 5)"), depth)?;
+                if depth > self.size()[a] {
+                    return Err(format!("holes[{n}].depth {depth} must be at most {}; omit depth for through, or use e.g. {}", self.size()[a], self.size()[a] / 2.));
+                }
+            }
             let p = self.position(h, a);
             for (i, value) in p.iter().enumerate() {
                 let lo = self.corner[i];
@@ -78,7 +111,7 @@ impl BoxHoles {
                     *value - h.diameter / 2.0 <= lo || *value + h.diameter / 2.0 >= hi
                 };
                 if !value.is_finite() || value.abs() > MAX_MM || outside {
-                    return Err(format!("holes[{n}].position[{i}] {value} with diameter {} must {} and stay within -{MAX_MM}..{MAX_MM}; omit position for a centred hole or move it inside the face", h.diameter, if i == a {format!("equal {lo} or {hi}")} else {format!("be above {} and below {}", lo + h.diameter / 2.0, hi - h.diameter / 2.0)}));
+                    return Err(format!("holes[{n}].position[{i}] / offset_u/offset_v {value} with diameter {} must {} and stay within -{MAX_MM}..{MAX_MM}; omit position for a centred hole, e.g. offset_u:0, offset_v:0", h.diameter, if i == a {format!("equal {lo} or {hi}")} else {format!("be above {} and below {}", lo + h.diameter / 2.0, hi - h.diameter / 2.0)}));
                 }
             }
         }
@@ -98,21 +131,26 @@ impl BoxHoles {
                 } else {
                     -1.0
                 };
-                out.push((
-                    "solid.hole",
-                    json!({"diameter":h.diameter,"position":p,"direction":d}),
-                ));
+                let mut params = json!({"diameter":h.diameter,"position":p,"direction":d});
+                if let Some(depth) = h.depth {
+                    params["depth"] = json!(depth);
+                }
+                out.push(("solid.hole", params));
             }
         }
         out
     }
     pub(crate) fn volume(&self) -> Option<f64> {
         let h = self.holes.first()?;
-        if self
-            .holes
-            .iter()
-            .any(|other| other.diameter != h.diameter || other.position.is_some())
-        {
+        if self.holes.iter().any(|other| {
+            other.diameter != h.diameter
+                || Self::axis(other)
+                    .is_some_and(|a| other.depth.is_some_and(|d| d < self.size()[a]))
+                || Self::axis(other).is_none_or(|a| {
+                    let p = self.position(other, a);
+                    (0..3).any(|i| i != a && (p[i] - self.centre()[i]).abs() > 1e-8)
+                })
+        }) {
             return None;
         }
         let r = h.diameter / 2.0;
@@ -260,6 +298,9 @@ pub(super) fn parse(i: &Input<'_>) -> Option<BoxHoles> {
                 axis: a.to_ascii_uppercase(),
                 diameter,
                 position: None,
+                offset_u: None,
+                offset_v: None,
+                depth: None,
             })
             .collect(),
     };

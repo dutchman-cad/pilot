@@ -105,6 +105,139 @@ fn cross_drilled_boxes_exact_english_and_typed_validation() {
     }
 }
 #[test]
+fn cross_hole_centres_offsets_depths_and_errors() {
+    let lib = Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    let build = |args| {
+        lib.build(
+            &json!({"recipe":"cross_drilled_box","args":args}),
+            &json!({"messages":[]}),
+            &cat,
+        )
+    };
+    let base = json!({"length":20,"width":20,"height":20,"hole_x_diameter":8,"hole_y_diameter":8,"hole_z_diameter":8});
+    let centred = build(base.clone()).unwrap();
+    let mut partial = base.clone();
+    partial["hole_x_position_y"] = json!(10);
+    assert_eq!(build(partial.clone()).unwrap().calls, centred.calls);
+    partial["hole_x_position_y"] = json!(0);
+    let error = build(partial).unwrap_err();
+    assert!(
+        error.contains("offset_u") && error.contains("e.g."),
+        "{error}"
+    );
+    let shifted = json!({"length":20,"width":30,"height":40,"corner":[-5,3,7],"hole_x_diameter":4,"hole_x_position_y":20,"hole_x_position_z":24});
+    assert_eq!(
+        build(shifted).unwrap().calls[1]["arguments"]["params"]["position"],
+        json!([15., 20., 24.])
+    );
+    for value in [0, 10, 20] {
+        let mut args = base.clone();
+        args["hole_x_position_x"] = json!(value);
+        assert_eq!(build(args).unwrap().calls, centred.calls);
+    }
+    for value in [5, 21] {
+        let mut args = base.clone();
+        args["hole_x_position_x"] = json!(value);
+        let error = build(args).unwrap_err();
+        assert!(
+            error.contains("offset_u") && error.contains("e.g."),
+            "{error}"
+        );
+    }
+    for position in [json!([10, 10, 10]), json!([0, 10, 10]), json!([20, 10, 10])] {
+        let mut args = json!({"length":20,"width":20,"height":20,"holes":[]});
+        args["holes"] = json!([
+            {"axis":"X","diameter":8,"position":position},
+            {"axis":"Y","diameter":8,"position":[10,10,10]},
+            {"axis":"Z","diameter":8,"position":[10,10,10]}
+        ]);
+        let p = build(args).unwrap();
+        assert_eq!(
+            p.expected.as_ref().unwrap().created_volume_mm3,
+            centred.expected.as_ref().unwrap().created_volume_mm3
+        );
+        assert!((p.expected.as_ref().unwrap().created_volume_mm3.unwrap() - 5708.1).abs() < 0.1);
+    }
+    for (axis, position) in [
+        ("x", json!([20., 12., 7.])),
+        ("y", json!([12., 20., 7.])),
+        ("z", json!([12., 7., 20.])),
+    ] {
+        let args = json!({"length":20,"width":20,"height":20,format!("hole_{axis}_diameter"):4,format!("hole_{axis}_offset_u"):2,format!("hole_{axis}_offset_v"):-3,format!("hole_{axis}_depth"):5});
+        let p = build(args).unwrap();
+        let params = &p.calls[1]["arguments"]["params"];
+        assert_eq!(params["position"], position);
+        assert_eq!(params["depth"], 5.);
+        assert_eq!(p.expected.as_ref().unwrap().created_volume_mm3, None);
+    }
+    for hole in [
+        json!({"axis":"X","diameter":8,"position":[9,10,10]}),
+        json!({"axis":"Y","diameter":8,"position":[10,0,0]}),
+        json!({"axis":"Z","diameter":8,"offset_u":10}),
+        json!({"axis":"X","diameter":8,"depth":21}),
+    ] {
+        let error = build(json!({"length":20,"width":20,"height":20,"holes":[hole]})).unwrap_err();
+        assert!(
+            error.contains("holes[0]") && (error.contains("e.g.") || error.contains("example")),
+            "{error}"
+        );
+    }
+    let schema = &lib
+        .recipes
+        .iter()
+        .find(|r| r.id == "cross_drilled_box")
+        .unwrap()
+        .schema;
+    let compact = forms::compact(schema);
+    for form in [forms::flat(schema), compact.clone()] {
+        assert!(form["properties"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .all(|k| !k.contains("_position_")));
+        assert_eq!(
+            form["description"],
+            "Holes are centred unless you give offset_u/offset_v from the face centre."
+        );
+    }
+    for (axis, coordinate, offset, position) in [
+        ("x", "y", "offset_u", json!([20., 12., 10.])),
+        ("x", "z", "offset_v", json!([20., 10., 12.])),
+        ("y", "x", "offset_u", json!([12., 20., 10.])),
+        ("y", "z", "offset_v", json!([10., 20., 12.])),
+        ("z", "x", "offset_u", json!([12., 10., 20.])),
+        ("z", "y", "offset_v", json!([10., 12., 20.])),
+    ] {
+        let key = format!("hole_{axis}_position_{coordinate}");
+        let mut args = json!({"length":20,"width":20,"height":20,format!("hole_{axis}_diameter"):4,key.clone():"12 mm"});
+        let changes = forms::coerce(&mut args, &forms::flat(schema)).unwrap();
+        assert!(!changes.is_empty());
+        assert!(args.get(&key).is_none());
+        assert_eq!(args[format!("hole_{axis}_{offset}")], 2.);
+        assert_eq!(
+            build(args.clone()).unwrap().calls[1]["arguments"]["params"]["position"],
+            position
+        );
+        args[key.clone()] = json!(13);
+        assert!(build(args).unwrap_err().contains(offset));
+        for value in [0, 20, 21] {
+            let args = json!({"length":20,"width":20,"height":20,format!("hole_{axis}_diameter"):4,key.clone():value});
+            let error = build(args).unwrap_err();
+            assert!(error.contains(offset) && error.contains("e.g."), "{error}");
+        }
+    }
+    assert!(compact["properties"].get("hole_x_offset_u").is_some());
+    assert_eq!(
+        forms::to_slots(&base, schema).unwrap()["holes"]
+            .as_array()
+            .unwrap()
+            .len(),
+        3
+    );
+}
+
+#[test]
 fn independent_ranking_and_calibrated_misses() {
     let lib = Library::embedded().unwrap();
     let rows = [
@@ -997,7 +1130,7 @@ fn flat_coercions_and_partial_features_are_explicit() {
         (
             "cross_drilled_box",
             json!({"hole_x_position_x":0}),
-            "hole_x_position_y",
+            "length",
         ),
     ] {
         let r = &lib.recipes.iter().find(|r| r.id == id).unwrap().schema;
@@ -1038,7 +1171,7 @@ fn flat_grid_positions_and_conflicts_preserve_typed_behavior() {
         (
             "cross_drilled_box",
             json!({"length":24,"width":30,"height":36,"hole_z_diameter":4,"hole_z_position_x":12,"hole_z_position_y":15,"hole_z_position_z":0}),
-            json!({"length":24,"width":30,"height":36,"holes":[{"axis":"Z","diameter":4,"position":[12,15,0]}]}),
+            json!({"length":24,"width":30,"height":36,"holes":[{"axis":"Z","diameter":4,"position":[12,15,36]}]}),
         ),
     ] {
         let build = |args| {
@@ -1280,4 +1413,133 @@ fn enums_reject_containers_and_redundancy_preserves_bounds() {
     assert!(Recipe::parse(&changed.markdown().unwrap())
         .unwrap_err()
         .contains("never a dimension"));
+}
+
+#[test]
+fn joined_boss_pattern_spacing_uses_tool_extent() {
+    let library = Library::embedded().unwrap();
+    let catalog = Catalog::bundled().unwrap();
+    let snapshot = json!({"bodies":[{"name":"Base","volume_mm3":49071.16,"bbox":{"min":[0,0,0],"max":[90,90,12]}}],"timeline":[{"id":1,"name":"Cylinder1","type":"CylinderFeature","error":null}]});
+    let detail = json!({"id":1,"name":"Cylinder1","type":"CylinderFeature","error":null,"definition":{"operation":"join","base":[15,15,6],"axis":[0,0,1],"radius":"5","height":"6"}});
+    let request = json!({"messages":[{"role":"user","content":"Pattern that boss"},{"role":"tool","content":snapshot.to_string()},{"role":"tool","content":detail.to_string()}]});
+    let mut args = json!({"target":"boss","body":null,"columns":4,"rows":4,"spacing1":20,"spacing2":20,"plane":"XY"});
+    let plan = library
+        .build(
+            &json!({"recipe":"grid_pattern","args":args}),
+            &request,
+            &catalog,
+        )
+        .unwrap();
+    assert_eq!(
+        plan.calls[0]["arguments"]["params"]["features"],
+        json!(["Cylinder1"])
+    );
+    assert_eq!(plan.expected.as_ref().unwrap().bodies, Some(1));
+    let mut expression_request = request.clone();
+    let mut expression_detail = detail.clone();
+    expression_detail["definition"]["radius"] = json!("(10 mm) / 2");
+    expression_detail["inputs"] = json!([{"label":"Radius","param":"d4"}]);
+    expression_request["messages"][2]["content"] = json!(expression_detail.to_string());
+    let lookup = library
+        .build(
+            &json!({"recipe":"grid_pattern","args":args}),
+            &expression_request,
+            &catalog,
+        )
+        .unwrap();
+    assert_eq!(lookup.calls[0]["arguments"]["command"], "parameters.list");
+    expression_request["messages"].as_array_mut().unwrap().push(json!({"role":"tool","content":json!({"parameters":[{"feature":"Cylinder1","name":"d4","unit":"mm","expression":"(10 mm) / 2","value":5}]}).to_string()}));
+    let resolved = library
+        .build(
+            &json!({"recipe":"grid_pattern","args":args}),
+            &expression_request,
+            &catalog,
+        )
+        .unwrap();
+    assert_eq!(resolved.calls[0], plan.calls[0]);
+    expression_request["messages"][3]["content"] = json!(json!({"parameters":[{"feature":"Cylinder1","name":"d4","unit":"mm","expression":"stale","value":5}]}).to_string());
+    assert!(library
+        .build(
+            &json!({"recipe":"grid_pattern","args":args}),
+            &expression_request,
+            &catalog
+        )
+        .unwrap_err()
+        .contains("current evaluated input"));
+    args["spacing1"] = json!(8);
+    let error = library
+        .build(
+            &json!({"recipe":"grid_pattern","args":args}),
+            &request,
+            &catalog,
+        )
+        .unwrap_err();
+    assert!(error.contains("overlapping instance bounds"), "{error}");
+    let mut wrong = request.clone();
+    wrong["messages"][1]["content"] = json!(json!({"bodies":snapshot["bodies"],"timeline":[{"id":1,"name":"Hole1","type":"HoleFeature","error":null}]}).to_string());
+    assert!(library
+        .build(
+            &json!({"recipe":"grid_pattern","args":args}),
+            &wrong,
+            &catalog
+        )
+        .unwrap_err()
+        .contains("does not match"));
+}
+
+#[test]
+fn circular_post_bounds_rotate_and_step_angle_is_not_a_short_arc() {
+    let library = Library::embedded().unwrap();
+    let catalog = Catalog::bundled().unwrap();
+    let mut request = json!({"messages":[{"role":"user","content":"a post at X=30, 6 copies around Z"},{"role":"tool","content":json!({"bodies":[{"name":"Post","volume_mm3":1608.495,"bbox":{"min":[26,-4,0],"max":[34,4,8]}}],"timeline":[]}).to_string()}]});
+    for axis in ["0, 0, 1", "[0, 0, 1]", "(0 0 1)"] {
+        let envelope = json!({"recipe":"circular_pattern","args":{"target":"body","body":"post","axis":axis,"count":6,"angle_deg":60}});
+        let plan = library.build(&envelope, &request, &catalog).unwrap();
+        assert_eq!(plan.calls[0]["arguments"]["params"]["angle"], 360.);
+        assert_eq!(plan.calls[0]["arguments"]["params"]["axis"], "Z");
+        assert_eq!(plan.expected.as_ref().unwrap().bodies, Some(6));
+        request["messages"][0]["content"] =
+            json!("pattern this post over a partial arc of 60 degrees around Z");
+        let error = library.build(&envelope, &request, &catalog).unwrap_err();
+        assert!(
+            error.contains("overlapping rotated instance bounds"),
+            "{error}"
+        );
+        assert!(!error.contains("spacing [0,0]"), "{error}");
+        request["messages"][0]["content"] = json!("a post at X=30, 6 copies around Z");
+    }
+}
+
+#[test]
+fn joined_sketch_extrusions_skip_unmeasurable_overlap_checks() {
+    let library = Library::embedded().unwrap();
+    let catalog = Catalog::bundled().unwrap();
+    let request = json!({"messages":[{"role":"user","content":"Pattern the existing boss"},{"role":"tool","content":json!({"bodies":[{"name":"Base","volume_mm3":10251.3,"bbox":{"min":[0,0,0],"max":[50,50,9]}}],"timeline":[{"id":3,"name":"Extrude1","type":"ExtrudeFeature"}]}).to_string()},{"role":"tool","content":json!({"id":3,"name":"Extrude1","type":"ExtrudeFeature","definition":{"operation":"join","participants":["Base"],"distance":"5 mm"}}).to_string()}]});
+    for (id, args) in [
+        (
+            "grid_pattern",
+            json!({"target":"last_feature","rows":3,"columns":3,"spacing1":16,"spacing2":16,"plane":"XY"}),
+        ),
+        (
+            "circular_pattern",
+            json!({"target":"last_feature","axis":"[0, 0, 1]","count":6,"angle_deg":360}),
+        ),
+        (
+            "linear_pattern",
+            json!({"target":"last_feature","direction":"X","count":3,"spacing":16}),
+        ),
+    ] {
+        let plan = library
+            .build(&json!({"recipe":id,"args":args}), &request, &catalog)
+            .unwrap();
+        assert_eq!(plan.slots["overlap_precheck"]["status"], "skipped");
+        assert_eq!(
+            plan.calls[0]["arguments"]["params"]["features"],
+            json!(["Extrude1"])
+        );
+        let expected = plan.expected.unwrap();
+        assert_eq!(expected.bodies, Some(1));
+        assert!(expected.volume_mm3.is_none());
+        assert!(expected.volume_range_mm3.is_some());
+    }
 }

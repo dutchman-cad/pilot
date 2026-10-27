@@ -74,7 +74,15 @@
         "$ref": "#/$defs/Count"
       },
       "direction": {
-        "$ref": "#/$defs/Axis",
+        "type": "string",
+        "enum": [
+          "X",
+          "Y",
+          "Z",
+          "-X",
+          "-Y",
+          "-Z"
+        ],
         "description": "World axis"
       },
       "edge": {
@@ -132,7 +140,10 @@
           "enum": [
             "X",
             "Y",
-            "Z"
+            "Z",
+            "-X",
+            "-Y",
+            "-Z"
           ],
           "type": "string",
           "x-slot": "/direction"
