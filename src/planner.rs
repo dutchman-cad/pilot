@@ -8,6 +8,7 @@ mod first_turn;
 #[cfg(feature = "proxy")]
 pub(crate) mod form_context;
 mod honeycomb;
+pub(crate) mod joints;
 pub(crate) mod patterns;
 mod recipes;
 #[cfg(test)]
@@ -1151,6 +1152,9 @@ pub fn recipe_expand(
     request: &Value,
     catalog: &Catalog,
 ) -> Result<Plan, String> {
+    if id == "revolute_joint" && joints::uses_generic(args) {
+        return joints::build(args, request, catalog);
+    }
     if id == "cross_drilled_box" {
         return recipes::cross_drilled::build(args, request, catalog);
     }

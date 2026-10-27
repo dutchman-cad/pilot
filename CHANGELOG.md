@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- One joint form now connects inspected components with any joint or relation type,
+  at box centres or named origins, with aligned axes and ordered motion limits.
+  It accepts common joint names, word or vector axes, and approximate component names;
+  existing pin-and-hole revolute joints still work.
+
 ## 0.1.0-beta.6 (2026-10-27)
 
 - Field tester fixes: a cube with holes through its faces now builds from the form (holes

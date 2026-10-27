@@ -92,14 +92,27 @@ fn fields(
     }
     let mut field = resolved.clone();
     if let Some(o) = field.as_object_mut() {
-        o.remove("description");
+        if !(root["x-pilot-expander"] == "revolute_joint"
+            && (name.starts_with("limit")
+                || name.starts_with("component_")
+                || name.starts_with("point_")
+                || name == "joint_type"))
+        {
+            o.remove("description");
+        }
         o.remove("default");
     }
     field["x-slot"] = json!(path);
-    if field["type"] == "number" && !name.ends_with("_deg") {
+    if field["type"] == "number" && !name.ends_with("_deg") && !name.starts_with("limit") {
         field["x-unit"] = json!("mm");
     }
-    if field.get("enum").is_some() {
+    if root["x-pilot-expander"] == "revolute_joint" && name == "axis" {
+        field["default"] = json!("Z");
+        field["x-default-when"] = json!("joint_type");
+    }
+    if field.get("enum").is_some()
+        && !(root["x-pilot-expander"] == "revolute_joint" && name == "joint_type")
+    {
         field["description"] = json!(match name {
             "corner_kind" => "Round/bevel",
             "corner_edges" => "vertical: corners; all: rims too",

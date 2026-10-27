@@ -231,6 +231,9 @@ pub fn schema(id: &str) -> Result<Value, String> {
         json!({"type":"object","properties":props,"required":fields.iter().map(|(k,_)|k).collect::<Vec<_>>(),"additionalProperties":false})
     };
     shared(&mut s);
+    if id == "revolute_joint" {
+        planner::joints::fields(&mut s);
+    }
     if id == "shell" {
         s["properties"]["body"] = json!({"type":"string","minLength":1,"maxLength":128,"description":"Exact inspected rectangular body to shell; omit to create a new box"});
         s["required"] = json!(["wall"]);
@@ -489,6 +492,9 @@ impl Library {
             )
         })?;
         let mut supplied = envelope["args"].clone();
+        if r.expander == "revolute_joint" {
+            planner::joints::coerce(&mut supplied)?;
+        }
         if planner::patterns::is_pattern(&r.expander) {
             planner::patterns::coerce(&mut supplied)?;
             planner::patterns::resolve(&mut supplied, request)?;
@@ -700,7 +706,21 @@ impl Ranker for Bm25 {
                     .chain(std::iter::once(tokens(
                         &r.schema["properties"]
                             .as_object()
-                            .map(|o| o.keys().cloned().collect::<Vec<_>>().join(" "))
+                            .map(|o| {
+                                o.keys()
+                                    // New joint slots use the explicit type gate below. Keep
+                                    // generic axis/limit words out of the calibrated index.
+                                    .filter(|k| {
+                                        r.id != "revolute_joint"
+                                            || matches!(
+                                                k.as_str(),
+                                                "angle_deg" | "pin_component" | "hole_component"
+                                            )
+                                    })
+                                    .cloned()
+                                    .collect::<Vec<_>>()
+                                    .join(" ")
+                            })
                             .unwrap_or_default(),
                     )))
                     .collect()
@@ -732,6 +752,7 @@ impl Ranker for Bm25 {
                     && ["width", "height", "wide", "tall", "leg", "thickness"]
                         .iter()
                         .any(|w| has(w))));
+        let query_text = query;
         let named: BTreeSet<_> = query
             .to_lowercase()
             .split(|c: char| !c.is_alphabetic())
@@ -776,6 +797,13 @@ impl Ranker for Bm25 {
                 (
                     i,
                     id_hit
+                        + if recipes[i].id == "revolute_joint"
+                            && planner::joints::intent(query_text)
+                        {
+                            8.0
+                        } else {
+                            0.0
+                        }
                         + if recipes[i].id.ends_with("_pattern") {
                             if non_pattern {
                                 0.0
