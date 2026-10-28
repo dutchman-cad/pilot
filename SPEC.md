@@ -85,10 +85,12 @@ Request side:
   and explicitly requested lip sizes derived from the wall (height = wall, width = wall / 2).
   Plate corner treatments may select upright corners by side or name. Enclosures may
   use clear inside dimensions: outside X/Y add two walls, height adds one floor.
-  centred/centered/centre/center name the same placement field; centred plates include
-  thickness in origin placement. open:true means the default top opening; explicit
-  top/bottom choices remain available. Existing-part edit verbs use edit forms after
-  inspection confirms a body; creation requests retain creation forms. Matching
+  centred/centered/centre/center name the same placement field; centred plates centre
+  in the sketch plane and extend from that plane through their thickness. open:true
+  means the default top opening; explicit top/bottom choices remain available.
+  Existing-part edit verbs may replace creation forms with edit forms after inspection
+  confirms a body; pattern and joint forms retain their routing, and creation requests
+  retain creation forms. Matching
   supplied shell dimensions are discarded after comparison with inspected bounds
   (0.001 mm or one part per million); mismatches name the measured size. Flat field
   names accept unambiguous singular/plural word variants. An omitted revolute angle

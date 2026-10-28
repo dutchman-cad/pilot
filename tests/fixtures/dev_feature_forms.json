@@ -2,7 +2,7 @@
   {
     "SPDX-License-Identifier": "Apache-2.0",
     "id": "df-02",
-    "prompt": "little mounting panel please: 9 x 6 x 0.4 cm, centre of the whole solid at 0,0,0. centred 3 by 2 hole grid (X by Y), pitch 2 cm X and 3 cm Y, holes 0.5 cm dia through. Clip the four vertical corners with 0.3 cm equal chamfers.",
+    "prompt": "little mounting panel please: 9 x 6 x 0.4 cm, centred in X and Y at the origin, bottom on the sketch plane. centred 3 by 2 hole grid (X by Y), pitch 2 cm X and 3 cm Y, holes 0.5 cm dia through. Clip the four vertical corners with 0.3 cm equal chamfers.",
     "setup_steps": 0,
     "check": {
       "bodies": 1,
@@ -30,7 +30,7 @@
           "corner": [
             -45.0,
             -30.0,
-            -2.0
+            0
           ],
           "body_name": "Plate"
         }
@@ -41,7 +41,7 @@
           "position": [
             -20.0,
             -15.0,
-            2.0
+            4
           ],
           "diameter": 5,
           "targets": [
@@ -55,7 +55,7 @@
           "position": [
             0.0,
             -15.0,
-            2.0
+            4
           ],
           "diameter": 5,
           "targets": [
@@ -69,7 +69,7 @@
           "position": [
             20.0,
             -15.0,
-            2.0
+            4
           ],
           "diameter": 5,
           "targets": [
@@ -83,7 +83,7 @@
           "position": [
             -20.0,
             15.0,
-            2.0
+            4
           ],
           "diameter": 5,
           "targets": [
@@ -97,7 +97,7 @@
           "position": [
             0.0,
             15.0,
-            2.0
+            4
           ],
           "diameter": 5,
           "targets": [
@@ -111,7 +111,7 @@
           "position": [
             20.0,
             15.0,
-            2.0
+            4
           ],
           "diameter": 5,
           "targets": [
@@ -126,22 +126,22 @@
             [
               -45.0,
               -30.0,
-              0.0
+              2
             ],
             [
               -45.0,
               30.0,
-              0.0
+              2
             ],
             [
               45.0,
               -30.0,
-              0.0
+              2
             ],
             [
               45.0,
               30.0,
-              0.0
+              2
             ]
           ],
           "body": "Plate",
@@ -547,7 +547,7 @@
   {
     "SPDX-License-Identifier": "Apache-2.0",
     "id": "df-05",
-    "prompt": "Can someone make a 3 x 2 x 1/8 inch plate with its 3D centre at the origin? Six 3/16 inch through holes in a centred 3x2 grid, 3/4 inch X pitch and 1 inch Y pitch. All four upright corners rounded 1/4 inch radius, no rim rounding.",
+    "prompt": "Can someone make a 3 x 2 x 1/8 inch plate with its X/Y centre at the origin and bottom on the sketch plane? Six 3/16 inch through holes in a centred 3x2 grid, 3/4 inch X pitch and 1 inch Y pitch. All four upright corners rounded 1/4 inch radius, no rim rounding.",
     "setup_steps": 0,
     "check": {
       "bodies": 1,
@@ -575,7 +575,7 @@
           "corner": [
             -38.1,
             -25.4,
-            -1.5875
+            0
           ],
           "body_name": "Plate"
         }
@@ -586,7 +586,7 @@
           "position": [
             -19.05,
             -12.7,
-            1.5875
+            3.175
           ],
           "diameter": 4.7625,
           "targets": [
@@ -600,7 +600,7 @@
           "position": [
             0.0,
             -12.7,
-            1.5875
+            3.175
           ],
           "diameter": 4.7625,
           "targets": [
@@ -614,7 +614,7 @@
           "position": [
             19.05,
             -12.7,
-            1.5875
+            3.175
           ],
           "diameter": 4.7625,
           "targets": [
@@ -628,7 +628,7 @@
           "position": [
             -19.05,
             12.7,
-            1.5875
+            3.175
           ],
           "diameter": 4.7625,
           "targets": [
@@ -642,7 +642,7 @@
           "position": [
             0.0,
             12.7,
-            1.5875
+            3.175
           ],
           "diameter": 4.7625,
           "targets": [
@@ -656,7 +656,7 @@
           "position": [
             19.05,
             12.7,
-            1.5875
+            3.175
           ],
           "diameter": 4.7625,
           "targets": [
@@ -671,22 +671,22 @@
             [
               -38.1,
               -25.4,
-              0.0
+              1.5875
             ],
             [
               -38.1,
               25.4,
-              0.0
+              1.5875
             ],
             [
               38.1,
               -25.4,
-              0.0
+              1.5875
             ],
             [
               38.1,
               25.4,
-              0.0
+              1.5875
             ]
           ],
           "body": "Plate",

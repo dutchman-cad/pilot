@@ -543,4 +543,4 @@ Layouts apply to boss_diameter with boss_height, or hole_diameter, never both. W
 Columns run along sketch X, rows along sketch Y. For an unstated A x B orientation, put A along the longer plate side (7 x 5 on 120 x 80 means 7 columns, 5 rows); explicit axis/row/column statements win. A single pitch is used for both grid pitches. Counts include every feature. No dimension is defaulted.
 A corner_size without corner_kind means fillet; without corner_edges it means vertical. Corners are supported on rectangular plates without bosses.
 
-corner_sides selects upright corners: right (+X), left, top (+Y), bottom or all. Named corners are also accepted by typed builds. centred (also centered, center or centre) centres the base in all three dimensions, including its thickness.
+corner_sides selects upright corners: right (+X), left, top (+Y), bottom or all. Named corners are also accepted by typed builds. centred (also centered, center or centre) centres the base in the sketch plane; the plate extends from that plane through its thickness (Z = 0 to thickness on XY).

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Restore centred plates to the sketch plane (Z = 0 through thickness on XY),
+  including holes, bosses, patterns, round bases and corner selections.
+- Restrict inspected edit rerouting to creation forms; existing-part pattern and
+  joint requests keep their forms, scores and routing bands. Adding a grid to an
+  existing plate uses the grid form even with chatty wording or unstated counts.
 - Omitted revolute angles use a single explicit request angle (including quarter
   turns), audited as inferred; supplied model angles always win.
 - Existing-box shells accept matching inspected dimensions within 0.001 mm or
@@ -13,7 +18,7 @@
 - Flat fields accept unambiguous singular/plural word variants, with conflicts
   rejected instead of silently choosing a value.
 - Plate forms accept selected upright corners, common corner wordings and boolean
-  corner-edge fills. Centred plates now centre the full solid, including thickness.
+  corner-edge fills. Centred plates centre in X/Y and sit on the sketch plane.
 - Forms accept centered/centred/center/centre and open:true means open top.
   Enclosures support clear inside dimensions and fractional inch/centimetre fields;
   requested lips default to wall-height and half-wall-width with an explicit audit.

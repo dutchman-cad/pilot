@@ -121,6 +121,7 @@ fn extractor(wire: &Value) -> Value {
     args["body"] = context["default_body"].clone();
     if text.contains("last feature")
         || text.contains("boss")
+        || text.contains("pegs")
         || text.contains("hole")
         || text.contains("rib")
     {
@@ -245,6 +246,15 @@ fn public_existing_forms_primitives_and_features() {
         ("mirror this body across YZ keeping the original", "box"),
         ("shell this box with 1 mm walls", "box"),
         ("make 6 of this boss in a row 12 mm apart", "boss"),
+        ("Add a grid of pegs to the plate", "boss"),
+        (
+            "Please add a grid of pegs to this existing plate, thanks",
+            "boss",
+        ),
+        (
+            "Could you add a grid of round pegs to this plate please?",
+            "boss",
+        ),
         (
             "repeat the hole 6 times in a row 12 mm apart along X",
             "hole",

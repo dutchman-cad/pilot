@@ -618,7 +618,7 @@ fn public_binary_compound_plates() {
             let timeline=state["timeline"].as_array().unwrap();
             assert_eq!(timeline.iter().filter(|f|f["type"]=="HoleFeature").count(),holes,"{state}");
             assert_eq!(timeline.iter().filter(|f|f["type"]==kind).count(),1,"{state}");
-            let (min,max)=match plane {"XZ"=>([-40.0,-4.0,-40.0],[40.0,4.0,40.0]),"YZ"=>([-4.0,-40.0,-40.0],[4.0,40.0,40.0]),_=>([-40.0,-40.0,-4.0],[40.0,40.0,4.0])};
+            let (min,max)=match plane {"XZ"=>([-40.0,0.0,-40.0],[40.0,8.0,40.0]),"YZ"=>([0.0,-40.0,-40.0],[8.0,40.0,40.0]),_=>([-40.0,-40.0,0.0],[40.0,40.0,8.0])};
             for axis in 0..3 {
                 assert!((state["bodies"][0]["bbox"]["min"][axis].as_f64().unwrap()-min[axis]).abs()<0.001,"{state}");
                 assert!((state["bodies"][0]["bbox"]["max"][axis].as_f64().unwrap()-max[axis]).abs()<0.001,"{state}");
@@ -803,6 +803,49 @@ fn public_binary_typed_profile_shortcuts() {
     }
 }
 #[test]
+fn public_binary_centred_plate_sits_on_sketch_plane() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    for features in [
+        json!({}),
+        json!({"bore_diameter":4}),
+        json!({"row_count":3,"row_pitch":10,"hole_diameter":4}),
+        json!({"grid_columns":3,"grid_rows":2,"grid_pitch_x":10,"grid_pitch_y":10,"grid_hole_diameter":4}),
+        json!({"bolt_hole_count":4,"bolt_circle_diameter":20,"bolt_hole_diameter":4}),
+        json!({"diameter":40,"bolt_hole_count":4,"bolt_circle_diameter":20,"bolt_hole_diameter":4}),
+    ] {
+        let mut args = json!({"length":40,"width":40,"thickness":5,"centred":true});
+        args.as_object_mut()
+            .unwrap()
+            .extend(features.as_object().unwrap().clone());
+        if args.get("diameter").is_some() {
+            let obj = args.as_object_mut().unwrap();
+            obj.remove("length");
+            obj.remove("width");
+        }
+        let p = lib
+            .build(
+                &json!({"recipe":"plate","args":args}),
+                &json!({"messages":[]}),
+                &cat,
+            )
+            .unwrap();
+        let mut s = Session::new(&path);
+        s.run(&p);
+        check_shortcut_body(
+            &mut s,
+            p.expected.as_ref().unwrap().created_volume_mm3.unwrap(),
+            [-20., -20., 0.],
+            [20., 20., 5.],
+            false,
+        );
+    }
+}
+
+#[test]
 fn public_binary_typed_plate_shortcut() {
     let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
         return;
@@ -817,8 +860,8 @@ fn public_binary_typed_plate_shortcut() {
         80.0 * 80.0 * 8.0
             - std::f64::consts::PI * 49.0 * 8.0
             - (4.0 - std::f64::consts::PI) * 25.0 * 8.0,
-        [-40.0, -40.0, -4.0],
-        [40.0, 40.0, 4.0],
+        [-40.0, -40.0, 0.0],
+        [40.0, 40.0, 8.0],
         false,
     );
 }
@@ -1857,8 +1900,8 @@ fn public_binary_plate_base_and_pattern_forms() {
         (
             json!({"diameter":70,"thickness":5,"centred":true,"boss_diameter":5,"boss_height":8,"bolt_hole_count":8,"bolt_circle_diameter":50}),
             20498.448327338087,
-            [-35., -35., -2.5],
-            [35., 35., 10.5],
+            [-35., -35., 0.],
+            [35., 35., 13.],
         ),
         (
             json!({"length":90,"width":90,"thickness":6,"boss_diameter":10,"boss_height":6,"boss_offset_x":-30,"boss_offset_y":-30}),
@@ -1923,9 +1966,9 @@ fn public_binary_plate_boss_planes_and_existing_body_isolation() {
     let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
     let cat = Catalog::bundled().unwrap();
     for (plane, min, max) in [
-        ("XY", [-15., -10., -1.5], [15., 10., 6.5]),
-        ("XZ", [-15., -1.5, -10.], [15., 6.5, 10.]),
-        ("YZ", [-1.5, -15., -10.], [6.5, 15., 10.]),
+        ("XY", [-15., -10., 0.], [15., 10., 8.]),
+        ("XZ", [-15., 0., -10.], [15., 8., 10.]),
+        ("YZ", [0., -15., -10.], [8., 15., 10.]),
     ] {
         let p = lib.build(&json!({"recipe":"plate","args":{"length":30,"width":20,"thickness":3,"centred":true,"plane":plane,"boss_diameter":4,"boss_height":5,"row_count":2,"row_pitch":10}}), &json!({"messages":[]}), &cat).unwrap();
         let mut s = Session::new(&path);

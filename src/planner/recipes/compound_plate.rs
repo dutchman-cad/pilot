@@ -555,7 +555,6 @@ impl Plate {
             };
             // Every cap rim is sharp. Only the four outside corners are sharp
             // along the extrusion; cylinder seams are smooth and must be omitted.
-            let h = h + if self.centred { t / 2.0 } else { 0.0 };
             let cap = h.abs() < 1e-6 || (h - t).abs() < 1e-6;
             let corner = ((u - x).abs() < 1e-6 || (u - x - w).abs() < 1e-6)
                 && ((v - y).abs() < 1e-6 || (v - y - d).abs() < 1e-6);
@@ -696,11 +695,6 @@ impl Plate {
         Ok(())
     }
     fn point(&self, u: f64, v: f64, h: f64) -> [f64; 3] {
-        let h = h - if self.centred {
-            self.size[2] / 2.0
-        } else {
-            0.0
-        };
         match self.plane.as_str() {
             "XZ" => [u, h, -v],
             "YZ" => [h, u, v],

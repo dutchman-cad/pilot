@@ -1275,12 +1275,7 @@ impl Proxy {
         } else {
             json!({"band":"low"})
         };
-        let edit_intent = matches!(
-            band["recipes"][0]["id"].as_str(),
-            Some("plate" | "enclosure")
-        )
-        .then(|| crate::recipe_library::existing_edit(last_user(&original)))
-        .flatten();
+        let edit_intent = crate::recipe_library::creation_form_edit(&band, last_user(&original));
         if edit_intent.is_some() && !planner::recipe_targets(&original).is_empty() {
             band = self
                 .recipes

@@ -557,14 +557,8 @@ impl Library {
     /// Refine an existing-part edit after public inspection, leaving ranking calibration intact.
     pub fn form_band_in_design(&self, request: &str, bodies: &[String]) -> Result<Value, String> {
         let mut band = self.form_band(request)?;
-        if !bodies.is_empty()
-            && band["band"] != "low"
-            && matches!(
-                band["recipes"][0]["id"].as_str(),
-                Some("plate" | "enclosure")
-            )
-        {
-            if let Some(id) = existing_edit(request) {
+        if !bodies.is_empty() && band["band"] != "low" {
+            if let Some(id) = creation_form_edit(&band, request) {
                 let recipe = self
                     .recipes
                     .iter()
@@ -631,6 +625,14 @@ impl Library {
             "route"
         });
         Ok(found)
+    }
+}
+/// Only creation forms may be replaced after inspection; patterns and joints retain
+/// their complete candidate list, score and band.
+pub fn creation_form_edit(band: &Value, request: &str) -> Option<&'static str> {
+    match band["recipes"][0]["id"].as_str() {
+        Some("plate" | "enclosure" | "box" | "cross_drilled_box") => existing_edit(request),
+        _ => None,
     }
 }
 /// An edit verb plus an existing-target cue warrants inspecting the design.
@@ -818,6 +820,24 @@ impl Ranker for Bm25 {
             && query
                 .split(|c: char| !c.is_alphabetic())
                 .any(|w| w.eq_ignore_ascii_case("fillet") || w.eq_ignore_ascii_case("chamfer"));
+        // "Add a grid to the plate" targets a definite existing base, even when
+        // polite wording precedes the verb. "Add a plate with a grid" creates one.
+        let lower = query.to_ascii_lowercase();
+        let phrasing: Vec<_> = lower
+            .split(|c: char| !c.is_ascii_alphabetic())
+            .filter(|w| !w.is_empty())
+            .collect();
+        let add_to_existing = has("add")
+            && phrasing.windows(3).any(|w| {
+                matches!(w[0], "to" | "on")
+                    && w[1] == "the"
+                    && matches!(w[2], "plate" | "base" | "panel" | "pegboard")
+            })
+            && !phrasing.windows(3).any(|w| {
+                w[0] == "add"
+                    && w[1] == "a"
+                    && matches!(w[2], "plate" | "base" | "panel" | "pegboard")
+            });
         // New base dimensions plus features belong to the compound plate form.
         // Pronouns and copy/repeat verbs keep edits on existing-part forms.
         let existing = [
@@ -829,7 +849,15 @@ impl Ranker for Bm25 {
             || words
                 .first()
                 .is_some_and(|w| matches!(w.as_str(), "pattern" | "array"))
-            || edge_edit;
+            || edge_edit
+            || add_to_existing;
+        // An explicit grid added to an existing base needs a pattern form even
+        // before its counts are supplied. Do not offer a new base's dimensions.
+        let existing_grid = existing
+            && has("add")
+            && has("grid")
+            && !has("chamfer")
+            && !(has("fillet") && (has("corner") || has("edge")));
         let plate_creation = !existing
             && ["plate", "base", "panel", "pegboard"]
                 .iter()
@@ -846,7 +874,9 @@ impl Ranker for Bm25 {
                 && !["pattern", "array", "repeat", "copy", "copie", "instance"]
                     .iter()
                     .any(|w| has(w)));
-        let pattern = if creation && planner::pattern_intent(query) != Some("honeycomb_pattern") {
+        let pattern = if existing_grid {
+            Some("grid_pattern")
+        } else if creation && planner::pattern_intent(query) != Some("honeycomb_pattern") {
             None
         } else {
             planner::pattern_intent(query)
@@ -880,7 +910,7 @@ impl Ranker for Bm25 {
                 if recipes[i].id == "joint" {
                     return (i, if general_joint { 100.0 } else { 0.0 });
                 }
-                if edge_edit && recipes[i].id == "plate" {
+                if (edge_edit || existing_grid) && recipes[i].id == "plate" {
                     return (i, 0.0);
                 }
                 // "Align the lid with the box" moves existing parts; it never creates one.
