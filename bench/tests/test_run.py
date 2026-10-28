@@ -36,7 +36,7 @@ class RunnerTests(unittest.TestCase):
             {'id':'one','type':'function','function':{'name':'execute','arguments':'{"command":"solid.box","params":{"length":20}}'}}]}),
             answer({'role':'assistant','content':'Done'})]
         messages = []
-        with patch('run.urllib.request.urlopen', side_effect=responses):
+        with patch('run.open_model', side_effect=responses):
             reply, _ = run.converse(cad, messages, 'Make a box', 'model', 'http://example.invalid/v1')
         self.assertEqual(reply, 'Done')
         self.assertEqual(len(cad.calls), 1)
@@ -45,7 +45,7 @@ class RunnerTests(unittest.TestCase):
 
     def test_prose_json_never_executes(self):
         cad = FakeCAD()
-        with patch('run.urllib.request.urlopen', return_value=answer({'role':'assistant','content':'{"tool":"execute","args":{}}'})):
+        with patch('run.open_model', return_value=answer({'role':'assistant','content':'{"tool":"execute","args":{}}'})):
             run.converse(cad, [], 'Make a box', 'model', 'http://example.invalid/v1')
         self.assertEqual(cad.calls, [])
 

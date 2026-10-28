@@ -20,14 +20,20 @@ def report(paths):
                     raise ValueError('unsupported result format')
                 if row['mode'] != 'model':
                     continue
-                key = (row['set'], row['model'])
+                via = row.get('reached_via') or 'api-openai'
+                identity = row.get('agent_version', '') if via.startswith('agent-') else row['model']
+                key = (via, row['set'], identity or '')
                 trial = (row['task'], row['rep'], row['through_pilot'])
                 if trial in groups[key]:
                     raise ValueError('duplicate task/repetition/mode; supply each run once')
                 groups[key][trial] = row
-    print('| Set | Model | Direct | Pilot | Paired Δ | Errors (direct/Pilot) |')
-    print('| --- | --- | --- | --- | --- | --- |')
-    for (name, model), trials in sorted(groups.items()):
+    previous = None
+    for (via, name, model), trials in sorted(groups.items()):
+        if via != previous:
+            print(f'\nReached via: {via}' + (' (agent prompt; separate from API scores)' if via.startswith('agent-') else ''))
+            print('| Set | Model / agent version | Direct | Pilot | Paired Δ | Errors (direct/Pilot) |')
+            print('| --- | --- | --- | --- | --- | --- |')
+            previous = via
         modes = [{(t, r): row for (t, r, p), row in trials.items() if p == flag} for flag in (False, True)]
         def score(rows):
             return f"{sum(bool(r['pass']) and not r.get('error') for r in rows.values())}/{len(rows)}" if rows else '—'
@@ -35,7 +41,7 @@ def report(paths):
         delta = sum(bool(modes[1][k]['pass']) - bool(modes[0][k]['pass']) for k in common)
         change = f'{delta:+d}/{len(common)} pairs' if common else '—'
         errors = '/'.join(str(sum(bool(r.get('error')) for r in rows.values())) for rows in modes)
-        print(f"| {name} | {model.replace('|', '/')} | {score(modes[0])} | {score(modes[1])} | {change} | {errors} |")
+        print(f"| {name} | {model.replace('|', '/').replace(chr(10), ' ')} | {score(modes[0])} | {score(modes[1])} | {change} | {errors} |")
 
 
 def main():

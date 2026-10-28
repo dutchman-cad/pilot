@@ -17,6 +17,7 @@ import urllib.parse
 import urllib.request
 
 import check
+import agents
 
 HERE = Path(__file__).resolve().parent
 MAX_BYTES = 16 * 1024 * 1024
@@ -106,8 +107,9 @@ def verify_start(binary, prefix, state):
 
 class MCP:
     """One CLI process and one isolated design per task; bounded stdio JSON RPC."""
-    def __init__(self, binary, start=None):
+    def __init__(self, binary, start=None, pilot=None):
         self.binary = binary
+        self.pilot = pilot
         self.start = start
         self.process = None
         self.messages = queue.Queue(maxsize=256)
@@ -115,11 +117,13 @@ class MCP:
         self.deadline = time.monotonic() + TIMEOUT
 
     def __enter__(self):
-        command = [self.binary, 'mcp']
+        command = ([self.pilot, 'mcp', '--solidcraft-cli', self.binary, '--']
+                   if self.pilot else [self.binary, 'mcp'])
         if self.start is not None:
             command.extend(['--in', str(self.start)])
         self.process = subprocess.Popen(command, stdin=subprocess.PIPE,
-                                        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+                                        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                                        start_new_session=os.name == 'posix')
         threading.Thread(target=self._read, daemon=True).start()
         try:
             self.info = self.rpc('initialize', {'protocolVersion': '2024-11-05',
@@ -200,12 +204,7 @@ class MCP:
 
     def __exit__(self, *args):
         if self.process is not None:
-            self.process.terminate()
-            try:
-                self.process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                self.process.kill()
-                self.process.wait(timeout=5)
+            agents.kill_tree(self.process)
             self.process.stdin.close()
             self.process.stdout.close()
 
@@ -247,6 +246,8 @@ def replay(app, commands):
 
 
 def endpoint_url(url):
+    if redact(url) != url:
+        raise ValueError('endpoint must not contain an API key')
     parsed = urllib.parse.urlsplit(url)
     if parsed.scheme not in ('http', 'https') or not parsed.netloc or parsed.username or parsed.password or parsed.query or parsed.fragment:
         raise ValueError("endpoint must be an HTTP(S) URL without credentials, query or fragment")
@@ -265,13 +266,13 @@ def endpoint(args, out):
     with socket.socket() as sock:
         sock.bind(('127.0.0.1', 0))
         port = sock.getsockname()[1]
-    with (out / 'pilot.log').open('wb') as log:
+    with open(os.devnull, 'wb') as log:
         child = subprocess.Popen([args.through_pilot, 'model', '--listen', f'127.0.0.1:{port}',
                                   '--upstream', upstream, '--no-direct-recipes'], stdout=log, stderr=log)
         try:
             for _ in range(100):
                 if child.poll() is not None:
-                    raise RuntimeError("Pilot exited during startup; see pilot.log")
+                    raise RuntimeError("Pilot exited during startup")
                 try:
                     with socket.create_connection(('127.0.0.1', port), timeout=0.2):
                         break
@@ -289,7 +290,71 @@ def endpoint(args, out):
                 child.wait(timeout=5)
 
 
-def converse(app, messages, prompt, model, url):
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def open_model(request, timeout):
+    return urllib.request.build_opener(NoRedirect).open(request, timeout=timeout)
+
+
+def redact(value):
+    """Scrub environment credentials even if a provider or agent echoes them."""
+    if isinstance(value, str):
+        for name in ('BENCH_API_KEY', 'ANTHROPIC_API_KEY'):
+            key = os.environ.get(name)
+            if key:
+                value = value.replace(key, '[REDACTED]')
+        return value
+    if isinstance(value, list):
+        return [redact(v) for v in value]
+    if isinstance(value, dict):
+        return {redact(k): redact(v) for k, v in value.items()}
+    return value
+
+
+def anthropic_payload(model, messages, tools):
+    history = []
+    system = []
+    for message in messages:
+        role = message['role']
+        if role == 'system':
+            system.append(message.get('content') or '')
+            continue
+        blocks = []
+        if role == 'tool':
+            role = 'user'
+            blocks.append({'type': 'tool_result', 'tool_use_id': message['tool_call_id'],
+                           'content': message['content'],
+                           'is_error': bool(json.loads(message['content']).get('isError'))})
+        else:
+            if message.get('content'):
+                blocks.append({'type': 'text', 'text': message['content']})
+            for call in message.get('tool_calls', []):
+                blocks.append({'type': 'tool_use', 'id': call['id'],
+                               'name': call['function']['name'],
+                               'input': json.loads(call['function']['arguments'])})
+        if history and history[-1]['role'] == role:
+            history[-1]['content'].extend(blocks)
+        else:
+            history.append({'role': role, 'content': blocks})
+    return {'model': model, 'system': '\n'.join(system), 'messages': history,
+            'tools': [{'name': t['function']['name'], 'description': t['function']['description'],
+                       'input_schema': t['function']['parameters']} for t in tools],
+            'max_tokens': 4096, 'temperature': 0}
+
+
+def anthropic_message(result):
+    blocks = result['content']
+    return {'role': 'assistant',
+            'content': '\n'.join(b['text'] for b in blocks if b['type'] == 'text'),
+            'tool_calls': [{'id': b['id'], 'type': 'function', 'function': {
+                'name': b['name'], 'arguments': json.dumps(b['input'])}}
+                for b in blocks if b['type'] == 'tool_use']}
+
+
+def converse(app, messages, prompt, model, url, kind="openai"):
     messages.append({'role': 'user', 'content': prompt})
     tools = [{'type': 'function', 'function': {'name': t['name'],
         'description': t.get('description', ''), 'parameters': t['inputSchema']}} for t in app.tools]
@@ -301,19 +366,38 @@ def converse(app, messages, prompt, model, url):
             raise TimeoutError("turn exceeded 600 seconds")
         payload = {'model': model, 'messages': messages, 'tools': tools, 'stream': False,
                    'temperature': 0, 'seed': 1, 'max_tokens': 4096}
-        request = urllib.request.Request(url + '/chat/completions', data=encode(payload),
-                                         headers={'Content-Type': 'application/json'})
+        headers = {'Content-Type': 'application/json'}
+        route = '/chat/completions'
         key = os.environ.get('BENCH_API_KEY')
-        if key:
-            request.add_header('Authorization', 'Bearer ' + key)
-        with urllib.request.urlopen(request, timeout=remaining) as response:
-            raw = response.read(MAX_BYTES + 1)
+        if kind == 'anthropic':
+            payload = anthropic_payload(model, messages, tools)
+            route = '/messages'
+            headers['anthropic-version'] = '2023-06-01'
+            if key is None:
+                key = os.environ.get('ANTHROPIC_API_KEY')
+            if key:
+                headers['x-api-key'] = key
+        elif key:
+            headers['Authorization'] = 'Bearer ' + key
+        request = urllib.request.Request(url + route, data=encode(payload), headers=headers)
+        # Do not follow redirects carrying authentication to another host.
+        try:
+            with open_model(request, timeout=remaining) as response:
+                raw = response.read(MAX_BYTES + 1)
+        except urllib.error.HTTPError as error:
+            status = error.code
+            error.close()
+            raise RuntimeError(f'model HTTP request failed (status {status})') from None
+        except (OSError, ValueError):
+            raise RuntimeError('model HTTP request failed') from None
         if len(raw) > MAX_BYTES:
             raise ValueError("model response exceeds 16 MiB")
         result = json.loads(raw)
-        message = result['choices'][0]['message']
-        # Keep only standard chat-completions fields in the next request.
-        message = {k: v for k, v in message.items() if k in ('role', 'content', 'tool_calls')}
+        if kind == 'anthropic':
+            message = anthropic_message(result)
+        else:
+            message = result['choices'][0]['message']
+            message = {k: v for k, v in message.items() if k in ('role', 'content', 'tool_calls')}
         messages.append(message)
         transcript.append({'response': result})
         tool_calls = message.get('tool_calls') or []
@@ -354,7 +438,8 @@ def run_one(args, root, task, mode, url):
     commands = reference(root, task)
     prefix = setup(root, task, commands)
     start = None if getattr(args, 'replay_setup', False) else start_path(root, task)
-    with MCP(args.solidcraft, start) as app:
+    with MCP(args.solidcraft, start, getattr(args, 'through_pilot', None)
+             if getattr(args, 'agent', None) else None) as app:
         if start is None:
             replay(app, prefix)
         elif mode != 'model':
@@ -381,7 +466,11 @@ def run_one(args, root, task, mode, url):
                 reply = item.get('reference_reply', task.get('reference_reply', ''))
             elif mode == 'model':
                 try:
-                    reply, transcript = converse(app, messages, item['prompt'], args.model, url)
+                    if getattr(args, 'agent', None):
+                        reply, transcript = agents.converse(app, messages, item['prompt'], args)
+                    else:
+                        reply, transcript = converse(app, messages, item['prompt'], args.model, url,
+                                                     getattr(args, 'endpoint_kind', 'openai'))
                 except RequestLimit as limit:
                     reply, transcript = '', limit.transcript
                     stopped = 'request limit'
@@ -406,10 +495,18 @@ def run_one(args, root, task, mode, url):
                 'wall_s': round(time.monotonic() - started, 3)}
 
 
+class ArgumentParser(argparse.ArgumentParser):
+    def error(self, message):
+        super().error(redact(message))
+
+
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--set', default='v1', choices=sorted(p.name for p in (HERE/'sets').iterdir() if p.is_dir() and p.name != 'sc98'))
+    parser = ArgumentParser(description=__doc__)
+    parser.add_argument('--set', default='v1', choices=('v1', 'v2', 'v3', 'field', 'constraints', 'joints', 'multiturn', 'recovery', 'units'))
     parser.add_argument('--model')
+    parser.add_argument('--endpoint-kind', choices=('openai', 'anthropic'), default='openai')
+    parser.add_argument('--agent', choices=('claude-code', 'codex'))
+    parser.add_argument('--agent-bin', metavar='PATH')
     parser.add_argument('--endpoint', default='http://127.0.0.1:11434')
     parser.add_argument('--through-pilot', metavar='PATH')
     parser.add_argument('--solidcraft', required=True, metavar='PATH')
@@ -424,8 +521,15 @@ def main():
     mode = 'reference' if args.verify_reference else 'nothing' if args.do_nothing else 'negative' if args.negatives else 'model'
     if not 1 <= args.reps <= 20:
         parser.error('--reps must be between 1 and 20')
-    if mode == 'model' and not args.model:
+    if args.agent and (mode != 'model' or args.model):
+        parser.error('--agent requires a model run without --model')
+    if args.agent_bin and not args.agent:
+        parser.error('--agent-bin requires --agent')
+    if args.endpoint_kind == 'anthropic' and args.through_pilot and not args.agent:
+        parser.error('Anthropic API runs cannot use the OpenAI-only Pilot model proxy')
+    if mode == 'model' and not args.model and not args.agent:
         parser.error('--model is required for model runs')
+    args.agent_version = agents.version(args) if args.agent else None
     root = HERE/'sets'/args.set
     tasks = task_file(root / ('negatives/tasks.json' if args.negatives else 'tasks.json'))
     if args.negatives:
@@ -445,7 +549,7 @@ def main():
         parser.error('--out already contains results.jsonl; use a new directory')
     failures = 0
     with results.open('w', encoding='utf-8') as output:
-        manager = endpoint(args, args.out) if mode == 'model' else contextlib.nullcontext(None)
+        manager = endpoint(args, args.out) if mode == 'model' and not args.agent else contextlib.nullcontext(None)
         with manager as url:
             for rep in range(1, args.reps + 1):
                 for task in tasks:
@@ -456,6 +560,11 @@ def main():
                                   'error': str(error), 'reason': 'execution error'}
                     record.update({'format': 1, 'set': args.set, 'mode': mode, 'rep': rep,
                                    'model': args.model, 'through_pilot': bool(args.through_pilot)})
+                    record['reached_via'] = ('agent-' + args.agent if args.agent else
+                                             'api-' + args.endpoint_kind) if mode == 'model' else None
+                    if args.agent:
+                        record.update(agent=args.agent, agent_version=args.agent_version)
+                    record = redact(record)
                     artifact = f"{rep:02d}-{task['id']}.json"
                     save(args.out/artifact, record)
                     summary = {k: v for k, v in record.items() if k not in ('turns', 'final')}
@@ -471,5 +580,5 @@ if __name__ == '__main__':
     try:
         sys.exit(main())
     except (OSError, ValueError, RuntimeError, TimeoutError) as error:
-        print(f"benchmark: {error}", file=sys.stderr)
+        print(f"benchmark: {redact(str(error))}", file=sys.stderr)
         sys.exit(2)

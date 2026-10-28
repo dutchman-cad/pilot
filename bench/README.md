@@ -233,3 +233,58 @@ It uses the Rust `bench_sc98` example and Pilot's SolidCraft 98 driver, with a
 headless FreeBASIC executable. Run its reference, do-nothing, and negative modes
 as documented in the set page. These tasks use screen commands and parameter
 dialog probes; the SolidCraft catalogue runner above does not execute this set.
+
+## Anthropic endpoints and installed agents
+
+Select `--endpoint-kind anthropic` for the Anthropic Messages API. The default
+remains `openai`. Both accept an endpoint root or `/v1` base URL. Anthropic uses
+`POST /v1/messages`, native tool-use/result blocks, `anthropic-version: 2023-06-01`
+and an `x-api-key` header. Set `BENCH_API_KEY` in the environment; only when it is
+unset does Anthropic use `ANTHROPIC_API_KEY`. There is no command-line key option.
+Credentials are scrubbed from recordings and diagnostic text, including echoed
+provider responses. HTTP redirects are rejected to protect authentication headers.
+Anthropic API runs cannot use Pilot's OpenAI-only model proxy.
+
+```sh
+python3 bench/run.py --set v1 --endpoint-kind anthropic --model MODEL \
+  --endpoint https://api.anthropic.com --solidcraft /path/to/solidcraft-cli \
+  --out results/v1-anthropic
+python3 bench/run.py --set v1 --agent claude-code \
+  --solidcraft /path/to/solidcraft-cli --out results/v1-claude
+python3 bench/run.py --set v1 --agent codex --agent-bin /path/to/codex \
+  --through-pilot /path/to/dutchman-pilot \
+  --solidcraft /path/to/solidcraft-cli --out results/v1-codex-pilot
+```
+
+Agent runs use the installed agent's existing sign-in and configured model;
+`--model` is not accepted. Defaults are `claude` or `codex` from PATH; override
+with `--agent-bin PATH`. The harness records the agent name and `--version`
+output. Benchmark API keys are removed from the agent environment. Install and
+sign in to the agent separately before running. Agent permissions and subscription
+limits still apply; a nonzero exit is an execution error.
+
+Claude Code runs with `-p`, a temporary `--mcp-config`, `--strict-mcp-config`,
+and permission for `mcp__solidcraft__*`. Codex runs with `exec`, a temporary TOML
+MCP configuration passed through its `-c` override, no interactive approvals, and
+`--output-last-message` for the checked reply. Its existing `CODEX_HOME` is
+preserved for sign-in and model settings. Agent output is capped at 16 MiB and
+version detection at ten seconds. Each turn has the existing 600-second deadline;
+the whole agent process tree is killed at timeout and on exit. On Windows this
+uses the system `taskkill /T /F` command.
+
+The temporary configuration launches a stdio MCP bridge to the task's live
+`solidcraft-cli mcp` process. With `--through-pilot`, that process instead runs
+through `dutchman-pilot mcp --solidcraft-cli PATH --`. Setup, design inspection,
+query measurements and all pass checks use the same design as the agent. Each
+turn retains the conversation text and design; a fresh noninteractive agent
+invocation receives the conversation. The bridge allows at most 128 tool calls
+per turn, 1024 commands per batch and 16 MiB per message. Temporary MCP configs
+and final-reply files are deleted on exit, including failure and timeout.
+
+Format 1 result rows add `reached_via`: `api-openai`, `api-anthropic`,
+`agent-claude-code`, or `agent-codex`. Agent rows also have `agent` and
+`agent_version`, with `model: null` because the harness does not select a model.
+The report groups each route separately, and separates agent versions. Agent
+runs bring their own agent prompt and context; their results are labelled
+separately and never ranked or paired against API runs. Older format 1 rows
+without `reached_via` are treated as OpenAI API runs.
