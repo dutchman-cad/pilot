@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Plate forms accept selected upright corners, common corner wordings and boolean
+  corner-edge fills. Centred plates now centre the full solid, including thickness.
+- Forms accept centered/centred/center/centre and open:true means open top.
+  Enclosures support clear inside dimensions and fractional inch/centimetre fields;
+  requested lips default to wall-height and half-wall-width with an explicit audit.
+  Thicker floors overlap the shell when joined, avoiding internal seams from inch
+  conversion at touching cavity faces.
+- Existing-part bevel, round and shell requests inspect and route to edit forms.
+  Corner edits preserve the selected side through topology continuation; shells can
+  open from below. Existing recipe rankings and calibration bands are preserved.
+- Revolute forms explicitly drive their requested angle through the public joint
+  command, with CLI reference replays covering 30, 60 and 90 degree pivots.
+
 ## 0.1.0-beta.7 (2026-10-28)
 
 - Joints: one form now covers every SolidCraft joint type (rigid, revolute, slider,

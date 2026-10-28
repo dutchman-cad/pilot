@@ -1,7 +1,9 @@
 ---
 {
   "id": "enclosure",
-  "synonyms": ["housing case tray box lid lip floor wall open"],
+  "synonyms": [
+    "housing case tray box lid lip floor wall open"
+  ],
   "description": "Open enclosure with floor, walls and optional inner or outer lip.",
   "examples": [
     "Make an enclosure with an inner lip",
@@ -110,6 +112,9 @@
       },
       "width": {
         "$ref": "#/$defs/Length"
+      },
+      "inside": {
+        "type": "boolean"
       }
     },
     "required": [
@@ -205,6 +210,16 @@
           "type": "number",
           "x-slot": "/width",
           "x-unit": "mm"
+        },
+        "inside": {
+          "type": "boolean",
+          "description": "True: clear cavity size; outside adds two walls and one floor",
+          "x-slot": "/inside"
+        },
+        "lip": {
+          "type": "boolean",
+          "description": "Request a lip; omitted sizes default to height=wall, width=wall/2",
+          "x-slot": "/lip"
         }
       },
       "required": [
@@ -220,3 +235,5 @@
 ---
 
 Open enclosure with floor, walls and optional inner or outer lip. Built by the `enclosure` expander.
+
+Set inside:true when length, width and height describe the clear cavity. The outside adds two walls in X/Y and one floor in height. All lengths are millimetres after unit coercion. For lip:true or a partially sized lip, omitted height defaults to wall and omitted width to wall/2; each such choice is audited. open:true means top.

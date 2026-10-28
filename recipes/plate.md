@@ -131,6 +131,21 @@
           "size": {
             "$ref": "#/$defs/Length",
             "description": "Fillet radius/chamfer distance; hex span for honeycomb"
+          },
+          "sides": {
+            "type": "string",
+            "enum": [
+              "all",
+              "right",
+              "left",
+              "top",
+              "bottom",
+              "top_right",
+              "bottom_right",
+              "top_left",
+              "bottom_left"
+            ],
+            "description": "Upright corners; right=+X, top=+Y"
           }
         },
         "required": [
@@ -239,7 +254,8 @@
           "fields": [
             "corner_edges",
             "corner_kind",
-            "corner_size"
+            "corner_size",
+            "corner_sides"
           ],
           "required": [
             "corner_size"
@@ -494,6 +510,18 @@
           "type": "number",
           "x-slot": "/width",
           "x-unit": "mm"
+        },
+        "corner_sides": {
+          "type": "string",
+          "enum": [
+            "all",
+            "right",
+            "left",
+            "top",
+            "bottom"
+          ],
+          "description": "Upright corners in sketch coordinates; right is +X, top is +Y",
+          "x-slot": "/corners/sides"
         }
       },
       "required": [
@@ -514,3 +542,5 @@ Build the base and features together as one body. Supply length and width OR dia
 Layouts apply to boss_diameter with boss_height, or hole_diameter, never both. Without a layout a boss is at the plate centre unless boss_offset_x/y are supplied (signed offsets from centre, independent of base placement). A centre bore may accompany bosses. Layouts are centred on the plate regardless of centred base placement.
 Columns run along sketch X, rows along sketch Y. For an unstated A x B orientation, put A along the longer plate side (7 x 5 on 120 x 80 means 7 columns, 5 rows); explicit axis/row/column statements win. A single pitch is used for both grid pitches. Counts include every feature. No dimension is defaulted.
 A corner_size without corner_kind means fillet; without corner_edges it means vertical. Corners are supported on rectangular plates without bosses.
+
+corner_sides selects upright corners: right (+X), left, top (+Y), bottom or all. Named corners are also accepted by typed builds. centred (also centered, center or centre) centres the base in all three dimensions, including its thickness.

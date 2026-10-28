@@ -1,0 +1,1811 @@
+[
+  {
+    "SPDX-License-Identifier": "Apache-2.0",
+    "id": "df-02",
+    "prompt": "little mounting panel please: 9 x 6 x 0.4 cm, centre of the whole solid at 0,0,0. centred 3 by 2 hole grid (X by Y), pitch 2 cm X and 3 cm Y, holes 0.5 cm dia through. Clip the four vertical corners with 0.3 cm equal chamfers.",
+    "setup_steps": 0,
+    "check": {
+      "bodies": 1,
+      "volume": 21056.8393764795,
+      "tol": 0.001,
+      "bbox_size": [
+        90.0,
+        60.0,
+        4.0
+      ],
+      "round": [
+        {
+          "d": 5,
+          "count": 6
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 90,
+          "width": 60,
+          "height": 4,
+          "corner": [
+            -45.0,
+            -30.0,
+            -2.0
+          ],
+          "body_name": "Plate"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            -20.0,
+            -15.0,
+            2.0
+          ],
+          "diameter": 5,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            0.0,
+            -15.0,
+            2.0
+          ],
+          "diameter": 5,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20.0,
+            -15.0,
+            2.0
+          ],
+          "diameter": 5,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            -20.0,
+            15.0,
+            2.0
+          ],
+          "diameter": 5,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            0.0,
+            15.0,
+            2.0
+          ],
+          "diameter": 5,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20.0,
+            15.0,
+            2.0
+          ],
+          "diameter": 5,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.chamfer",
+        "params": {
+          "edges": [
+            [
+              -45.0,
+              -30.0,
+              0.0
+            ],
+            [
+              -45.0,
+              30.0,
+              0.0
+            ],
+            [
+              45.0,
+              -30.0,
+              0.0
+            ],
+            [
+              45.0,
+              30.0,
+              0.0
+            ]
+          ],
+          "body": "Plate",
+          "distance": 3
+        }
+      }
+    ]
+  },
+  {
+    "SPDX-License-Identifier": "Apache-2.0",
+    "id": "df-03",
+    "prompt": "4 in square plate, 1/4 in thick. Lower left bottom at origin. 8 holes, 1/4 in dia, equally around a centred 2 1/2 in PCD starting on +X. Only round the two upright corners on the right side (+X), radius 3/8 in. Other edges sharp.",
+    "setup_steps": 0,
+    "check": {
+      "bodies": 1,
+      "volume": 63692.36797667743,
+      "tol": 0.001,
+      "bbox_size": [
+        101.6,
+        101.6,
+        6.35
+      ],
+      "round": [
+        {
+          "d": 6.35,
+          "count": 8
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 101.6,
+          "width": 101.6,
+          "height": 6.35,
+          "corner": [
+            0,
+            0,
+            0
+          ],
+          "body_name": "Plate"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            82.55,
+            50.8,
+            6.35
+          ],
+          "diameter": 6.35,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            73.25064030267288,
+            73.25064030267288,
+            6.35
+          ],
+          "diameter": 6.35,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            50.8,
+            82.55,
+            6.35
+          ],
+          "diameter": 6.35,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            28.349359697327117,
+            73.25064030267288,
+            6.35
+          ],
+          "diameter": 6.35,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            19.049999999999997,
+            50.800000000000004,
+            6.35
+          ],
+          "diameter": 6.35,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            28.34935969732711,
+            28.349359697327117,
+            6.35
+          ],
+          "diameter": 6.35,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            50.79999999999999,
+            19.049999999999997,
+            6.35
+          ],
+          "diameter": 6.35,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            73.25064030267288,
+            28.34935969732711,
+            6.35
+          ],
+          "diameter": 6.35,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.fillet",
+        "params": {
+          "edges": [
+            [
+              101.6,
+              0,
+              3.175
+            ],
+            [
+              101.6,
+              101.6,
+              3.175
+            ]
+          ],
+          "body": "Plate",
+          "radius": 9.525
+        }
+      }
+    ]
+  },
+  {
+    "SPDX-License-Identifier": "Apache-2.0",
+    "id": "df-04",
+    "prompt": "On the Plate already here, add a centred 4 across X by 3 along Y grid of 4 mm through holes. Pitches 18 mm and 16 mm. Chamfer just the two vertical corners on the right (+X) side 4 mm equally, please.",
+    "setup_steps": 1,
+    "check": {
+      "bodies": 1,
+      "volume": 31806.143002367506,
+      "tol": 0.001,
+      "bbox_size": [
+        96.0,
+        68.0,
+        5.0
+      ],
+      "round": [
+        {
+          "d": 4,
+          "count": 12
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 96,
+          "width": 68,
+          "height": 5,
+          "corner": [
+            0,
+            0,
+            0
+          ],
+          "body_name": "Plate"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            21.0,
+            18.0,
+            5
+          ],
+          "diameter": 4,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            39.0,
+            18.0,
+            5
+          ],
+          "diameter": 4,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            57.0,
+            18.0,
+            5
+          ],
+          "diameter": 4,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            75.0,
+            18.0,
+            5
+          ],
+          "diameter": 4,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            21.0,
+            34.0,
+            5
+          ],
+          "diameter": 4,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            39.0,
+            34.0,
+            5
+          ],
+          "diameter": 4,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            57.0,
+            34.0,
+            5
+          ],
+          "diameter": 4,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            75.0,
+            34.0,
+            5
+          ],
+          "diameter": 4,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            21.0,
+            50.0,
+            5
+          ],
+          "diameter": 4,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            39.0,
+            50.0,
+            5
+          ],
+          "diameter": 4,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            57.0,
+            50.0,
+            5
+          ],
+          "diameter": 4,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            75.0,
+            50.0,
+            5
+          ],
+          "diameter": 4,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.chamfer",
+        "params": {
+          "edges": [
+            [
+              96,
+              0,
+              2.5
+            ],
+            [
+              96,
+              68,
+              2.5
+            ]
+          ],
+          "body": "Plate",
+          "distance": 4
+        }
+      }
+    ]
+  },
+  {
+    "SPDX-License-Identifier": "Apache-2.0",
+    "id": "df-05",
+    "prompt": "Can someone make a 3 x 2 x 1/8 inch plate with its 3D centre at the origin? Six 3/16 inch through holes in a centred 3x2 grid, 3/4 inch X pitch and 1 inch Y pitch. All four upright corners rounded 1/4 inch radius, no rim rounding.",
+    "setup_steps": 0,
+    "check": {
+      "bodies": 1,
+      "volume": 11841.061575151934,
+      "tol": 0.001,
+      "bbox_size": [
+        76.2,
+        50.8,
+        3.175
+      ],
+      "round": [
+        {
+          "d": 4.7625,
+          "count": 6
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 76.2,
+          "width": 50.8,
+          "height": 3.175,
+          "corner": [
+            -38.1,
+            -25.4,
+            -1.5875
+          ],
+          "body_name": "Plate"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            -19.05,
+            -12.7,
+            1.5875
+          ],
+          "diameter": 4.7625,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            0.0,
+            -12.7,
+            1.5875
+          ],
+          "diameter": 4.7625,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            19.05,
+            -12.7,
+            1.5875
+          ],
+          "diameter": 4.7625,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            -19.05,
+            12.7,
+            1.5875
+          ],
+          "diameter": 4.7625,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            0.0,
+            12.7,
+            1.5875
+          ],
+          "diameter": 4.7625,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            19.05,
+            12.7,
+            1.5875
+          ],
+          "diameter": 4.7625,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.fillet",
+        "params": {
+          "edges": [
+            [
+              -38.1,
+              -25.4,
+              0.0
+            ],
+            [
+              -38.1,
+              25.4,
+              0.0
+            ],
+            [
+              38.1,
+              -25.4,
+              0.0
+            ],
+            [
+              38.1,
+              25.4,
+              0.0
+            ]
+          ],
+          "body": "Plate",
+          "radius": 6.35
+        }
+      }
+    ]
+  },
+  {
+    "SPDX-License-Identifier": "Apache-2.0",
+    "id": "df-06",
+    "prompt": "10cm x 8cm plate, 0.6cm thick, bottom corner at (0,0,0). give it 4 holes dia 0.6cm on a 5cm PCD centred on the plate, first at +X. bevel the two upright corners on the right side by 0.5cm, equal legs.",
+    "setup_steps": 0,
+    "check": {
+      "bodies": 1,
+      "volume": 47171.52870213062,
+      "tol": 0.001,
+      "bbox_size": [
+        100.0,
+        80.0,
+        6.0
+      ],
+      "round": [
+        {
+          "d": 6,
+          "count": 4
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 100,
+          "width": 80,
+          "height": 6,
+          "corner": [
+            0,
+            0,
+            0
+          ],
+          "body_name": "Plate"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            75.0,
+            40.0,
+            6
+          ],
+          "diameter": 6,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            50.0,
+            65.0,
+            6
+          ],
+          "diameter": 6,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            25.0,
+            40.0,
+            6
+          ],
+          "diameter": 6,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            49.99999999999999,
+            15.0,
+            6
+          ],
+          "diameter": 6,
+          "targets": [
+            "Plate"
+          ]
+        }
+      },
+      {
+        "command": "solid.chamfer",
+        "params": {
+          "edges": [
+            [
+              100,
+              0,
+              3.0
+            ],
+            [
+              100,
+              80,
+              3.0
+            ]
+          ],
+          "body": "Plate",
+          "distance": 5
+        }
+      }
+    ]
+  },
+  {
+    "SPDX-License-Identifier": "Apache-2.0",
+    "id": "df-09",
+    "prompt": "make an open-top box 8 by 6 by 3 cm outside, main box centred in XYZ at origin. 0.3 cm walls and floor. Add a rectangular locating lip above the opening: 0.1 cm wide, 0.2 cm high, inner face flush with the inside wall faces. Join it to the box.",
+    "setup_steps": 0,
+    "check": {
+      "bodies": 1,
+      "volume": 36627.999999999956,
+      "tol": 0.001,
+      "bbox_size": [
+        80.0,
+        60.0,
+        32.0
+      ]
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 80,
+          "width": 60,
+          "height": 30,
+          "corner": [
+            -40.0,
+            -30.0,
+            -15.0
+          ],
+          "body_name": "Case"
+        }
+      },
+      {
+        "command": "solid.shell",
+        "params": {
+          "faces": [
+            [
+              0.0,
+              0.0,
+              15.0
+            ]
+          ],
+          "thickness": 3,
+          "direction": "inside",
+          "body": "Case"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY",
+          "offset": 15.0
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            -38.0,
+            -28.0
+          ],
+          "p1": [
+            38.0,
+            28.0
+          ]
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            -37.0,
+            -27.0
+          ],
+          "p1": [
+            37.0,
+            27.0
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 2,
+          "direction": "positive",
+          "profiles": [
+            {
+              "point": [
+                -37.5,
+                0.0
+              ]
+            }
+          ],
+          "operation": "join",
+          "targets": [
+            "Case"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "SPDX-License-Identifier": "Apache-2.0",
+    "id": "df-10",
+    "prompt": "I need the empty space to be 3 in X by 2 in Y by 1 in deep. Open top. Wall 1/8 in, floor 1/4 in. Outside bottom corner at the origin. Please size the outside to suit those inside dimensions.",
+    "setup_steps": 0,
+    "check": {
+      "bodies": 1,
+      "volume": 51465.62287499998,
+      "tol": 0.001,
+      "bbox_size": [
+        82.55,
+        57.15,
+        31.75
+      ]
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 82.55,
+          "width": 57.15,
+          "height": 31.75,
+          "corner": [
+            0,
+            0,
+            0
+          ],
+          "body_name": "Case"
+        }
+      },
+      {
+        "command": "solid.shell",
+        "params": {
+          "faces": [
+            [
+              41.275,
+              28.575,
+              31.75
+            ]
+          ],
+          "thickness": 3.175,
+          "direction": "inside",
+          "body": "Case"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 82.55,
+          "width": 57.15,
+          "height": 6.35,
+          "corner": [
+            0,
+            0,
+            0
+          ],
+          "body_name": "Floor",
+          "operation": "join",
+          "targets": [
+            "Case"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "SPDX-License-Identifier": "Apache-2.0",
+    "id": "df-11",
+    "prompt": "Cover, outside 70x46x24 mm, bottom outside corner at zero. Shell it open at the BOTTOM with 3mm walls and a 5mm closed top. Around that bottom opening put a joined lip extending down 2mm: ring width 1mm, outer faces flush with the outside walls.",
+    "setup_steps": 0,
+    "check": {
+      "bodies": 1,
+      "volume": 29096.0,
+      "tol": 0.001,
+      "bbox_size": [
+        70.0,
+        46.0,
+        26.0
+      ]
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 70,
+          "width": 46,
+          "height": 24,
+          "corner": [
+            0,
+            0,
+            0
+          ],
+          "body_name": "Case"
+        }
+      },
+      {
+        "command": "solid.shell",
+        "params": {
+          "faces": [
+            [
+              35.0,
+              23.0,
+              0
+            ]
+          ],
+          "thickness": 3,
+          "direction": "inside",
+          "body": "Case"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 70,
+          "width": 46,
+          "height": 5,
+          "corner": [
+            0,
+            0,
+            19
+          ],
+          "body_name": "Floor",
+          "operation": "join",
+          "targets": [
+            "Case"
+          ]
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY",
+          "offset": 0
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            0,
+            0
+          ],
+          "p1": [
+            70,
+            46
+          ]
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            1,
+            1
+          ],
+          "p1": [
+            69,
+            45
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 2,
+          "direction": "negative",
+          "profiles": [
+            {
+              "point": [
+                0.5,
+                23.0
+              ]
+            }
+          ],
+          "operation": "join",
+          "targets": [
+            "Case"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "SPDX-License-Identifier": "Apache-2.0",
+    "id": "df-12",
+    "prompt": "Hollow out Case from underneath, leave the bottom open. 2mm walls and 2mm closed top. Keep the outside dimensions and position as they are.",
+    "setup_steps": 1,
+    "check": {
+      "bodies": 1,
+      "volume": 16512.0,
+      "tol": 0.001,
+      "bbox_size": [
+        64.0,
+        48.0,
+        26.0
+      ]
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 64,
+          "width": 48,
+          "height": 26,
+          "corner": [
+            -32.0,
+            -24.0,
+            -13.0
+          ],
+          "body_name": "Case"
+        }
+      },
+      {
+        "command": "solid.shell",
+        "params": {
+          "faces": [
+            [
+              0.0,
+              0.0,
+              -13.0
+            ]
+          ],
+          "thickness": 2,
+          "direction": "inside",
+          "body": "Case"
+        }
+      }
+    ]
+  },
+  {
+    "SPDX-License-Identifier": "Apache-2.0",
+    "id": "df-13",
+    "prompt": "For my parts tray: inside clear size 6 x 4 cm, depth 2 cm up to the main rim. Walls 0.25 cm, floor 0.4 cm; bottom outer corner at origin. Open top, plus a joined locating ring 0.1 cm wide and 0.15 cm tall above the rim, flush with the OUTSIDE wall faces.",
+    "setup_steps": 0,
+    "check": {
+      "bodies": 1,
+      "volume": 22524.0,
+      "tol": 0.001,
+      "bbox_size": [
+        65.0,
+        45.0,
+        25.5
+      ]
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 65,
+          "width": 45,
+          "height": 24,
+          "corner": [
+            0,
+            0,
+            0
+          ],
+          "body_name": "Case"
+        }
+      },
+      {
+        "command": "solid.shell",
+        "params": {
+          "faces": [
+            [
+              32.5,
+              22.5,
+              24
+            ]
+          ],
+          "thickness": 2.5,
+          "direction": "inside",
+          "body": "Case"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 65,
+          "width": 45,
+          "height": 4,
+          "corner": [
+            0,
+            0,
+            0
+          ],
+          "body_name": "Floor",
+          "operation": "join",
+          "targets": [
+            "Case"
+          ]
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY",
+          "offset": 24
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            0,
+            0
+          ],
+          "p1": [
+            65,
+            45
+          ]
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            1,
+            1
+          ],
+          "p1": [
+            64,
+            44
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 1.5,
+          "direction": "positive",
+          "profiles": [
+            {
+              "point": [
+                0.5,
+                22.5
+              ]
+            }
+          ],
+          "operation": "join",
+          "targets": [
+            "Case"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "SPDX-License-Identifier": "Apache-2.0",
+    "id": "df-15",
+    "prompt": "These two parts are my hinge test. Ground Pedestal and put a revolute between its 10mm pin and the hole in Lever. Use the bottom of the hole at the pin root so it stays seated, then turn Lever +30 degrees around Z from here.",
+    "setup_steps": 8,
+    "check": {
+      "bodies": 2,
+      "volume": 31469.442424180816,
+      "tol": 0.001,
+      "bbox_size": [
+        54.0,
+        50.0,
+        21.0
+      ],
+      "components": {
+        "Pedestal": [
+          "Pedestal"
+        ],
+        "Lever": [
+          "Lever"
+        ]
+      },
+      "joints_count": 1,
+      "joints": [
+        {
+          "type": "revolute",
+          "occurrences": [
+            "Pedestal:1",
+            "Lever:1"
+          ],
+          "value_abs": 30
+        }
+      ],
+      "occurrences": {
+        "Pedestal:1": {
+          "identity": true
+        },
+        "Lever:1": {
+          "rot_z_abs": 30,
+          "upright": true,
+          "fixed_point": [
+            0,
+            0,
+            9
+          ]
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "component.create",
+        "params": {
+          "name": "Pedestal"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 54,
+          "width": 50,
+          "height": 9,
+          "corner": [
+            -27.0,
+            -25.0,
+            0
+          ],
+          "body_name": "Pedestal"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 10,
+          "height": 12,
+          "base": [
+            0,
+            0,
+            9
+          ],
+          "operation": "join",
+          "targets": [
+            "Pedestal"
+          ]
+        }
+      },
+      {
+        "command": "component.activate",
+        "params": {
+          "component": "root"
+        }
+      },
+      {
+        "command": "component.create",
+        "params": {
+          "name": "Lever"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 74,
+          "width": 18,
+          "height": 5,
+          "corner": [
+            -9.0,
+            -9.0,
+            9
+          ],
+          "body_name": "Lever"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            0,
+            0,
+            14
+          ],
+          "diameter": 10.5,
+          "targets": [
+            "Lever"
+          ]
+        }
+      },
+      {
+        "command": "component.activate",
+        "params": {
+          "component": "root"
+        }
+      },
+      {
+        "command": "occurrence.ground",
+        "params": {
+          "occurrence": "Pedestal:1",
+          "grounded": true
+        }
+      },
+      {
+        "command": "joint.create",
+        "params": {
+          "type": "revolute",
+          "a": {
+            "occurrence": "Pedestal:1",
+            "circle": [
+              5.0,
+              0,
+              9
+            ]
+          },
+          "b": {
+            "occurrence": "Lever:1",
+            "circle": [
+              5.25,
+              0,
+              9
+            ]
+          },
+          "flip": true,
+          "name": "Pivot"
+        }
+      },
+      {
+        "command": "joint.drive",
+        "params": {
+          "joint": "Pivot",
+          "value": 30
+        }
+      },
+      {
+        "command": "component.list",
+        "params": {
+          "compact": true
+        }
+      },
+      {
+        "command": "joint.list",
+        "params": {}
+      }
+    ]
+  },
+  {
+    "SPDX-License-Identifier": "Apache-2.0",
+    "id": "df-16",
+    "prompt": "hook Lever onto Pedestal with a revolute, please. The pin is 1/4 in dia, the hole 9/32 in. Keep Pedestal fixed and the bottom of Lever on its top, pivot at the pin root. Swing Lever +60 deg about Z.",
+    "setup_steps": 8,
+    "check": {
+      "bodies": 2,
+      "volume": 17483.198382348786,
+      "tol": 0.001,
+      "bbox_size": [
+        50.8,
+        45.72,
+        15.875
+      ],
+      "components": {
+        "Pedestal": [
+          "Pedestal"
+        ],
+        "Lever": [
+          "Lever"
+        ]
+      },
+      "joints_count": 1,
+      "joints": [
+        {
+          "type": "revolute",
+          "occurrences": [
+            "Pedestal:1",
+            "Lever:1"
+          ],
+          "value_abs": 60
+        }
+      ],
+      "occurrences": {
+        "Pedestal:1": {
+          "identity": true
+        },
+        "Lever:1": {
+          "rot_z_abs": 60,
+          "upright": true,
+          "fixed_point": [
+            0,
+            0,
+            6.35
+          ]
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "component.create",
+        "params": {
+          "name": "Pedestal"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 50.8,
+          "width": 45.72,
+          "height": 6.35,
+          "corner": [
+            -25.4,
+            -22.86,
+            0
+          ],
+          "body_name": "Pedestal"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 6.35,
+          "height": 9.525,
+          "base": [
+            0,
+            0,
+            6.35
+          ],
+          "operation": "join",
+          "targets": [
+            "Pedestal"
+          ]
+        }
+      },
+      {
+        "command": "component.activate",
+        "params": {
+          "component": "root"
+        }
+      },
+      {
+        "command": "component.create",
+        "params": {
+          "name": "Lever"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 63.5,
+          "width": 12.7,
+          "height": 3.175,
+          "corner": [
+            -6.35,
+            -6.35,
+            6.35
+          ],
+          "body_name": "Lever"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            0,
+            0,
+            9.524999999999999
+          ],
+          "diameter": 7.14375,
+          "targets": [
+            "Lever"
+          ]
+        }
+      },
+      {
+        "command": "component.activate",
+        "params": {
+          "component": "root"
+        }
+      },
+      {
+        "command": "occurrence.ground",
+        "params": {
+          "occurrence": "Pedestal:1",
+          "grounded": true
+        }
+      },
+      {
+        "command": "joint.create",
+        "params": {
+          "type": "revolute",
+          "a": {
+            "occurrence": "Pedestal:1",
+            "circle": [
+              3.175,
+              0,
+              6.35
+            ]
+          },
+          "b": {
+            "occurrence": "Lever:1",
+            "circle": [
+              3.571875,
+              0,
+              6.35
+            ]
+          },
+          "flip": true,
+          "name": "Pivot"
+        }
+      },
+      {
+        "command": "joint.drive",
+        "params": {
+          "joint": "Pivot",
+          "value": 60
+        }
+      },
+      {
+        "command": "component.list",
+        "params": {
+          "compact": true
+        }
+      },
+      {
+        "command": "joint.list",
+        "params": {}
+      }
+    ]
+  },
+  {
+    "SPDX-License-Identifier": "Apache-2.0",
+    "id": "df-18",
+    "prompt": "last thing on this assembly: make the 9mm pin on Pedestal and the 9.6mm bore in Lever a revolute pair. Ground Pedestal. Seat the hole bottom at the pin root, leave it flat, then rotate Lever +90 degrees about Z.",
+    "setup_steps": 8,
+    "check": {
+      "bodies": 2,
+      "volume": 18286.192438836344,
+      "tol": 0.001,
+      "bbox_size": [
+        46.0,
+        42.0,
+        18.0
+      ],
+      "components": {
+        "Pedestal": [
+          "Pedestal"
+        ],
+        "Lever": [
+          "Lever"
+        ]
+      },
+      "joints_count": 1,
+      "joints": [
+        {
+          "type": "revolute",
+          "occurrences": [
+            "Pedestal:1",
+            "Lever:1"
+          ],
+          "value_abs": 90
+        }
+      ],
+      "occurrences": {
+        "Pedestal:1": {
+          "identity": true
+        },
+        "Lever:1": {
+          "rot_z_abs": 90,
+          "upright": true,
+          "fixed_point": [
+            0,
+            0,
+            7
+          ]
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "component.create",
+        "params": {
+          "name": "Pedestal"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 46,
+          "width": 42,
+          "height": 7,
+          "corner": [
+            -23.0,
+            -21.0,
+            0
+          ],
+          "body_name": "Pedestal"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 9,
+          "height": 11,
+          "base": [
+            0,
+            0,
+            7
+          ],
+          "operation": "join",
+          "targets": [
+            "Pedestal"
+          ]
+        }
+      },
+      {
+        "command": "component.activate",
+        "params": {
+          "component": "root"
+        }
+      },
+      {
+        "command": "component.create",
+        "params": {
+          "name": "Lever"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 68,
+          "width": 16,
+          "height": 4,
+          "corner": [
+            -8.0,
+            -8.0,
+            7
+          ],
+          "body_name": "Lever"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            0,
+            0,
+            11
+          ],
+          "diameter": 9.6,
+          "targets": [
+            "Lever"
+          ]
+        }
+      },
+      {
+        "command": "component.activate",
+        "params": {
+          "component": "root"
+        }
+      },
+      {
+        "command": "occurrence.ground",
+        "params": {
+          "occurrence": "Pedestal:1",
+          "grounded": true
+        }
+      },
+      {
+        "command": "joint.create",
+        "params": {
+          "type": "revolute",
+          "a": {
+            "occurrence": "Pedestal:1",
+            "circle": [
+              4.5,
+              0,
+              7
+            ]
+          },
+          "b": {
+            "occurrence": "Lever:1",
+            "circle": [
+              4.8,
+              0,
+              7
+            ]
+          },
+          "flip": true,
+          "name": "Pivot"
+        }
+      },
+      {
+        "command": "joint.drive",
+        "params": {
+          "joint": "Pivot",
+          "value": 90
+        }
+      },
+      {
+        "command": "component.list",
+        "params": {
+          "compact": true
+        }
+      },
+      {
+        "command": "joint.list",
+        "params": {}
+      }
+    ]
+  }
+]

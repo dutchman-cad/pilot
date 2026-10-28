@@ -1136,7 +1136,7 @@ fn flat_coercions_and_partial_features_are_explicit() {
         ),
         ("plate", json!({"grid_rows":2}), "grid_columns"),
         ("plate", json!({"corner_kind":"fillet"}), "corner_size"),
-        ("enclosure", json!({"lip_width":1}), "lip_height"),
+        ("enclosure", json!({"lip_width":1}), "wall"),
         ("move", json!({"delta_x":5}), "delta_y"),
         (
             "cross_drilled_box",
@@ -1320,7 +1320,7 @@ fn consistent_representations_and_corner_defaults() {
 }
 
 #[test]
-fn audited_first_fills_replay_without_inventing_dimensions() {
+fn audited_first_fills_replay_with_documented_defaults() {
     let lib = Library::embedded().unwrap();
     let cat = Catalog::bundled().unwrap();
     let cases: Vec<Value> =
@@ -1342,7 +1342,12 @@ fn audited_first_fills_replay_without_inventing_dimensions() {
                 );
             }
             3 => {
-                assert!(result.unwrap_err().contains("lip_height missing"));
+                let error = result.unwrap_err();
+                assert!(
+                    error.contains("open") && error.contains("top") && error.contains("bottom"),
+                    "{error}"
+                );
+                assert!(!error.contains("lip_height missing"));
             }
             _ => panic!("unexpected audit case {index}"),
         }
@@ -1827,4 +1832,111 @@ fn joint_form_preserves_limit_units_and_audits_axis_default() {
         .unwrap();
     forms::coerce(&mut legacy, &forms::flat(&legacy_schema.schema)).unwrap();
     assert!(legacy.get("axis").is_none());
+}
+
+#[test]
+fn feature_wording_defaults_aliases_and_edit_context() {
+    use dutchman_pilot::recipe_library::forms;
+    let lib = Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    let schema = &lib
+        .recipes
+        .iter()
+        .find(|r| r.id == "enclosure")
+        .unwrap()
+        .schema;
+    for alias in ["centred", "centered", "centre", "center"] {
+        let mut args = json!({"length":"3 in","width":"2 in","height":"1 in","wall":"1/8 in","floor":"1/4 in","inside":true,"open":true,"lip":true,alias:false});
+        let changes = forms::coerce(&mut args, &forms::flat(schema)).unwrap();
+        assert_eq!(changes.iter().filter(|c| c["defaulted"] == true).count(), 2);
+        assert_eq!(args["lip_height"], 3.175);
+        assert_eq!(args["lip_width"], 1.5875);
+        assert_eq!(args["open"], "top");
+        let plan = lib
+            .build(
+                &json!({"recipe":"enclosure","args":args}),
+                &json!({"messages":[]}),
+                &cat,
+            )
+            .unwrap();
+        assert!(
+            (plan.calls[0]["arguments"]["params"]["length"]
+                .as_f64()
+                .unwrap()
+                - 82.55)
+                .abs()
+                < 1e-9
+        );
+        assert_eq!(plan.calls[0]["arguments"]["params"]["height"], 31.75);
+    }
+    let mut conflict = json!({"centred":false,"centered":true});
+    assert!(forms::coerce(&mut conflict, &forms::flat(schema))
+        .unwrap_err()
+        .contains("conflicts"));
+    let plate = &lib.recipes.iter().find(|r| r.id == "plate").unwrap().schema;
+    for (word, side) in [
+        (json!(["top_right", "bottom_right"]), "right"),
+        (json!("top-left bottom-left"), "left"),
+        (json!("top right and bottom right"), "right"),
+        (json!("right (+X)"), "right"),
+        (json!("-X"), "left"),
+    ] {
+        let mut a =
+            json!({"length":80,"width":60,"thickness":4,"corner_size":3,"corner_edges":word});
+        forms::coerce(&mut a, &forms::flat(plate)).unwrap();
+        assert_eq!(a["corner_sides"], side);
+        let p = lib
+            .build(
+                &json!({"recipe":"plate","args":a}),
+                &json!({"messages":[]}),
+                &cat,
+            )
+            .unwrap();
+        let treatment = p
+            .calls
+            .iter()
+            .find(|c| c["arguments"]["command"] == "solid.fillet")
+            .unwrap();
+        assert_eq!(
+            treatment["arguments"]["params"]["edges"]
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
+    }
+    for (prompt,id) in [
+        ("Bevel the right edges of the existing plate", "chamfer"),
+        ("Hollow out Case from underneath, leave the bottom open. 2mm walls and 2mm closed top. Keep the outside dimensions and position as they are.", "shell"),
+        ("Round the upright corners on this plate", "fillet"),
+    ] {
+        let found=lib.form_band_in_design(prompt, &["Plate".to_owned()]).unwrap();
+        assert_eq!(found["recipes"][0]["id"], id, "{found}");
+        assert_eq!(found["band"], "fill");
+        assert_eq!(lib.form_band_in_design(prompt, &[]).unwrap(), lib.form_band(prompt).unwrap());
+    }
+    for creation in [
+        "Make a plate with a bolt circle and rounded corners",
+        "Add a plate with a bolt circle, then round it",
+    ] {
+        assert_eq!(
+            lib.form_band_in_design(creation, &["Plate".to_owned()])
+                .unwrap(),
+            lib.form_band(creation).unwrap()
+        );
+    }
+    for id in ["fillet", "chamfer"] {
+        let request = json!({"messages":[]});
+        let conflict = json!({"recipe":id,"args":{"body":"Plate","amount":1,"edges":"all","corner_sides":"right"}});
+        assert!(lib
+            .build(&conflict, &request, &cat)
+            .unwrap_err()
+            .contains("requires vertical"));
+        let all = json!({"recipe":id,"args":{"body":"Plate","amount":1,"edges":"all","corner_sides":"all"}});
+        let legacy = json!({"recipe":id,"args":{"body":"Plate","amount":1}});
+        assert_eq!(
+            lib.build(&all, &request, &cat).unwrap().calls,
+            lib.build(&legacy, &request, &cat).unwrap().calls
+        );
+    }
 }

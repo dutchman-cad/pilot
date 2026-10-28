@@ -81,7 +81,15 @@ Request side:
   remains eight. Audit `form_request` records clean request bytes/characters, and
   `request_size` and profile accounting include every extraction request. Local forms never
   reach the client. Audit `fill_offered` (recipe, score), `fill_accepted`, `fill_declined`,
-  `fill_invalid`, `fill_fallback`, and `fill_defaulted` for inferred non-dimensional choices. Offer once per user turn; no continuation or SC98
+  `fill_invalid`, `fill_fallback`, and `fill_defaulted` for inferred non-dimensional choices
+  and explicitly requested lip sizes derived from the wall (height = wall, width = wall / 2).
+  Plate corner treatments may select upright corners by side or name. Enclosures may
+  use clear inside dimensions: outside X/Y add two walls, height adds one floor.
+  centred/centered/centre/center name the same placement field; centred plates include
+  thickness in origin placement. open:true means the default top opening; explicit
+  top/bottom choices remain available. Existing-part edit verbs use edit forms after
+  inspection confirms a body; creation requests retain creation forms.
+  Offer once per user turn; no continuation or SC98
   fills. Forced fill and route do not require `--offer-recipe-tools`. `--no-fill` skips
   fill and route; `--no-shortcuts` disables forms and local recipe tools even with the offer flag.
   No upfront find-first fact is added.

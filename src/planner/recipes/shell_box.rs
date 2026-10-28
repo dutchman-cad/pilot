@@ -358,7 +358,12 @@ impl ShellBox {
                 json!({"faces":[[ox+x/2.0,oy+y/2.0,oz+if self.bottom {0.0} else {z}]],"thickness":t,"direction":"inside"}),
             ),
         ];
-        if self.floor != t {
+        if self.floor > t {
+            // Overlap the shell rather than only touching the cavity faces:
+            // converted inch dimensions can differ there by floating-point noise.
+            let fz = oz + if self.bottom { z - self.floor } else { 0.0 };
+            out.push(("solid.box",json!({"length":x,"width":y,"height":self.floor,"corner":[ox,oy,fz],"operation":"join"})));
+        } else if self.floor < t {
             let low = self.floor.min(t);
             let dz = (self.floor - t).abs();
             let fz = if self.bottom {
@@ -366,7 +371,7 @@ impl ShellBox {
             } else {
                 oz + low
             };
-            out.push(("solid.box",json!({"length":x-2.0*t,"width":y-2.0*t,"height":dz,"corner":[ox+t,oy+t,fz],"operation":if self.floor>t {"join"} else {"cut"}})));
+            out.push(("solid.box",json!({"length":x-2.0*t,"width":y-2.0*t,"height":dz,"corner":[ox+t,oy+t,fz],"operation":"cut"})));
         }
         if let Some([w, h]) = self.lip {
             let inset = if self.outer { 0.0 } else { t - w };

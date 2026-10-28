@@ -12,6 +12,8 @@ pub(super) struct Plate {
     pub(super) centred: bool,
     pub(super) holes: Vec<([f64; 2], f64)>,
     pub(super) rounding: Option<(bool, bool, f64)>, // fillet, all edges, amount
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) corner_sides: Option<String>,
     pub(super) default_start: bool,
 }
 pub(super) fn candidate(i: &Input<'_>) -> bool {
@@ -518,6 +520,7 @@ pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
         centred,
         holes,
         rounding,
+        corner_sides: None,
         default_start,
     };
     plate.validate().ok().map(|()| Slots::CompoundPlate(plate))
@@ -552,6 +555,7 @@ impl Plate {
             };
             // Every cap rim is sharp. Only the four outside corners are sharp
             // along the extrusion; cylinder seams are smooth and must be omitted.
+            let h = h + if self.centred { t / 2.0 } else { 0.0 };
             let cap = h.abs() < 1e-6 || (h - t).abs() < 1e-6;
             let corner = ((u - x).abs() < 1e-6 || (u - x - w).abs() < 1e-6)
                 && ((v - y).abs() < 1e-6 || (v - y - d).abs() < 1e-6);
@@ -569,6 +573,28 @@ impl Plate {
             ..
         } = self;
         valid_plane(&self.plane)?;
+        if let Some(side) = self.corner_sides.as_deref() {
+            if !matches!(
+                side,
+                "all"
+                    | "right"
+                    | "left"
+                    | "top"
+                    | "bottom"
+                    | "top_right"
+                    | "bottom_right"
+                    | "top_left"
+                    | "bottom_left"
+            ) {
+                return Err(
+                    "corners.sides must name all, right, left, top, bottom or one named corner"
+                        .into(),
+                );
+            }
+            if side != "all" && rounding.is_some_and(|(_, all, _)| all) {
+                return Err("corners.sides requires vertical edges; omit edges all".into());
+            }
+        }
         if self.diameter.is_some() && rounding.is_some() {
             return Err("corners require a rectangular plate; omit corners with diameter".into());
         }
@@ -653,7 +679,10 @@ impl Plate {
                 {
                     return Err(format!("holes[{n}] centre {p:?} radius {r} needs corners.size {a} clearance inside half-sides [{},{}] and radius above {a}; reduce corners.size or use corners.edges \"vertical\"", size[0] / 2.0, size[1] / 2.0));
                 }
-                if p[0].abs() + r > size[0] / 2.0 - a && p[1].abs() + r > size[1] / 2.0 - a {
+                if self.selected_corner(p[0] >= 0.0, p[1] >= 0.0)
+                    && p[0].abs() + r > size[0] / 2.0 - a
+                    && p[1].abs() + r > size[1] / 2.0 - a
+                {
                     return Err(format!("holes[{n}] centre {p:?} radius {r} must avoid corner zones starting at [{},{}]; reduce hole_diameter, spacing or corners.size", size[0] / 2.0 - a, size[1] / 2.0 - a));
                 }
             }
@@ -667,6 +696,11 @@ impl Plate {
         Ok(())
     }
     fn point(&self, u: f64, v: f64, h: f64) -> [f64; 3] {
+        let h = h - if self.centred {
+            self.size[2] / 2.0
+        } else {
+            0.0
+        };
         match self.plane.as_str() {
             "XZ" => [u, h, -v],
             "YZ" => [h, u, v],
@@ -720,7 +754,9 @@ impl Plate {
             let mut edges = vec![];
             for u in [x, x + w] {
                 for v in [y, y + h] {
-                    edges.push(self.point(u, v, d / 2.0));
+                    if self.selected_corner(u == x + w, v == y + h) {
+                        edges.push(self.point(u, v, d / 2.0));
+                    }
                 }
             }
             let mut params = json!({"edges":edges});
@@ -735,6 +771,19 @@ impl Plate {
             ));
         }
         out
+    }
+    fn selected_corner(&self, right: bool, top: bool) -> bool {
+        match self.corner_sides.as_deref().unwrap_or("all") {
+            "right" => right,
+            "left" => !right,
+            "top" => top,
+            "bottom" => !top,
+            "top_right" => top && right,
+            "bottom_right" => !top && right,
+            "top_left" => top && !right,
+            "bottom_left" => !top && !right,
+            _ => true,
+        }
     }
     pub(super) fn volume(&self) -> Option<f64> {
         let [w, h, d] = self.size;
@@ -751,11 +800,17 @@ impl Plate {
             if all {
                 return None;
             }
-            v -= if fillet {
-                (4.0 - PI) * a * a * d
-            } else {
-                2.0 * a * a * d
-            };
+            let count = [false, true]
+                .into_iter()
+                .flat_map(|r| [false, true].map(|t| (r, t)))
+                .filter(|(r, t)| self.selected_corner(*r, *t))
+                .count() as f64;
+            v -= count / 4.0
+                * if fillet {
+                    (4.0 - PI) * a * a * d
+                } else {
+                    2.0 * a * a * d
+                };
         }
         Some(v)
     }

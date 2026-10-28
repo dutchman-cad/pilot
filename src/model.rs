@@ -1268,20 +1268,31 @@ impl Proxy {
         } else {
             (None, 0)
         };
-        let band = if let Some(band) = continued_band {
+        let mut band = if let Some(band) = continued_band {
             band
         } else if shortcuts_enabled && !self.cfg.no_fill && form_allowed && recipe.is_none() {
             self.recipes.form_band(last_user(&original))?
         } else {
             json!({"band":"low"})
         };
+        let edit_intent = matches!(
+            band["recipes"][0]["id"].as_str(),
+            Some("plate" | "enclosure")
+        )
+        .then(|| crate::recipe_library::existing_edit(last_user(&original)))
+        .flatten();
+        if edit_intent.is_some() && !planner::recipe_targets(&original).is_empty() {
+            band = self
+                .recipes
+                .form_band_in_design(last_user(&original), &planner::recipe_targets(&original))?;
+        }
         let all_candidates = band["recipes"].as_array().map(Vec::as_slice).unwrap_or(&[]);
         let candidates =
             &all_candidates[..all_candidates
                 .len()
                 .min(if band["band"] == "fill" { 1 } else { 4 })];
         if matches!(band["band"].as_str(), Some("fill" | "route"))
-            && candidates.iter().any(fill::needs_names)
+            && (candidates.iter().any(fill::needs_names) || edit_intent.is_some())
         {
             let joint = candidates
                 .iter()
@@ -1606,6 +1617,11 @@ impl Proxy {
                 let response = match fill::coerced(&response, found, &original) {
                     Ok((r, changes)) => {
                         for change in changes {
+                            let mut after =
+                                json!({"field":change["field"],"value":change["after"]});
+                            if let Some(rule) = change.get("rule") {
+                                after["rule"] = rule.clone();
+                            }
                             audit.record(
                                 if change["defaulted"] == true {
                                     "fill_defaulted"
@@ -1613,7 +1629,7 @@ impl Proxy {
                                     "fill_coerced"
                                 },
                                 &change["before"],
-                                &json!({"field":change["field"],"value":change["after"]}),
+                                &after,
                             )?;
                         }
                         r
@@ -4106,7 +4122,11 @@ mod tests {
                     let calls = message["tool_calls"]
                         .as_array()
                         .unwrap_or_else(|| panic!("no calls: {rule}: {phrase}: {response}"));
-                    assert_eq!(calls.len(), expected.calls.len());
+                    assert_eq!(
+                        calls.len(),
+                        expected.calls.len(),
+                        "{rule}: {phrase}: {response}"
+                    );
                     for (actual, planned) in calls.iter().zip(expected.calls) {
                         assert_eq!(actual["function"]["name"], planned["tool"]);
                         let args: Value =

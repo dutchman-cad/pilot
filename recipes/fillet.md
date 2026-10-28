@@ -1,7 +1,9 @@
 ---
 {
   "id": "fillet",
-  "synonyms": ["round over all edges radius fillet"],
+  "synonyms": [
+    "round over all edges radius fillet"
+  ],
   "description": "Fillet all edges of an existing body with a radius, after topology lookup.",
   "examples": [
     "Round all edges of this body",
@@ -63,6 +65,26 @@
         "minLength": 1,
         "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
         "type": "string"
+      },
+      "edges": {
+        "type": "string",
+        "enum": [
+          "all",
+          "vertical"
+        ],
+        "default": "all",
+        "description": "all: every edge; vertical: upright bounding-box corners"
+      },
+      "corner_sides": {
+        "type": "string",
+        "enum": [
+          "all",
+          "right",
+          "left",
+          "top",
+          "bottom"
+        ],
+        "description": "Upright corners; right=+X, top=+Y"
       }
     },
     "required": [
@@ -87,6 +109,27 @@
           "pattern": "^[^\\u0000-\\u001f\\u007f]+$",
           "type": "string",
           "x-slot": "/body"
+        },
+        "edges": {
+          "type": "string",
+          "enum": [
+            "all",
+            "vertical"
+          ],
+          "description": "Optional upright corners of the inspected bounding box; right is +X, top is +Y",
+          "x-slot": "/edges"
+        },
+        "corner_sides": {
+          "type": "string",
+          "enum": [
+            "all",
+            "right",
+            "left",
+            "top",
+            "bottom"
+          ],
+          "description": "Optional upright corners of the inspected bounding box; right is +X, top is +Y",
+          "x-slot": "/corner_sides"
         }
       },
       "required": [

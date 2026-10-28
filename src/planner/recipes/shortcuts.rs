@@ -35,7 +35,7 @@ enum Build {
         boss_height: Option<f64>,
         boss_offset_x: Option<f64>,
         boss_offset_y: Option<f64>,
-        corners: Option<Corners>,
+        corners: Option<Box<Corners>>,
     },
     Enclosure {
         length: f64,
@@ -48,6 +48,8 @@ enum Build {
         #[serde(default)]
         centred: bool,
         lip: Option<Lip>,
+        #[serde(default)]
+        inside: bool,
     },
     RevoluteJoint {
         pin_component: Option<String>,
@@ -86,6 +88,7 @@ struct Corners {
     size: f64,
     #[serde(default = "vertical")]
     edges: String,
+    sides: Option<String>,
 }
 #[derive(Deserialize)]
 struct Lip {
@@ -116,8 +119,9 @@ pub(crate) fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<
         .iter()
         .find(|s| s["properties"]["shape"]["const"] == args["shape"])
         .ok_or_else(|| format!("shape {} must be 1 of profile, plate, enclosure, revolute_joint; choose the matching shape", args["shape"]))?;
-    check(args, variant, "arguments")?;
     let mut normalized = args.clone();
+    crate::recipe_library::forms::aliases(&mut normalized, variant)?;
+    check(&normalized, variant, "arguments")?;
     crate::recipe_library::forms::consistent(&mut normalized)?;
     let args = &normalized;
     let input: Build =
@@ -172,12 +176,21 @@ pub(crate) fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<
             floor,
             centred,
             lip,
+            inside,
         } => {
             let (lip, outer) = lip.map_or((None, false), |l| {
                 (Some([l.width, l.height]), l.side == "outer")
             });
             let slots = shell_box::ShellBox {
-                size: [length, width, height],
+                size: if inside {
+                    [
+                        length + 2.0 * wall,
+                        width + 2.0 * wall,
+                        height + floor.unwrap_or(wall),
+                    ]
+                } else {
+                    [length, width, height]
+                },
                 wall,
                 floor: floor.unwrap_or(wall),
                 bottom: open == "bottom",
@@ -299,6 +312,7 @@ pub(crate) fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<
                         .into(),
                 );
             }
+            let corner_sides = corners.as_ref().and_then(|c| c.sides.clone());
             let rounding = corners.map(|c| (c.kind == "fillet", c.edges == "all", c.size));
             let plate = compound_plate::Plate {
                 size: [length, width, thickness],
@@ -308,6 +322,7 @@ pub(crate) fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<
                 centred,
                 holes,
                 rounding,
+                corner_sides,
                 default_start: false,
             };
             plate.validate()?;
@@ -457,6 +472,20 @@ pub(crate) fn tool() -> Value {
             ("kind", choice(&["fillet", "chamfer"])),
             ("size", n.clone()),
             ("edges", choice(&["vertical", "all"])),
+            (
+                "sides",
+                choice(&[
+                    "all",
+                    "right",
+                    "left",
+                    "top",
+                    "bottom",
+                    "top_right",
+                    "bottom_right",
+                    "top_left",
+                    "bottom_left",
+                ]),
+            ),
         ],
         &["kind", "size", "edges"],
     );
@@ -512,6 +541,7 @@ pub(crate) fn tool() -> Value {
     let enclosure = object(
         &[
             ("shape", json!({"const":"enclosure"})),
+            ("inside", b.clone()),
             ("length", n.clone()),
             ("width", n.clone()),
             ("height", n.clone()),
@@ -545,6 +575,12 @@ pub(crate) fn file_build(
     catalog: &Catalog,
 ) -> Result<Plan, String> {
     crate::recipe_library::validate_structure(args, &crate::recipe_library::schema(id)?)?;
+    if matches!(id, "fillet" | "chamfer")
+        && (args.get("corner_sides").is_some() || args["edges"] == "vertical")
+        && !(args["corner_sides"] == "all" && args["edges"] == "all")
+    {
+        return existing_corners(id, args, request, catalog);
+    }
     if id == "shell" && args.get("body").is_some() {
         return existing_shell(args, request, catalog);
     }
@@ -590,11 +626,20 @@ pub(crate) fn file_build(
             width: f64,
             height: f64,
             wall: f64,
+            #[serde(default = "top")]
+            open: String,
         },
         #[serde(rename = "revolve")]
         Revolve { radius: f64, height: f64 },
     }
     let mut typed = args.clone();
+    if matches!(id, "fillet" | "chamfer") {
+        let fields = typed
+            .as_object_mut()
+            .ok_or("edge edit requires an object")?;
+        fields.remove("edges");
+        fields.remove("corner_sides");
+    }
     typed["expander"] = json!(id);
     let p: Primitive = serde_json::from_value(typed).map_err(|e| format!("{id} arguments: {e}"))?;
     let slots = match p {
@@ -643,6 +688,7 @@ pub(crate) fn file_build(
             width,
             height,
             wall,
+            open,
         } => {
             if 2.0 * wall >= length.min(width) || wall >= height {
                 return Err(format!(
@@ -650,10 +696,16 @@ pub(crate) fn file_build(
                     (length.min(width) / 2.0).min(height)
                 ));
             }
-            Slots::Shell {
+            shell_box::ShellBox {
                 size: [length, width, height],
                 wall,
+                floor: wall,
+                bottom: open == "bottom",
+                centred: false,
+                lip: None,
+                outer: false,
             }
+            .into_slots()?
         }
         Primitive::Revolve { radius, height } => Slots::Revolve { radius, height },
     };
@@ -676,6 +728,101 @@ pub(crate) fn file_build(
     };
     from_slots(rule, slots, state(messages).as_ref(), catalog)?
         .ok_or_else(|| format!("args {args} exceeds capacity of {MAX_BODIES} bodies or {MAX_MM} mm; reduce sizes or remove bodies"))
+}
+
+pub(super) fn existing_corners(
+    id: &str,
+    args: &Value,
+    request: &Value,
+    catalog: &Catalog,
+) -> Result<Plan, String> {
+    if args["edges"] == "all" && args.get("corner_sides").is_some_and(|s| s != "all") {
+        return Err("corner_sides requires vertical edges; omit edges all".into());
+    }
+    let messages = request["messages"]
+        .as_array()
+        .ok_or("edge edit needs messages")?;
+    let body = args["body"].as_str().ok_or("edge edit needs body")?;
+    let data = state(messages);
+    let start = messages
+        .iter()
+        .rposition(|m| m["role"] == "user")
+        .map_or(0, |i| i + 1);
+    let topology = messages[start..]
+        .iter()
+        .rev()
+        .filter_map(tool_payload)
+        .find(|d| d["body"] == body && d["edges"].is_array());
+    let mut edges = Vec::new();
+    if let (Some(data), Some(topology)) = (data.as_ref(), topology) {
+        let measured = data["bodies"]
+            .as_array()
+            .and_then(|bs| bs.iter().find(|b| b["name"] == body))
+            .ok_or("edge edit body must match one inspected body")?;
+        let lo = &measured["bbox"]["min"];
+        let hi = &measured["bbox"]["max"];
+        let bounds: Option<Vec<(f64, f64)>> = (0..3)
+            .map(|i| Some((lo[i].as_f64()?, hi[i].as_f64()?)))
+            .collect();
+        let bounds = bounds.ok_or("edge edit requires measured bounding box")?;
+        if bounds.iter().any(|(lo, hi)| {
+            !lo.is_finite() || !hi.is_finite() || lo.abs() > MAX_MM || hi.abs() > MAX_MM || hi <= lo
+        }) {
+            return Err("edge edit requires positive bounded measured dimensions".into());
+        }
+        let all = topology["edges"]
+            .as_array()
+            .ok_or("edge edit needs topology")?;
+        if all.is_empty() || all.len() > 256 {
+            return Err("edge edit needs 1..256 inspected edges".into());
+        }
+        for edge in all {
+            let p: Option<Vec<f64>> = (0..3).map(|i| edge["mid"][i].as_f64()).collect();
+            let p = p.ok_or("edge edit needs finite edge midpoints")?;
+            if p.iter().any(|v| !v.is_finite() || v.abs() > MAX_MM) {
+                return Err("edge edit midpoint exceeds coordinate bounds".into());
+            }
+            let near = |a: f64, b: f64| (a - b).abs() < 1e-6;
+            if !near(p[2], (bounds[2].0 + bounds[2].1) / 2.0)
+                || !(near(p[0], bounds[0].0) || near(p[0], bounds[0].1))
+                || !(near(p[1], bounds[1].0) || near(p[1], bounds[1].1))
+            {
+                continue;
+            }
+            let right = near(p[0], bounds[0].1);
+            let top = near(p[1], bounds[1].1);
+            let selected = match args["corner_sides"].as_str().unwrap_or("all") {
+                "right" => right,
+                "left" => !right,
+                "top" => top,
+                "bottom" => !top,
+                _ => true,
+            };
+            if selected {
+                edges.push(json!(p));
+            }
+        }
+        if edges.is_empty() {
+            return Err("no inspected upright bounding-box corners match corner_sides".into());
+        }
+    }
+    let slots = Slots::Edges {
+        body: body.into(),
+        edges,
+        amount: args["amount"].as_f64().ok_or("edge edit needs amount")?,
+        fillet: id == "fillet",
+        top: false,
+    };
+    let mut plan = from_slots(
+        if id == "fillet" { "fillet" } else { "chamfer" },
+        slots,
+        data.as_ref(),
+        catalog,
+    )?
+    .ok_or("edge edit exceeds bounded recipe capacity")?;
+    plan.slots = args.clone();
+    plan.slots["x-pilot-corner-edit"] = json!(true);
+    Ok(plan)
 }
 
 fn existing_shell(args: &Value, request: &Value, catalog: &Catalog) -> Result<Plan, String> {
@@ -749,7 +896,7 @@ fn existing_shell(args: &Value, request: &Value, catalog: &Catalog) -> Result<Pl
             call(
                 catalog,
                 "solid.shell",
-                json!({"body":args["body"],"faces":[[(lo[0]+hi[0])/2.,(lo[1]+hi[1])/2.,hi[2]]],"thickness":wall,"direction":"inside"}),
+                json!({"body":args["body"],"faces":[[(lo[0]+hi[0])/2.,(lo[1]+hi[1])/2.,if args["open"] == "bottom" {lo[2]} else {hi[2]}]],"thickness":wall,"direction":"inside"}),
             )?,
             call(catalog, "document.inspect", json!({"measure":true}))?,
         ],

@@ -835,7 +835,7 @@ fn select_inner(
             json!({"name":JOINT,"type":"revolute","a":{"occurrence":base_name,"circle":pin.pick},"b":{"occurrence":arm_name,"circle":hole.pick},"flip":true,"angle":0}),
         )?,
     ];
-    if angle != 0. {
+    if typed.is_some() || angle != 0. {
         calls.push(call(
             catalog,
             "joint.drive",

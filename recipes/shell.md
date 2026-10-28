@@ -86,6 +86,15 @@
       },
       "width": {
         "$ref": "#/$defs/Length"
+      },
+      "open": {
+        "type": "string",
+        "enum": [
+          "top",
+          "bottom"
+        ],
+        "default": "top",
+        "description": "Face to remove"
       }
     },
     "required": [
@@ -129,6 +138,16 @@
           "type": "number",
           "x-slot": "/width",
           "x-unit": "mm"
+        },
+        "open": {
+          "type": "string",
+          "enum": [
+            "top",
+            "bottom"
+          ],
+          "default": "top",
+          "description": "Face to remove from the existing box",
+          "x-slot": "/open"
         }
       },
       "required": [

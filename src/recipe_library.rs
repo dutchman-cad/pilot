@@ -241,7 +241,13 @@ pub fn schema(id: &str) -> Result<Value, String> {
         json!({"type":"object","properties":props,"required":fields.iter().map(|(k,_)|k).collect::<Vec<_>>(),"additionalProperties":false})
     };
     shared(&mut s);
+    if matches!(id, "fillet" | "chamfer") {
+        s["properties"]["edges"] = json!({"type":"string","enum":["all","vertical"]});
+        s["properties"]["corner_sides"] =
+            json!({"type":"string","enum":["all","right","left","top","bottom"]});
+    }
     if id == "shell" {
+        s["properties"]["open"] = json!({"type":"string","enum":["top","bottom"],"default":"top"});
         s["properties"]["body"] = json!({"type":"string","minLength":1,"maxLength":128,"description":"Exact inspected rectangular body to shell; omit to create a new box"});
         s["required"] = json!(["wall"]);
         s["anyOf"] = json!([{"required":["body"]},{"required":["length","width","height"]}]);
@@ -547,6 +553,29 @@ impl Library {
             json!({"hit":hit,"message":if hit {"Choose a recipe and fill its schema through pilot_build."} else {"No good recipe hit. Do not improvise CAD; explain what Pilot can build or ask one question. Closest recipes follow."},"recipes":recipes}),
         )
     }
+    /// Refine an existing-part edit after public inspection, leaving ranking calibration intact.
+    pub fn form_band_in_design(&self, request: &str, bodies: &[String]) -> Result<Value, String> {
+        let mut band = self.form_band(request)?;
+        if !bodies.is_empty()
+            && band["band"] != "low"
+            && matches!(
+                band["recipes"][0]["id"].as_str(),
+                Some("plate" | "enclosure")
+            )
+        {
+            if let Some(id) = existing_edit(request) {
+                let recipe = self
+                    .recipes
+                    .iter()
+                    .find(|r| r.id == id)
+                    .ok_or("edit recipe is unavailable")?;
+                let score = band["recipes"][0]["score"].clone();
+                band["band"] = json!("fill");
+                band["recipes"] = json!([{"id":id,"score":score,"description":recipe.description,"schema":forms::flat(&recipe.schema)}]);
+            }
+        }
+        Ok(band)
+    }
     /// One bounded decision shared by the proxy and development calibration.
     pub fn form_band(&self, request: &str) -> Result<Value, String> {
         if request.trim().is_empty() || request.len() > 2048 {
@@ -601,6 +630,40 @@ impl Library {
             "route"
         });
         Ok(found)
+    }
+}
+/// An edit verb plus an existing-target cue warrants inspecting the design.
+pub fn existing_edit(request: &str) -> Option<&'static str> {
+    if request.len() > 2048 {
+        return None;
+    }
+    let lower = request.to_ascii_lowercase();
+    let words: Vec<_> = lower
+        .split(|c: char| !c.is_ascii_alphabetic())
+        .filter(|w| !w.is_empty())
+        .collect();
+    let has = |w: &str| words.contains(&w);
+    if ["make", "create", "build"].iter().any(|w| has(w))
+        || !(["existing", "already", "this", "these"]
+            .iter()
+            .any(|w| has(w))
+            || words.first().is_some_and(|w| {
+                matches!(
+                    *w,
+                    "hollow" | "shell" | "bevel" | "chamfer" | "fillet" | "round"
+                )
+            }))
+    {
+        return None;
+    }
+    if ["chamfer", "bevel"].iter().any(|w| has(w)) {
+        Some("chamfer")
+    } else if ["fillet", "round"].iter().any(|w| has(w)) {
+        Some("fillet")
+    } else if ["shell", "hollow"].iter().any(|w| has(w)) {
+        Some("shell")
+    } else {
+        None
     }
 }
 pub fn find_tool() -> Value {
@@ -720,7 +783,19 @@ impl Ranker for Bm25 {
                     .chain(std::iter::once(tokens(
                         &r.schema["properties"]
                             .as_object()
-                            .map(|o| o.keys().cloned().collect::<Vec<_>>().join(" "))
+                            .map(|o| {
+                                o.keys()
+                                    // New form-only choices must not shift the calibrated BM25 corpus.
+                                    .filter(|k| {
+                                        !(r.id == "enclosure" && k.as_str() == "inside"
+                                            || r.id == "shell" && k.as_str() == "open"
+                                            || matches!(r.id.as_str(), "fillet" | "chamfer")
+                                                && matches!(k.as_str(), "edges" | "corner_sides"))
+                                    })
+                                    .cloned()
+                                    .collect::<Vec<_>>()
+                                    .join(" ")
+                            })
                             .unwrap_or_default(),
                     )))
                     .collect()

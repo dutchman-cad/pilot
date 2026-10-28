@@ -3,6 +3,7 @@ use serde_json::{json, Value};
 
 pub(crate) fn describe(s: &mut Value) {
     let mirror = s["x-pilot-expander"] == "mirror";
+    let edge_edit = matches!(s["x-pilot-expander"].as_str(), Some("fillet" | "chamfer"));
     let joint = s["x-pilot-expander"] == "revolute_joint"
         || s["properties"]["shape"]["const"] == "revolute_joint";
     let lip = s["properties"].get("side").is_some();
@@ -16,10 +17,15 @@ pub(crate) fn describe(s: &mut Value) {
                     "True only for centred/centered/on the origin",
                     Some(json!(false)),
                 ),
+                "edges" if edge_edit => (
+                    "all: every edge; vertical: upright bounding-box corners",
+                    Some(json!("all")),
+                ),
                 "edges" => (
                     "vertical: four corner edges through thickness; all: every rim too",
                     Some(json!("vertical")),
                 ),
+                "sides" | "corner_sides" => ("Upright corners; right=+X, top=+Y", None),
                 "side" => (
                     "inner: flush with inner wall face; outer: outer face",
                     Some(json!("inner")),
@@ -172,6 +178,9 @@ pub fn compact(s: &Value) -> Value {
             "size" => "Radius/bevel",
             "bore_diameter" => "Centre bore",
             "floor" => "Omit: wall",
+            "inside" => "True: clear inside dimensions; outside adds 2 walls and one floor",
+            "lip" => "Request ring; omit sizes: height=wall, width=wall/2",
+            "corner_sides" => "right=+X; top=+Y",
             "target" => "body: solid; last_feature: latest feature",
             "open" => "Removed face",
             "axis" if root["x-pilot-expander"] == "joint" => {
@@ -220,6 +229,9 @@ pub fn compact(s: &Value) -> Value {
 
 pub fn line(id: &str) -> String {
     let mut line = "You fill in one form from the user's CAD request. Call the tool once. Lengths in mm; convert inches (25.4) and cm (10). Leave optional fields out unless stated. If the form does not fit, set decline true.".to_owned();
+    if id == "revolute_joint" {
+        line.push_str(" Put any requested pivot/rotation angle in angle_deg; a quarter turn is 90 degrees. The builder drives the joint to this angle.");
+    }
     if id == "joint" {
         line.push_str(" Use joint_type and component_a/b. Limits are ordered min/max pairs in deg or mm; omit pairs for unlimited motion.");
     }
@@ -303,9 +315,8 @@ pub fn flat(schema: &Value) -> Value {
     };
     let mut out = json!({"type":"object","additionalProperties":false,"properties":fill["properties"],"required":fill["required"],"x-pilot-expander":schema["x-pilot-expander"]});
     if schema["x-pilot-expander"] == "plate" {
-        out["description"] = json!(
-            "Base plus holes OR joined bosses. Layout centred on base; no layout: single boss."
-        );
+        out["description"] =
+            json!("Base with holes OR bosses; centred layouts; no layout: single boss.");
     }
     if schema["x-pilot-expander"] == "cross_drilled_box" {
         out["description"] =
@@ -394,7 +405,82 @@ fn legacy_hole_coordinates(args: &mut Value, schema: &Value) -> Result<Vec<Value
     Ok(changes)
 }
 
-/// Coerce explicitly supplied values, including unit axes. No dimensions or counts are inferred.
+/// Reconcile spelling aliases without hiding conflicting values.
+pub(crate) fn aliases(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> {
+    let mut changes = Vec::new();
+    if schema["properties"].get("open").is_some() && args["open"] == true {
+        args["open"] = json!("top");
+        changes.push(json!({"field":"open","before":true,"after":"top"}));
+    }
+    if schema["properties"].get("centred").is_some() {
+        let object = args.as_object_mut().ok_or("args requires one object")?;
+        for alias in ["centered", "center", "centre"] {
+            if let Some(value) = object.remove(alias) {
+                if object.get("centred").is_some_and(|v| !agrees(v, &value)) {
+                    return Err(format!("args.{alias} conflicts with centred"));
+                }
+                object.insert("centred".into(), value.clone());
+                changes.push(
+                    json!({"field":alias,"before":value,"after":null,"converted_to":"centred"}),
+                );
+            }
+        }
+    }
+    Ok(changes)
+}
+
+/// Explicit lip requests may derive their missing dimensions from the wall.
+fn lip_defaults(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> {
+    if schema["x-pilot-expander"] != "enclosure" {
+        return Ok(Vec::new());
+    }
+    if args["lip"] == false {
+        if ["lip_width", "lip_height", "lip_side"]
+            .iter()
+            .any(|k| args.get(k).is_some())
+        {
+            return Err("args.lip false conflicts with supplied lip fields".into());
+        }
+        args.as_object_mut()
+            .ok_or("args requires one object")?
+            .remove("lip");
+        return Ok(vec![json!({"field":"lip","before":false,"after":null})]);
+    }
+    let nested = args["lip"].is_object();
+    let requested = nested
+        || args["lip"] == true
+        || ["lip_width", "lip_height", "lip_side"]
+            .iter()
+            .any(|k| args.get(k).is_some());
+    if !requested {
+        return Ok(Vec::new());
+    }
+    let wall = args["wall"]
+        .as_f64()
+        .filter(|w| w.is_finite() && *w > 0.0 && *w <= 1_000_000.)
+        .ok_or("args.wall requires a positive bounded millimetre value to default lip sizes")?;
+    let mut changes = Vec::new();
+    if args["lip"] == true {
+        args.as_object_mut()
+            .ok_or("args requires one object")?
+            .remove("lip");
+    }
+    for (key, factor) in [("height", 1.0), ("width", 0.5)] {
+        let flat = format!("lip_{key}");
+        if args.get(&flat).is_none() && args["lip"].get(key).is_none() {
+            let value = json!(wall * factor);
+            if nested {
+                args["lip"][key] = value.clone();
+            } else {
+                args[&flat] = value.clone();
+            }
+            changes.push(json!({"field":flat,"before":null,"after":value,"defaulted":true,"rule":"lip height = wall; width = wall / 2"}));
+        }
+    }
+    Ok(changes)
+}
+
+/// Coerce supplied values and audit the documented wall-derived lip defaults.
 pub fn coerce(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> {
     crate::repair::check_value(args)?;
     let pattern_changes = if crate::planner::patterns::is_pattern(
@@ -408,6 +494,7 @@ pub fn coerce(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> {
         .as_object()
         .ok_or("fill schema needs properties")?;
     let mut changes = pattern_changes;
+    changes.extend(aliases(args, schema)?);
     if schema["x-pilot-expander"] == "joint" {
         changes.extend(crate::planner::joints::coerce(args)?);
     }
@@ -421,6 +508,9 @@ pub fn coerce(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> {
             continue;
         };
         let before = value.clone();
+        if key == "corner_edges" && *value == true {
+            *value = json!("vertical");
+        }
         // A choice written as ["X","Z"], ["XZ"] or {"plane":"XZ"} is read as its text.
         if field["enum"].is_array() {
             let parts: Option<Vec<&str>> = match &*value {
@@ -449,12 +539,37 @@ pub fn coerce(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> {
                 let length = field["x-unit"] == "mm";
                 let (number, scale) = if length && lower.ends_with("mm") {
                     (lower.trim_end_matches("mm").trim(), 1.0)
+                } else if length && lower.ends_with("cm") {
+                    (lower.trim_end_matches("cm").trim(), 10.0)
+                } else if length && lower.ends_with("inches") {
+                    (lower.trim_end_matches("inches").trim(), 25.4)
+                } else if length && lower.ends_with("inch") {
+                    (lower.trim_end_matches("inch").trim(), 25.4)
                 } else if length && lower.ends_with("in") {
                     (lower.trim_end_matches("in").trim(), 25.4)
+                } else if key.ends_with("_deg") {
+                    let number = lower
+                        .trim_end_matches("degrees")
+                        .trim_end_matches("degree")
+                        .trim_end_matches("deg")
+                        .trim_end_matches('°')
+                        .trim();
+                    (number, 1.0)
                 } else {
                     (lower.as_str(), 1.0)
                 };
-                if let Ok(n) = number.parse::<f64>() {
+                let parsed = number.parse::<f64>().ok().or_else(|| {
+                    let parts: Vec<_> = number.split_whitespace().collect();
+                    let fraction = parts.last()?.split_once('/')?;
+                    let numerator = fraction.0.parse::<f64>().ok()?;
+                    let denominator = fraction.1.parse::<f64>().ok().filter(|d| *d > 0.0)?;
+                    match parts.len() {
+                        1 => Some(numerator / denominator),
+                        2 => Some(parts[0].parse::<f64>().ok()? + numerator / denominator),
+                        _ => None,
+                    }
+                });
+                if let Some(n) = parsed {
                     let n = n * scale;
                     if n.is_finite() {
                         *value = if field["type"] == "integer"
@@ -494,6 +609,76 @@ pub fn coerce(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> {
             changes.push(json!({"field":key,"before":before,"after":value}));
         }
     }
+    // Older fills put corner names in corner_edges. Move the explicit subset.
+    if matches!(
+        schema["x-pilot-expander"].as_str(),
+        Some("plate" | "fillet" | "chamfer")
+    ) {
+        for key in ["corner_edges", "corner_sides"]
+            .into_iter()
+            .filter(|key| fields.contains_key(*key))
+        {
+            if let Some(text) = args[key].as_str() {
+                let lower = text.trim().to_ascii_lowercase();
+                let normalized = match lower.as_str() {
+                    "+x" => "right".into(),
+                    "-x" => "left".into(),
+                    "+y" => "top".into(),
+                    "-y" => "bottom".into(),
+                    _ => lower
+                        .chars()
+                        .filter(|c| c.is_ascii_alphanumeric())
+                        .collect::<String>(),
+                };
+                let side = match normalized.as_str() {
+                    "right"
+                    | "rightside"
+                    | "rightx"
+                    | "rightsidex"
+                    | "righthandside"
+                    | "bothrightcorners"
+                    | "toprightbottomright"
+                    | "bottomrighttopright"
+                    | "toprightandbottomright"
+                    | "bottomrightandtopright" => Some("right"),
+                    "left"
+                    | "leftside"
+                    | "leftx"
+                    | "leftsidex"
+                    | "lefthandside"
+                    | "bothleftcorners"
+                    | "topleftbottomleft"
+                    | "bottomlefttopleft"
+                    | "topleftandbottomleft"
+                    | "bottomleftandtopleft" => Some("left"),
+                    "top" | "topside" | "toplefttopright" => Some("top"),
+                    "bottom" | "bottomside" | "bottomleftbottomright" => Some("bottom"),
+                    "allfour" | "allfourcorners" | "allcorners" | "fourcorners"
+                    | "uprightcorners" | "verticalcorners" => Some("all"),
+                    "topright" => Some("top_right"),
+                    "bottomright" => Some("bottom_right"),
+                    "topleft" => Some("top_left"),
+                    "bottomleft" => Some("bottom_left"),
+                    _ => None,
+                };
+                if let Some(side) = side {
+                    if key == "corner_edges" && args.get("corner_sides").is_some_and(|v| v != side)
+                    {
+                        return Err("args.corner_edges conflicts with corner_sides".into());
+                    }
+                    let before = args[key].clone();
+                    args["corner_sides"] = json!(side);
+                    if key == "corner_edges" {
+                        args[key] = json!("vertical");
+                    }
+                    if before != args[key] {
+                        changes.push(json!({"field":key,"before":before,"after":args[key],"corner_sides":side}));
+                    }
+                }
+            }
+        }
+    }
+    changes.extend(lip_defaults(args, schema)?);
     changes.extend(defaults(args, schema)?);
     changes.extend(legacy_hole_coordinates(args, schema)?);
     Ok(changes)
@@ -673,8 +858,10 @@ pub(crate) fn consistent(out: &mut Value) -> Result<(), String> {
 /// The sole flat-to-typed mapping. Nested build arguments pass through unchanged.
 pub fn to_slots(args: &Value, schema: &Value) -> Result<Value, String> {
     crate::repair::check_value(args)?;
+    let mut args = args.clone();
+    aliases(&mut args, schema)?;
     let Some(fill) = schema.get("x-pilot-fill") else {
-        return Ok(args.clone());
+        return Ok(args);
     };
     let fields = fill["properties"]
         .as_object()
@@ -682,7 +869,6 @@ pub fn to_slots(args: &Value, schema: &Value) -> Result<Value, String> {
     if fields.len() > 128 {
         return Err("fill exceeds 128 scalar fields".into());
     }
-    let mut args = args.clone();
     defaults(&mut args, &flat(schema))?;
     legacy_hole_coordinates(&mut args, schema)?;
     let object = args.as_object().ok_or("args requires one object")?;
@@ -696,6 +882,8 @@ pub fn to_slots(args: &Value, schema: &Value) -> Result<Value, String> {
             }
         }
     }
+    lip_defaults(&mut args, schema)?;
+    let object = args.as_object().ok_or("args requires one object")?;
     if let Some(groups) = fill["groups"].as_array() {
         if groups.len() > 128 {
             return Err("fill exceeds 128 feature groups".into());
@@ -730,7 +918,10 @@ pub fn to_slots(args: &Value, schema: &Value) -> Result<Value, String> {
     }
     let mut out = json!({});
     for (key, value) in object {
-        let Some(field) = fields.get(key) else {
+        let Some(field) = fields
+            .get(key)
+            .filter(|_| !(key == "lip" && value.is_object()))
+        else {
             if schema["properties"].get(key).is_some() {
                 let legacy = &schema["properties"][key];
                 let legacy = legacy["$ref"]
