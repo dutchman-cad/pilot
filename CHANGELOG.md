@@ -2,11 +2,22 @@
 
 ## Unreleased
 
+## 0.1.0-beta.7 (2026-10-28)
+
+- Joints: one form now covers every SolidCraft joint type (rigid, revolute, slider,
+  cylindrical, pin-slot, planar, ball and the relations), at box centres or named origins,
+  with aligned axes and motion limits. A plain pin-in-hole joint keeps its short form.
+- Plates can carry pegs, bosses and hole rows from one request: rectangular or round
+  bases with raised features or holes in a row, a grid or on a circle.
+- Profile forms read the section and plane from common wording ("angle", "channel",
+  "T-section", "XZ plane"), and a stated web or flange thickness wins over a general one.
+- Requests that start with "align" are left to normal tools.
+
+### Details
+
 - Requests that start with "align" are left to normal tools instead of filling a creation form.
 - Add a separate general joint form for all SolidCraft joint types, named origins and motion limits, preserving the contact revolute form and existing recipe rankings.
-
 - Plate forms build rectangular or round bases with joined pegs/bosses, a single offset boss, and centred rows, grids or circles of raised features or holes. New-part pattern requests route to plate; existing-part edits retain pattern forms. Grid fields specify X columns, Y rows and centre spacing.
-
 - Profile forms accept common wording for the section (angle, channel, tee, rectangular) and the plane (["X","Z"], "XZ plane"), and a specific web or flange thickness now takes priority over a general thickness instead of being refused.
 
 ## 0.1.0-beta.6 (2026-10-27)

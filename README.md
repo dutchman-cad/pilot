@@ -47,9 +47,10 @@ as an MCP server, or attach with `--connect 127.0.0.1:9898` to an application st
 See [recipes and their limits](docs/recipes.md).
 
 **Small models:** For 3–8B models, recipe forms and exact matches are on by default with
-your upstream URL. On four blind test sets (56 tasks), gemma4 e4b passes about 33 without
-exact matches and 35 with them on 0.1.0-beta.6, against 30 and 30 on beta.5 and 2 and 2
-before recipe forms (averaged over repeated runs; [results](https://github.com/dutchman-cad/pilot/issues/1)).
+your upstream URL. On four blind test sets (56 tasks) with fixed model settings, gemma4 e4b
+passes 35 with exact matches on 0.1.0-beta.7, against 30 on beta.6, with no set lower; it
+connects all five public joint types it is asked for, against two or three on beta.6. Before
+recipe forms it passed 2 at default settings ([results](https://github.com/dutchman-cad/pilot/issues/1)).
 Use `--no-direct-recipes` to send everything to the model. Exact matches bypass the model,
 and their replies are marked **"Exact match (no model):"**.
 The proposed calls still go through SolidCraft's approval and validation.
