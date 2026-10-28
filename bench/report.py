@@ -22,18 +22,25 @@ def report(paths):
                     continue
                 via = row.get('reached_via') or 'api-openai'
                 identity = row.get('agent_version', '') if via.startswith('agent-') else row['model']
-                key = (via, row['set'], identity or '')
+                settings = row.get('model_settings')
+                # Older recordings predate configurable settings; keep them separate.
+                settings_key = ('legacy (settings unrecorded)' if settings is None else
+                                json.dumps(settings, sort_keys=True, allow_nan=False))
+                key = (via, settings_key, row['set'], identity or '')
                 trial = (row['task'], row['rep'], row['through_pilot'])
                 if trial in groups[key]:
                     raise ValueError('duplicate task/repetition/mode; supply each run once')
                 groups[key][trial] = row
+    if len({key[1] for key in groups}) > 1:
+        print('Note: different model settings are shown in separate comparison tables; no pairing across settings.')
     previous = None
-    for (via, name, model), trials in sorted(groups.items()):
-        if via != previous:
+    for (via, settings, name, model), trials in sorted(groups.items()):
+        if (via, settings) != previous:
             print(f'\nReached via: {via}' + (' (agent prompt; separate from API scores)' if via.startswith('agent-') else ''))
+            print(f'Model settings: {settings}')
             print('| Set | Model / agent version | Direct | Pilot | Paired Δ | Errors (direct/Pilot) |')
             print('| --- | --- | --- | --- | --- | --- |')
-            previous = via
+            previous = (via, settings)
         modes = [{(t, r): row for (t, r, p), row in trials.items() if p == flag} for flag in (False, True)]
         def score(rows):
             return f"{sum(bool(r['pass']) and not r.get('error') for r in rows.values())}/{len(rows)}" if rows else '—'

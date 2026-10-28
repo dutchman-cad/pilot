@@ -10,6 +10,7 @@ import queue
 import socket
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import urllib.error
@@ -257,6 +258,10 @@ def endpoint_url(url):
     return base if base.endswith('/v1') else base + '/v1'
 
 
+def model_settings(args):
+    return {name: getattr(args, name, None) for name in ('temperature', 'seed', 'num_ctx')}
+
+
 @contextlib.contextmanager
 def endpoint(args, out):
     upstream = endpoint_url(args.endpoint)
@@ -266,9 +271,15 @@ def endpoint(args, out):
     with socket.socket() as sock:
         sock.bind(('127.0.0.1', 0))
         port = sock.getsockname()[1]
-    with open(os.devnull, 'wb') as log:
-        child = subprocess.Popen([args.through_pilot, 'model', '--listen', f'127.0.0.1:{port}',
-                                  '--upstream', upstream, '--no-direct-recipes'], stdout=log, stderr=log)
+    with tempfile.TemporaryDirectory(prefix='pilot-bench-settings-') as directory, open(os.devnull, 'wb') as log:
+        command = [args.through_pilot, 'model', '--listen', f'127.0.0.1:{port}',
+                   '--upstream', upstream, '--no-direct-recipes']
+        settings = {k: v for k, v in model_settings(args).items() if v is not None}
+        if settings:
+            path = Path(directory) / 'model-settings.json'
+            save(path, {args.model: settings})
+            command.extend(['--model-settings', str(path)])
+        child = subprocess.Popen(command, stdout=log, stderr=log)
         try:
             for _ in range(100):
                 if child.poll() is not None:
@@ -342,7 +353,7 @@ def anthropic_payload(model, messages, tools):
     return {'model': model, 'system': '\n'.join(system), 'messages': history,
             'tools': [{'name': t['function']['name'], 'description': t['function']['description'],
                        'input_schema': t['function']['parameters']} for t in tools],
-            'max_tokens': 4096, 'temperature': 0}
+            'max_tokens': 4096}
 
 
 def anthropic_message(result):
@@ -354,7 +365,8 @@ def anthropic_message(result):
                 for b in blocks if b['type'] == 'tool_use']}
 
 
-def converse(app, messages, prompt, model, url, kind="openai"):
+def converse(app, messages, prompt, model, url, kind="openai", settings=None):
+    settings = {k: v for k, v in (settings or {}).items() if v is not None}
     messages.append({'role': 'user', 'content': prompt})
     tools = [{'type': 'function', 'function': {'name': t['name'],
         'description': t.get('description', ''), 'parameters': t['inputSchema']}} for t in app.tools]
@@ -365,12 +377,15 @@ def converse(app, messages, prompt, model, url, kind="openai"):
         if remaining <= 0:
             raise TimeoutError("turn exceeded 600 seconds")
         payload = {'model': model, 'messages': messages, 'tools': tools, 'stream': False,
-                   'temperature': 0, 'seed': 1, 'max_tokens': 4096}
+                   'max_tokens': 4096}
+        payload.update({k: v for k, v in settings.items() if k != 'num_ctx'})
         headers = {'Content-Type': 'application/json'}
         route = '/chat/completions'
         key = os.environ.get('BENCH_API_KEY')
         if kind == 'anthropic':
             payload = anthropic_payload(model, messages, tools)
+            if 'temperature' in settings:
+                payload['temperature'] = settings['temperature']
             route = '/messages'
             headers['anthropic-version'] = '2023-06-01'
             if key is None:
@@ -379,7 +394,20 @@ def converse(app, messages, prompt, model, url, kind="openai"):
                 headers['x-api-key'] = key
         elif key:
             headers['Authorization'] = 'Bearer ' + key
-        request = urllib.request.Request(url + route, data=encode(payload), headers=headers)
+        target = url + route
+        if kind == 'ollama':
+            # Ollama's OpenAI route does not expose the context-window option.
+            history = []
+            for original in messages:
+                entry = dict(original)
+                if entry.get('tool_calls'):
+                    entry['tool_calls'] = [dict(call, function=dict(call['function'],
+                        arguments=json.loads(call['function']['arguments']))) for call in entry['tool_calls']]
+                history.append(entry)
+            payload = {'model': model, 'messages': history, 'tools': tools, 'stream': False,
+                       'options': dict(settings, num_predict=4096)}
+            target = url.removesuffix('/v1') + '/api/chat'
+        request = urllib.request.Request(target, data=encode(payload), headers=headers)
         # Do not follow redirects carrying authentication to another host.
         try:
             with open_model(request, timeout=remaining) as response:
@@ -395,6 +423,12 @@ def converse(app, messages, prompt, model, url, kind="openai"):
         result = json.loads(raw)
         if kind == 'anthropic':
             message = anthropic_message(result)
+        elif kind == 'ollama':
+            message = dict(result['message'])
+            message['tool_calls'] = [dict(call, id=f'ollama-{len(transcript)}-{index}',
+                type='function', function=dict(call['function'],
+                    arguments=json.dumps(call['function']['arguments'])))
+                for index, call in enumerate(message.get('tool_calls') or [])]
         else:
             message = result['choices'][0]['message']
             message = {k: v for k, v in message.items() if k in ('role', 'content', 'tool_calls')}
@@ -421,7 +455,8 @@ def converse(app, messages, prompt, model, url, kind="openai"):
             except (ValueError, RuntimeError) as error:
                 value = {'isError': True, 'content': [{'type': 'text', 'text': str(error)}]}
             transcript.append({'tool': function['name'], 'arguments': function['arguments'], 'result': value})
-            messages.append({'role': 'tool', 'tool_call_id': call['id'], 'content': json.dumps(value)})
+            messages.append({'role': 'tool', 'tool_call_id': call['id'], 'content': json.dumps(value),
+                             **({'tool_name': function['name']} if kind == 'ollama' else {})})
     raise RequestLimit(transcript)
 
 
@@ -470,7 +505,8 @@ def run_one(args, root, task, mode, url):
                         reply, transcript = agents.converse(app, messages, item['prompt'], args)
                     else:
                         reply, transcript = converse(app, messages, item['prompt'], args.model, url,
-                                                     getattr(args, 'endpoint_kind', 'openai'))
+                                                     ('openai' if getattr(args, 'through_pilot', None) else
+                                                      getattr(args, 'endpoint_kind', 'openai')), model_settings(args))
                 except RequestLimit as limit:
                     reply, transcript = '', limit.transcript
                     stopped = 'request limit'
@@ -504,7 +540,10 @@ def main():
     parser = ArgumentParser(description=__doc__)
     parser.add_argument('--set', default='v1', choices=('v1', 'v2', 'v3', 'field', 'constraints', 'joints', 'multiturn', 'recovery', 'units'))
     parser.add_argument('--model')
-    parser.add_argument('--endpoint-kind', choices=('openai', 'anthropic'), default='openai')
+    parser.add_argument('--endpoint-kind', choices=('openai', 'ollama', 'anthropic'), default='openai')
+    parser.add_argument('--temperature', type=float, help='sampling temperature (0–0.2); default: unset')
+    parser.add_argument('--seed', type=int, help='fixed signed 64-bit sampling seed; default: unset')
+    parser.add_argument('--num-ctx', type=int, help='Ollama context size (8192–131072); default: unset')
     parser.add_argument('--agent', choices=('claude-code', 'codex'))
     parser.add_argument('--agent-bin', metavar='PATH')
     parser.add_argument('--endpoint', default='http://127.0.0.1:11434')
@@ -529,6 +568,20 @@ def main():
         parser.error('Anthropic API runs cannot use the OpenAI-only Pilot model proxy')
     if mode == 'model' and not args.model and not args.agent:
         parser.error('--model is required for model runs')
+    settings = model_settings(args)
+    if args.temperature is not None and not 0 <= args.temperature <= 0.2:
+        parser.error('--temperature must be between 0 and 0.2')
+    if args.seed is not None and not -(2**63) <= args.seed < 2**63:
+        parser.error('--seed must be a signed 64-bit integer')
+    if args.num_ctx is not None and not 8192 <= args.num_ctx <= 131072:
+        parser.error('--num-ctx must be between 8192 and 131072')
+    if any(v is not None for v in settings.values()):
+        if args.agent or mode != 'model':
+            parser.error('model settings require an API model run')
+        if args.endpoint_kind == 'anthropic' and (args.seed is not None or args.num_ctx is not None):
+            parser.error('Anthropic does not support --seed or --num-ctx')
+        if args.num_ctx is not None and args.endpoint_kind != 'ollama' and not args.through_pilot:
+            parser.error('--num-ctx requires --endpoint-kind ollama or --through-pilot')
     args.agent_version = agents.version(args) if args.agent else None
     root = HERE/'sets'/args.set
     tasks = task_file(root / ('negatives/tasks.json' if args.negatives else 'tasks.json'))
@@ -559,7 +612,8 @@ def main():
                         record = {'task': task['id'], 'pass': False, 'matched': False,
                                   'error': str(error), 'reason': 'execution error'}
                     record.update({'format': 1, 'set': args.set, 'mode': mode, 'rep': rep,
-                                   'model': args.model, 'through_pilot': bool(args.through_pilot)})
+                                   'model': args.model, 'through_pilot': bool(args.through_pilot),
+                                   'model_settings': settings})
                     record['reached_via'] = ('agent-' + args.agent if args.agent else
                                              'api-' + args.endpoint_kind) if mode == 'model' else None
                     if args.agent:
