@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Check recipes and model-face MCP tests against the configured SolidCraft binary's
+  live catalogue; document paired 0.20.0 / 0.25.1 checks and public catalogue changes.
+
 ## 0.1.0-beta.7 (2026-10-28)
 
 - Joints: one form now covers every SolidCraft joint type (rigid, revolute, slider,
