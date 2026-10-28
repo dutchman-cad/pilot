@@ -1311,6 +1311,10 @@ impl Proxy {
                 return direct::native(&original, message, audit.count);
             }
         }
+        if band["band"] == "fill" && fill::partial_edge_edit(&band["recipes"][0], &original) {
+            audit.record("fill_fallback", &Value::Null, &json!({"recipe":band["recipes"][0]["id"],"reason":"corner-only form cannot add requested holes; retain the complete request with native tools"}))?;
+            band = json!({"band":"low"});
+        }
         let mut fill_recipe = (band["band"] == "fill").then(|| band["recipes"][0].clone());
         let mut route_candidates = if band["band"] == "route" {
             band["recipes"].as_array().cloned().unwrap_or_default()
@@ -6987,6 +6991,47 @@ mod tests {
             "pilot_fill",
             json!({"kind":"L","plane":"XZ","width":47,"height":33,"thickness":5,"depth":22,"decline":false}),
         )
+    }
+
+    #[test]
+    fn compound_existing_plate_edit_retains_native_tools_and_the_whole_request() {
+        let fixtures: Vec<Value> =
+            serde_json::from_str(include_str!("../tests/fixtures/dev_feature_forms.json")).unwrap();
+        let fixture = fixtures.iter().find(|f| f["id"] == "df-04").unwrap();
+        let mut req = request();
+        req["messages"] = json!([{"role":"user","content":fixture["prompt"]}]);
+        let commands = fixture["commands"].as_array().unwrap()[1..].to_vec();
+        let native = call("batch", json!({"commands":commands}));
+        let mut f = fill_fixture(vec![native]);
+        f.proxy.cfg.direct_recipes = false;
+        let inspected = f.chat(req.clone());
+        let inspected: Value = serde_json::from_slice(&inspected.body).unwrap();
+        let message = inspected["choices"][0]["message"].clone();
+        assert!(message["tool_calls"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|c| c["id"].as_str().unwrap().starts_with("pilot_context_")));
+        req["messages"]
+            .as_array_mut()
+            .unwrap()
+            .push(message.clone());
+        for c in message["tool_calls"].as_array().unwrap() {
+            req["messages"].as_array_mut().unwrap().push(json!({"role":"tool","tool_call_id":c["id"],"content":json!({"bodies":[{"name":"Plate","bbox":{"min":[0,0,0],"max":[96,68,5]},"volume_mm3":32640}],"timeline":[]}).to_string()}));
+        }
+        let out = f.chat(req);
+        assert_eq!(out.status, 200);
+        let script = f.proxy.scripted.as_ref().unwrap().borrow();
+        assert_eq!(script.requests.len(), 1);
+        let wire = &script.requests[0];
+        assert!(!wire["tools"].to_string().contains("pilot_fill"));
+        assert!(wire["tools"].to_string().contains("batch"));
+        assert!(wire["messages"]
+            .to_string()
+            .contains(fixture["prompt"].as_str().unwrap()));
+        let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+        assert!(log.contains("corner-only form cannot add requested holes"));
+        assert!(!log.contains("fill_accepted"));
     }
 
     fn route_request() -> Value {

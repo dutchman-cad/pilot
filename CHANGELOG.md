@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Omitted revolute angles use a single explicit request angle (including quarter
+  turns), audited as inferred; supplied model angles always win.
+- Existing-box shells accept matching inspected dimensions within 0.001 mm or
+  one part per million, discard them, and name the inspected size on disagreement.
+- Existing corner edits select inspected edges by body and index. CLI replays
+  assert that a plate's twelve holes survive, and verify bottom-open outer lips.
+  Requests to add holes as well as bevel use native tools for the complete edit,
+  avoiding a corner-only form silently skipping the requested hole creation.
+- Flat fields accept unambiguous singular/plural word variants, with conflicts
+  rejected instead of silently choosing a value.
 - Plate forms accept selected upright corners, common corner wordings and boolean
   corner-edge fills. Centred plates now centre the full solid, including thickness.
 - Forms accept centered/centred/center/centre and open:true means open top.

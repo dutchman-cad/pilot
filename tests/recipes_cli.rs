@@ -2153,6 +2153,35 @@ fn public_binary_remaining_joint_types_and_named_origins() {
 
 #[test]
 fn development_feature_forms_replay_reference_states() {
+    replay_development_feature_forms(None, false);
+}
+
+#[test]
+fn development_plural_hole_fields_replay() {
+    replay_development_feature_forms(Some("df-02"), true);
+}
+
+#[test]
+fn development_existing_plate_chamfer_preserves_twelve_holes() {
+    replay_development_feature_forms(Some("df-04"), true);
+}
+
+#[test]
+fn development_bottom_open_outer_lip_replay() {
+    replay_development_feature_forms(Some("df-11"), true);
+}
+
+#[test]
+fn development_matching_shell_dimensions_replay() {
+    replay_development_feature_forms(Some("df-12"), true);
+}
+
+#[test]
+fn development_omitted_joint_angle_replay() {
+    replay_development_feature_forms(Some("df-18"), true);
+}
+
+fn replay_development_feature_forms(only: Option<&str>, model_variant: bool) {
     use dutchman_pilot::recipe_library::{forms, Library};
     let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
         return;
@@ -2162,6 +2191,9 @@ fn development_feature_forms_replay_reference_states() {
     let lib = Library::embedded().unwrap();
     let catalog = Catalog::bundled().unwrap();
     for fixture in fixtures {
+        if only.is_some_and(|id| fixture["id"] != id) {
+            continue;
+        }
         let mut reference = Session::new(&path);
         for c in fixture["commands"].as_array().unwrap() {
             reference.execute(c["command"].as_str().unwrap(), c["params"].clone());
@@ -2220,6 +2252,27 @@ fn development_feature_forms_replay_reference_states() {
             _ => panic!("unknown development feature fixture"),
         };
         let mut session = Session::new(&path);
+        if model_variant {
+            match fixture["id"].as_str().unwrap() {
+                "df-02" => {
+                    let diameter = args
+                        .as_object_mut()
+                        .unwrap()
+                        .remove("grid_hole_diameter")
+                        .unwrap();
+                    args["grid_holes_diameter"] = diameter;
+                }
+                "df-12" => {
+                    args["length"] = json!(64.0001);
+                    args["width"] = json!(48);
+                    args["height"] = json!(26);
+                }
+                "df-18" => {
+                    args.as_object_mut().unwrap().remove("angle_deg");
+                }
+                _ => {}
+            }
+        }
         let commands = fixture["commands"].as_array().unwrap();
         let setup = if fixture["id"] == "df-04" {
             // Hole creation is a separate operation in this multi-intent edit.
@@ -2259,6 +2312,23 @@ fn development_feature_forms_replay_reference_states() {
         }
         let schema = &lib.recipes.iter().find(|r| r.id == id).unwrap().schema;
         forms::coerce(&mut args, &forms::flat(schema)).unwrap();
+        let inferred = forms::request_defaults(&mut args, schema, &request).unwrap();
+        if model_variant && fixture["id"] == "df-18" {
+            assert_eq!(args["angle_deg"], 90.);
+            assert_eq!(inferred.len(), 1);
+            assert_eq!(inferred[0]["defaulted"], true);
+        }
+        if fixture["id"] == "df-04" {
+            assert_eq!(before["bodies"][0]["face_types"]["cylinder"], 12);
+        }
+        if model_variant && fixture["id"] == "df-12" {
+            let mut disagreeing = args.clone();
+            disagreeing["length"] = json!(65);
+            let error = lib
+                .build(&json!({"recipe":id,"args":disagreeing}), &request, &catalog)
+                .unwrap_err();
+            assert!(error.contains("64 x 48 x 26 mm"), "{error}");
+        }
         let mut previous: Option<planner::Plan> = None;
         let mut built = false;
         for stage in 0..4 {
@@ -2269,6 +2339,28 @@ fn development_feature_forms_replay_reference_states() {
                     .unwrap_or_else(|e| panic!("{}: {e}", fixture["id"]))
             };
             let calls: Vec<_> = plan.calls.iter().enumerate().map(|(i,c)| json!({"id":format!("feature_{stage}_{i}"),"function":{"name":"execute","arguments":c["arguments"].to_string()}})).collect();
+            if fixture["id"] == "df-04" {
+                assert!(plan.calls.iter().all(|c| matches!(
+                    c["arguments"]["command"].as_str(),
+                    Some("model.edges" | "solid.chamfer" | "document.inspect")
+                )));
+                for c in plan
+                    .calls
+                    .iter()
+                    .filter(|c| c["arguments"]["command"] == "solid.chamfer")
+                {
+                    assert_eq!(c["arguments"]["params"]["body"], "Plate");
+                    assert_eq!(
+                        c["arguments"]["params"]["edges"].as_array().unwrap().len(),
+                        2
+                    );
+                    assert!(c["arguments"]["params"]["edges"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .all(|e| e["body"] == "Plate" && e["index"].is_u64()));
+                }
+            }
             request["messages"]
                 .as_array_mut()
                 .unwrap()
@@ -2308,6 +2400,10 @@ fn development_feature_forms_replay_reference_states() {
         assert!(built, "{}", fixture["id"]);
         let actual = session.execute("document.inspect", json!({"measure":true}));
         let a = actual["bodies"].as_array().unwrap();
+        if fixture["id"] == "df-04" {
+            assert_eq!(a[0]["face_types"]["cylinder"], 12);
+            assert!((a[0]["volume_mm3"].as_f64().unwrap() - 31806.143002367506).abs() < 0.01);
+        }
         let b = want["bodies"].as_array().unwrap();
         assert_eq!(a.len(), b.len(), "{}", fixture["id"]);
         for (a, b) in a.iter().zip(b) {

@@ -408,6 +408,51 @@ fn legacy_hole_coordinates(args: &mut Value, schema: &Value) -> Result<Vec<Value
 /// Reconcile spelling aliases without hiding conflicting values.
 pub(crate) fn aliases(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> {
     let mut changes = Vec::new();
+    // Reconcile singular/plural words only against unambiguous listed fields.
+    let singular = |name: &str| {
+        name.split('_')
+            .map(|word| {
+                if word.ends_with("sses")
+                    || word.ends_with("ches")
+                    || word.ends_with("shes")
+                    || word.ends_with("xes")
+                {
+                    word.strip_suffix("es").unwrap_or(word)
+                } else if word.ends_with("ss") {
+                    word
+                } else {
+                    word.strip_suffix('s').unwrap_or(word)
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("_")
+    };
+    let fields = schema
+        .get("x-pilot-fill")
+        .and_then(|f| f["properties"].as_object())
+        .or_else(|| schema["properties"].as_object())
+        .ok_or("fill schema needs properties")?;
+    let object = args.as_object_mut().ok_or("args requires one object")?;
+    let keys: Vec<_> = object.keys().cloned().collect();
+    for key in keys {
+        if fields.contains_key(&key) {
+            continue;
+        }
+        let candidates: Vec<_> = fields
+            .keys()
+            .filter(|name| singular(name) == singular(&key))
+            .collect();
+        if let [target] = candidates.as_slice() {
+            if let Some(value) = object.remove(&key) {
+                if object.get(*target).is_some_and(|v| !agrees(v, &value)) {
+                    return Err(format!("args.{key} conflicts with {target}"));
+                }
+                object.insert((*target).clone(), value.clone());
+                changes
+                    .push(json!({"field":key,"before":value,"after":null,"converted_to":target}));
+            }
+        }
+    }
     if schema["properties"].get("open").is_some() && args["open"] == true {
         args["open"] = json!("top");
         changes.push(json!({"field":"open","before":true,"after":"top"}));
@@ -427,6 +472,59 @@ pub(crate) fn aliases(args: &mut Value, schema: &Value) -> Result<Vec<Value>, St
         }
     }
     Ok(changes)
+}
+
+/// Only one explicit rotation in the latest request fills an omitted joint angle.
+pub fn request_defaults(
+    args: &mut Value,
+    schema: &Value,
+    request: &Value,
+) -> Result<Vec<Value>, String> {
+    crate::repair::check_value(args)?;
+    if schema["x-pilot-expander"] != "revolute_joint"
+        || args.get("angle_deg").is_some()
+        || args["decline"] == true
+    {
+        return Ok(Vec::new());
+    }
+    let text = request["messages"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .rev()
+        .find(|m| m["role"] == "user")
+        .and_then(|m| m["content"].as_str())
+        .unwrap_or("");
+    if text.len() > 65_536 {
+        return Err("joint angle request exceeds 65536 bytes".into());
+    }
+    let text = text.to_ascii_lowercase().replace('°', " degrees ");
+    let words: Vec<_> = text
+        .split(|c: char| !c.is_alphanumeric() && !matches!(c, '.' | '-' | '+'))
+        .map(|s| s.trim_end_matches('.'))
+        .filter(|s| !s.is_empty())
+        .collect();
+    let mut angles = Vec::new();
+    for pair in words.windows(2) {
+        if matches!(pair[1], "deg" | "degree" | "degrees") {
+            if let Ok(n) = pair[0].parse::<f64>() {
+                if n.is_finite() {
+                    angles.push(n);
+                }
+            }
+        } else if pair == ["quarter", "turn"] {
+            angles.push(90.);
+        }
+    }
+    if let [angle] = angles.as_slice() {
+        args.as_object_mut()
+            .ok_or("args requires one object")?
+            .insert("angle_deg".into(), json!(angle));
+        return Ok(vec![
+            json!({"field":"angle_deg","before":null,"after":angle,"defaulted":true,"rule":"single explicit rotation angle in request"}),
+        ]);
+    }
+    Ok(Vec::new())
 }
 
 /// Explicit lip requests may derive their missing dimensions from the wall.

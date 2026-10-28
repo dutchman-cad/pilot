@@ -88,7 +88,14 @@ Request side:
   centred/centered/centre/center name the same placement field; centred plates include
   thickness in origin placement. open:true means the default top opening; explicit
   top/bottom choices remain available. Existing-part edit verbs use edit forms after
-  inspection confirms a body; creation requests retain creation forms.
+  inspection confirms a body; creation requests retain creation forms. Matching
+  supplied shell dimensions are discarded after comparison with inspected bounds
+  (0.001 mm or one part per million); mismatches name the measured size. Flat field
+  names accept unambiguous singular/plural word variants. An omitted revolute angle
+  uses a single explicit request rotation, including a quarter turn, with an
+  inference audit; supplied angles are never overridden.
+  A corner-only form defers requests to add holes as well as edit corners to
+  native tools, retaining the complete request instead of completing only a subset.
   Offer once per user turn; no continuation or SC98
   fills. Forced fill and route do not require `--offer-recipe-tools`. `--no-fill` skips
   fill and route; `--no-shortcuts` disables forms and local recipe tools even with the offer flag.

@@ -799,7 +799,13 @@ pub(super) fn existing_corners(
                 _ => true,
             };
             if selected {
-                edges.push(json!(p));
+                let index = edge["index"]
+                    .as_u64()
+                    .filter(|i| *i < 256)
+                    .ok_or("edge edit needs an inspected edge index below 256")?;
+                // Use the public body/index selector, so coincident geometry in
+                // another body cannot become the edit target by proximity.
+                edges.push(json!({"body":body,"index":index}));
             }
         }
         if edges.is_empty() {
@@ -826,12 +832,6 @@ pub(super) fn existing_corners(
 }
 
 fn existing_shell(args: &Value, request: &Value, catalog: &Catalog) -> Result<Plan, String> {
-    if ["length", "width", "height"]
-        .iter()
-        .any(|k| args.get(k).is_some())
-    {
-        return Err("args.body with shell dimensions is ambiguous; omit dimensions to shell the existing body".into());
-    }
     let messages = request["messages"]
         .as_array()
         .ok_or("shell requires messages")?;
@@ -876,6 +876,20 @@ fn existing_shell(args: &Value, request: &Value, catalog: &Catalog) -> Result<Pl
         }
     }
     let size: [f64; 3] = std::array::from_fn(|k| hi[k] - lo[k]);
+    let mut args = args.clone();
+    for (index, key) in ["length", "width", "height"].iter().enumerate() {
+        if let Some(sent) = args.get(*key) {
+            if sent
+                .as_f64()
+                .is_none_or(|n| (n - size[index]).abs() > (size[index] * 1e-6).max(0.001))
+            {
+                return Err(format!("args.{key} {sent} disagrees with inspected body {} size {} x {} x {} mm; omit dimensions to shell this body", args["body"], size[0], size[1], size[2]));
+            }
+            args.as_object_mut()
+                .ok_or("shell args require an object")?
+                .remove(*key);
+        }
+    }
     let before = body["volume_mm3"]
         .as_f64()
         .ok_or("shell needs measured body volume")?;

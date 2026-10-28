@@ -505,6 +505,7 @@ impl Library {
             )
         })?;
         let mut supplied = envelope["args"].clone();
+        forms::request_defaults(&mut supplied, &r.schema, request)?;
         if r.expander == "joint" {
             planner::joints::coerce(&mut supplied)?;
         }

@@ -222,6 +222,24 @@ pub(super) enum Outcome {
     Invalid(String),
 }
 
+/// A corner-only form cannot fulfill a separate request to create holes.
+/// Leave the complete request and native tools available instead of silently
+/// completing just the bevel on the unperforated starting body.
+pub(super) fn partial_edge_edit(recipe: &Value, request: &Value) -> bool {
+    if !matches!(recipe["id"].as_str(), Some("chamfer" | "fillet")) {
+        return false;
+    }
+    let text = last_user(request).to_ascii_lowercase();
+    let words: Vec<_> = text
+        .split(|c: char| !c.is_ascii_alphabetic())
+        .filter(|w| !w.is_empty())
+        .collect();
+    words.iter().any(|w| matches!(*w, "add" | "drill"))
+        && words
+            .iter()
+            .any(|w| matches!(*w, "hole" | "holes" | "bore" | "bores"))
+}
+
 /// Coercions are returned individually so the proxy audits each supplied field.
 pub(super) fn coerced(
     response: &Value,
@@ -251,6 +269,9 @@ pub(super) fn coerced(
     let mut schema = recipe["schema"].clone();
     schema["properties"]["decline"] = json!({"type":"boolean"});
     let mut changes = crate::recipe_library::forms::coerce(&mut args, &schema)?;
+    changes.extend(crate::recipe_library::forms::request_defaults(
+        &mut args, &schema, request,
+    )?);
     if args["decline"] != true && planner::patterns::is_pattern(recipe["id"].as_str().unwrap_or(""))
     {
         changes.extend(planner::patterns::resolve(&mut args, request)?);
@@ -267,6 +288,9 @@ pub(super) fn accept(
     library: &crate::recipe_library::Library,
     catalog: &Catalog,
 ) -> Outcome {
+    if partial_edge_edit(recipe, request) {
+        return Outcome::Fallback;
+    }
     let response = match coerced(response, recipe, request) {
         Ok((r, _)) => r,
         Err(e) => return Outcome::Invalid(e),
@@ -449,6 +473,38 @@ mod tests {
                     }
                 );
             }
+        }
+    }
+
+    #[test]
+    fn omitted_joint_angle_uses_one_request_angle_and_audits_inference() {
+        let library = crate::recipe_library::Library::embedded().unwrap();
+        let recipe = library
+            .recipes
+            .iter()
+            .find(|r| r.id == "revolute_joint")
+            .unwrap();
+        let recipe =
+            json!({"id":recipe.id,"schema":crate::recipe_library::forms::flat(&recipe.schema)});
+        for (text, angle) in [
+            ("pivot at 90°", 90.),
+            ("pivot 90 deg", 90.),
+            ("pivot a quarter turn", 90.),
+            ("pivot at 30 degrees.", 30.),
+            ("pivot -45 degrees", -45.),
+        ] {
+            let response = json!({"choices":[{"message":{"tool_calls":[{"function":{"name":"pilot_fill","arguments":"{\"hole_component\":\"Lever\",\"pin_component\":\"Pedestal\"}"}}]}}]});
+            let (converted, changes) = coerced(&response, &recipe, &request(text)).unwrap();
+            let args: Value = serde_json::from_str(
+                converted["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"]
+                    .as_str()
+                    .unwrap(),
+            )
+            .unwrap();
+            assert_eq!(args["angle_deg"], angle);
+            assert!(changes.iter().any(|c| c["field"] == "angle_deg"
+                && c["defaulted"] == true
+                && c["after"] == angle));
         }
     }
 

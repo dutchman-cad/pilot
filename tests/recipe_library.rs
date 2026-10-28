@@ -1940,3 +1940,72 @@ fn feature_wording_defaults_aliases_and_edit_context() {
         );
     }
 }
+
+#[test]
+fn request_joint_angle_never_overrides_a_fill_or_chooses_between_angles() {
+    let lib = Library::embedded().unwrap();
+    let schema = &lib
+        .recipes
+        .iter()
+        .find(|r| r.id == "revolute_joint")
+        .unwrap()
+        .schema;
+    for text in [
+        "pivot at 30 degrees or 90 degrees",
+        "pivot without an angle",
+        "use a quarter turn then 30 degrees",
+    ] {
+        let mut args = json!({});
+        assert!(forms::request_defaults(
+            &mut args,
+            schema,
+            &json!({"messages":[{"role":"user","content":text}]})
+        )
+        .unwrap()
+        .is_empty());
+        assert!(args.get("angle_deg").is_none());
+    }
+    for supplied in [json!(0), json!(45), json!("30°"), Value::Null] {
+        let mut args = json!({"angle_deg":supplied});
+        assert!(forms::request_defaults(
+            &mut args,
+            schema,
+            &json!({"messages":[{"role":"user","content":"pivot at 90°"}]})
+        )
+        .unwrap()
+        .is_empty());
+        assert_eq!(args["angle_deg"], supplied);
+    }
+    assert!(forms::request_defaults(
+        &mut json!(42),
+        schema,
+        &json!({"messages":[{"role":"user","content":"pivot at 90°"}]})
+    )
+    .unwrap_err()
+    .contains("object"));
+}
+
+#[test]
+fn flat_plural_variants_use_listed_fields_and_refuse_conflicts() {
+    let lib = Library::embedded().unwrap();
+    let schema = &lib.recipes.iter().find(|r| r.id == "plate").unwrap().schema;
+    let flat = forms::flat(schema);
+    for alias in ["hole_diameter", "holes_diameter", "grid_holes_diameter"] {
+        let mut args = json!({"length":90,"width":60,"thickness":4,"grid_columns":3,"grid_rows":2,"grid_pitch_x":20,"grid_pitch_y":30,alias:"5 mm"});
+        forms::coerce(&mut args, &flat).unwrap();
+        let slots = forms::to_slots(&args, schema).unwrap();
+        assert_eq!(slots["hole_diameter"].as_f64(), Some(5.));
+    }
+    let mut conflict = json!({"holes_diameter":4,"hole_diameter":5});
+    assert!(forms::coerce(&mut conflict, &flat)
+        .unwrap_err()
+        .contains("conflicts"));
+    let mut bosses = json!({"bosses_diameter":6});
+    forms::coerce(&mut bosses, &flat).unwrap();
+    assert_eq!(bosses["boss_diameter"], 6);
+    let mut unknown = json!({"unlisted_holes_diameter":4});
+    forms::coerce(&mut unknown, &flat).unwrap();
+    assert!(forms::to_slots(&unknown, schema)
+        .unwrap_err()
+        .contains("unknown"));
+}
