@@ -58,7 +58,8 @@ JSON written as prose stays prose unless Pilot converts it.
 ## Run
 
 From the repository root, replace the example binary paths and model identifier.
-An Ollama root URL, its `/api` URL, or an OpenAI-compatible `/v1` base URL is accepted.
+An endpoint root, an Ollama `/api` URL, or an OpenAI-compatible `/v1` base URL is accepted.
+Use `--endpoint-kind ollama` for Ollama's native API and context-size control.
 For authenticated endpoints set `BENCH_API_KEY` in the environment; it is forwarded
 as a bearer header and never written to the result files.
 
@@ -122,6 +123,31 @@ while the remaining tasks still run. A turn that uses all 24 model requests
 ends there; its design is scored as it stands and the record says
 `"stopped": "request limit"`.
 
+## Comparing builds
+
+Use the same fixed settings for build-to-build comparisons, for example
+`--endpoint-kind ollama --temperature 0 --seed 42 --num-ctx 65536` on both
+runs (long multi-step tasks can exceed 30k tokens, so a small context truncates them). Keep model weights, runtime, task set and other configuration identical.
+Publish default-settings numbers separately. Repeat model-only runs (`--reps 3`
+or more): they repeat less well than exact-match runs, even with fixed settings.
+This runner disables Pilot's exact matches for its model-only measurements.
+
+All three settings default to unset. Temperature accepts 0–0.2, seed a signed
+64-bit integer, and context size 8192–131072. Direct Ollama runs send these in
+native `/api/chat` options; OpenAI-compatible runs send temperature and seed.
+`--num-ctx` requires native Ollama or Pilot. Through Pilot, the harness passes a
+temporary JSON file keyed by model using `--model-settings`, then removes it on
+exit, including startup failure. Temperature and seed also travel in the proxy
+request. Pilot applies its file only to detected Ollama upstreams and supplies
+its own defaults for omitted fields (temperature 0.1 and context 8192); specify
+all three for fixed comparisons. Anthropic accepts temperature only; installed
+agent runs do not accept these settings.
+
+Every result row and task artifact records `model_settings`, with null for each
+unset option. Report headers show these settings and different configurations
+get separate tables without cross-configuration pairing. Older rows without
+settings are labelled unrecorded and kept separate from new runs.
+
 ## Format 1
 
 `tasks.json` is an object with top-level `format: 1`, a license identifier and
@@ -179,9 +205,10 @@ check predicates, not additional task-format extensions.
 
 Each task starts a fresh CLI process, design, and conversation. Its start file
 is opened through `mcp --in` when present; otherwise setup is replayed before
-the exact prompt is sent once. Model settings are temperature 0, seed 1,
-and a maximum of 4096 output tokens per request; endpoint implementations may
-interpret these differently. A user turn allows at most 24 model requests, 128
+the exact prompt is sent once. Sampling settings default to unset; the harness
+requests at most 4096 output tokens per request. Endpoint implementations may
+interpret these differently. Earlier harness versions hardcoded temperature 0
+and seed 1 (Anthropic temperature 0 only), without recording them. A user turn allows at most 24 model requests, 128
 tool calls and 600 seconds. There are no harness retries or follow-up nudges.
 Pilot may apply its own bounded retries. Limits also include 16 MiB per JSON
 message/file, 256 tasks, 1024 reference/setup/batch commands and 1–20 repetitions.
