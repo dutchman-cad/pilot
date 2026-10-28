@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Profile forms keep stated inside gaps and T stem heights as driving sketch dimensions, and support lipped C sections, dimensioned inside fillets on angles, and symmetric extrusion. All remain fully constrained.
 - A plain revolute, hinge or pin joint gets the short pin-and-hole form again; the general joint fields appear only when a request names another joint type, limits, or box centres and origins.
 - One joint form now connects inspected components with any joint or relation type,
   at box centres or named origins, with aligned axes and ordered motion limits.
