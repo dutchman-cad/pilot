@@ -151,6 +151,33 @@ pub(super) fn offer(
         recipe["id"] == "revolute_joint",
     )?;
     let mut schema = crate::recipe_library::forms::compact(&recipe["schema"]);
+    if recipe["id"] == "profile" {
+        // Extra profile sizes only when the request uses their words: offered on every
+        // profile, small models fill them inconsistently and the form refuses the pair.
+        let lower = text.to_ascii_lowercase();
+        let words: Vec<&str> = lower
+            .split(|c: char| !c.is_ascii_alphanumeric())
+            .filter(|w| !w.is_empty())
+            .collect();
+        let said = |list: &[&str]| words.iter().any(|w| list.contains(w));
+        let phrase = |list: &[&str]| list.iter().any(|p| lower.contains(p));
+        let keep = |key: &str| match key {
+            "inside_width" | "inside_height" => {
+                said(&["inside", "inner", "gap", "opening", "internal", "clear"])
+            }
+            "stem_height" => said(&["stem"]),
+            "lip" => said(&["lip", "lips", "lipped", "return", "returns"]),
+            "symmetric" => {
+                said(&["symmetric", "symmetrically", "midplane"])
+                    || phrase(&["both sides", "either side", "mid plane", "mid-plane"])
+            }
+            "inside_fillet" => said(&["fillet", "filleted", "radius", "rounded"]),
+            _ => true,
+        };
+        if let Some(props) = schema["properties"].as_object_mut() {
+            props.retain(|k, _| keep(k));
+        }
+    }
     if recipe["id"] == "revolute_joint" && !planner::joints::generic_wanted(&text) {
         // Pin/hole joints get the short form; the general fields only confuse them.
         if let Some(props) = schema["properties"].as_object_mut() {
@@ -362,6 +389,51 @@ mod tests {
 
     fn request(text: &str) -> Value {
         json!({"messages":[{"role":"user","content":text}]})
+    }
+    #[test]
+    fn profile_extra_sizes_only_when_the_request_names_them() {
+        let library = crate::recipe_library::Library::embedded().unwrap();
+        let recipe = library.recipes.iter().find(|r| r.id == "profile").unwrap();
+        let found = json!({"id":recipe.id,"description":recipe.description,"schema":crate::recipe_library::forms::flat(&recipe.schema)});
+        let fields = |text: &str| {
+            let mut req = request(text);
+            offer(&mut req, &found, None).unwrap();
+            req["tools"][0]["function"]["parameters"]["properties"]
+                .as_object()
+                .unwrap()
+                .keys()
+                .cloned()
+                .collect::<Vec<String>>()
+        };
+        let extra = [
+            "inside_width",
+            "inside_height",
+            "stem_height",
+            "lip",
+            "symmetric",
+            "inside_fillet",
+        ];
+        let plain = fields("an L profile 40 by 30, 5 mm thick, 100 mm long");
+        assert!(
+            extra.iter().all(|k| !plain.iter().any(|f| f == k)),
+            "{plain:?}"
+        );
+        assert!(plain.iter().any(|f| f == "width"));
+        for (text, key) in [
+            (
+                "a U channel with a 20 mm inside gap, 3 mm walls",
+                "inside_width",
+            ),
+            ("a T with a 30 mm stem", "stem_height"),
+            ("a lipped C 60 by 30 with 10 mm lips", "lip"),
+            (
+                "a channel extruded 60 mm on both sides of the plane",
+                "symmetric",
+            ),
+            ("an angle with a 6 mm inside fillet", "inside_fillet"),
+        ] {
+            assert!(fields(text).iter().any(|f| f == key), "{text}: {key}");
+        }
     }
     #[test]
     fn plain_pin_joints_get_the_short_form_and_typed_joints_the_full_one() {
