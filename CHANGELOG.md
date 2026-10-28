@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Profile forms keep stated inside gaps and T stem heights as driving sketch dimensions, and support lipped C sections, dimensioned inside fillets on angles, and symmetric extrusion. All remain fully constrained.
+- Offer inside gaps, stem heights, lips, symmetric extrusion and inside fillets only when the profile request names them.
+
 ## 0.1.0-beta.7 (2026-10-28)
 
 - Joints: one form now covers every SolidCraft joint type (rigid, revolute, slider,

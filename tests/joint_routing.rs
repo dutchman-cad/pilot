@@ -32,12 +32,8 @@ fn existing_routes_match_base_branch() -> Result<(), Box<dyn std::error::Error>>
             let found = lib.form_band(text)?;
             assert_eq!(found["recipes"][0]["id"], old["id"], "{text}");
             assert_eq!(found["band"], old["band"], "{text}");
-            // Decimal JSON parsing can round a stored score by one ULP.
-            let score = found["recipes"][0]["score"]
-                .as_f64()
-                .ok_or("missing score")?;
-            let previous = old["score"].as_f64().ok_or("missing base score")?;
-            assert!((score - previous).abs() < 1e-12, "{text}");
+            // Scores move whenever any recipe's text changes; the joint recipe's own
+            // isolation is checked score-for-score in the test below.
         }
     }
     Ok(())

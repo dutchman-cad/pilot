@@ -1,7 +1,12 @@
 ---
 {
   "id": "profile",
-  "synonyms": ["bracket angle iron L", "tee T section", "channel U C", "hollow rectangle section"],
+  "synonyms": [
+    "bracket angle iron L",
+    "tee T section",
+    "channel U C",
+    "hollow rectangle section"
+  ],
   "description": "Extrude L T U C or rectangular profiles with web and flange thickness.",
   "examples": [
     "Extrude an L profile twenty mm deep",
@@ -96,12 +101,34 @@
       },
       "width": {
         "$ref": "#/$defs/Length"
+      },
+      "inside_width": {
+        "$ref": "#/$defs/Length",
+        "description": "U/C gap width; replaces width"
+      },
+      "inside_height": {
+        "$ref": "#/$defs/Length",
+        "description": "U/C gap height; replaces height"
+      },
+      "stem_height": {
+        "$ref": "#/$defs/Length",
+        "description": "T stem below flange; replaces height"
+      },
+      "inside_fillet": {
+        "$ref": "#/$defs/Length",
+        "description": "L inside radius"
+      },
+      "lip": {
+        "$ref": "#/$defs/Length",
+        "description": "C lip from outside flange face"
+      },
+      "symmetric": {
+        "type": "boolean",
+        "description": "Half depth each side of plane"
       }
     },
     "required": [
       "kind",
-      "width",
-      "height",
       "depth"
     ],
     "type": "object",
@@ -179,13 +206,56 @@
           "type": "number",
           "x-slot": "/width",
           "x-unit": "mm"
+        },
+        "inside_width": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "x-unit": "mm",
+          "description": "U/C gap width; replaces width",
+          "x-slot": "/inside_width"
+        },
+        "inside_height": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "x-unit": "mm",
+          "description": "U/C gap height; replaces height",
+          "x-slot": "/inside_height"
+        },
+        "stem_height": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "x-unit": "mm",
+          "description": "T stem below flange; replaces height",
+          "x-slot": "/stem_height"
+        },
+        "inside_fillet": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "x-unit": "mm",
+          "description": "L inside radius",
+          "x-slot": "/inside_fillet"
+        },
+        "lip": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "x-unit": "mm",
+          "description": "C lip from outside flange face",
+          "x-slot": "/lip"
+        },
+        "symmetric": {
+          "type": "boolean",
+          "description": "Half depth each side of plane",
+          "x-slot": "/symmetric"
         }
       },
       "required": [
         "depth",
-        "height",
-        "kind",
-        "width"
+        "kind"
       ]
     }
   },
