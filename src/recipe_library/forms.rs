@@ -34,13 +34,28 @@ pub(crate) fn describe(s: &mut Value) {
                 "depth" => ("Extrusion distance normal to plane", None),
                 "floor" => ("Base thickness; omitted: wall", None),
                 "lip" => ("Raised locating ring at opening", None),
-                "bolt_circle" => ("Hole centres on this circle", None),
-                "grid" => ("Hole centres in rows and columns", None),
+                "boss_diameter" => ("Joined round peg/boss diameter; requires boss_height", None),
+                "boss_height" => ("Rise above plate top; requires boss_diameter", None),
+                "boss_offset_x" | "boss_offset_y" => {
+                    ("Single boss offset from plate centre; omitted: 0", None)
+                }
+                "row" => (
+                    "Centred feature row; count includes all; pitch is centre spacing",
+                    None,
+                ),
+                "bolt_circle" => ("Feature centres on this circle", None),
+                "grid" => (
+                    "Feature centres: columns along sketch X, rows along sketch Y",
+                    None,
+                ),
                 "corners" => ("Outside corner treatment", None),
                 "bore_diameter" => ("Centre through bore", None),
-                "hole_diameter" => ("Pattern hole diameter; requires bolt_circle or grid", None),
+                "hole_diameter" => (
+                    "Pattern hole diameter; requires bolt_circle, grid or row",
+                    None,
+                ),
                 "start_deg" => ("From +X toward +Y", Some(json!(0))),
-                "pitch_x" | "pitch_y" => ("Hole centre spacing", None),
+                "pitch_x" | "pitch_y" => ("Feature centre spacing", None),
                 "size" => (
                     "Fillet radius/chamfer distance; hex span for honeycomb",
                     None,
@@ -136,6 +151,22 @@ pub fn compact(s: &Value) -> Value {
             "web_thickness" => "Vertical leg; U bottom",
             "flange_thickness" => "Horizontal leg; U sides",
             "stem_offset" => "T centre from left; omit: centred",
+            "length" if root["x-pilot-expander"] == "plate" => {
+                "Rectangle X; length+width OR diameter"
+            }
+            "width" if root["x-pilot-expander"] == "plate" => "Rectangle Y; omit with diameter",
+            "diameter" if root["x-pilot-expander"] == "plate" => "Round base; omit length/width",
+            "boss_diameter" => "Joined peg/boss; needs boss_height",
+            "boss_height" => "Rise above plate top",
+            "boss_offset_x" | "boss_offset_y" => "From plate centre; single boss only; omit: 0",
+            "row_count" => "Total features in centred row",
+            "row_pitch" => "Centre spacing",
+            "row_axis" => "Sketch axis; omit: X",
+            "grid_columns" => "Along X; A x B: A along longer side unless stated",
+            "grid_rows" => "Along Y; 7 x 5 on 120 x 80: rows=5, columns=7",
+            "grid_pitch_x" | "grid_pitch_y" => "Centre spacing; single pitch: use for both",
+            "bolt_hole_count" => "Circle feature count (holes OR bosses)",
+            "bolt_circle_diameter" => "Feature-centre circle diameter",
             "hole_diameter" => "Pattern holes",
             "size" if root["x-pilot-expander"] == "honeycomb_pattern" => "Hex span",
             "size" => "Radius/bevel",
@@ -143,8 +174,19 @@ pub fn compact(s: &Value) -> Value {
             "floor" => "Omit: wall",
             "target" => "body: solid; last_feature: latest feature",
             "open" => "Removed face",
+            "axis" if root["x-pilot-expander"] == "joint" => {
+                "Aligned world axis; omit: Z; named origins keep their frames"
+            }
             "direction" | "axis" => "World axis",
             "plane" => "Axes of plane",
+            k if root["x-pilot-expander"] == "joint"
+                && (k.starts_with("limit")
+                    || k.starts_with("component_")
+                    || k.starts_with("point_")
+                    || k == "joint_type") =>
+            {
+                resolved["description"].as_str().unwrap_or("")
+            }
             _ => "",
         };
         if !description.is_empty() {
@@ -167,14 +209,21 @@ pub fn compact(s: &Value) -> Value {
     }
     let s = flat(s);
     let mut out = walk(&s, &s, "");
-    if s["x-pilot-expander"] == "cross_drilled_box" {
+    if matches!(
+        s["x-pilot-expander"].as_str(),
+        Some("cross_drilled_box" | "plate")
+    ) {
         out["description"] = s["description"].clone();
     }
     out
 }
 
-pub fn line(_id: &str) -> String {
-    "You fill in one form from the user's CAD request. Call the tool once. Lengths in mm; convert inches (25.4) and cm (10). Leave optional fields out unless stated. If the form does not fit, set decline true.".into()
+pub fn line(id: &str) -> String {
+    let mut line = "You fill in one form from the user's CAD request. Call the tool once. Lengths in mm; convert inches (25.4) and cm (10). Leave optional fields out unless stated. If the form does not fit, set decline true.".to_owned();
+    if id == "joint" {
+        line.push_str(" Use joint_type and component_a/b. Limits are ordered min/max pairs in deg or mm; omit pairs for unlimited motion.");
+    }
+    line
 }
 
 /// File-owned scalar form; typed schemas remain the compatibility contract.
@@ -253,6 +302,11 @@ pub fn flat(schema: &Value) -> Value {
         return schema.clone();
     };
     let mut out = json!({"type":"object","additionalProperties":false,"properties":fill["properties"],"required":fill["required"],"x-pilot-expander":schema["x-pilot-expander"]});
+    if schema["x-pilot-expander"] == "plate" {
+        out["description"] = json!(
+            "Base plus holes OR joined bosses. Layout centred on base; no layout: single boss."
+        );
+    }
     if schema["x-pilot-expander"] == "cross_drilled_box" {
         out["description"] =
             json!("Holes are centred unless you give offset_u/offset_v from the face centre.");
@@ -353,8 +407,11 @@ pub fn coerce(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> {
     let fields = schema["properties"]
         .as_object()
         .ok_or("fill schema needs properties")?;
-    let object = args.as_object_mut().ok_or("args requires one object")?;
     let mut changes = pattern_changes;
+    if schema["x-pilot-expander"] == "joint" {
+        changes.extend(crate::planner::joints::coerce(args)?);
+    }
+    let object = args.as_object_mut().ok_or("args requires one object")?;
     for (key, value) in object {
         let compatibility = json!({"type":"number","x-unit":"mm"});
         let Some(field) = fields.get(key).or_else(|| {
@@ -364,6 +421,21 @@ pub fn coerce(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> {
             continue;
         };
         let before = value.clone();
+        // A choice written as ["X","Z"], ["XZ"] or {"plane":"XZ"} is read as its text.
+        if field["enum"].is_array() {
+            let parts: Option<Vec<&str>> = match &*value {
+                Value::Array(items) if (1..=3).contains(&items.len()) => {
+                    items.iter().map(Value::as_str).collect()
+                }
+                Value::Object(map) if map.len() == 1 => {
+                    map.values().next().and_then(Value::as_str).map(|s| vec![s])
+                }
+                _ => None,
+            };
+            if let Some(parts) = parts.filter(|p| p.iter().all(|s| s.len() <= 32)) {
+                *value = json!(parts.concat());
+            }
+        }
         if let Some(text) = value.as_str() {
             let text = text.trim();
             if field["type"] == "boolean" {
@@ -397,13 +469,18 @@ pub fn coerce(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> {
                 }
             } else if let Some(choices) = field["enum"].as_array() {
                 let lower = text.to_ascii_lowercase();
-                let synonym = match lower.as_str() {
+                let lower = lower
+                    .strip_suffix(" plane")
+                    .or_else(|| lower.strip_suffix("-plane"))
+                    .unwrap_or(&lower);
+                let synonym = match lower {
                     "round" | "rounded" => "fillet",
                     "bevel" | "beveled" => "chamfer",
                     "corners" | "side" | "sides" => "vertical",
                     "inside" => "inner",
                     "outside" => "outer",
-                    _ => lower.as_str(),
+                    _ if choices.iter().any(|c| c == "U") => section_kind(lower).unwrap_or(lower),
+                    _ => lower,
                 };
                 if let Some(choice) = choices
                     .iter()
@@ -420,6 +497,39 @@ pub fn coerce(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> {
     changes.extend(defaults(args, schema)?);
     changes.extend(legacy_hole_coordinates(args, schema)?);
     Ok(changes)
+}
+
+/// Read a profile section name such as "T-section", "U_CHANNEL" or "equal angle".
+fn section_kind(text: &str) -> Option<&'static str> {
+    let words: Vec<&str> = text
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .collect();
+    let has = |w: &str| words.contains(&w);
+    // A leading single letter names the section: "T-section", "u channel", "inverted T".
+    if let Some(letter) = words.iter().find(|w| w.len() == 1) {
+        return match *letter {
+            "l" => Some("L"),
+            "t" => Some("T"),
+            "u" => Some("U"),
+            "c" => Some("C"),
+            _ => None,
+        };
+    }
+    if has("angle") {
+        Some("L")
+    } else if has("tee") {
+        Some("T")
+    } else if has("channel") {
+        Some("U")
+    } else if words
+        .iter()
+        .any(|w| matches!(*w, "rect" | "rectangular" | "rectangle" | "bar" | "flat"))
+    {
+        Some("rectangle")
+    } else {
+        None
+    }
 }
 
 /// Infer only file-declared, conditional non-dimensional defaults.
@@ -526,21 +636,20 @@ fn merge(out: &mut Value, value: &Value, path: &str) -> Result<(), String> {
 /// Reconcile alternative representations once, before typed recipe validation.
 pub(crate) fn consistent(out: &mut Value) -> Result<(), String> {
     if let Some(t) = out.get("thickness").cloned() {
-        let mut expanded = false;
-        for key in ["web_thickness", "flange_thickness"] {
-            if let Some(value) = out.get(key) {
-                expanded = true;
-                if !agrees(&t, value) {
-                    return Err(format!(
-                        "thickness {t} conflicts with {key} {value}; supply agreeing values"
-                    ));
-                }
-            }
-        }
-        if expanded {
+        let web = out.get("web_thickness").cloned();
+        let flange = out.get("flange_thickness").cloned();
+        if web.is_some() || flange.is_some() {
             let object = out.as_object_mut().ok_or("slots require an object")?;
-            object.remove("web_thickness");
-            object.remove("flange_thickness");
+            let same = |v: &Option<Value>| v.as_ref().is_none_or(|v| agrees(&t, v));
+            if same(&web) && same(&flange) {
+                object.remove("web_thickness");
+                object.remove("flange_thickness");
+            } else {
+                // A specific web or flange value wins; the general thickness fills the other.
+                object.remove("thickness");
+                object.insert("web_thickness".into(), web.unwrap_or_else(|| t.clone()));
+                object.insert("flange_thickness".into(), flange.unwrap_or(t));
+            }
         }
     }
     if let (Some(s), Some(t), Some(n)) = (
@@ -758,5 +867,19 @@ pub fn to_slots(args: &Value, schema: &Value) -> Result<Value, String> {
         }
     }
     consistent(&mut out)?;
+    if schema["x-pilot-expander"] == "plate"
+        && out.get("hole_diameter").is_none()
+        && out.get("boss_diameter").is_none()
+    {
+        for (layout, field) in [
+            ("bolt_circle", "bolt_hole_diameter"),
+            ("grid", "grid_hole_diameter"),
+            ("row", "hole_diameter"),
+        ] {
+            if out.get(layout).is_some() {
+                return Err(format!("args.{field} missing; supply {field} for holes, or boss_diameter and boss_height for joined raised features"));
+            }
+        }
+    }
     Ok(out)
 }

@@ -10,6 +10,7 @@ pub(super) const EMBEDDED: &[(&str, &str)] = &[
     ("fillet.md", include_str!("../../recipes/fillet.md")),
     ("grid_pattern.md", include_str!("../../recipes/grid_pattern.md")),
     ("honeycomb_pattern.md", include_str!("../../recipes/honeycomb_pattern.md")),
+    ("joint.md", include_str!("../../recipes/joint.md")),
     ("linear_pattern.md", include_str!("../../recipes/linear_pattern.md")),
     ("mirror.md", include_str!("../../recipes/mirror.md")),
     ("move.md", include_str!("../../recipes/move.md")),

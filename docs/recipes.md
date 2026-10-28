@@ -306,7 +306,20 @@ There is no upfront “call pilot_find first” fact. The legacy build form acce
 `flange_thickness`; U uses web for its bottom and flange for its two sides.
 `stem_offset` is the T stem centre measured from the left edge. Profiles start
 at the sketch origin; plates use the selected plane and placement; enclosure
-centring includes Z. Hole grids and bolt circles are centred on the plate.
+centring includes Z. Hole grids, bolt circles and rows are centred on the plate.
+The plate form accepts either `length` and `width` or a round `diameter`, plus
+`thickness`. `boss_diameter` and `boss_height` add joined round pegs/bosses on
+the top face. Without a layout there is one boss at the plate centre;
+`boss_offset_x`/`boss_offset_y` are signed sketch-plane offsets from that centre.
+A `row` has `count`, centre-to-centre `pitch` and optional `axis` (X by default,
+or Y). The flat equivalents are `row_count`, `row_pitch`, `row_axis`. Circles
+use the existing `bolt_hole_count` and `bolt_circle_diameter` fields for either
+holes or bosses. Omit hole diameters for raised features. Grid columns run along
+sketch X and rows along sketch Y; an unqualified A×B grid puts A along the
+longer side unless directed otherwise. Thus a 7×5 grid on a 120×80 plate uses
+7 columns, 5 rows, and a stated 15 mm pitch maps to both grid pitches.
+Patterns are capped at 64 features and must fit within the base without
+overlap. A centre bore can accompany bosses with sufficient clearance.
 `bore_diameter` sizes the centre bore; `hole_diameter` sizes pattern holes,
 while `bolt_circle.diameter` is the pitch circle diameter. Start angles default
 to zero degrees (+X). Joint names (`pin_component`, `hole_component`) are optional;
@@ -680,3 +693,41 @@ identify "these". The tests now drive row, grid and circular forms through clien
 execution and measured completion, exercise every existing-target form, verify
 selection precedence and inspection failure, and check extraction-size accounting.
 They do not use private evaluation tasks or model-specific prompt examples.
+
+The separate `joint` form supports all public SolidCraft joint and relation types.
+It is offered only for joint intent naming a non-revolute type, motion limits,
+or centres/origins. Plain contact pin/hole requests retain the unchanged
+`revolute_joint` form. General joints use an independent gate and contribute no
+BM25 documents; existing recipe scores and their shared statistics stay unchanged.
+Only the general joint form receives named origins in its design summary.
+
+Set `joint_type`, `component_a` and `component_b`; names resolve by exact name,
+normalized name or an unambiguous substring. Omit names only when candidates are
+unique. Hinge/pin, prismatic/slide and ball-and-socket/spherical normalize to
+revolute, slider and ball. `axis` accepts X/Y/Z words or unit vectors, defaulting
+to Z. Each component's combined box centre supplies its origin;
+`point_a`/`point_b` instead select named `joint.list` origins belonging to the
+selected occurrence and retain their frames. Pending moves must be applied first.
+
+Supply `limit1_min`, `limit1_max`, etc. in `joint.list` value order. Both ends
+are required, finite within ±1,000,000, with min <= max. Omitted pairs remain
+unlimited; surplus pairs fail. The general joint form has a 3,000-character
+compact schema/system-line budget.
+
+| Type | Ordered motion values and units |
+| --- | --- |
+| rigid | none |
+| revolute | angle (deg) |
+| slider | distance (mm) |
+| cylindrical | angle (deg), distance (mm) |
+| pin_slot | angle (deg), slide (mm) |
+| planar | x (mm), y (mm), angle (deg) |
+| ball | yaw, pitch, roll (deg) |
+| parallel | x, y, z (mm), angle (deg) |
+| perpendicular, angle | x, y, z (mm), turn, spin (deg) |
+| point_on_plane | x, y (mm), yaw, pitch, roll (deg) |
+| point_on_line | slide (mm), yaw, pitch, roll (deg) |
+| line_on_plane | x, y (mm), turn, spin (deg) |
+
+For example:
+`{"joint_type":"cylindrical","component_a":"Base","component_b":"Link","axis":"Z","limit1_min":-45,"limit1_max":45,"limit2_min":0,"limit2_max":20}`.

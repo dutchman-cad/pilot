@@ -566,3 +566,36 @@ fn enclosures_with_locating_rings() {
         }
     }
 }
+
+#[test]
+fn compound_grid_unlabelled_long_side_and_explicit_rows() {
+    let catalog = Catalog::bundled().unwrap();
+    for (size, grid, x_span, y_span) in [
+        ("120x80x3", "7 x 5 grid", 90., 60.),
+        ("80x120x3", "7 x 5 grid", 60., 90.),
+        ("120x100x3", "grid 7 rows 5 columns", 60., 90.),
+    ] {
+        let text = format!("Make a plate {size}mm centred on the origin with holes diameter 6mm in a centred {grid} pitch 15mm");
+        let p = plan(&cases::request(&text), &catalog).unwrap().unwrap();
+        let holes: Vec<_> = p
+            .calls
+            .iter()
+            .filter(|c| c["arguments"]["command"] == "solid.hole")
+            .collect();
+        assert_eq!(holes.len(), 35);
+        for (axis, span) in [(0, x_span), (1, y_span)] {
+            let values: Vec<_> = holes
+                .iter()
+                .map(|c| c["arguments"]["params"]["position"][axis].as_f64().unwrap())
+                .collect();
+            assert_eq!(
+                values.iter().copied().fold(f64::INFINITY, f64::min),
+                -span / 2.
+            );
+            assert_eq!(
+                values.iter().copied().fold(f64::NEG_INFINITY, f64::max),
+                span / 2.
+            );
+        }
+    }
+}

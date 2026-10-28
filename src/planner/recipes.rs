@@ -1678,7 +1678,10 @@ fn from_slots(
         for c in &mut calls[1..] {
             let params = &mut c["arguments"]["params"];
             if matches!(slots, Slots::CompoundPlate(_)) {
-                if c["arguments"]["command"] == "solid.hole" {
+                if matches!(
+                    c["arguments"]["command"].as_str(),
+                    Some("solid.hole" | "solid.cylinder")
+                ) {
                     c["arguments"]["params"]["targets"] = json!([created]);
                 } else {
                     c["arguments"]["params"]["body"] = json!(created);

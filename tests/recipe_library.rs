@@ -448,6 +448,7 @@ fn sample(id: &str) -> Value {
             json!({"length":80,"width":60,"height":30,"wall":2,"open":"top","centred":false})
         }
         "revolute_joint" => json!({"angle_deg":0}),
+        "joint" => json!({"joint_type":"revolute","axis":"Z"}),
         "box" => json!({"length":40,"width":30,"height":20}),
         "cylinder" | "revolve" => json!({"radius":10,"height":20}),
         "sphere" => json!({"radius":10}),
@@ -471,7 +472,7 @@ fn generated_schema_and_expander_cases() {
         let args = sample(&r.id);
         validate(&args, &r.schema).unwrap();
         // Joint discovery depends on contact topology, not the parameter domain.
-        if r.id != "revolute_joint" {
+        if r.id != "revolute_joint" && r.id != "joint" {
             lib.build(&json!({"recipe":r.id,"args":args}), &req, &cat)
                 .unwrap();
         }
@@ -484,7 +485,7 @@ fn generated_schema_and_expander_cases() {
                 let expanded =
                     dutchman_pilot::planner::recipe_expand(&r.expander, &changed, &req, &cat)
                         .is_ok();
-                if r.id != "revolute_joint" {
+                if r.id != "revolute_joint" && r.id != "joint" {
                     assert_eq!(valid, expanded, "{}.{key}", r.id);
                 }
             }
@@ -568,7 +569,7 @@ fn audit_draft_requires_review_and_round_trips() {
     assert_eq!(r.examples[0], "Make a block 41 by 23 by 17 mm");
     assert_eq!(r.expander, "sequence");
     assert_eq!(r.schema["properties"].as_object().unwrap().len(), 3);
-    assert_eq!(Library::embedded().unwrap().recipes.len(), 19);
+    assert_eq!(Library::embedded().unwrap().recipes.len(), 20);
     assert!(draft(&audit, 1, &review)
         .unwrap_err()
         .contains("cannot create"));
@@ -622,7 +623,7 @@ fn geometry_schema_extension_and_generated_numeric_boundaries() {
                 let accepted = validate(&args, &r.schema).is_ok();
                 let expanded =
                     dutchman_pilot::planner::recipe_expand(&r.expander, &args, &req, &cat).is_ok();
-                if r.id != "revolute_joint" {
+                if r.id != "revolute_joint" && r.id != "joint" {
                     assert_eq!(accepted, expanded, "{}.{key}={n}", r.id);
                 }
             }
@@ -945,7 +946,13 @@ fn fill_forms_are_short_and_documented() {
         form["properties"]["decline"] = json!({"type":"boolean"});
         let size = form.to_string().chars().count() + line(&r.id).chars().count();
         eprintln!("{}: {size} characters", r.id);
-        assert!(size <= 1200, "{}: {size}", r.id);
+        // Plate includes both base outlines and three feature layouts.
+        let cap = match r.id.as_str() {
+            "plate" => 2400,
+            "joint" => 3000,
+            _ => 1200,
+        };
+        assert!(size <= cap, "{}: {size}", r.id);
     }
     documented(&dutchman_pilot::planner::shortcut_tool());
 }
@@ -1083,6 +1090,10 @@ fn every_flat_form_maps_to_the_same_typed_commands() {
         }
         let slots = to_slots(&args, &r.schema).unwrap_or_else(|e| panic!("{}: {e}", r.id));
         assert_eq!(slots, nested, "{}", r.id);
+        if r.id == "joint" {
+            // Component inspection and command equivalence are covered by the CLI tests.
+            continue;
+        }
         let build = |a| {
             lib.build(&json!({"recipe":r.id,"args":a}), &req, &cat)
                 .unwrap()
@@ -1225,11 +1236,15 @@ fn consistent_representations_and_corner_defaults() {
                 build("profile", base.clone()).unwrap().calls,
                 build("profile", redundant.clone()).unwrap().calls
             );
+            // A specific web value wins over the general thickness, which fills the flange.
             redundant["web_thickness"] = json!(7);
-            let error = build("profile", redundant).unwrap_err();
-            assert!(
-                error.contains("thickness 8") && error.contains("web_thickness 7"),
-                "{error}"
+            let mut specific = base.clone();
+            specific.as_object_mut().unwrap().remove("thickness");
+            specific["web_thickness"] = json!(7);
+            specific["flange_thickness"] = json!(8);
+            assert_eq!(
+                build("profile", redundant).unwrap().calls,
+                build("profile", specific).unwrap().calls
             );
         }
     }
@@ -1542,4 +1557,274 @@ fn joined_sketch_extrusions_skip_unmeasurable_overlap_checks() {
         assert!(expected.volume_mm3.is_none());
         assert!(expected.volume_range_mm3.is_some());
     }
+}
+
+#[test]
+fn profile_fills_accept_kind_and_plane_wording_and_specific_thickness() {
+    let lib = Library::embedded().unwrap();
+    let schema = &lib
+        .recipes
+        .iter()
+        .find(|r| r.id == "profile")
+        .unwrap()
+        .schema;
+    let flat = forms::flat(schema);
+    for (kind, expected) in [
+        ("equal angle", "L"),
+        ("Angle", "L"),
+        ("channel", "U"),
+        ("T-bar", "T"),
+        ("C channel", "C"),
+        ("rectangular", "rectangle"),
+        ("T-section", "T"),
+        ("U_CHANNEL", "U"),
+        ("inverted T", "T"),
+        ("flat bar", "rectangle"),
+    ] {
+        let mut args = json!({"kind":kind});
+        forms::coerce(&mut args, &flat).unwrap();
+        assert_eq!(args["kind"], expected, "{kind}");
+    }
+    for plane in [
+        json!(["X", "Z"]),
+        json!(["XZ"]),
+        json!({"plane":"XZ"}),
+        json!("XZ plane"),
+    ] {
+        let mut args = json!({"plane":plane.clone()});
+        let changes = forms::coerce(&mut args, &flat).unwrap();
+        assert_eq!(args["plane"], "XZ", "{plane}");
+        assert_eq!(changes.len(), 1);
+    }
+    let args =
+        json!({"kind":"L","width":25,"height":45,"depth":20,"thickness":5,"flange_thickness":8});
+    let slots = forms::to_slots(&args, schema).unwrap();
+    assert_eq!(slots.get("thickness"), None);
+    assert_eq!(slots["web_thickness"], 5);
+    assert_eq!(slots["flange_thickness"], 8);
+    let agreeing =
+        json!({"kind":"U","width":50,"height":30,"depth":150,"thickness":4,"web_thickness":4});
+    let slots = forms::to_slots(&agreeing, schema).unwrap();
+    assert_eq!(slots["thickness"], 4);
+    assert_eq!(slots.get("web_thickness"), None);
+}
+
+#[test]
+fn compound_plate_creation_and_existing_pattern_retrieval() {
+    let lib = Library::embedded().unwrap();
+    for prompt in [
+        "60x20x5 base with a row of 4 pegs on top, pegs 6mm dia and 10mm tall, 15mm apart, centred on the base",
+        "round plate 70mm dia, 5mm thick, centred at the origin, with 8 pegs (5mm dia, 8mm tall) evenly around a 50mm circle on top",
+        "90x90 base plate, 6mm thick, with a 10mm round boss 6mm tall on top, 15mm in from both edges at one corner",
+        "pegboard panel 120 x 80 x 3 with a 7 x 5 grid of 6mm holes, 15mm pitch, grid centred on the panel",
+        "50x50 base 4mm thick with a 3 by 3 grid of bosses on top, 8mm diameter 5mm tall, 16mm spacing, centred",
+        "Make a 60x30x4 base with a pattern of five pegs on top",
+        "Add a round plate 70mm across and 5mm thick with eight pegs on a 50mm circle",
+    ] {
+        let found = lib.find(prompt, &Bm25).unwrap();
+        assert_eq!(found["recipes"][0]["id"], "plate", "{prompt}: {found}");
+    }
+    for (prompt, expected) in [
+        ("make that hole into a row of 5 along X, 12mm apart", "linear_pattern"),
+        ("pattern the hole on the base plate in a row of 5 along X, 12mm apart", "linear_pattern"),
+        ("now copy that hole along the strip so there are 9 holes, 10mm apart", "linear_pattern"),
+        ("pattern the small bolt hole around the centre so there are 6 of them evenly spaced", "circular_pattern"),
+        ("copy that hole around the middle so I get 4 holes spread over a 90 degree arc, the first one stays where it is", "circular_pattern"),
+        ("turn that hole into a grid, 4 across X and 3 along Y, 15mm spacing both ways", "grid_pattern"),
+        ("now make that boss a 4x4 grid with 20mm spacing", "grid_pattern"),
+    ] {
+        let found = lib.find(prompt, &Bm25).unwrap();
+        assert_eq!(found["recipes"][0]["id"], expected, "{prompt}: {found}");
+    }
+}
+
+#[test]
+fn plate_grid_has_exact_count_pitch_and_explicit_axes() {
+    let lib = Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    for (length, width, columns, rows) in [(120, 80, 7, 5), (80, 120, 5, 7)] {
+        let p = lib.build(&json!({"recipe":"plate","args":{"length":length,"width":width,"thickness":3,"grid_columns":columns,"grid_rows":rows,"grid_pitch_x":15,"grid_pitch_y":15,"grid_hole_diameter":6}}), &json!({"messages":[]}), &cat).unwrap();
+        let holes: Vec<_> = p
+            .calls
+            .iter()
+            .filter(|c| c["arguments"]["command"] == "solid.hole")
+            .collect();
+        assert_eq!(holes.len(), 35);
+        for (i, call) in holes.iter().enumerate() {
+            let params = &call["arguments"]["params"];
+            assert_eq!(params["diameter"], 6.);
+            assert_eq!(
+                params["position"],
+                json!([
+                    length as f64 / 2. + (i % columns as usize) as f64 * 15.
+                        - (columns - 1) as f64 * 7.5,
+                    width as f64 / 2. + (i / columns as usize) as f64 * 15.
+                        - (rows - 1) as f64 * 7.5,
+                    3.
+                ])
+            );
+            assert_eq!(params["targets"], json!(["PilotRecipe1"]));
+        }
+    }
+}
+
+#[test]
+fn plate_rejects_unbounded_or_ambiguous_features() {
+    let lib = Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    let base = json!({"length":60,"width":40,"thickness":5});
+    for extra in [
+        json!({"diameter":60}),
+        json!({"boss_diameter":6}),
+        json!({"boss_height":10}),
+        json!({"boss_offset_x":3}),
+        json!({"boss_diameter":6,"boss_height":10,"boss_offset_x":29}),
+        json!({"boss_diameter":6,"boss_height":10,"row_count":4,"row_pitch":5}),
+        json!({"boss_diameter":6,"boss_height":10,"row_count":65,"row_pitch":15}),
+        json!({"boss_diameter":6,"boss_height":10,"grid_columns":9,"grid_rows":9,"grid_pitch_x":10,"grid_pitch_y":10}),
+        json!({"boss_diameter":6,"boss_height":10,"row_count":3,"row_pitch":10,"boss_offset_y":2}),
+        json!({"hole_diameter":6,"row_count":3,"row_pitch":10,"grid_columns":2,"grid_rows":2,"grid_pitch_x":10,"grid_pitch_y":10}),
+        json!({"boss_diameter":6,"boss_height":10,"bore_diameter":6}),
+        json!({"boss_diameter":6,"boss_height":10,"hole_diameter":4,"row_count":3,"row_pitch":10}),
+    ] {
+        let mut args = base.clone();
+        args.as_object_mut()
+            .unwrap()
+            .extend(extra.as_object().unwrap().clone());
+        assert!(
+            lib.build(
+                &json!({"recipe":"plate","args":args}),
+                &json!({"messages":[]}),
+                &cat
+            )
+            .is_err(),
+            "{args}"
+        );
+    }
+    assert!(lib.build(&json!({"recipe":"plate","args":{"diameter":40,"thickness":3,"hole_diameter":4,"grid":{"rows":2,"columns":2,"pitch_x":28,"pitch_y":28}}}), &json!({"messages":[]}), &cat).is_err());
+}
+
+#[test]
+fn existing_edge_treatments_do_not_become_plate_creations() {
+    let lib = Library::embedded().unwrap();
+    for (query, recipe) in [
+        ("Apply a fillet where a peg joins its base plate", "fillet"),
+        (
+            "Please add a chamfer to the boss at the plate surface",
+            "chamfer",
+        ),
+    ] {
+        let found = lib.form_band(query).unwrap();
+        assert_eq!(found["recipes"][0]["id"], recipe, "{query}: {found}");
+    }
+}
+#[test]
+fn every_joint_type_retrieves_one_form_with_ordered_limits() {
+    let lib = Library::embedded().unwrap();
+    let tasks: Value =
+        serde_json::from_str(include_str!("../bench/sets/joints/tasks.json")).unwrap();
+    for task in tasks["tasks"].as_array().unwrap() {
+        let found = lib.find(task["prompt"].as_str().unwrap(), &Bm25).unwrap();
+        assert_eq!(found["recipes"][0]["id"], "joint");
+        assert!(found["recipes"][0]["score"].as_f64().unwrap() >= 4.5);
+    }
+    for kind in [
+        "revolute",
+        "hinge",
+        "pin",
+        "slider",
+        "slide",
+        "prismatic",
+        "cylindrical",
+        "pin_slot",
+        "pin slot",
+        "ball",
+        "ball and socket",
+        "spherical",
+        "planar",
+        "rigid",
+        "parallel",
+        "perpendicular",
+        "angle",
+        "point_on_plane",
+        "point_on_line",
+        "line_on_plane",
+    ] {
+        for text in [
+            format!("{kind} joint with motion limits"),
+            format!("Connect A and B with a {kind} joint at box centres"),
+        ] {
+            let found = lib.find(&text, &Bm25).unwrap();
+            assert_eq!(found["recipes"][0]["id"], "joint", "{text}: {found}");
+            assert!(
+                found["recipes"][0]["score"].as_f64().unwrap() >= 4.5,
+                "{text}: {found}"
+            );
+        }
+    }
+    let schema = schema("joint").unwrap();
+    for args in [
+        json!({"joint_type":"ball","limit1_min":20,"limit1_max":-20}),
+        json!({"joint_type":"slider","limit2_min":0,"limit2_max":1}),
+        json!({"joint_type":"rigid","limit1_min":0,"limit1_max":1}),
+        json!({"joint_type":"ball","limit1_max":20}),
+        json!({"joint_type":"slider","limit1_min":-1000001,"limit1_max":0}),
+    ] {
+        assert!(validate(&args, &schema).is_err(), "{args}");
+    }
+    for (kind, count) in [
+        ("rigid", 0),
+        ("revolute", 1),
+        ("slider", 1),
+        ("cylindrical", 2),
+        ("pin_slot", 2),
+        ("planar", 3),
+        ("ball", 3),
+        ("parallel", 4),
+        ("perpendicular", 5),
+        ("angle", 5),
+        ("point_on_plane", 5),
+        ("point_on_line", 4),
+        ("line_on_plane", 4),
+    ] {
+        let mut args = json!({"joint_type":kind});
+        for i in 1..=count {
+            args[format!("limit{i}_min")] = json!(-10);
+            args[format!("limit{i}_max")] = json!(10);
+        }
+        validate(&args, &schema).unwrap();
+    }
+}
+
+#[test]
+fn joint_form_preserves_limit_units_and_audits_axis_default() {
+    let lib = Library::embedded().unwrap();
+    let recipe = lib.recipes.iter().find(|r| r.id == "joint").unwrap();
+    let flat = forms::flat(&recipe.schema);
+    let compact = forms::compact(&recipe.schema);
+    assert!(compact["properties"]["joint_type"]["description"]
+        .as_str()
+        .unwrap()
+        .contains("joint.list order"));
+    let mut args = json!({"joint_type":"spherical","limit1_min":"-15","limit1_max":"15"});
+    let changes = forms::coerce(&mut args, &flat).unwrap();
+    assert_eq!(args["joint_type"], "ball");
+    assert_eq!(args["axis"], "Z");
+    assert_eq!(args["limit1_min"].as_f64(), Some(-15.));
+    assert!(changes
+        .iter()
+        .any(|c| c["field"] == "axis" && c["defaulted"] == true));
+    for i in 1..=5 {
+        assert!(flat["properties"][format!("limit{i}_min")]
+            .get("x-unit")
+            .is_none());
+    }
+    let mut legacy = json!({"pin_component":"Base","hole_component":"Arm","angle_deg":45});
+    let legacy_schema = lib
+        .recipes
+        .iter()
+        .find(|r| r.id == "revolute_joint")
+        .unwrap();
+    forms::coerce(&mut legacy, &forms::flat(&legacy_schema.schema)).unwrap();
+    assert!(legacy.get("axis").is_none());
 }

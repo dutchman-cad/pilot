@@ -1,15 +1,18 @@
 ---
 {
-  "id": "plate",
-  "synonyms": ["bolt pattern PCD flange mounting plate", "perforated panel circular holes grid pitch"],
-  "description": "Flat plate with holes: centre bore, bolt circle or rectangular grid and optional corners.",
+  "description": "Build a rectangular or round plate/base with joined round pegs or bosses, holes in a centred row, grid or bolt circle, and optional corners.",
   "examples": [
     "Make a plate with a grid of holes",
     "I want a mounting plate with a bolt circle",
     "Build a plate with a central bore",
-    "Drill six holes in a flat plate",
-    "A perforated plate with chamfered corners"
+    "A perforated plate with chamfered corners",
+    "Build a base with a row of pegs on top",
+    "Round plate with bosses around a circle",
+    "A pegboard panel with a centred grid of holes",
+    "Base plate with a single offset boss"
   ],
+  "expander": "plate",
+  "id": "plate",
   "schema": {
     "$defs": {
       "Angle": {
@@ -55,7 +58,7 @@
     "properties": {
       "bolt_circle": {
         "additionalProperties": false,
-        "description": "Hole centres on this circle",
+        "description": "Feature centres on this circle",
         "properties": {
           "count": {
             "$ref": "#/$defs/Count"
@@ -78,6 +81,26 @@
       "bore_diameter": {
         "$ref": "#/$defs/Length",
         "description": "Centre through bore"
+      },
+      "boss_diameter": {
+        "$ref": "#/$defs/Length",
+        "description": "Joined round peg/boss diameter; requires boss_height"
+      },
+      "boss_height": {
+        "$ref": "#/$defs/Length",
+        "description": "Rise above plate top; requires boss_diameter"
+      },
+      "boss_offset_x": {
+        "description": "Single boss offset from plate centre; omitted: 0",
+        "maximum": 1000000,
+        "minimum": -1000000,
+        "type": "number"
+      },
+      "boss_offset_y": {
+        "description": "Single boss offset from plate centre; omitted: 0",
+        "maximum": 1000000,
+        "minimum": -1000000,
+        "type": "number"
       },
       "centred": {
         "default": false,
@@ -116,9 +139,12 @@
         ],
         "type": "object"
       },
+      "diameter": {
+        "$ref": "#/$defs/Length"
+      },
       "grid": {
         "additionalProperties": false,
-        "description": "Hole centres in rows and columns",
+        "description": "Feature centres: columns along sketch X, rows along sketch Y",
         "properties": {
           "columns": {
             "$ref": "#/$defs/Count",
@@ -126,11 +152,11 @@
           },
           "pitch_x": {
             "$ref": "#/$defs/Length",
-            "description": "Hole centre spacing"
+            "description": "Feature centre spacing"
           },
           "pitch_y": {
             "$ref": "#/$defs/Length",
-            "description": "Hole centre spacing"
+            "description": "Feature centre spacing"
           },
           "rows": {
             "$ref": "#/$defs/Count",
@@ -147,7 +173,7 @@
       },
       "hole_diameter": {
         "$ref": "#/$defs/Length",
-        "description": "Pattern hole diameter; requires bolt_circle or grid"
+        "description": "Pattern hole diameter; requires bolt_circle, grid or row"
       },
       "length": {
         "$ref": "#/$defs/Length"
@@ -156,6 +182,31 @@
         "$ref": "#/$defs/Plane",
         "default": "XY",
         "description": "Sketch plane"
+      },
+      "row": {
+        "additionalProperties": false,
+        "description": "Centred feature row; count includes all; pitch is centre spacing",
+        "properties": {
+          "axis": {
+            "description": "World axis",
+            "enum": [
+              "X",
+              "Y"
+            ],
+            "type": "string"
+          },
+          "count": {
+            "$ref": "#/$defs/Count"
+          },
+          "pitch": {
+            "$ref": "#/$defs/Length"
+          }
+        },
+        "required": [
+          "count",
+          "pitch"
+        ],
+        "type": "object"
       },
       "thickness": {
         "$ref": "#/$defs/Length",
@@ -166,8 +217,6 @@
       }
     },
     "required": [
-      "length",
-      "width",
       "thickness"
     ],
     "type": "object",
@@ -183,8 +232,7 @@
           ],
           "required": [
             "bolt_hole_count",
-            "bolt_circle_diameter",
-            "bolt_hole_diameter"
+            "bolt_circle_diameter"
           ]
         },
         {
@@ -209,13 +257,36 @@
             "grid_columns",
             "grid_pitch_x",
             "grid_pitch_y",
-            "grid_rows",
-            "grid_hole_diameter"
+            "grid_rows"
+          ]
+        },
+        {
+          "fields": [
+            "boss_diameter",
+            "boss_height",
+            "boss_offset_x",
+            "boss_offset_y"
+          ],
+          "required": [
+            "boss_diameter",
+            "boss_height"
+          ]
+        },
+        {
+          "fields": [
+            "row_count",
+            "row_pitch",
+            "row_axis"
+          ],
+          "required": [
+            "row_count",
+            "row_pitch"
           ]
         }
       ],
       "properties": {
         "bolt_circle_diameter": {
+          "description": "Diameter of feature-centre circle on plate",
           "exclusiveMinimum": 0,
           "maximum": 1000000,
           "type": "number",
@@ -223,6 +294,7 @@
           "x-unit": "mm"
         },
         "bolt_hole_count": {
+          "description": "Feature count on circle, including bosses when boss_diameter is given",
           "maximum": 64,
           "minimum": 1,
           "type": "integer",
@@ -247,31 +319,63 @@
           "x-slot": "/bore_diameter",
           "x-unit": "mm"
         },
+        "boss_diameter": {
+          "description": "Joined round peg/boss diameter; requires boss_height",
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/boss_diameter",
+          "x-unit": "mm"
+        },
+        "boss_height": {
+          "description": "Rise above plate top; requires boss_diameter",
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/boss_height",
+          "x-unit": "mm"
+        },
+        "boss_offset_x": {
+          "description": "Single boss offset from plate centre in sketch coordinates; omitted: 0",
+          "maximum": 1000000,
+          "minimum": -1000000,
+          "type": "number",
+          "x-slot": "/boss_offset_x",
+          "x-unit": "mm"
+        },
+        "boss_offset_y": {
+          "description": "Single boss offset from plate centre in sketch coordinates; omitted: 0",
+          "maximum": 1000000,
+          "minimum": -1000000,
+          "type": "number",
+          "x-slot": "/boss_offset_y",
+          "x-unit": "mm"
+        },
         "centred": {
           "type": "boolean",
           "x-slot": "/centred"
         },
         "corner_edges": {
+          "default": "vertical",
           "description": "vertical: four corner edges through thickness; all: rims too",
           "enum": [
             "vertical",
             "all"
           ],
           "type": "string",
-          "x-slot": "/corners/edges",
-          "default": "vertical",
-          "x-default-when": "corner_size"
+          "x-default-when": "corner_size",
+          "x-slot": "/corners/edges"
         },
         "corner_kind": {
+          "default": "fillet",
           "description": "fillet: round; chamfer: bevel",
           "enum": [
             "fillet",
             "chamfer"
           ],
           "type": "string",
-          "x-slot": "/corners/kind",
-          "default": "fillet",
-          "x-default-when": "corner_size"
+          "x-default-when": "corner_size",
+          "x-slot": "/corners/kind"
         },
         "corner_size": {
           "exclusiveMinimum": 0,
@@ -280,7 +384,16 @@
           "x-slot": "/corners/size",
           "x-unit": "mm"
         },
+        "diameter": {
+          "description": "Round plate diameter; omit length and width",
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/diameter",
+          "x-unit": "mm"
+        },
         "grid_columns": {
+          "description": "Along sketch X; A x B: A along longer side unless explicitly directed",
           "maximum": 64,
           "minimum": 1,
           "type": "integer",
@@ -293,6 +406,7 @@
           "x-unit": "mm"
         },
         "grid_pitch_x": {
+          "description": "Centre spacing along X; single pitch: use for both axes",
           "exclusiveMinimum": 0,
           "maximum": 1000000,
           "type": "number",
@@ -300,6 +414,7 @@
           "x-unit": "mm"
         },
         "grid_pitch_y": {
+          "description": "Centre spacing along Y; single pitch: use for both axes",
           "exclusiveMinimum": 0,
           "maximum": 1000000,
           "type": "number",
@@ -307,12 +422,22 @@
           "x-unit": "mm"
         },
         "grid_rows": {
+          "description": "Along sketch Y; 7 x 5 on 120 x 80: columns=7, rows=5",
           "maximum": 64,
           "minimum": 1,
           "type": "integer",
           "x-slot": "/grid/rows"
         },
+        "hole_diameter": {
+          "description": "Pattern holes in row, grid or circle; omit for bosses",
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/hole_diameter",
+          "x-unit": "mm"
+        },
         "length": {
+          "description": "Rectangle X size; supply length and width OR round diameter",
           "exclusiveMinimum": 0,
           "maximum": 1000000,
           "type": "number",
@@ -329,6 +454,32 @@
           "type": "string",
           "x-slot": "/plane"
         },
+        "row_axis": {
+          "default": "X",
+          "description": "Row along sketch X or Y; omitted: X",
+          "enum": [
+            "X",
+            "Y"
+          ],
+          "type": "string",
+          "x-default-when": "row_count",
+          "x-slot": "/row/axis"
+        },
+        "row_count": {
+          "description": "Total number of holes or bosses in centred row",
+          "maximum": 64,
+          "minimum": 1,
+          "type": "integer",
+          "x-slot": "/row/count"
+        },
+        "row_pitch": {
+          "description": "Centre-to-centre spacing, not edge gap",
+          "exclusiveMinimum": 0,
+          "maximum": 1000000,
+          "type": "number",
+          "x-slot": "/row/pitch",
+          "x-unit": "mm"
+        },
         "thickness": {
           "exclusiveMinimum": 0,
           "maximum": 1000000,
@@ -337,6 +488,7 @@
           "x-unit": "mm"
         },
         "width": {
+          "description": "Rectangle Y size; omit for round plate",
           "exclusiveMinimum": 0,
           "maximum": 1000000,
           "type": "number",
@@ -345,14 +497,20 @@
         }
       },
       "required": [
-        "length",
-        "thickness",
-        "width"
+        "thickness"
       ]
     }
   },
-  "expander": "plate"
+  "synonyms": [
+    "bolt pattern PCD flange mounting plate",
+    "perforated panel circular holes grid pitch",
+    "base pegs bosses raised features on top row",
+    "pegboard panel grid holes pitch"
+  ]
 }
 ---
 
-Plate with optional holes and corners. A corner_size without corner_kind means fillet (round); without corner_edges it means vertical (four corner edges through thickness). No dimension is defaulted.
+Build the base and features together as one body. Supply length and width OR diameter, plus thickness.
+Layouts apply to boss_diameter with boss_height, or hole_diameter, never both. Without a layout a boss is at the plate centre unless boss_offset_x/y are supplied (signed offsets from centre, independent of base placement). A centre bore may accompany bosses. Layouts are centred on the plate regardless of centred base placement.
+Columns run along sketch X, rows along sketch Y. For an unstated A x B orientation, put A along the longer plate side (7 x 5 on 120 x 80 means 7 columns, 5 rows); explicit axis/row/column statements win. A single pitch is used for both grid pitches. Counts include every feature. No dimension is defaulted.
+A corner_size without corner_kind means fillet; without corner_edges it means vertical. Corners are supported on rectangular plates without bosses.
