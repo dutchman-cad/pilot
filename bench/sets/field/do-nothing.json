@@ -3,6 +3,10 @@
   "format": 1,
   "expectations": [
     {
+      "id": "cube-six-face-holes",
+      "pass": false
+    },
+    {
       "id": "cube-centre-hole",
       "pass": false
     },
