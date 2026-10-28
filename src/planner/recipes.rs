@@ -1033,9 +1033,24 @@ fn holes(input: &Input<'_>) -> Option<Slots> {
                 size[1] / 2.0 + radius * a.sin(),
             ]);
         }
-    } else if input.any(&["centred", "centered", "middle", "centre", "center"])
-        && (input.has("hole") || n == Some(1))
+    } else if (input.has("hole") || n == Some(1))
         && n.is_none_or(|n| n == 1)
+        && (input.any(&["centred", "centered", "middle", "centre", "center"])
+            || !rest.iter().any(|s| {
+                matches!(
+                    s.as_str(),
+                    "edges"
+                        | "side"
+                        | "left"
+                        | "right"
+                        | "front"
+                        | "back"
+                        | "off"
+                        | "near"
+                        | "on"
+                        | "along"
+                )
+            }))
     {
         centers.push([size[0] / 2.0, size[1] / 2.0]);
     } else {
@@ -1068,6 +1083,32 @@ fn holes(input: &Input<'_>) -> Option<Slots> {
 /// Relative layouts use the same origin-corner convention as explicit coordinates.
 fn relative_holes(rest: &[String], size: [f64; 3]) -> Option<(f64, Vec<[f64; 2]>)> {
     let has = |w: &str| rest.iter().any(|s| s == w);
+    // A single end inset is measured along the strip, across its width at centre.
+    if has("hole")
+        && has("one")
+        && has("end")
+        && !has("each")
+        && has("from")
+        && has("in")
+        && has("across")
+        && has("width")
+        && (has("centred") || has("centered"))
+    {
+        let d = dimensions(rest)?;
+        if d.len() != 2 || !positive(&d) || size[0] <= size[1] {
+            return None;
+        }
+        let sizing = &rest[..d[1].index];
+        let diameter = if sizing
+            .iter()
+            .any(|s| matches!(s.as_str(), "radius" | "diameter" | "across"))
+        {
+            radial(sizing, d[0])? * 2.0
+        } else {
+            d[0].value
+        };
+        return Some((diameter, vec![[d[1].value, size[1] / 2.0]]));
+    }
     if !has("each") || has("long") || has("rectangular") || has("circular") {
         return None;
     }

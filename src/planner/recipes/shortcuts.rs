@@ -287,7 +287,7 @@ pub(crate) fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<
             if let Some(d) = hole_diameter {
                 positive_mm("hole_diameter", d)?;
                 if layouts == 0 {
-                    return Err("hole_diameter requires 1 pattern; add bolt_circle, grid or row, or use bore_diameter for a centre hole".into());
+                    positions.push([0.0, 0.0]);
                 }
                 if !bosses.is_empty() {
                     return Err("hole_diameter and boss_diameter cannot share a layout; use bore_diameter for a centre bore with bosses".into());
@@ -493,7 +493,7 @@ pub(crate) fn tool() -> Value {
             ("bore_diameter", n.clone()),
             (
                 "hole_diameter",
-                json!({"type":"number","description":"Diameter of pattern holes."}),
+                json!({"type":"number","description":"Hole diameter; without a layout, one hole at the plate centre."}),
             ),
             ("bolt_circle", circle),
             ("grid", grid),

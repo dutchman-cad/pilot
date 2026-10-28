@@ -2150,3 +2150,147 @@ fn public_binary_remaining_joint_types_and_named_origins() {
         }
     }
 }
+
+fn check_development_rounds(session: &mut Session, radius: f64, count: usize) {
+    let state = session.execute("document.inspect", json!({"measure":true}));
+    let faces = session.execute("model.faces", json!({"body":state["bodies"][0]["name"]}));
+    let axes: std::collections::BTreeSet<[i64; 2]> = faces["faces"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|f| {
+            f["cylinder"]["radius"]
+                .as_f64()
+                .is_some_and(|r| (r - radius).abs() < 0.001)
+        })
+        .map(|f| {
+            std::array::from_fn(|k| {
+                (f["cylinder"]["origin"][k].as_f64().unwrap() * 1000.).round() as i64
+            })
+        })
+        .collect();
+    assert_eq!(axes.len(), count, "{faces}");
+}
+
+#[test]
+fn development_single_hole_defaults_and_dp02_reference_turns() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let catalog = Catalog::bundled().unwrap();
+    let library = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    for text in [
+        "make a 100 x 20 x 4 mm strip with a 5mm hole through it",
+        "make a 100 x 20 x 4 mm strip with a 5mm hole through it, 10mm in from one end and centred across the width",
+        "form",
+    ] {
+        let mut session = Session::new(&path);
+        let request = json!({"messages":[{"role":"user","content":text}],"tools":[{"function":{"name":"execute"}}]});
+        let plan = if text == "form" {
+            library.build(&json!({"recipe":"plate","args":{"length":100,"width":20,"thickness":4,"hole_diameter":5}}), &request, &catalog).unwrap()
+        } else {
+            planner::plan_direct(&request, &catalog).unwrap().unwrap_or_else(|| panic!("{text}"))
+        };
+        for c in &plan.calls {
+            session.execute(c["arguments"]["command"].as_str().unwrap(), c["arguments"]["params"].clone());
+        }
+        check_shortcut_body(&mut session, 7921.4732294132455, [0.;3], [100.,20.,4.], false);
+        check_development_rounds(&mut session, 2.5, 1);
+        let state = session.execute("document.inspect", json!({"measure":true}));
+        let last = state["timeline"].as_array().unwrap().last().unwrap();
+        let detail = session.execute("timeline.inspect", json!({"feature":last["name"]}));
+        let offset = text.contains("one end");
+        assert_eq!(detail["definition"]["position"], json!([if offset {10.} else {50.},10.,4.]));
+        if offset {
+            let mut request = json!({"messages":[{"role":"user","content":"now copy that hole along the strip so there are 9 holes, 10mm apart"}]});
+            for _ in 0..4 {
+                let p = library.build(&json!({"recipe":"linear_pattern","args":{"target":"last_feature","count":9,"spacing":10,"direction":"X"}}), &request, &catalog).unwrap();
+                for c in &p.calls {
+                    let result = session.execute(c["arguments"]["command"].as_str().unwrap(),c["arguments"]["params"].clone());
+                    request["messages"].as_array_mut().unwrap().push(json!({"role":"tool","content":result.to_string()}));
+                }
+                if p.rule == "linear_pattern" { break; }
+            }
+            check_shortcut_body(&mut session, 7293.25906471922, [0.;3], [100.,20.,4.], false);
+            check_development_rounds(&mut session, 2.5, 9);
+        }
+    }
+}
+
+#[test]
+fn development_dp10_replacement_grid_centres_and_refuses_overflow() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let catalog = Catalog::bundled().unwrap();
+    let library = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    for seed in [15, 75] {
+        let mut session = Session::new(&path);
+        session.execute(
+            "solid.box",
+            json!({"length":90,"width":90,"height":6,"body_name":"Base"}),
+        );
+        session.execute("solid.cylinder",json!({"diameter":10,"height":6,"base":[seed,seed,6],"operation":"join","targets":["Base"]}));
+        check_shortcut_body(
+            &mut session,
+            49071.16062352067,
+            [0.; 3],
+            [90., 90., 12.],
+            false,
+        );
+        check_development_rounds(&mut session, 5., 1);
+        let mut request = json!({"messages":[{"role":"user","content":"now make that boss a 4x4 grid with 20mm spacing"}]});
+        let args =
+            json!({"target":"boss","columns":4,"rows":4,"spacing1":20,"spacing2":20,"plane":"XY"});
+        let mut built = false;
+        for _ in 0..4 {
+            let p = library
+                .build(
+                    &json!({"recipe":"grid_pattern","args":args}),
+                    &request,
+                    &catalog,
+                )
+                .unwrap();
+            if p.rule == "grid_pattern" {
+                let mut too_wide = args.clone();
+                too_wide["spacing1"] = json!(30);
+                let error = library
+                    .build(
+                        &json!({"recipe":"grid_pattern","args":too_wide}),
+                        &request,
+                        &catalog,
+                    )
+                    .unwrap_err();
+                assert!(error.contains("grid would leave body"), "{error}");
+                assert_eq!(p.calls[0]["arguments"]["command"], "timeline.edit");
+                assert_eq!(
+                    p.calls[0]["arguments"]["params"]["set"]["base"],
+                    json!([15., 15., 6.])
+                );
+                built = true;
+            }
+            for c in &p.calls {
+                let result = session.execute(
+                    c["arguments"]["command"].as_str().unwrap(),
+                    c["arguments"]["params"].clone(),
+                );
+                request["messages"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(json!({"role":"tool","content":result.to_string()}));
+            }
+            if built {
+                break;
+            }
+        }
+        assert!(built);
+        check_shortcut_body(
+            &mut session,
+            56138.56997632183,
+            [0.; 3],
+            [90., 90., 12.],
+            false,
+        );
+        check_development_rounds(&mut session, 5., 16);
+    }
+}

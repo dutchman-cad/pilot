@@ -71,7 +71,7 @@ pub(super) fn tokens(text: &str) -> Vec<String> {
                     "ball" => "sphere",
                     "puck" | "coin" | "disk" => "disc",
                     "bar" | "brick" => "block",
-                    "slab" | "sheet" => "plate",
+                    "slab" | "sheet" | "strip" => "plate",
                     "every" => "all",
                     "edge" => "edges",
                     "this" => "the",

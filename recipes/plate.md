@@ -429,7 +429,7 @@
           "x-slot": "/grid/rows"
         },
         "hole_diameter": {
-          "description": "Pattern holes in row, grid or circle; omit for bosses",
+          "description": "Hole diameter; without a layout, one hole at the plate centre; omit for bosses",
           "exclusiveMinimum": 0,
           "maximum": 1000000,
           "type": "number",
@@ -511,6 +511,6 @@
 ---
 
 Build the base and features together as one body. Supply length and width OR diameter, plus thickness.
-Layouts apply to boss_diameter with boss_height, or hole_diameter, never both. Without a layout a boss is at the plate centre unless boss_offset_x/y are supplied (signed offsets from centre, independent of base placement). A centre bore may accompany bosses. Layouts are centred on the plate regardless of centred base placement.
+Layouts apply to boss_diameter with boss_height, or hole_diameter, never both. Without a layout, hole_diameter creates one hole at the plate centre. Without a layout a boss is at the plate centre unless boss_offset_x/y are supplied (signed offsets from centre, independent of base placement). A centre bore may accompany bosses. Layouts are centred on the plate regardless of centred base placement.
 Columns run along sketch X, rows along sketch Y. For an unstated A x B orientation, put A along the longer plate side (7 x 5 on 120 x 80 means 7 columns, 5 rows); explicit axis/row/column statements win. A single pitch is used for both grid pitches. Counts include every feature. No dimension is defaulted.
 A corner_size without corner_kind means fillet; without corner_edges it means vertical. Corners are supported on rectangular plates without bosses.

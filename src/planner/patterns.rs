@@ -639,6 +639,9 @@ pub(super) fn build(
     let mut cut = false;
     let mut expected_volume = Some(baseline + seed_volume * (n * m - 1) as f64);
     let mut overlap_skipped = false;
+    let host_min = min;
+    let host_max = max;
+    let mut reposition = None;
     if feature_mode {
         let last = timeline
             .last()
@@ -796,6 +799,66 @@ pub(super) fn build(
         if args["join"] == true && def["operation"] != "join" {
             return Err(format!("join true with operation {} requires 1 joined last feature; omit join or select an explicitly joined feature", def["operation"]));
         }
+        if id == "grid_pattern" && !new_bodies && !overlap_skipped {
+            // The native rectangular pattern grows from the original feature.
+            // Reposition that seed, rather than retaining an extra single boss/hole.
+            let text = request["messages"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .rev()
+                .find(|m| m["role"] == "user")
+                .and_then(|m| m["content"].as_str())
+                .filter(|s| s.len() <= MAX_TEXT)
+                .unwrap_or("");
+            let words = tokens(text);
+            let anchored = words.iter().any(|w| {
+                matches!(
+                    w.as_str(),
+                    "start" | "starts" | "starting" | "stays" | "fixed" | "anchored"
+                )
+            });
+            let centred = !anchored
+                && words.iter().any(|w| {
+                    matches!(
+                        w.as_str(),
+                        "make" | "turn" | "arrange" | "replace" | "centred" | "centered"
+                    )
+                });
+            if centred {
+                let field = match detail["type"].as_str() {
+                    Some("HoleFeature") => "position",
+                    Some("CylinderFeature") => "base",
+                    Some("BoxFeature") => "corner",
+                    _ => {
+                        return Err(
+                            "grid centring requires a measured hole, cylinder or box feature"
+                                .into(),
+                        )
+                    }
+                };
+                let mut position = vector(&def[field])
+                    .ok_or("grid centring requires a numeric feature position")?;
+                for k in 0..3 {
+                    if dir[k] != 0. || dir2[k] != 0. {
+                        let delta = (host_min[k] + host_max[k]
+                            - min[k]
+                            - max[k]
+                            - dir[k] * spacing * (n - 1) as f64
+                            - dir2[k] * spacing2 * (m - 1) as f64)
+                            / 2.;
+                        position[k] += delta;
+                        min[k] += delta;
+                        max[k] += delta;
+                    }
+                }
+                reposition = Some(call(
+                    catalog,
+                    "timeline.edit",
+                    json!({"feature":name,"set":{field:position}}),
+                )?);
+            }
+        }
     }
     if let Some(edge) = args["edge"].as_str() {
         let edges = request["messages"]
@@ -875,6 +938,18 @@ pub(super) fn build(
                 return Err(format!("count {n} rows {m} produce bounds {lo:?}..{hi:?} outside -1000000..1000000 mm; reduce count or spacing"));
             }
             if !overlap_skipped
+                && feature_mode
+                && !new_bodies
+                && id == "grid_pattern"
+                // Check the footprint: a boss can rise above the supporting face.
+                && (0..3).any(|k| {
+                    (dir[k] != 0. || dir2[k] != 0.)
+                        && (lo[k] < host_min[k] - 1e-8 || hi[k] > host_max[k] + 1e-8)
+                })
+            {
+                return Err(format!("grid would leave body {body_name:?}: instance bounds {lo:?}..{hi:?} exceed host bounds {host_min:?}..{host_max:?}; reduce spacing or counts"));
+            }
+            if !overlap_skipped
                 && args["join"] != true
                 && boxes.iter().any(|(a, b): &([f64; 3], [f64; 3])| {
                     (0..3).all(|k| lo[k] < b[k] - 1e-8 && hi[k] > a[k] + 1e-8)
@@ -924,10 +999,13 @@ pub(super) fn build(
             "grid_pattern" => "grid_pattern",
             _ => "circular_pattern",
         },
-        calls: vec![
-            call(catalog, command, params)?,
-            call(catalog, "document.inspect", json!({"measure":true}))?,
-        ],
+        calls: reposition
+            .into_iter()
+            .chain([
+                call(catalog, command, params)?,
+                call(catalog, "document.inspect", json!({"measure":true}))?,
+            ])
+            .collect(),
         facts: None,
         slots,
         expected: Some(Expected {
@@ -1105,6 +1183,34 @@ pub fn repetition_hint(request: &Value) -> Option<&'static str> {
 #[allow(clippy::unwrap_used)]
 mod form_tests {
     use super::*;
+    #[test]
+    fn replacement_grids_centre_in_each_plane_and_preserve_fixed_starts() {
+        let catalog = Catalog::bundled().unwrap();
+        for (plane, axes) in [("XY", [0, 1]), ("XZ", [0, 2]), ("YZ", [1, 2])] {
+            let mut corner = [0.; 3];
+            corner[axes[0]] = 70.;
+            corner[axes[1]] = 70.;
+            let mut request = json!({"messages":[
+                {"role":"user","content":"make that feature a grid"},
+                {"role":"tool","content":json!({"bodies":[{"name":"Base","volume_mm3":50000,"bbox":{"min":[0,0,0],"max":[90,90,90]}}],"timeline":[{"id":"f","name":"Box1","type":"BoxFeature"}]}).to_string()},
+                {"role":"tool","content":json!({"id":"f","name":"Box1","type":"BoxFeature","definition":{"corner":corner,"length":10,"width":10,"height":10,"operation":"join","participants":["Base"]}}).to_string()}
+            ]});
+            let args = json!({"target":"last_feature","rows":4,"columns":4,"spacing1":20,"spacing2":20,"plane":plane});
+            let plan = build("grid_pattern", &args, &request, &catalog).unwrap();
+            let mut wanted = corner;
+            for k in axes {
+                wanted[k] = 10.;
+            }
+            assert_eq!(
+                plan.calls[0]["arguments"]["params"]["set"]["corner"],
+                json!(wanted)
+            );
+            request["messages"][0]["content"] =
+                json!("make a grid starting here; keep the first feature fixed");
+            let error = build("grid_pattern", &args, &request, &catalog).unwrap_err();
+            assert!(error.contains("grid would leave body"), "{error}");
+        }
+    }
     #[test]
     fn model_axes_are_canonical_and_signed_directions_survive() {
         for input in [

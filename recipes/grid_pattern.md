@@ -151,6 +151,7 @@
           "x-slot": "/rows"
         },
         "spacing1": {
+          "description": "Centre spacing; single pitch: use for both axes",
           "exclusiveMinimum": 0,
           "maximum": 1000000,
           "type": "number",
@@ -158,6 +159,7 @@
           "x-unit": "mm"
         },
         "spacing2": {
+          "description": "Centre spacing; single pitch: use for both axes",
           "exclusiveMinimum": 0,
           "maximum": 1000000,
           "type": "number",
@@ -188,3 +190,5 @@
 ---
 
 Repeat an existing body or last feature in a rectangular grid: rows, columns, plane and spacing in both directions. Built by the `grid_pattern` expander.
+
+A single stated pitch supplies both spacings. For a joined or cut primitive feature, requests to make, turn, replace or arrange it as a grid centre the complete grid on the body in the chosen plane. An explicit fixed/start anchor keeps the seed position. Every measured instance footprint must fit within the body's bounds; reduce counts or spacing if it would leave the body.
