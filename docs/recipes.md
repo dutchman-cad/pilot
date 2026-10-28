@@ -518,8 +518,11 @@ odd rows. Pointy-top columns run along local X; flat-top rotates the lattice.
 Only complete hexes within the minimum border survive, and the whole field is
 centred within the plate footprint. Across-corners converts to AF by sqrt(3)/2.
 The footprint corner starts at the origin unless centred; thickness extends
-along +Z (XY), -Y (XZ), or +X (YZ). At most two seed cuts and two feature patterns
-produce one body, with no per-hex tool calls. Completion checks measured volume
+along +Z (XY), -Y (XZ), or +X (YZ). A bounded inline ASCII DXF uses hex and row
+blocks to describe the plate profile. One extrusion of the surrounding region
+retains all hexes as holes, without repeated boolean cuts or per-hex tool calls.
+Zero-border layouts retain at most two seed cuts and two feature patterns so
+hexes may touch the outline. Completion checks measured volume
 and bounds. The CLI integration test independently reconstructs finished hex
 loops to verify count, minimum web and border.
 

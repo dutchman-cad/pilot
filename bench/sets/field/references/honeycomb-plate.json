@@ -2,162 +2,53 @@
   "SPDX-License-Identifier": "Apache-2.0",
   "commands": [
     {
-      "command": "solid.box",
+      "command": "sketch.create",
+      "params": {
+        "name": "HoneycombProfile",
+        "plane": {
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "x_dir": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "y_dir": [
+            0.0,
+            1.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
+      "command": "sketch.insert_dxf",
+      "params": {
+        "text": "0\nSECTION\n2\nBLOCKS\n0\nBLOCK\n2\nHex\n70\n0\n10\n0\n20\n0\n30\n0\n0\nLINE\n8\n0\n10\n3.5\n20\n2.0207259421636903\n11\n0\n21\n4.041451884327381\n0\nLINE\n8\n0\n10\n0\n20\n4.041451884327381\n11\n-3.5\n21\n2.0207259421636903\n0\nLINE\n8\n0\n10\n-3.5\n20\n2.0207259421636903\n11\n-3.5\n21\n-2.0207259421636903\n0\nLINE\n8\n0\n10\n-3.5\n20\n-2.0207259421636903\n11\n0\n21\n-4.041451884327381\n0\nLINE\n8\n0\n10\n0\n20\n-4.041451884327381\n11\n3.5\n21\n-2.0207259421636903\n0\nLINE\n8\n0\n10\n3.5\n20\n-2.0207259421636903\n11\n3.5\n21\n2.0207259421636903\n0\nENDBLK\n0\nBLOCK\n2\nRow0\n70\n0\n10\n0\n20\n0\n30\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n0\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n8.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n17\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n25.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n34\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n42.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n51\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n59.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n68\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n76.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n85\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n93.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n102\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n110.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n119\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n127.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n136\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n144.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n153\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n161.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n170\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n178.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n187\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n195.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n204\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n212.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n221\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n229.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n238\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n246.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n255\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n263.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n272\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n280.5\n20\n0\n0\nENDBLK\n0\nBLOCK\n2\nRow1\n70\n0\n10\n0\n20\n0\n30\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n0\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n8.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n17\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n25.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n34\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n42.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n51\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n59.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n68\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n76.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n85\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n93.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n102\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n110.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n119\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n127.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n136\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n144.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n153\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n161.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n170\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n178.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n187\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n195.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n204\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n212.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n221\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n229.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n238\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n246.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n255\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n263.5\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n272\n20\n0\n0\nINSERT\n8\n0\n2\nHex\n10\n280.5\n20\n0\n0\nENDBLK\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n0\nLINE\n8\n0\n10\n0\n20\n0\n11\n300\n21\n0\n0\nLINE\n8\n0\n10\n300\n20\n0\n11\n300\n21\n150\n0\nLINE\n8\n0\n10\n300\n20\n150\n11\n0\n21\n150\n0\nLINE\n8\n0\n10\n0\n20\n150\n11\n0\n21\n0\n0\nINSERT\n8\n0\n2\nRow0\n10\n7.625\n20\n8.749056610490435\n0\nINSERT\n8\n0\n2\nRow1\n10\n11.875\n20\n16.110272542658162\n0\nINSERT\n8\n0\n2\nRow0\n10\n7.625\n20\n23.47148847482589\n0\nINSERT\n8\n0\n2\nRow1\n10\n11.875\n20\n30.83270440699362\n0\nINSERT\n8\n0\n2\nRow0\n10\n7.625\n20\n38.19392033916135\n0\nINSERT\n8\n0\n2\nRow1\n10\n11.875\n20\n45.555136271329076\n0\nINSERT\n8\n0\n2\nRow0\n10\n7.625\n20\n52.91635220349681\n0\nINSERT\n8\n0\n2\nRow1\n10\n11.875\n20\n60.27756813566453\n0\nINSERT\n8\n0\n2\nRow0\n10\n7.625\n20\n67.63878406783226\n0\nINSERT\n8\n0\n2\nRow1\n10\n11.875\n20\n75\n0\nINSERT\n8\n0\n2\nRow0\n10\n7.625\n20\n82.36121593216771\n0\nINSERT\n8\n0\n2\nRow1\n10\n11.875\n20\n89.72243186433545\n0\nINSERT\n8\n0\n2\nRow0\n10\n7.625\n20\n97.08364779650319\n0\nINSERT\n8\n0\n2\nRow1\n10\n11.875\n20\n104.4448637286709\n0\nINSERT\n8\n0\n2\nRow0\n10\n7.625\n20\n111.80607966083863\n0\nINSERT\n8\n0\n2\nRow1\n10\n11.875\n20\n119.16729559300637\n0\nINSERT\n8\n0\n2\nRow0\n10\n7.625\n20\n126.52851152517408\n0\nINSERT\n8\n0\n2\nRow1\n10\n11.875\n20\n133.88972745734182\n0\nINSERT\n8\n0\n2\nRow0\n10\n7.625\n20\n141.25094338950956\n0\nENDSEC\n0\nEOF\n",
+        "tolerance": 1.5e-6
+      }
+    },
+    {
+      "command": "sketch.finish",
+      "params": {}
+    },
+    {
+      "command": "solid.extrude",
       "params": {
         "body_name": "HoneycombPlate",
-        "corner": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "height": 3.0,
-        "length": 300.0,
+        "distance": 3.0,
         "operation": "new",
-        "width": 150.0
-      }
-    },
-    {
-      "command": "sketch.create",
-      "params": {
-        "name": "HoneycombSeed0",
-        "plane": {
-          "origin": [
-            0.0,
-            0.0,
-            0.0
-          ],
-          "x_dir": [
-            1.0,
-            0.0,
-            0.0
-          ],
-          "y_dir": [
-            0.0,
-            1.0,
-            0.0
-          ]
-        }
-      }
-    },
-    {
-      "command": "sketch.polygon.inscribed",
-      "params": {
-        "angle": 30,
-        "center": [
-          7.625,
-          8.749056610490435
-        ],
-        "radius": 4.041451884327381,
-        "sides": 6
-      }
-    },
-    {
-      "command": "sketch.finish",
-      "params": {}
-    },
-    {
-      "command": "solid.extrude",
-      "params": {
-        "name": "HoneycombCut0",
-        "operation": "cut",
-        "targets": [
-          "HoneycombPlate"
-        ],
-        "through_all": true
-      }
-    },
-    {
-      "command": "solid.pattern.rectangular",
-      "params": {
-        "count1": 34,
-        "count2": 10,
-        "dir1": [
-          1.0,
-          0.0,
-          0.0
-        ],
-        "dir2": [
-          0.0,
-          1.0,
-          0.0
-        ],
-        "features": [
-          "HoneycombCut0"
-        ],
-        "spacing1": 8.5,
-        "spacing2": 14.722431864335457
-      }
-    },
-    {
-      "command": "sketch.create",
-      "params": {
-        "name": "HoneycombSeed1",
-        "plane": {
-          "origin": [
-            0.0,
-            0.0,
-            0.0
-          ],
-          "x_dir": [
-            1.0,
-            0.0,
-            0.0
-          ],
-          "y_dir": [
-            0.0,
-            1.0,
-            0.0
-          ]
-        }
-      }
-    },
-    {
-      "command": "sketch.polygon.inscribed",
-      "params": {
-        "angle": 30,
-        "center": [
-          11.875,
-          16.110272542658162
-        ],
-        "radius": 4.041451884327381,
-        "sides": 6
-      }
-    },
-    {
-      "command": "sketch.finish",
-      "params": {}
-    },
-    {
-      "command": "solid.extrude",
-      "params": {
-        "name": "HoneycombCut1",
-        "operation": "cut",
-        "targets": [
-          "HoneycombPlate"
-        ],
-        "through_all": true
-      }
-    },
-    {
-      "command": "solid.pattern.rectangular",
-      "params": {
-        "count1": 34,
-        "count2": 9,
-        "dir1": [
-          1.0,
-          0.0,
-          0.0
-        ],
-        "dir2": [
-          0.0,
-          1.0,
-          0.0
-        ],
-        "features": [
-          "HoneycombCut1"
-        ],
-        "spacing1": 8.5,
-        "spacing2": 14.722431864335457
+        "profiles": [
+          {
+            "point": [
+              2.0,
+              2.0
+            ]
+          }
+        ]
       }
     },
     {

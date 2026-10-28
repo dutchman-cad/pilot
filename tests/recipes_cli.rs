@@ -1343,8 +1343,12 @@ fn public_binary_honeycomb_recipe() {
             .unwrap();
         let mut s = Session::new(&path);
         assert_eq!(
-            p.calls[0]["arguments"]["params"]["corner"],
-            json!([0., 0., 0.])
+            p.calls[0]["arguments"]["params"]["plane"]["origin"],
+            if plane == "XZ" {
+                json!([0., 3., 0.])
+            } else {
+                json!([0., 0., 0.])
+            }
         );
         assert_eq!(
             p.facts.as_ref().unwrap()["hex_count"],
@@ -1403,8 +1407,12 @@ fn public_binary_honeycomb_given_corner() {
                 )
                 .unwrap();
             assert_eq!(
-                p.calls[0]["arguments"]["params"]["corner"],
-                json!([0., 0., 0.])
+                p.calls[0]["arguments"]["params"]["plane"]["origin"],
+                if plane == "XZ" {
+                    json!([0., 3., 0.])
+                } else {
+                    json!([0., 0., 0.])
+                }
             );
             assert_eq!(
                 p.calls

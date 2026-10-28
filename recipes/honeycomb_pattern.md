@@ -301,5 +301,7 @@ orientations as well as the dimensions. This applies to fill and exact mode;
 columns count along rows. On XZ/YZ, X and Y here mean the plate's sketch axes.
 
 An optional `corner:[x,y,z]` (flat fields `corner_x/y/z`) sets the final minimum
-bounding-box corner. Use either this corner or `centred:true`. Cutting always
-starts at the origin; a single rigid move places the finished plate.
+bounding-box corner. Use either this corner or `centred:true`. Construction always
+starts at the origin; a single rigid move places the finished plate. An inline
+DXF of hex and row blocks supplies the perforated profile for one extrusion;
+zero-border layouts use seed cuts and feature patterns instead.

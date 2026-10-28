@@ -1,4 +1,4 @@
-//! Staggered hexagonal through cuts built from two bounded feature arrays.
+//! Bounded staggered hex profiles, extruded once without repeated booleans.
 use super::*;
 
 pub fn schema() -> Value {
@@ -138,6 +138,77 @@ fn field(a: &Value) -> Result<Field, String> {
     Ok(f)
 }
 
+// Public ASCII DXF blocks keep the wire payload small while the importer expands
+// the exact same six-sided loops. There are only two levels of block references:
+// row -> hex. Counts are already bounded to 5000 hexes by field().
+fn plate_profile(f: &Field, along: f64, across: f64) -> Result<String, String> {
+    let mut text =
+        String::from("0\nSECTION\n2\nBLOCKS\n0\nBLOCK\n2\nHex\n70\n0\n10\n0\n20\n0\n30\n0\n");
+    // Algebraic 30-degree vertices avoid platform-dependent trigonometric
+    // rounding in the inline DXF (and its public command-list reference).
+    let vertices = [
+        [f.af / 2., f.radius / 2.],
+        [0., f.radius],
+        [-f.af / 2., f.radius / 2.],
+        [-f.af / 2., -f.radius / 2.],
+        [0., -f.radius],
+        [f.af / 2., -f.radius / 2.],
+    ];
+    for i in 0..6 {
+        dxf_line(&mut text, vertices[i], vertices[(i + 1) % 6]);
+    }
+    text.push_str("0\nENDBLK\n");
+    for parity in 0..2 {
+        if f.rows <= parity || f.columns[parity] == 0 {
+            continue;
+        }
+        text.push_str(&format!(
+            "0\nBLOCK\n2\nRow{parity}\n70\n0\n10\n0\n20\n0\n30\n0\n"
+        ));
+        for col in 0..f.columns[parity] {
+            dxf_insert(&mut text, "Hex", [col as f64 * f.pitch, 0.]);
+        }
+        text.push_str("0\nENDBLK\n");
+    }
+    text.push_str("0\nENDSEC\n0\nSECTION\n2\nENTITIES\n");
+    let corners = [[0., 0.], [along, 0.], [along, across], [0., across]];
+    for i in 0..4 {
+        dxf_line(&mut text, corners[i], corners[(i + 1) % 4]);
+    }
+    for row in 0..f.rows {
+        let parity = row % 2;
+        if f.columns[parity] > 0 {
+            dxf_insert(
+                &mut text,
+                &format!("Row{parity}"),
+                [
+                    f.start[0] + parity as f64 * f.pitch / 2.,
+                    f.start[1] + row as f64 * f.row_pitch,
+                ],
+            );
+        }
+    }
+    text.push_str("0\nENDSEC\n0\nEOF\n");
+    if text.len() > 512 * 1024 {
+        return Err("honeycomb profile exceeds 512 KiB; reduce rows or columns".into());
+    }
+    Ok(text)
+}
+
+fn dxf_line(text: &mut String, a: [f64; 2], b: [f64; 2]) {
+    text.push_str(&format!(
+        "0\nLINE\n8\n0\n10\n{}\n20\n{}\n11\n{}\n21\n{}\n",
+        a[0], a[1], b[0], b[1]
+    ));
+}
+
+fn dxf_insert(text: &mut String, block: &str, at: [f64; 2]) {
+    text.push_str(&format!(
+        "0\nINSERT\n8\n0\n2\n{block}\n10\n{}\n20\n{}\n",
+        at[0], at[1]
+    ));
+}
+
 pub(super) fn build(a: &Value, request: &Value, catalog: &Catalog) -> Result<Plan, String> {
     let f = field(a)?;
     let length = num(a, "length")?;
@@ -193,35 +264,57 @@ pub(super) fn build(a: &Value, request: &Value, catalog: &Catalog) -> Result<Pla
         dims
     };
     let build_corner = [0.; 3];
-    let mut calls = vec![call(
-        catalog,
-        "solid.box",
-        json!({"length":build_dims[0],"width":build_dims[1],"height":build_dims[2],"corner":build_corner,"operation":"new","body_name":"HoneycombPlate"}),
-    )?];
-    for parity in 0..2 {
-        let row_count = (f.rows + 1 - parity) / 2;
-        let col_count = f.columns[parity];
-        if row_count == 0 || col_count == 0 {
-            continue;
-        }
-        let along = f.start[0] + parity as f64 * f.pitch / 2.;
-        let across = f.start[1] + parity as f64 * f.row_pitch;
-        let center = [along, across];
-        let name = format!("HoneycombCut{parity}");
-        calls.push(call(catalog,"sketch.create",json!({"plane":{"origin":build_origin,"x_dir":u,"y_dir":v},"name":format!("HoneycombSeed{parity}")}))?);
+    let mut calls = Vec::new();
+    let border = num(a, "border")?;
+    if border > 0. {
+        let (along, across) = if f.flat {
+            (width, length)
+        } else {
+            (length, width)
+        };
         calls.push(call(
             catalog,
-            "sketch.polygon.inscribed",
-            json!({"center":center,"radius":f.radius,"sides":6,"angle":30}),
+            "sketch.create",
+            json!({"plane":{"origin":build_origin,"x_dir":u,"y_dir":v},"name":"HoneycombProfile"}),
         )?);
+        calls.push(call(catalog, "sketch.insert_dxf", json!({"text":plate_profile(&f, along, across)?,"tolerance":f.af.min(num(a,"web")?).min(border)*1e-6}))?);
         calls.push(call(catalog, "sketch.finish", json!({}))?);
+        // Default "all" fills the hex regions too. Pick the surrounding plate
+        // region explicitly; the public profile selector retains its islands.
+        calls.push(call(catalog, "solid.extrude", json!({"distance":thickness,"operation":"new","body_name":"HoneycombPlate","profiles":[{"point":[border/2.,border/2.]}]}))?);
+    } else {
+        // At zero border a hex can touch the outline. Keep boolean cuts for
+        // these layouts rather than requiring a strictly nested profile.
         calls.push(call(
             catalog,
-            "solid.extrude",
-            json!({"through_all":true,"operation":"cut","targets":["HoneycombPlate"],"name":name}),
+            "solid.box",
+            json!({"length":build_dims[0],"width":build_dims[1],"height":build_dims[2],"corner":build_corner,"operation":"new","body_name":"HoneycombPlate"}),
         )?);
-        if col_count * row_count > 1 {
-            calls.push(call(catalog,"solid.pattern.rectangular",json!({"features":[name],"dir1":u,"count1":col_count,"spacing1":f.pitch,"dir2":v,"count2":row_count,"spacing2":2.*f.row_pitch}))?);
+        for parity in 0..2 {
+            let row_count = (f.rows + 1 - parity) / 2;
+            let col_count = f.columns[parity];
+            if row_count == 0 || col_count == 0 {
+                continue;
+            }
+            let along = f.start[0] + parity as f64 * f.pitch / 2.;
+            let across = f.start[1] + parity as f64 * f.row_pitch;
+            let center = [along, across];
+            let name = format!("HoneycombCut{parity}");
+            calls.push(call(catalog,"sketch.create",json!({"plane":{"origin":build_origin,"x_dir":u,"y_dir":v},"name":format!("HoneycombSeed{parity}")}))?);
+            calls.push(call(
+                catalog,
+                "sketch.polygon.inscribed",
+                json!({"center":center,"radius":f.radius,"sides":6,"angle":30}),
+            )?);
+            calls.push(call(catalog, "sketch.finish", json!({}))?);
+            calls.push(call(
+                catalog,
+                "solid.extrude",
+                json!({"through_all":true,"operation":"cut","targets":["HoneycombPlate"],"name":name}),
+            )?);
+            if col_count * row_count > 1 {
+                calls.push(call(catalog,"solid.pattern.rectangular",json!({"features":[name],"dir1":u,"count1":col_count,"spacing1":f.pitch,"dir2":v,"count2":row_count,"spacing2":2.*f.row_pitch}))?);
+            }
         }
     }
     if f.flat {
@@ -475,6 +568,60 @@ mod tests {
     }
     fn req(text: &str) -> Value {
         json!({"messages":[{"role":"user","content":text}],"tools":[{"function":{"name":"execute"}}]})
+    }
+    #[test]
+    fn command_count_never_exceeds_previous_expansion() {
+        let catalog = Catalog::bundled().unwrap();
+        for (length, width, rows, columns, border) in [
+            (150., 300., 0, 0, 4.),
+            (300., 150., 0, 0, 4.),
+            (33., 50., 0, 0, 4.),
+            (15., 50., 0, 0, 4.),
+            (60., 50., 1, 1, 4.),
+            (60., 50., 1, 4, 4.),
+            (60., 50., 4, 1, 4.),
+            (10000., 10000., 100, 50, 4.),
+            (10000., 100., 1, 5000, 4.),
+            (100000., 100000., 5000, 1, 4.),
+            (60., 50., 3, 4, 0.),
+        ] {
+            let mut a = args();
+            a["length"] = json!(length);
+            a["width"] = json!(width);
+            a["border"] = json!(border);
+            if length == 15. {
+                a["orientation"] = json!("pointy_top");
+            }
+            if rows > 0 {
+                a["mode"] = json!("exact");
+                a["rows"] = json!(rows);
+                a["columns"] = json!(columns);
+            }
+            // A 5000-column exact field needs room for its 8.5 mm pitch.
+            if columns == 5000 {
+                a["length"] = json!(50000.);
+            }
+            let f = field(&a).unwrap();
+            let plan = build(&a, &req(""), &catalog).unwrap();
+            let mut before = 2 + usize::from(f.flat); // box, inspection, rotation
+            for parity in 0..2 {
+                let count = (f.rows + 1 - parity) / 2 * f.columns[parity];
+                if count > 0 {
+                    before += 4 + usize::from(count > 1);
+                }
+            }
+            eprintln!(
+                "Honeycomb {} hexes: commands {before} -> {}",
+                f.count(),
+                plan.calls.len()
+            );
+            assert!(plan.calls.len() <= before);
+            if length == 150. && width == 300. {
+                assert_eq!(f.count(), 646);
+                assert_eq!(before, 13);
+                assert_eq!(plan.calls.len(), 6);
+            }
+        }
     }
     #[test]
     fn geometry_counts_pitches_and_vertices() {
