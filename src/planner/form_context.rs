@@ -159,7 +159,7 @@ pub(crate) fn default_body(request: &Value) -> Result<String, String> {
     Err("args.body: target is ambiguous; select one body or supply its exact inspected name".into())
 }
 
-pub(crate) fn summary(request: &Value, joint: bool) -> String {
+pub(crate) fn summary(request: &Value, joint: bool, joint_origins: bool) -> String {
     let data = payloads(request);
     let Some(doc) = document(&data) else {
         return String::new();
@@ -192,6 +192,17 @@ pub(crate) fn summary(request: &Value, joint: bool) -> String {
             &["id", "name", "type", "definition"],
         );
     }
+    if joint_origins {
+        summary["joint_origins"] = json!(data
+            .iter()
+            .rev()
+            .find_map(|d| d["origins"].as_array())
+            .into_iter()
+            .flatten()
+            .take(24)
+            .map(|o| fields(o, &["name", "occurrence"]))
+            .collect::<Vec<_>>());
+    }
     if joint {
         summary["components"] = json!(data
             .iter()
@@ -219,7 +230,10 @@ pub(crate) fn summary(request: &Value, joint: bool) -> String {
     while summary.to_string().chars().count() > MAX_CONTEXT_CHARS {
         summary["partial"] = json!(true);
         let mut removed = false;
-        for key in ["pins_and_holes", "components", "bodies"] {
+        for key in ["pins_and_holes", "joint_origins", "components", "bodies"] {
+            if key == "joint_origins" && !joint_origins {
+                continue;
+            }
             if let Some(a) = summary[key].as_array_mut() {
                 if a.pop().is_some() {
                     removed = true;
@@ -263,7 +277,7 @@ mod tests {
         let mut req = request();
         let bodies: Vec<_> = (0..30).map(|n| json!({"name":format!("Part{n}"),"bbox":{"min":[0,0,0],"max":[1,2,3]},"center_of_mass":[0.5,1,1.5]})).collect();
         req["messages"][1]["content"] = json!(json!({"bodies":bodies,"timeline":[]}).to_string());
-        let s = summary(&req, true);
+        let s = summary(&req, true, false);
         assert!(s.chars().count() <= MAX_CONTEXT_CHARS);
         let s: Value = serde_json::from_str(&s).unwrap();
         assert_eq!(s["body_count"], 30);
@@ -273,7 +287,7 @@ mod tests {
             .collect();
         req["messages"][1]["content"] =
             json!(json!({"bodies":long_bodies,"timeline":[]}).to_string());
-        let capped = summary(&req, true);
+        let capped = summary(&req, true, false);
         assert!(capped.chars().count() <= MAX_CONTEXT_CHARS);
         assert_eq!(
             serde_json::from_str::<Value>(&capped).unwrap()["partial"],
@@ -283,6 +297,6 @@ mod tests {
             .as_array_mut()
             .unwrap()
             .push(json!({"role":"user","content":"next task"}));
-        assert!(summary(&req, true).is_empty());
+        assert!(summary(&req, true, false).is_empty());
     }
 }

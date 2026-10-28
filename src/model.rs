@@ -1286,7 +1286,7 @@ impl Proxy {
             let joint = candidates
                 .iter()
                 .take(4)
-                .any(|r| r["id"] == "revolute_joint");
+                .any(|r| r["id"] == "revolute_joint" || r["id"] == "joint");
             let reads = planner::form_context::reads(&original, joint, &self.catalog)?;
             if !reads.is_empty() {
                 if context_round >= 3 {

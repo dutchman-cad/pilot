@@ -448,6 +448,7 @@ fn sample(id: &str) -> Value {
             json!({"length":80,"width":60,"height":30,"wall":2,"open":"top","centred":false})
         }
         "revolute_joint" => json!({"angle_deg":0}),
+        "joint" => json!({"joint_type":"revolute","axis":"Z"}),
         "box" => json!({"length":40,"width":30,"height":20}),
         "cylinder" | "revolve" => json!({"radius":10,"height":20}),
         "sphere" => json!({"radius":10}),
@@ -471,7 +472,7 @@ fn generated_schema_and_expander_cases() {
         let args = sample(&r.id);
         validate(&args, &r.schema).unwrap();
         // Joint discovery depends on contact topology, not the parameter domain.
-        if r.id != "revolute_joint" {
+        if r.id != "revolute_joint" && r.id != "joint" {
             lib.build(&json!({"recipe":r.id,"args":args}), &req, &cat)
                 .unwrap();
         }
@@ -484,7 +485,7 @@ fn generated_schema_and_expander_cases() {
                 let expanded =
                     dutchman_pilot::planner::recipe_expand(&r.expander, &changed, &req, &cat)
                         .is_ok();
-                if r.id != "revolute_joint" {
+                if r.id != "revolute_joint" && r.id != "joint" {
                     assert_eq!(valid, expanded, "{}.{key}", r.id);
                 }
             }
@@ -568,7 +569,7 @@ fn audit_draft_requires_review_and_round_trips() {
     assert_eq!(r.examples[0], "Make a block 41 by 23 by 17 mm");
     assert_eq!(r.expander, "sequence");
     assert_eq!(r.schema["properties"].as_object().unwrap().len(), 3);
-    assert_eq!(Library::embedded().unwrap().recipes.len(), 19);
+    assert_eq!(Library::embedded().unwrap().recipes.len(), 20);
     assert!(draft(&audit, 1, &review)
         .unwrap_err()
         .contains("cannot create"));
@@ -622,7 +623,7 @@ fn geometry_schema_extension_and_generated_numeric_boundaries() {
                 let accepted = validate(&args, &r.schema).is_ok();
                 let expanded =
                     dutchman_pilot::planner::recipe_expand(&r.expander, &args, &req, &cat).is_ok();
-                if r.id != "revolute_joint" {
+                if r.id != "revolute_joint" && r.id != "joint" {
                     assert_eq!(accepted, expanded, "{}.{key}={n}", r.id);
                 }
             }
@@ -946,7 +947,11 @@ fn fill_forms_are_short_and_documented() {
         let size = form.to_string().chars().count() + line(&r.id).chars().count();
         eprintln!("{}: {size} characters", r.id);
         // Plate includes both base outlines and three feature layouts.
-        let cap = if r.id == "plate" { 2400 } else { 1200 };
+        let cap = match r.id.as_str() {
+            "plate" => 2400,
+            "joint" => 3000,
+            _ => 1200,
+        };
         assert!(size <= cap, "{}: {size}", r.id);
     }
     documented(&dutchman_pilot::planner::shortcut_tool());
@@ -1085,6 +1090,10 @@ fn every_flat_form_maps_to_the_same_typed_commands() {
         }
         let slots = to_slots(&args, &r.schema).unwrap_or_else(|e| panic!("{}: {e}", r.id));
         assert_eq!(slots, nested, "{}", r.id);
+        if r.id == "joint" {
+            // Component inspection and command equivalence are covered by the CLI tests.
+            continue;
+        }
         let build = |a| {
             lib.build(&json!({"recipe":r.id,"args":a}), &req, &cat)
                 .unwrap()
@@ -1708,4 +1717,114 @@ fn existing_edge_treatments_do_not_become_plate_creations() {
         let found = lib.form_band(query).unwrap();
         assert_eq!(found["recipes"][0]["id"], recipe, "{query}: {found}");
     }
+}
+#[test]
+fn every_joint_type_retrieves_one_form_with_ordered_limits() {
+    let lib = Library::embedded().unwrap();
+    let tasks: Value =
+        serde_json::from_str(include_str!("../bench/sets/joints/tasks.json")).unwrap();
+    for task in tasks["tasks"].as_array().unwrap() {
+        let found = lib.find(task["prompt"].as_str().unwrap(), &Bm25).unwrap();
+        assert_eq!(found["recipes"][0]["id"], "joint");
+        assert!(found["recipes"][0]["score"].as_f64().unwrap() >= 4.5);
+    }
+    for kind in [
+        "revolute",
+        "hinge",
+        "pin",
+        "slider",
+        "slide",
+        "prismatic",
+        "cylindrical",
+        "pin_slot",
+        "pin slot",
+        "ball",
+        "ball and socket",
+        "spherical",
+        "planar",
+        "rigid",
+        "parallel",
+        "perpendicular",
+        "angle",
+        "point_on_plane",
+        "point_on_line",
+        "line_on_plane",
+    ] {
+        for text in [
+            format!("{kind} joint with motion limits"),
+            format!("Connect A and B with a {kind} joint at box centres"),
+        ] {
+            let found = lib.find(&text, &Bm25).unwrap();
+            assert_eq!(found["recipes"][0]["id"], "joint", "{text}: {found}");
+            assert!(
+                found["recipes"][0]["score"].as_f64().unwrap() >= 4.5,
+                "{text}: {found}"
+            );
+        }
+    }
+    let schema = schema("joint").unwrap();
+    for args in [
+        json!({"joint_type":"ball","limit1_min":20,"limit1_max":-20}),
+        json!({"joint_type":"slider","limit2_min":0,"limit2_max":1}),
+        json!({"joint_type":"rigid","limit1_min":0,"limit1_max":1}),
+        json!({"joint_type":"ball","limit1_max":20}),
+        json!({"joint_type":"slider","limit1_min":-1000001,"limit1_max":0}),
+    ] {
+        assert!(validate(&args, &schema).is_err(), "{args}");
+    }
+    for (kind, count) in [
+        ("rigid", 0),
+        ("revolute", 1),
+        ("slider", 1),
+        ("cylindrical", 2),
+        ("pin_slot", 2),
+        ("planar", 3),
+        ("ball", 3),
+        ("parallel", 4),
+        ("perpendicular", 5),
+        ("angle", 5),
+        ("point_on_plane", 5),
+        ("point_on_line", 4),
+        ("line_on_plane", 4),
+    ] {
+        let mut args = json!({"joint_type":kind});
+        for i in 1..=count {
+            args[format!("limit{i}_min")] = json!(-10);
+            args[format!("limit{i}_max")] = json!(10);
+        }
+        validate(&args, &schema).unwrap();
+    }
+}
+
+#[test]
+fn joint_form_preserves_limit_units_and_audits_axis_default() {
+    let lib = Library::embedded().unwrap();
+    let recipe = lib.recipes.iter().find(|r| r.id == "joint").unwrap();
+    let flat = forms::flat(&recipe.schema);
+    let compact = forms::compact(&recipe.schema);
+    assert!(compact["properties"]["joint_type"]["description"]
+        .as_str()
+        .unwrap()
+        .contains("joint.list order"));
+    let mut args = json!({"joint_type":"spherical","limit1_min":"-15","limit1_max":"15"});
+    let changes = forms::coerce(&mut args, &flat).unwrap();
+    assert_eq!(args["joint_type"], "ball");
+    assert_eq!(args["axis"], "Z");
+    assert_eq!(args["limit1_min"].as_f64(), Some(-15.));
+    assert!(changes
+        .iter()
+        .any(|c| c["field"] == "axis" && c["defaulted"] == true));
+    for i in 1..=5 {
+        assert!(flat["properties"][format!("limit{i}_min")]
+            .get("x-unit")
+            .is_none());
+    }
+    let mut legacy = json!({"pin_component":"Base","hole_component":"Arm","angle_deg":45});
+    let legacy_schema = lib
+        .recipes
+        .iter()
+        .find(|r| r.id == "revolute_joint")
+        .unwrap();
+    forms::coerce(&mut legacy, &forms::flat(&legacy_schema.schema)).unwrap();
+    assert!(legacy.get("axis").is_none());
 }

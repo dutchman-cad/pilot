@@ -174,8 +174,19 @@ pub fn compact(s: &Value) -> Value {
             "floor" => "Omit: wall",
             "target" => "body: solid; last_feature: latest feature",
             "open" => "Removed face",
+            "axis" if root["x-pilot-expander"] == "joint" => {
+                "Aligned world axis; omit: Z; named origins keep their frames"
+            }
             "direction" | "axis" => "World axis",
             "plane" => "Axes of plane",
+            k if root["x-pilot-expander"] == "joint"
+                && (k.starts_with("limit")
+                    || k.starts_with("component_")
+                    || k.starts_with("point_")
+                    || k == "joint_type") =>
+            {
+                resolved["description"].as_str().unwrap_or("")
+            }
             _ => "",
         };
         if !description.is_empty() {
@@ -207,8 +218,12 @@ pub fn compact(s: &Value) -> Value {
     out
 }
 
-pub fn line(_id: &str) -> String {
-    "You fill in one form from the user's CAD request. Call the tool once. Lengths in mm; convert inches (25.4) and cm (10). Leave optional fields out unless stated. If the form does not fit, set decline true.".into()
+pub fn line(id: &str) -> String {
+    let mut line = "You fill in one form from the user's CAD request. Call the tool once. Lengths in mm; convert inches (25.4) and cm (10). Leave optional fields out unless stated. If the form does not fit, set decline true.".to_owned();
+    if id == "joint" {
+        line.push_str(" Use joint_type and component_a/b. Limits are ordered min/max pairs in deg or mm; omit pairs for unlimited motion.");
+    }
+    line
 }
 
 /// File-owned scalar form; typed schemas remain the compatibility contract.
@@ -392,8 +407,11 @@ pub fn coerce(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> {
     let fields = schema["properties"]
         .as_object()
         .ok_or("fill schema needs properties")?;
-    let object = args.as_object_mut().ok_or("args requires one object")?;
     let mut changes = pattern_changes;
+    if schema["x-pilot-expander"] == "joint" {
+        changes.extend(crate::planner::joints::coerce(args)?);
+    }
+    let object = args.as_object_mut().ok_or("args requires one object")?;
     for (key, value) in object {
         let compatibility = json!({"type":"number","x-unit":"mm"});
         let Some(field) = fields.get(key).or_else(|| {

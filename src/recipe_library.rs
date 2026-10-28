@@ -22,6 +22,7 @@ pub const IDS: &[&str] = &[
     "plate",
     "enclosure",
     "revolute_joint",
+    "joint",
     "box",
     "cylinder",
     "sphere",
@@ -167,6 +168,12 @@ fn shared(s: &mut Value) {
 }
 /// Schemas derive from the typed shortcut contract, with shared scalar constraints.
 pub fn schema(id: &str) -> Result<Value, String> {
+    if id == "joint" {
+        let mut s = json!({"type":"object","properties":{},"required":["joint_type"],"additionalProperties":false,
+            "$schema":"https://json-schema.org/draft/2020-12/schema","$defs":definitions(),"x-pilot-expander":"joint"});
+        planner::joints::fields(&mut s);
+        return Ok(s);
+    }
     if id == "cross_drilled_box" {
         return Ok(planner::cross_drilled_schema());
     }
@@ -254,8 +261,8 @@ pub fn validate(value: &Value, schema: &Value) -> Result<(), String> {
         let result =
             planner::recipe_expand(id, value, &json!({"messages":[]}), &Catalog::bundled()?);
         if let Err(error) = result {
-            if id != "revolute_joint"
-                || !error.starts_with("revolute_joint: inspection must resolve")
+            if !matches!(id, "revolute_joint" | "joint")
+                || !error.starts_with(&format!("{id}: inspection must resolve"))
             {
                 return Err(error);
             }
@@ -492,6 +499,9 @@ impl Library {
             )
         })?;
         let mut supplied = envelope["args"].clone();
+        if r.expander == "joint" {
+            planner::joints::coerce(&mut supplied)?;
+        }
         if planner::patterns::is_pattern(&r.expander) {
             planner::patterns::coerce(&mut supplied)?;
             planner::patterns::resolve(&mut supplied, request)?;
@@ -517,7 +527,9 @@ impl Library {
             return Err("request must contain 1..2048 bytes".into());
         }
         let mut ranked = ranker.rank(request, &self.recipes);
-        ranked.retain(|(i, s)| *i < self.recipes.len() && s.is_finite());
+        ranked.retain(|(i, s)| {
+            *i < self.recipes.len() && s.is_finite() && (self.recipes[*i].id != "joint" || *s > 0.0)
+        });
         ranked.sort_by(|a, b| {
             b.1.total_cmp(&a.1)
                 .then_with(|| self.recipes[a.0].id.cmp(&self.recipes[b.0].id))
@@ -696,6 +708,11 @@ impl Ranker for Bm25 {
         let docs: Vec<Vec<Vec<String>>> = recipes
             .iter()
             .map(|r| {
+                // General joints use an independent gate. They contribute no documents,
+                // lengths or term frequencies to the calibrated existing recipe index.
+                if r.id == "joint" {
+                    return Vec::new();
+                }
                 std::iter::once(r.description.as_str())
                     .chain(r.examples.iter().map(String::as_str))
                     .chain(r.synonyms.iter().map(String::as_str))
@@ -766,6 +783,8 @@ impl Ranker for Bm25 {
                     && ["width", "height", "wide", "tall", "leg", "thickness"]
                         .iter()
                         .any(|w| has(w))));
+        let general_joint =
+            planner::joints::intent(query) && planner::joints::generic_wanted(query);
         let named: BTreeSet<_> = query
             .to_lowercase()
             .split(|c: char| !c.is_alphabetic())
@@ -782,7 +801,14 @@ impl Ranker for Bm25 {
         docs.iter()
             .enumerate()
             .map(|(i, ds)| {
+                if recipes[i].id == "joint" {
+                    return (i, if general_joint { 100.0 } else { 0.0 });
+                }
                 if edge_edit && recipes[i].id == "plate" {
+                    return (i, 0.0);
+                }
+                // "Align the lid with the box" moves existing parts; it never creates one.
+                if words.first().is_some_and(|w| w == "align") {
                     return (i, 0.0);
                 }
                 let best = ds

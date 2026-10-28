@@ -43,6 +43,7 @@ fn clean(
     mut line: String,
     needs_names: bool,
     joint: bool,
+    joint_origins: bool,
 ) -> Result<Value, String> {
     let mut out = json!({});
     for key in [
@@ -71,7 +72,7 @@ fn clean(
     let mut user = last_user(request).to_string();
     if needs_names {
         line.push_str(" Use only inspected design facts. For this/these/it, use default_body (selection, last created body, then only body); decline if ambiguous. Use last_feature for a requested latest boss, rib or hole only when its inspected definition matches. Never rebuild an existing body to shell it.");
-        let context = planner::form_context::summary(request, joint);
+        let context = planner::form_context::summary(request, joint, joint_origins);
         if !context.is_empty() {
             user.push_str(&format!("\nDesign context: {context}"));
         }
@@ -133,6 +134,7 @@ pub(super) fn needs_names(recipe: &Value) -> bool {
                 | "grid_pattern"
                 | "circular_pattern"
                 | "revolute_joint"
+                | "joint"
                 | "shell"
         )
     )
@@ -147,7 +149,8 @@ pub(super) fn offer(
         outgoing,
         crate::recipe_library::forms::line(recipe["id"].as_str().unwrap_or("")),
         needs_names(recipe),
-        recipe["id"] == "revolute_joint",
+        recipe["id"] == "revolute_joint" || recipe["id"] == "joint",
+        recipe["id"] == "joint",
     )?;
     let mut schema = crate::recipe_library::forms::compact(&recipe["schema"]);
     schema["properties"]["decline"] = json!({"type":"boolean"});
@@ -162,7 +165,7 @@ pub(super) fn offer(
 }
 
 pub(super) fn offer_route(outgoing: &mut Value, candidates: &[Value]) -> Result<(), String> {
-    *outgoing = clean(outgoing, "You select one form for the user's CAD request. Call pilot_route once with the matching recipe, or none if no form fits.".into(), candidates.iter().take(4).any(needs_names), candidates.iter().take(4).any(|r| r["id"] == "revolute_joint"))?;
+    *outgoing = clean(outgoing, "You select one form for the user's CAD request. Call pilot_route once with the matching recipe, or none if no form fits.".into(), candidates.iter().take(4).any(needs_names), candidates.iter().take(4).any(|r| r["id"] == "revolute_joint" || r["id"] == "joint"), candidates.iter().take(4).any(|r| r["id"] == "joint"))?;
     let ids: Vec<_> = candidates
         .iter()
         .take(4)
@@ -305,6 +308,7 @@ pub(super) fn accept(
     }
     if needs_names(recipe)
         && recipe["id"] != "revolute_joint"
+        && recipe["id"] != "joint"
         && !planner::patterns::is_pattern(recipe["id"].as_str().unwrap_or(""))
     {
         let pronoun = last_user(request)
@@ -355,6 +359,41 @@ mod tests {
 
     fn request(text: &str) -> Value {
         json!({"messages":[{"role":"user","content":text}]})
+    }
+    #[test]
+    fn joint_forms_are_separate_and_origins_only_reach_general_joint() {
+        let lib = crate::recipe_library::Library::embedded().unwrap();
+        for recipe in &lib.recipes {
+            let mut req = request("Connect the inspected parts");
+            req["messages"].as_array_mut().unwrap().extend([
+                json!({"role":"tool","content":json!({"bodies":[{"name":"Base"}],"timeline":[]}).to_string()}),
+                json!({"role":"tool","content":json!({"origins":[{"name":"BaseAnchor","occurrence":2}]}).to_string()}),
+            ]);
+            let found = json!({"id":recipe.id,"description":recipe.description,"schema":crate::recipe_library::forms::flat(&recipe.schema)});
+            offer(&mut req, &found, None).unwrap();
+            let user = req["messages"][1]["content"].as_str().unwrap();
+            assert_eq!(
+                user.contains("joint_origins"),
+                recipe.id == "joint",
+                "{}",
+                recipe.id
+            );
+            let props = req["tools"][0]["function"]["parameters"]["properties"]
+                .as_object()
+                .unwrap();
+            if recipe.id == "revolute_joint" {
+                assert_eq!(
+                    props.keys().map(String::as_str).collect::<Vec<_>>(),
+                    ["angle_deg", "decline", "hole_component", "pin_component"]
+                );
+            }
+            if recipe.id == "joint" {
+                assert!(props.contains_key("joint_type"));
+                assert!(props.contains_key("limit5_max"));
+                assert!(!props.contains_key("pin_component"));
+                assert!(!props.contains_key("angle_deg"));
+            }
+        }
     }
     #[test]
     fn pattern_fills_accept_model_axes_names_and_target_keys() {

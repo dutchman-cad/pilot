@@ -693,3 +693,41 @@ identify "these". The tests now drive row, grid and circular forms through clien
 execution and measured completion, exercise every existing-target form, verify
 selection precedence and inspection failure, and check extraction-size accounting.
 They do not use private evaluation tasks or model-specific prompt examples.
+
+The separate `joint` form supports all public SolidCraft joint and relation types.
+It is offered only for joint intent naming a non-revolute type, motion limits,
+or centres/origins. Plain contact pin/hole requests retain the unchanged
+`revolute_joint` form. General joints use an independent gate and contribute no
+BM25 documents; existing recipe scores and their shared statistics stay unchanged.
+Only the general joint form receives named origins in its design summary.
+
+Set `joint_type`, `component_a` and `component_b`; names resolve by exact name,
+normalized name or an unambiguous substring. Omit names only when candidates are
+unique. Hinge/pin, prismatic/slide and ball-and-socket/spherical normalize to
+revolute, slider and ball. `axis` accepts X/Y/Z words or unit vectors, defaulting
+to Z. Each component's combined box centre supplies its origin;
+`point_a`/`point_b` instead select named `joint.list` origins belonging to the
+selected occurrence and retain their frames. Pending moves must be applied first.
+
+Supply `limit1_min`, `limit1_max`, etc. in `joint.list` value order. Both ends
+are required, finite within ±1,000,000, with min <= max. Omitted pairs remain
+unlimited; surplus pairs fail. The general joint form has a 3,000-character
+compact schema/system-line budget.
+
+| Type | Ordered motion values and units |
+| --- | --- |
+| rigid | none |
+| revolute | angle (deg) |
+| slider | distance (mm) |
+| cylindrical | angle (deg), distance (mm) |
+| pin_slot | angle (deg), slide (mm) |
+| planar | x (mm), y (mm), angle (deg) |
+| ball | yaw, pitch, roll (deg) |
+| parallel | x, y, z (mm), angle (deg) |
+| perpendicular, angle | x, y, z (mm), turn, spin (deg) |
+| point_on_plane | x, y (mm), yaw, pitch, roll (deg) |
+| point_on_line | slide (mm), yaw, pitch, roll (deg) |
+| line_on_plane | x, y (mm), turn, spin (deg) |
+
+For example:
+`{"joint_type":"cylindrical","component_a":"Base","component_b":"Link","axis":"Z","limit1_min":-45,"limit1_max":45,"limit2_min":0,"limit2_max":20}`.
