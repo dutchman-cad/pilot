@@ -1,7 +1,10 @@
 // Independently authored public setups; the scripted extractor sees only its wire request.
 use super::*;
+use crate::catalog::MAX_CATALOG_BYTES;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+#[path = "../../../tests/support/public_catalog.rs"]
+mod public_catalog;
 
 struct Session {
     child: Child,
@@ -36,8 +39,14 @@ impl Session {
         let mut line = String::new();
         self.output.read_line(&mut line).unwrap();
         let response: Value = serde_json::from_str(&line).unwrap();
-        assert!(response.get("error").is_none(), "{response}");
-        assert_ne!(response["result"]["isError"], true, "{response}");
+        assert!(
+            response.get("error").is_none(),
+            "{name} {arguments}: {response}"
+        );
+        assert_ne!(
+            response["result"]["isError"], true,
+            "{name} {arguments}: {response}"
+        );
         serde_json::from_str(response["result"]["content"][0]["text"].as_str().unwrap()).unwrap()
     }
 }
@@ -156,6 +165,7 @@ fn public_clean_pattern_context_end_to_end() {
             json!({"radius":2,"height":6,"base":[20,10,4],"body_name":"Peg"}),
         );
         let mut f = fill_fixture(vec![]);
+        f.proxy.catalog = public_catalog::catalog().unwrap();
         f.proxy.cfg.direct_recipes = false;
         f.proxy.scripted.as_ref().unwrap().borrow_mut().model = Some(extractor);
         let mut req = request();
@@ -291,6 +301,7 @@ fn public_existing_forms_primitives_and_features() {
             }
         }
         let mut f = fill_fixture(vec![]);
+        f.proxy.catalog = public_catalog::catalog().unwrap();
         f.proxy.cfg.direct_recipes = false;
         f.proxy.scripted.as_ref().unwrap().borrow_mut().model = Some(extractor);
         let mut req = request();
@@ -339,6 +350,7 @@ fn public_joint_form_sees_components_and_contact_geometry() {
     );
     s.execute("component.activate", json!({"component":"root"}));
     let mut f = fill_fixture(vec![]);
+    f.proxy.catalog = public_catalog::catalog().unwrap();
     f.proxy.cfg.direct_recipes = false;
     f.proxy.scripted.as_ref().unwrap().borrow_mut().model = Some(extractor);
     let mut req = request();
@@ -397,6 +409,7 @@ fn selection_wins_and_failed_inspection_never_offers_a_form() {
         json!({"length":2,"width":3,"height":4,"corner":[100,0,0],"body_name":"Newest"}),
     );
     let mut f = fill_fixture(vec![]);
+    f.proxy.catalog = public_catalog::catalog().unwrap();
     f.proxy.cfg.direct_recipes = false;
     f.proxy.scripted.as_ref().unwrap().borrow_mut().model = Some(extractor);
     let mut req = request();

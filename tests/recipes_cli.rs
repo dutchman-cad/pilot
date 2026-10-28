@@ -1,10 +1,15 @@
 //! Optional clean-room contract smoke test against the public SolidCraft MCP binary.
 #![cfg(feature = "proxy")]
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
-use dutchman_pilot::{catalog::Catalog, planner};
+use dutchman_pilot::{
+    catalog::{Catalog, MAX_CATALOG_BYTES},
+    planner,
+};
 use serde_json::{json, Value};
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+#[path = "support/public_catalog.rs"]
+mod public_catalog;
 struct Session {
     child: Child,
     input: ChildStdin,
@@ -30,7 +35,7 @@ fn public_binary_sketch_axes_and_world_holes() {
         check_shortcut_body(&mut s, std::f64::consts::PI * 5., min, max, false);
     }
     let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
-    let cat = Catalog::bundled().unwrap();
+    let cat = public_catalog::catalog().unwrap();
     for axes in [
         vec!["X"],
         vec!["Y"],
@@ -112,7 +117,7 @@ fn public_binary_offset_blind_cross_holes() {
         return;
     };
     let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
-    let cat = Catalog::bundled().unwrap();
+    let cat = public_catalog::catalog().unwrap();
     for axis in ["x", "y", "z"] {
         let args = json!({"length":20,"width":20,"height":20,"corner_x":-4,"corner_y":5,"corner_z":-6,format!("hole_{axis}_diameter"):4,format!("hole_{axis}_offset_u"):2,format!("hole_{axis}_offset_v"):-3,format!("hole_{axis}_depth"):5});
         let p = lib
@@ -159,7 +164,7 @@ fn public_binary_offset_box_with_explicit_side_hole() {
     };
     let p=dutchman_pilot::recipe_library::Library::embedded().unwrap().build(
         &json!({"recipe":"cross_drilled_box","args":{"length":20,"width":30,"height":40,"corner":[-4,5,-6],"holes":[{"axis":"Y","diameter":6,"position":[3,35,5]}]}}),
-        &json!({"messages":[]}),&Catalog::bundled().unwrap()).unwrap();
+        &json!({"messages":[]}),&public_catalog::catalog().unwrap()).unwrap();
     let mut s = Session::new(&path);
     for c in &p.calls {
         s.execute(
@@ -182,7 +187,7 @@ fn public_binary_centred_cross_hole_fills() {
         return;
     };
     let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
-    let cat = Catalog::bundled().unwrap();
+    let cat = public_catalog::catalog().unwrap();
     for (position, partial) in [
         (None, false),
         (None, true),
@@ -276,8 +281,14 @@ impl Session {
         self.output.read_line(&mut line).unwrap();
         assert!(line.len() < 16 * 1024 * 1024);
         let response: Value = serde_json::from_str(&line).unwrap();
-        assert!(response.get("error").is_none(), "{command}: {response}");
-        assert_ne!(response["result"]["isError"], true, "{command}: {response}");
+        assert!(
+            response.get("error").is_none(),
+            "{command} {arguments}: {response}"
+        );
+        assert_ne!(
+            response["result"]["isError"], true,
+            "{command} {arguments}: {response}"
+        );
         serde_json::from_str(response["result"]["content"][0]["text"].as_str().unwrap()).unwrap()
     }
     fn run(&mut self, p: &planner::Plan) {
@@ -304,7 +315,7 @@ fn public_binary_contact_circle_revolute_joints() {
     let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
         return;
     };
-    let catalog = Catalog::bundled().unwrap();
+    let catalog = public_catalog::catalog().unwrap();
     let reference: Value = serde_json::from_str(include_str!(
         "../bench/sets/v2/references/09-revolute-joint.json"
     ))
@@ -397,7 +408,7 @@ fn public_binary_l_profiles_are_closed_fully_constrained_and_extruded() {
     let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
         return;
     };
-    let catalog = Catalog::bundled().unwrap();
+    let catalog = public_catalog::catalog().unwrap();
     let tasks: Value =
         serde_json::from_str(include_str!("../bench/sets/constraints/tasks.json")).unwrap();
     for task in tasks["tasks"].as_array().unwrap() {
@@ -429,7 +440,7 @@ fn public_binary_recipe_geometry() {
     let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
         return;
     };
-    let c = Catalog::bundled().unwrap();
+    let c = public_catalog::catalog().unwrap();
     for (text,edit) in [
         ("build a block 17x23x6mm",false),
         ("build a rod diameter 7mm tall 29mm",false),
@@ -486,7 +497,7 @@ fn public_binary_common_closed_profiles_on_every_plane() {
     let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
         return;
     };
-    let catalog = Catalog::bundled().unwrap();
+    let catalog = public_catalog::catalog().unwrap();
     for plane in ["XY", "XZ", "YZ"] {
         for (shape, sizes, count, area) in [
             ("L", "thickness 3", 4, 201.0),
@@ -600,7 +611,7 @@ fn public_binary_compound_plates() {
     let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
         return;
     };
-    let catalog = Catalog::bundled().unwrap();
+    let catalog = public_catalog::catalog().unwrap();
     for plane in ["XY", "XZ", "YZ"] {
         for (features,holes,rounds,volume,kind) in [
             ("with a centred 30mm bore through and six 8mm holes evenly spaced on a 56mm bolt circle then round the four vertical corner edges radius 10mm",7,11,80.0*80.0*8.0-std::f64::consts::PI*(225.0+96.0)*8.0-(4.0-std::f64::consts::PI)*100.0*8.0,"FilletFeature"),
@@ -636,7 +647,7 @@ fn public_binary_compound_all_edges_and_combined_patterns() {
     let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
         return;
     };
-    let catalog = Catalog::bundled().unwrap();
+    let catalog = public_catalog::catalog().unwrap();
     for (text,count,rounding) in [
         ("Make a plate 80x80x8mm with its corner at the origin with a centred 10mm bore through then fillet all edges radius 1mm",1,true),
         ("Make a plate 80x80x8mm centred on the origin with six 4mm holes equally spaced on a bolt circle radius 20mm then chamfer all edges distance 1mm",6,true),
@@ -671,7 +682,7 @@ fn public_binary_shell_lips_are_joined_rings() {
     let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
         return;
     };
-    let c = Catalog::bundled().unwrap();
+    let c = public_catalog::catalog().unwrap();
     for centred in [false, true] {
         for bottom in [false, true] {
             for outer in [false, true] {
@@ -777,7 +788,7 @@ fn public_binary_typed_profile_shortcuts() {
     let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
         return;
     };
-    let catalog = Catalog::bundled().unwrap();
+    let catalog = public_catalog::catalog().unwrap();
     for plane in ["XY", "XZ", "YZ"] {
         for (kind, area) in [
             ("L", 201.0),
@@ -808,8 +819,12 @@ fn public_binary_typed_plate_shortcut() {
         return;
     };
     let args = json!({"shape":"plate","length":80,"width":80,"thickness":8,"plane":"XY","centred":true,"bore_diameter":10,"hole_diameter":4,"bolt_circle":{"count":6,"diameter":56,"start_deg":30},"corners":{"kind":"fillet","size":5,"edges":"vertical"}});
-    let p =
-        planner::shortcut(&args, &json!({"messages":[]}), &Catalog::bundled().unwrap()).unwrap();
+    let p = planner::shortcut(
+        &args,
+        &json!({"messages":[]}),
+        &public_catalog::catalog().unwrap(),
+    )
+    .unwrap();
     let mut s = Session::new(&path);
     s.run(&p);
     check_shortcut_body(
@@ -828,8 +843,12 @@ fn public_binary_typed_enclosure_shortcut() {
         return;
     };
     let args = json!({"shape":"enclosure","length":80,"width":50,"height":30,"wall":2,"floor":4,"open":"bottom","centred":true,"lip":{"width":1,"height":2,"side":"inner"}});
-    let p =
-        planner::shortcut(&args, &json!({"messages":[]}), &Catalog::bundled().unwrap()).unwrap();
+    let p = planner::shortcut(
+        &args,
+        &json!({"messages":[]}),
+        &public_catalog::catalog().unwrap(),
+    )
+    .unwrap();
     let mut s = Session::new(&path);
     s.run(&p);
     check_shortcut_body(
@@ -845,7 +864,7 @@ fn public_binary_typed_revolute_shortcut() {
     let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
         return;
     };
-    let catalog = Catalog::bundled().unwrap();
+    let catalog = public_catalog::catalog().unwrap();
     let reference: Value = serde_json::from_str(include_str!(
         "../bench/sets/v2/references/09-revolute-joint.json"
     ))
@@ -901,7 +920,7 @@ fn public_binary_pattern_recipes() {
     let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
         return;
     };
-    let cat = Catalog::bundled().unwrap();
+    let cat = public_catalog::catalog().unwrap();
     let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
     for feature in [false, true] {
         for (id, args, count, kind) in [
@@ -992,7 +1011,7 @@ fn public_binary_patterns_inherit_join_and_cut() {
     let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
         return;
     };
-    let cat = Catalog::bundled().unwrap();
+    let cat = public_catalog::catalog().unwrap();
     let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
     for cut in [true, false] {
         for (id, mut args, count) in [
@@ -1076,7 +1095,7 @@ fn public_binary_linear_pattern_total_length_and_edge_direction() {
     let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
         return;
     };
-    let cat = Catalog::bundled().unwrap();
+    let cat = public_catalog::catalog().unwrap();
     let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
     let mut s = Session::new(&path);
     s.execute(
@@ -1216,7 +1235,7 @@ fn public_binary_honeycomb_swapped_sides_are_quarter_turns() {
     let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
         return;
     };
-    let cat = Catalog::bundled().unwrap();
+    let cat = public_catalog::catalog().unwrap();
     let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
     for (length, width) in [(150., 300.), (45., 67.), (80., 51.)] {
         for kind in ["across_flats", "across_corners"] {
@@ -1309,7 +1328,7 @@ fn public_binary_honeycomb_recipe() {
     let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
         return;
     };
-    let cat = Catalog::bundled().unwrap();
+    let cat = public_catalog::catalog().unwrap();
     let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
     for (plane, flat, centred, fill) in [
         ("XY", false, false, true),
@@ -1390,7 +1409,7 @@ fn public_binary_honeycomb_given_corner() {
     let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
         return;
     };
-    let cat = Catalog::bundled().unwrap();
+    let cat = public_catalog::catalog().unwrap();
     let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
     for plane in ["XY", "XZ", "YZ"] {
         for orientation in ["pointy_top", "flat_top"] {
@@ -1443,7 +1462,7 @@ fn public_binary_honeycomb_single_axes_and_fill_clipping() {
     let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
         return;
     };
-    let cat = Catalog::bundled().unwrap();
+    let cat = public_catalog::catalog().unwrap();
     let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
     for (rows, cols, length, width, count) in [
         (1, 1, 60., 50., 1),
@@ -1497,7 +1516,7 @@ fn honeycomb_field_reference_matches_exact_recipe() {
     ))
     .unwrap();
     let req = json!({"messages":[{"role":"user","content":task["prompt"]}],"tools":[{"function":{"name":"execute"}}]});
-    let p = planner::plan(&req, &Catalog::bundled().unwrap())
+    let p = planner::plan(&req, &public_catalog::catalog().unwrap())
         .unwrap()
         .unwrap();
     let commands: Vec<_> = p.calls[..p.calls.len() - 1]
@@ -1544,7 +1563,7 @@ fn public_binary_probe_fill_plate_and_inner_lip() {
         return;
     };
     let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
-    let cat = Catalog::bundled().unwrap();
+    let cat = public_catalog::catalog().unwrap();
     for (id, args, want) in [
         (
             "profile",
@@ -1610,7 +1629,7 @@ fn development_pattern_fills_replay_reference_measurements() {
     let fixtures: Value =
         serde_json::from_str(include_str!("fixtures/dev_pattern_forms.json")).unwrap();
     let library = dutchman_pilot::recipe_library::Library::embedded().unwrap();
-    let catalog = Catalog::bundled().unwrap();
+    let catalog = public_catalog::catalog().unwrap();
     for fixture in fixtures.as_array().unwrap() {
         let mut session = Session::new(&path);
         for command in fixture["commands"].as_array().unwrap() {
@@ -1706,7 +1725,7 @@ fn development_dp08_dp12_fills_after_part_creation() {
         return;
     };
     let library = dutchman_pilot::recipe_library::Library::embedded().unwrap();
-    let catalog = Catalog::bundled().unwrap();
+    let catalog = public_catalog::catalog().unwrap();
     // Development dp-08 and dp-12. Existing-part forms apply only after these
     // public creation calls have established a measurable part and seed feature.
     for (id, args, circular, extrude) in [
@@ -1845,7 +1864,7 @@ fn public_binary_plate_base_and_pattern_forms() {
         return;
     };
     let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
-    let cat = Catalog::bundled().unwrap();
+    let cat = public_catalog::catalog().unwrap();
     // Flat scalar fills, matching the development requests. Offsets are from base centre.
     for (args, volume, min, max) in [
         (
@@ -1921,7 +1940,7 @@ fn public_binary_plate_boss_planes_and_existing_body_isolation() {
         return;
     };
     let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
-    let cat = Catalog::bundled().unwrap();
+    let cat = public_catalog::catalog().unwrap();
     for (plane, min, max) in [
         ("XY", [-15., -10., 0.], [15., 10., 8.]),
         ("XZ", [-15., 0., -10.], [15., 8., 10.]),
@@ -1971,7 +1990,7 @@ fn public_binary_joint_forms_replay_public_start_states() {
     let tasks: Value =
         serde_json::from_str(include_str!("../bench/sets/joints/tasks.json")).unwrap();
     let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
-    let cat = Catalog::bundled().unwrap();
+    let cat = public_catalog::catalog().unwrap();
     for (task, word) in tasks["tasks"].as_array().unwrap().iter().zip([
         "hinge",
         "prismatic",
@@ -2098,7 +2117,7 @@ fn public_binary_remaining_joint_types_and_named_origins() {
         return;
     };
     let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
-    let cat = Catalog::bundled().unwrap();
+    let cat = public_catalog::catalog().unwrap();
     let start = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("bench/sets/joints/start/joints-revolute-limits.solidcraft");
     for (kind, units) in [
