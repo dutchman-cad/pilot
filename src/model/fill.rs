@@ -143,6 +143,7 @@ pub(super) fn offer(
     recipe: &Value,
     error: Option<&str>,
 ) -> Result<(), String> {
+    let text = last_user(outgoing).to_string();
     *outgoing = clean(
         outgoing,
         crate::recipe_library::forms::line(recipe["id"].as_str().unwrap_or("")),
@@ -150,6 +151,12 @@ pub(super) fn offer(
         recipe["id"] == "revolute_joint",
     )?;
     let mut schema = crate::recipe_library::forms::compact(&recipe["schema"]);
+    if recipe["id"] == "revolute_joint" && !planner::joints::generic_wanted(&text) {
+        // Pin/hole joints get the short form; the general fields only confuse them.
+        if let Some(props) = schema["properties"].as_object_mut() {
+            props.retain(|k, _| !planner::joints::generic_key(k));
+        }
+    }
     schema["properties"]["decline"] = json!({"type":"boolean"});
     // A decline is checked before the recipe fields, so it needs no invented dimensions.
     outgoing["tools"] = json!([{"type":"function","function":{"name":"pilot_fill","description":recipe["description"],"parameters":schema}}]);
@@ -355,6 +362,47 @@ mod tests {
 
     fn request(text: &str) -> Value {
         json!({"messages":[{"role":"user","content":text}]})
+    }
+    #[test]
+    fn plain_pin_joints_get_the_short_form_and_typed_joints_the_full_one() {
+        let library = crate::recipe_library::Library::embedded().unwrap();
+        let recipe = library
+            .recipes
+            .iter()
+            .find(|r| r.id == "revolute_joint")
+            .unwrap();
+        let found = json!({"id":recipe.id,"description":recipe.description,"schema":crate::recipe_library::forms::flat(&recipe.schema)});
+        let fields = |text: &str| {
+            let mut req = request(text);
+            offer(&mut req, &found, None).unwrap();
+            let mut keys: Vec<String> = req["tools"][0]["function"]["parameters"]["properties"]
+                .as_object()
+                .unwrap()
+                .keys()
+                .cloned()
+                .collect();
+            keys.sort();
+            keys
+        };
+        for text in [
+            "add a revolute joint on the pin between the two parts",
+            "hinge the lid to the box on its pin",
+            "make the shaft spin in the bearing hole",
+        ] {
+            assert_eq!(
+                fields(text),
+                ["angle_deg", "decline", "hole_component", "pin_component"],
+                "{text}"
+            );
+        }
+        for text in [
+            "Connect Base and Link at their box centres with one slider joint, aligned Z axes.",
+            "add a revolute joint with limits -30 to 60 degrees",
+            "ball joint between the arm and the socket",
+            "rigid joint the cover to the base",
+        ] {
+            assert!(fields(text).iter().any(|k| k == "joint_type"), "{text}");
+        }
     }
     #[test]
     fn pattern_fills_accept_model_axes_names_and_target_keys() {

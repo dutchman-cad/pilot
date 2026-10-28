@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- A plain revolute, hinge or pin joint gets the short pin-and-hole form again; the general joint fields appear only when a request names another joint type, limits, or box centres and origins.
 - One joint form now connects inspected components with any joint or relation type,
   at box centres or named origins, with aligned axes and ordered motion limits.
   It accepts common joint names, word or vector axes, and approximate component names;

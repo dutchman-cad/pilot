@@ -53,16 +53,55 @@ pub(crate) fn intent(text: &str) -> bool {
                 .any(|w| matches!(w.as_str(), "joint" | "connect" | "relation")))
 }
 
+pub(crate) fn generic_key(k: &str) -> bool {
+    k == "joint_type"
+        || k == "axis"
+        || k.starts_with("component_")
+        || k.starts_with("point_")
+        || k.starts_with("limit")
+}
+
 pub(crate) fn uses_generic(args: &Value) -> bool {
-    args.as_object().is_some_and(|o| {
-        o.keys().any(|k| {
-            k == "joint_type"
-                || k == "axis"
-                || k.starts_with("component_")
-                || k.starts_with("point_")
-                || k.starts_with("limit")
-        })
-    })
+    args.as_object()
+        .is_some_and(|o| o.keys().any(|k| generic_key(k)))
+}
+
+/// Whether a request needs the general joint fields. A plain revolute, hinge or
+/// pin joint keeps the short pin/hole form, which small models fill reliably.
+#[cfg(feature = "proxy")]
+pub(crate) fn generic_wanted(text: &str) -> bool {
+    let words = tokens(text);
+    let has = |w: &str| words.iter().any(|x| x == w);
+    // Types that are also everyday words count only when followed by joint/relation.
+    let named = TYPES.iter().filter(|kind| **kind != "revolute").any(|kind| {
+        let kind = tokens(kind);
+        let plain = matches!(kind.as_slice(), [k] if matches!(k.as_str(), "slider" | "cylindrical" | "ball" | "rigid"));
+        !kind.is_empty()
+            && words.windows(kind.len() + 1).any(|w| {
+                w[..kind.len()] == kind[..]
+                    && matches!(w[kind.len()].as_str(), "joint" | "joints" | "relation")
+            })
+            || plain && words.windows(1).any(|w| w == kind.as_slice())
+    });
+    named
+        || [
+            "slide",
+            "prismatic",
+            "spherical",
+            "limit",
+            "limits",
+            "range",
+            "travel",
+            "stroke",
+            "centre",
+            "centres",
+            "center",
+            "centers",
+            "origin",
+            "origins",
+        ]
+        .iter()
+        .any(|w| has(w))
 }
 
 pub(crate) fn coerce(args: &mut Value) -> Result<Vec<Value>, String> {
