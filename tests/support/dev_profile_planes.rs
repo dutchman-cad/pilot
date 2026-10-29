@@ -7,8 +7,12 @@ fn dev_profile_planes_replay() {
     let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
         return;
     };
-    let cases: Vec<Value> =
+    let mut cases: Vec<Value> =
         serde_json::from_str(include_str!("../fixtures/dev_profile_planes.json")).unwrap();
+    cases.extend(
+        serde_json::from_str::<Vec<Value>>(include_str!("../fixtures/dev_profile_openings.json"))
+            .unwrap(),
+    );
     let lib = Library::embedded().unwrap();
     let cat = public_catalog::catalog().unwrap();
     let schema = &lib

@@ -11,8 +11,12 @@ fn dev_profile_planes_forms_and_exact_parsers_agree() {
         .find(|r| r.id == "profile")
         .unwrap()
         .schema;
-    let cases: Vec<Value> =
+    let mut cases: Vec<Value> =
         serde_json::from_str(include_str!("../fixtures/dev_profile_planes.json")).unwrap();
+    cases.extend(
+        serde_json::from_str::<Vec<Value>>(include_str!("../fixtures/dev_profile_openings.json"))
+            .unwrap(),
+    );
     for case in cases {
         let req = json!({"messages":[{"role":"user","content":case["prompt"]}],"tools":[{"function":{"name":"execute"}}]});
         let mut args = case["args"].clone();
@@ -24,7 +28,7 @@ fn dev_profile_planes_forms_and_exact_parsers_agree() {
             .unwrap();
         let exact = dutchman_pilot::planner::plan_direct(&req, &cat)
             .unwrap()
-            .unwrap();
+            .unwrap_or_else(|| panic!("{}: no exact plan", case["prompt"]));
         assert_eq!(form.calls, exact.calls, "{}", case["prompt"]);
     }
 }
@@ -95,7 +99,7 @@ fn profile_request_defaults_are_bounded_and_preserve_supplied_slots() {
 }
 
 #[test]
-fn profile_openings_do_not_silently_drop_unsupported_or_conflicting_directions() {
+fn profile_opening_inference_preserves_fills_when_wording_is_unclear() {
     let lib = Library::embedded().unwrap();
     let cat = Catalog::bundled().unwrap();
     for text in [
@@ -104,9 +108,49 @@ fn profile_openings_do_not_silently_drop_unsupported_or_conflicting_directions()
         "U opening up or down",
         "U opening negative left",
         "U opening down opening right",
+        "U opening not down",
+        "U without an opening down",
+        "U opening down or toward left",
+        "U opening facing",
+        "U opening down-facing web",
+        "U opening toward the right plane",
+        "U with web facing down",
+        "U with flange faces right",
+        "U facing left",
+        "U with web open to the right",
+        "U with flange is open to the left",
+        "U with flange opening left",
+        "U with opening left of the web",
+        "U with opening to the right of the origin",
     ] {
         let req = json!({"messages":[{"role":"user","content":text}]});
-        let result = lib.build(&json!({"recipe":"profile","args":{"kind":"U","width":40,"height":30,"depth":12,"thickness":3}}), &req, &cat);
-        assert!(result.unwrap_err().contains("opening"), "{text}");
+        let args = json!({"recipe":"profile","args":{"kind":"U","width":40,"height":30,"depth":12,"thickness":3}});
+        let default = lib.build(&args, &json!({"messages":[]}), &cat).unwrap();
+        let result = lib.build(&args, &req, &cat).unwrap();
+        assert_eq!(result.calls, default.calls, "{text}");
+        assert_eq!(result.slots, default.slots, "{text}");
+    }
+    // Even clear request inference cannot invalidate otherwise valid geometry
+    // or reinterpret a non-channel fill. Request size caps still apply.
+    for (args, text) in [
+        (
+            json!({"kind":"C","width":40,"height":10,"web_thickness":12,"flange_thickness":3,"depth":12}),
+            "C opening down".to_string(),
+        ),
+        (
+            json!({"kind":"rectangle","width":40,"height":30,"depth":12}),
+            "rectangle opening left".to_string(),
+        ),
+    ] {
+        let args = json!({"recipe":"profile","args":args});
+        let default = lib.build(&args, &json!({"messages":[]}), &cat).unwrap();
+        let result = lib
+            .build(
+                &args,
+                &json!({"messages":[{"role":"user","content":text}]}),
+                &cat,
+            )
+            .unwrap();
+        assert_eq!(result.calls, default.calls);
     }
 }

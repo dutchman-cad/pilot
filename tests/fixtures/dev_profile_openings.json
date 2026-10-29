@@ -1,0 +1,730 @@
+[
+  {
+    "category": "default_C",
+    "prompt": "Make a C width 4 cm height 3 cm web 0.3 cm flange 0.4 cm then extrude 1.2 cm with web facing left",
+    "recipe": "profile",
+    "args": {"kind":"C","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,4],[3,4],[3,26],[40,26],[40,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4632}
+  },
+  {
+    "category": "default_C",
+    "prompt": "Make a C width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm with web facing right",
+    "recipe": "profile",
+    "args": {"kind":"C","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,4],[3,4],[3,26],[40,26],[40,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4632}
+  },
+  {
+    "category": "default_C",
+    "prompt": "Make a C width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm with web facing up",
+    "recipe": "profile",
+    "args": {"kind":"C","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,4],[3,4],[3,26],[40,26],[40,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4632}
+  },
+  {
+    "category": "default_C",
+    "prompt": "Make a C width 4 cm height 3 cm web 0.3 cm flange 0.4 cm then extrude 1.2 cm with web facing down",
+    "recipe": "profile",
+    "args": {"kind":"C","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,4],[3,4],[3,26],[40,26],[40,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4632}
+  },
+  {
+    "category": "default_C",
+    "prompt": "Make a C width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm with web facing back",
+    "recipe": "profile",
+    "args": {"kind":"C","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,4],[3,4],[3,26],[40,26],[40,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4632}
+  },
+  {
+    "category": "default_C",
+    "prompt": "Make a C width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm with web facing side",
+    "recipe": "profile",
+    "args": {"kind":"C","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,4],[3,4],[3,26],[40,26],[40,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4632}
+  },
+  {
+    "category": "default_C",
+    "prompt": "Make a C width 4 cm height 3 cm web 0.3 cm flange 0.4 cm then extrude 1.2 cm with flange facing left",
+    "recipe": "profile",
+    "args": {"kind":"C","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,4],[3,4],[3,26],[40,26],[40,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4632}
+  },
+  {
+    "category": "default_C",
+    "prompt": "Make a C width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm with flange facing right",
+    "recipe": "profile",
+    "args": {"kind":"C","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,4],[3,4],[3,26],[40,26],[40,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4632}
+  },
+  {
+    "category": "default_C",
+    "prompt": "Make a C width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm with flange facing up",
+    "recipe": "profile",
+    "args": {"kind":"C","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,4],[3,4],[3,26],[40,26],[40,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4632}
+  },
+  {
+    "category": "default_C",
+    "prompt": "Make a C width 4 cm height 3 cm web 0.3 cm flange 0.4 cm then extrude 1.2 cm with flange facing down",
+    "recipe": "profile",
+    "args": {"kind":"C","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,4],[3,4],[3,26],[40,26],[40,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4632}
+  },
+  {
+    "category": "default_C",
+    "prompt": "Make a C width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm with back web",
+    "recipe": "profile",
+    "args": {"kind":"C","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,4],[3,4],[3,26],[40,26],[40,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4632}
+  },
+  {
+    "category": "default_C",
+    "prompt": "Make a C width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm with side flange",
+    "recipe": "profile",
+    "args": {"kind":"C","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,4],[3,4],[3,26],[40,26],[40,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4632}
+  },
+  {
+    "category": "default_C",
+    "prompt": "Make a C width 4 cm height 3 cm web 0.3 cm flange 0.4 cm then extrude 1.2 cm with web on the left",
+    "recipe": "profile",
+    "args": {"kind":"C","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,4],[3,4],[3,26],[40,26],[40,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4632}
+  },
+  {
+    "category": "default_C",
+    "prompt": "Make a C width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm centred on the origin with flange at the top",
+    "recipe": "profile",
+    "args": {"kind":"C","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":true},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[-20,-15],[20,-15],[20,-11],[-17,-11],[-17,11],[20,11],[20,15],[-20,15]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[-20,-15,0],"max":[20,15,12]},"volume":4632}
+  },
+  {
+    "category": "default_C",
+    "prompt": "Make a C width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm on the right plane",
+    "recipe": "profile",
+    "args": {"kind":"C","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"YZ","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"YZ"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,4],[3,4],[3,26],[40,26],[40,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[12,40,30]},"volume":4632}
+  },
+  {
+    "category": "default_C",
+    "prompt": "Make a C width 4 cm height 3 cm web 0.3 cm flange 0.4 cm then extrude 1.2 cm centred on the origin with back web",
+    "recipe": "profile",
+    "args": {"kind":"C","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":true},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[-20,-15],[20,-15],[20,-11],[-17,-11],[-17,11],[20,11],[20,15],[-20,15]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[-20,-15,0],"max":[20,15,12]},"volume":4632}
+  },
+  {
+    "category": "default_C",
+    "prompt": "Make a C width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm with web facing the left side",
+    "recipe": "profile",
+    "args": {"kind":"C","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,4],[3,4],[3,26],[40,26],[40,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4632}
+  },
+  {
+    "category": "default_C",
+    "prompt": "Make a C width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm with flange facing the right side",
+    "recipe": "profile",
+    "args": {"kind":"C","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,4],[3,4],[3,26],[40,26],[40,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4632}
+  },
+  {
+    "category": "default_U",
+    "prompt": "Make a U width 4 cm height 3 cm web 0.3 cm flange 0.4 cm then extrude 1.2 cm with web facing left",
+    "recipe": "profile",
+    "args": {"kind":"U","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,30],[36,30],[36,3],[4,3],[4,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4032}
+  },
+  {
+    "category": "default_U",
+    "prompt": "Make a U width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm with web facing right",
+    "recipe": "profile",
+    "args": {"kind":"U","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,30],[36,30],[36,3],[4,3],[4,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4032}
+  },
+  {
+    "category": "default_U",
+    "prompt": "Make a U width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm with web facing up",
+    "recipe": "profile",
+    "args": {"kind":"U","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,30],[36,30],[36,3],[4,3],[4,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4032}
+  },
+  {
+    "category": "default_U",
+    "prompt": "Make a U width 4 cm height 3 cm web 0.3 cm flange 0.4 cm then extrude 1.2 cm with web facing down",
+    "recipe": "profile",
+    "args": {"kind":"U","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,30],[36,30],[36,3],[4,3],[4,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4032}
+  },
+  {
+    "category": "default_U",
+    "prompt": "Make a U width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm with web facing back",
+    "recipe": "profile",
+    "args": {"kind":"U","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,30],[36,30],[36,3],[4,3],[4,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4032}
+  },
+  {
+    "category": "default_U",
+    "prompt": "Make a U width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm with web facing side",
+    "recipe": "profile",
+    "args": {"kind":"U","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,30],[36,30],[36,3],[4,3],[4,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4032}
+  },
+  {
+    "category": "default_U",
+    "prompt": "Make a U width 4 cm height 3 cm web 0.3 cm flange 0.4 cm then extrude 1.2 cm with flange facing left",
+    "recipe": "profile",
+    "args": {"kind":"U","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,30],[36,30],[36,3],[4,3],[4,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4032}
+  },
+  {
+    "category": "default_U",
+    "prompt": "Make a U width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm with flange facing right",
+    "recipe": "profile",
+    "args": {"kind":"U","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,30],[36,30],[36,3],[4,3],[4,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4032}
+  },
+  {
+    "category": "default_U",
+    "prompt": "Make a U width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm with flange facing up",
+    "recipe": "profile",
+    "args": {"kind":"U","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,30],[36,30],[36,3],[4,3],[4,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4032}
+  },
+  {
+    "category": "default_U",
+    "prompt": "Make a U width 4 cm height 3 cm web 0.3 cm flange 0.4 cm then extrude 1.2 cm with flange facing down",
+    "recipe": "profile",
+    "args": {"kind":"U","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,30],[36,30],[36,3],[4,3],[4,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4032}
+  },
+  {
+    "category": "default_U",
+    "prompt": "Make a U width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm with back web",
+    "recipe": "profile",
+    "args": {"kind":"U","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,30],[36,30],[36,3],[4,3],[4,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4032}
+  },
+  {
+    "category": "default_U",
+    "prompt": "Make a U width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm with side flange",
+    "recipe": "profile",
+    "args": {"kind":"U","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,30],[36,30],[36,3],[4,3],[4,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4032}
+  },
+  {
+    "category": "default_U",
+    "prompt": "Make a U width 4 cm height 3 cm web 0.3 cm flange 0.4 cm then extrude 1.2 cm with web on the left",
+    "recipe": "profile",
+    "args": {"kind":"U","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,30],[36,30],[36,3],[4,3],[4,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4032}
+  },
+  {
+    "category": "default_U",
+    "prompt": "Make a U width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm centred on the origin with flange at the top",
+    "recipe": "profile",
+    "args": {"kind":"U","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":true},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[-20,-15],[20,-15],[20,15],[16,15],[16,-12],[-16,-12],[-16,15],[-20,15]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[-20,-15,0],"max":[20,15,12]},"volume":4032}
+  },
+  {
+    "category": "default_U",
+    "prompt": "Make a U width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm on the right plane",
+    "recipe": "profile",
+    "args": {"kind":"U","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"YZ","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"YZ"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,30],[36,30],[36,3],[4,3],[4,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[12,40,30]},"volume":4032}
+  },
+  {
+    "category": "default_U",
+    "prompt": "Make a U width 4 cm height 3 cm web 0.3 cm flange 0.4 cm then extrude 1.2 cm centred on the origin with back web",
+    "recipe": "profile",
+    "args": {"kind":"U","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":true},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[-20,-15],[20,-15],[20,15],[16,15],[16,-12],[-16,-12],[-16,15],[-20,15]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[-20,-15,0],"max":[20,15,12]},"volume":4032}
+  },
+  {
+    "category": "default_U",
+    "prompt": "Make a U width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm with web facing the left side",
+    "recipe": "profile",
+    "args": {"kind":"U","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,30],[36,30],[36,3],[4,3],[4,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4032}
+  },
+  {
+    "category": "default_U",
+    "prompt": "Make a U width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm with flange facing the right side",
+    "recipe": "profile",
+    "args": {"kind":"U","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,30],[36,30],[36,3],[4,3],[4,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4032}
+  },
+  {
+    "category": "explicit_C",
+    "prompt": "Make a C width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm opening left",
+    "recipe": "profile",
+    "args": {"kind":"C","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[40,0],[0,0],[0,4],[37,4],[37,26],[0,26],[0,30],[40,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4632}
+  },
+  {
+    "category": "explicit_U",
+    "prompt": "Make a U width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm opening right",
+    "recipe": "profile",
+    "args": {"kind":"U","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,4],[3,4],[3,26],[40,26],[40,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4632}
+  },
+  {
+    "category": "explicit_C",
+    "prompt": "Make a C width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm opens down",
+    "recipe": "profile",
+    "args": {"kind":"C","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,30],[40,30],[40,0],[36,0],[36,27],[4,27],[4,0],[0,0]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4032}
+  },
+  {
+    "category": "explicit_U",
+    "prompt": "Make a U width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm opens up",
+    "recipe": "profile",
+    "args": {"kind":"U","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,30],[36,30],[36,3],[4,3],[4,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4032}
+  },
+  {
+    "category": "explicit_C",
+    "prompt": "Make a C width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm open to the left",
+    "recipe": "profile",
+    "args": {"kind":"C","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[40,0],[0,0],[0,4],[37,4],[37,26],[0,26],[0,30],[40,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4632}
+  },
+  {
+    "category": "explicit_U",
+    "prompt": "Make a U width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm open toward the right",
+    "recipe": "profile",
+    "args": {"kind":"U","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,4],[3,4],[3,26],[40,26],[40,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4632}
+  },
+  {
+    "category": "explicit_C",
+    "prompt": "Make a C width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm opening facing down",
+    "recipe": "profile",
+    "args": {"kind":"C","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,30],[40,30],[40,0],[36,0],[36,27],[4,27],[4,0],[0,0]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4032}
+  },
+  {
+    "category": "explicit_U",
+    "prompt": "Make a U width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm opening is facing the right",
+    "recipe": "profile",
+    "args": {"kind":"U","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,4],[3,4],[3,26],[40,26],[40,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4632}
+  },
+  {
+    "category": "explicit_C",
+    "prompt": "Make a C width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm left-facing opening",
+    "recipe": "profile",
+    "args": {"kind":"C","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[40,0],[0,0],[0,4],[37,4],[37,26],[0,26],[0,30],[40,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4632}
+  },
+  {
+    "category": "explicit_U",
+    "prompt": "Make a U width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm down-facing opening",
+    "recipe": "profile",
+    "args": {"kind":"U","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,30],[40,30],[40,0],[36,0],[36,27],[4,27],[4,0],[0,0]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4032}
+  },
+  {
+    "category": "explicit_C",
+    "prompt": "Make a C width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm opening toward -X",
+    "recipe": "profile",
+    "args": {"kind":"C","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[40,0],[0,0],[0,4],[37,4],[37,26],[0,26],[0,30],[40,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4632}
+  },
+  {
+    "category": "explicit_U",
+    "prompt": "Make a U width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm opening towards negative Y",
+    "recipe": "profile",
+    "args": {"kind":"U","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,30],[40,30],[40,0],[36,0],[36,27],[4,27],[4,0],[0,0]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4032}
+  },
+  {
+    "category": "explicit_C",
+    "prompt": "Make a C width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm opening to the positive Y",
+    "recipe": "profile",
+    "args": {"kind":"C","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,30],[36,30],[36,3],[4,3],[4,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4032}
+  },
+  {
+    "category": "explicit_U",
+    "prompt": "Make a U width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm opening is open towards the left",
+    "recipe": "profile",
+    "args": {"kind":"U","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[40,0],[0,0],[0,4],[37,4],[37,26],[0,26],[0,30],[40,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4632}
+  },
+  {
+    "category": "explicit_C",
+    "prompt": "Make a C width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm opening left with flange facing up",
+    "recipe": "profile",
+    "args": {"kind":"C","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[40,0],[0,0],[0,4],[37,4],[37,26],[0,26],[0,30],[40,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4632}
+  },
+  {
+    "category": "explicit_U",
+    "prompt": "Make a U width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm opening down on the right plane",
+    "recipe": "profile",
+    "args": {"kind":"U","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"YZ","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"YZ"}},
+      {"command":"sketch.line","params":{"points":[[0,30],[40,30],[40,0],[36,0],[36,27],[4,27],[4,0],[0,0]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[12,40,30]},"volume":4032}
+  },
+  {
+    "category": "explicit_C",
+    "prompt": "Make a C width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm opening that faces leftwards",
+    "recipe": "profile",
+    "args": {"kind":"C","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[40,0],[0,0],[0,4],[37,4],[37,26],[0,26],[0,30],[40,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4632}
+  },
+  {
+    "category": "explicit_U",
+    "prompt": "Make a U width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm opening which is facing downwards",
+    "recipe": "profile",
+    "args": {"kind":"U","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,30],[40,30],[40,0],[36,0],[36,27],[4,27],[4,0],[0,0]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4032}
+  },
+  {
+    "category": "explicit_C",
+    "prompt": "Make a C width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm opening upwards",
+    "recipe": "profile",
+    "args": {"kind":"C","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,30],[36,30],[36,3],[4,3],[4,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4032}
+  },
+  {
+    "category": "explicit_U",
+    "prompt": "Make a U width 40 mm height 30 mm web 3 mm flange 4 mm then extrude 12 mm rightwards-facing opening",
+    "recipe": "profile",
+    "args": {"kind":"U","width":40,"height":30,"web_thickness":3,"flange_thickness":4,"depth":12,"plane":"XY","centred":false},
+    "commands": [
+      {"command":"sketch.create","params":{"plane":"XY"}},
+      {"command":"sketch.line","params":{"points":[[0,0],[40,0],[40,4],[3,4],[3,26],[40,26],[40,30],[0,30]],"closed":true}},
+      {"command":"sketch.finish","params":{}},
+      {"command":"solid.extrude","params":{"distance":12}}
+    ],
+    "expected": {"bbox":{"min":[0,0,0],"max":[40,30,12]},"volume":4632}
+  }
+]
