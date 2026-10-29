@@ -35,14 +35,8 @@ pub(crate) fn describe(s: &mut Value) {
                 "kind" if v["enum"][0] == "fillet" => ("fillet: round; chamfer: bevel", None),
                 "kind" => ("Cross-section outline", None),
                 "thickness" => ("Plate thickness or uniform profile legs", None),
-                "web_thickness" => (
-                    "Wall thickness of vertical leg/stem/web; U bottom; omit with thickness",
-                    None,
-                ),
-                "flange_thickness" => (
-                    "Wall thickness of horizontal leg/flange; U sides; omit with thickness",
-                    None,
-                ),
+                "web_thickness" => ("Vertical leg/stem/web; U bottom; omit with thickness", None),
+                "flange_thickness" => ("Horizontal leg/flange; U sides; omit with thickness", None),
                 "stem_offset" => ("T stem centre from left; omitted: centred", None),
                 "depth" => ("Extrusion distance normal to plane", None),
                 "floor" => ("Base thickness; omitted: wall", None),
@@ -167,14 +161,8 @@ pub fn compact(s: &Value) -> Value {
             "size_kind" => "across_flats: edge to edge; across_corners: vertex to vertex",
             "orientation" => "Omit: longer-side rows; pointy_top: X rows; flat_top: Y rows",
             "mode" => "fill: fit; exact: rows and columns",
-            "web_thickness" => "T stem / C back / L vertical / U bottom thickness",
-            "flange_thickness" => "T cap / C top and bottom / L horizontal / U sides thickness",
-            "width" if root["x-pilot-expander"] == "profile" => {
-                "Overall sketch X; C opens toward +X"
-            }
-            "height" if root["x-pilot-expander"] == "profile" => {
-                "Overall sketch Y; T stem below cap plus cap thickness"
-            }
+            "web_thickness" => "Vertical leg; U bottom",
+            "flange_thickness" => "Horizontal leg; U sides",
             "stem_offset" => "T centre from left; omit: centred",
             "length" if root["x-pilot-expander"] == "plate" => {
                 "Rectangle X; length+width OR diameter"
@@ -228,14 +216,6 @@ pub fn compact(s: &Value) -> Value {
             "angle_deg" if root["x-pilot-expander"] == "circular_pattern" => {
                 "Sweep: full 360; partial arcs include both ends"
             }
-            "width" if root["x-pilot-expander"] == "profile" => {
-                "L A x B x t: outside leg A on sketch X"
-            }
-            "height" if root["x-pilot-expander"] == "profile" => {
-                "L A x B x t: outside leg B on sketch Y"
-            }
-            "thickness" if root["x-pilot-expander"] == "profile" => "L A x B x t: wall thickness t",
-            "depth" => "Extrusion length",
             "plane" => "Axes of plane",
             k if root["x-pilot-expander"] == "joint"
                 && (k.starts_with("limit")
