@@ -1021,9 +1021,11 @@ fn fill_forms_are_short_and_documented() {
         form["properties"]["decline"] = json!({"type":"boolean"});
         let size = form.to_string().chars().count() + line(&r.id).chars().count();
         eprintln!("{}: {size} characters", r.id);
-        // Plate includes both base outlines and three feature layouts.
+        // Plate includes both base outlines and three feature layouts. Corner sides,
+        // row offsets and circle radius are offered only when a request names them,
+        // so this full form is larger than the one most requests see.
         let cap = match r.id.as_str() {
-            "plate" => 2400,
+            "plate" => 2600,
             "joint" => 3000,
             _ => 1200,
         };
