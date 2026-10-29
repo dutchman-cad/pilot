@@ -1,0 +1,43 @@
+{
+  "setups": {
+    "joined": [
+      {"command":"solid.box","params":{"length":220,"width":30,"height":6,"body_name":"Base"}},
+      {"command":"solid.cylinder","params":{"diameter":10,"height":6,"base":[15,15,6],"operation":"join","targets":["Base"]}}
+    ],
+    "separate": [
+      {"command":"solid.box","params":{"length":220,"width":30,"height":6,"body_name":"Base"}},
+      {"command":"solid.cylinder","params":{"diameter":10,"height":6,"base":[15,15,6],"operation":"new","body_name":"Boss"}}
+    ],
+    "short_base": [
+      {"command":"solid.box","params":{"length":80,"width":30,"height":6,"body_name":"Base"}},
+      {"command":"solid.cylinder","params":{"radius":5,"height":6,"base":[15,15,6],"operation":"join","targets":["Base"]}}
+    ],
+    "separate_unnamed": [
+      {"command":"solid.box","params":{"length":220,"width":30,"height":6}},
+      {"command":"solid.cylinder","params":{"radius":5,"height":6,"base":[15,15,6],"operation":"new"}}
+    ],
+    "joined_negative": [
+      {"command":"solid.box","params":{"length":220,"width":30,"height":6,"body_name":"Base"}},
+      {"command":"solid.cylinder","params":{"diameter":10,"height":6,"base":[205,15,6],"operation":"join","targets":["Base"]}}
+    ],
+    "plate": [
+      {"command":"solid.box","params":{"length":220,"width":30,"height":6,"corner":[0,0,0],"operation":"new"}},
+      {"command":"solid.cylinder","params":{"radius":5,"height":6,"base":[15,15,6],"axis":"Z","operation":"join"}}
+    ]
+  },
+  "plate_recipe":{"length":220,"width":30,"thickness":6,"boss_diameter":10,"boss_height":6,"boss_offset_x":-95},
+  "cases": [
+    {"id":"bc01","setup":"joined","prompt":"make 12 copies of the boss along X 15 mm apart","args":{"target":"body","body":"Base","count":12,"direction":"X","spacing":15},"reference":{"command":"solid.pattern.rectangular","params":{"features":["Cylinder1"],"dir1":[1,0,0],"count1":13,"spacing1":15}}},
+    {"id":"bc02","setup":"joined","prompt":"repeat the boss 12 times along X at 15mm spacing","args":{"target":"last_feature","count":12,"direction":"X","spacing":15},"reference":{"command":"solid.pattern.rectangular","params":{"features":["Cylinder1"],"dir1":[1,0,0],"count1":12,"spacing1":15}}},
+    {"id":"bc03","setup":"separate","prompt":"copy the boss 12 times in a row, X, 15 mm apart","args":{"target":"last_feature","count":12,"direction":"X","spacing":15},"reference":{"command":"solid.pattern.rectangular","params":{"bodies":["Boss"],"dir1":[1,0,0],"count1":13,"spacing1":15}}},
+    {"id":"bc04","setup":"plate","prompt":"Could you please make 12 copies of the boss on the existing plate along X, 15 mm apart? Thanks!","args":{"target":"body","count":12,"direction":"X","spacing":15},"reference":{"command":"solid.pattern.rectangular","params":{"features":["Cylinder1"],"dir1":[1,0,0],"count1":13,"spacing1":15}}},
+    {"id":"bc05","setup":"joined","prompt":"boss copies, 12, 15mm apart","args":{"target":"body","count":12,"spacing":15},"reference":{"command":"solid.pattern.rectangular","params":{"features":["Cylinder1"],"dir1":[1,0,0],"count1":12,"spacing1":15}}},
+    {"id":"bc06","setup":"separate","prompt":"repeat the boss 12 times, 15 mm apart","args":{"target":"body","count":12,"spacing":15},"reference":{"command":"solid.pattern.rectangular","params":{"bodies":["Boss"],"dir1":[1,0,0],"count1":12,"spacing1":15}}},
+    {"id":"bc07","setup":"plate","prompt":"12 copies of the boss along X please","args":{"target":"last_feature","count":12,"direction":"X"},"error":"spacing"},
+    {"id":"bc08","setup":"joined","prompt":"copies of the boss, 12","args":{"target":"body","count":12},"error":"spacing"},
+    {"id":"bc09","setup":"joined_negative","prompt":"Please repeat the boss into a row of 12 along negative X, 15mm apart","args":{"target":"body","count":12,"direction":"-X","spacing":15},"reference":{"command":"solid.pattern.rectangular","params":{"features":["Cylinder1"],"dir1":[-1,0,0],"count1":12,"spacing1":15}}},
+    {"id":"bc10","setup":"separate","prompt":"I need 12 copies of the boss along Y with 15 mm centre spacing","args":{"target":"body","body":"Boss","count":12,"direction":"Y","spacing":15},"reference":{"command":"solid.pattern.rectangular","params":{"bodies":["Boss"],"dir1":[0,1,0],"count1":13,"spacing1":15}}},
+    {"id":"bc11","setup":"separate_unnamed","prompt":"repeat the boss 12 times along Y, 15 mm apart please","args":{"target":"last_feature","body":"Base","count":12,"spacing":15},"reference":{"command":"solid.pattern.rectangular","params":{"bodies":["Body2"],"dir1":[0,1,0],"count1":12,"spacing1":15}}},
+    {"id":"bc12","setup":"short_base","prompt":"make 12 copies of the boss in a row, 15 mm apart","args":{"target":"body","body":"Base","count":12,"spacing":15},"reference":{"command":"solid.pattern.rectangular","params":{"features":["Cylinder1"],"dir1":[1,0,0],"count1":13,"spacing1":15}}}
+  ]
+}

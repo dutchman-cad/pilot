@@ -437,6 +437,14 @@ positive millimetres, angles are degrees, and counts include the original.
 Each dimension is at least two; the total is capped at 500 instances and extents
 at 1,000,000 mm. Missing or ambiguous targets defer.
 
+For boss repetition, inspection resolves a named `Boss` body or the latest
+additive feature and its owner, including default-named cylinder bodies. A filled
+`body` choice must not copy its host plate. Linear boss requests without an axis use X (or their explicit request
+axis), with an inference audit. Spacing remains required: an omitted distance
+gets a field error and clarification, never an invented pitch. Counts are totals
+internally: “12 copies” and “copy the boss 12 times” add twelve to the original;
+“repeat the boss 12 times” and “a row of 12” use twelve total.
+
 The expander first requests measured `document.inspect`, then resolves one body
 (optionally selected by `body`) or inspects the last feature with `timeline.inspect`.
 An edge direction adds a `model.edges` read. It emits one

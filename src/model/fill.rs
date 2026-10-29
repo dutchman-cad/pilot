@@ -360,7 +360,11 @@ pub(super) fn coerced(
     )?);
     if args["decline"] != true && planner::patterns::is_pattern(recipe["id"].as_str().unwrap_or(""))
     {
-        changes.extend(planner::patterns::resolve(&mut args, request)?);
+        changes.extend(planner::patterns::resolve(
+            recipe["id"].as_str().unwrap_or(""),
+            &mut args,
+            request,
+        )?);
     }
     response["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"] =
         json!(args.to_string());
