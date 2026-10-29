@@ -1606,11 +1606,26 @@ impl Proxy {
             if !route_candidates.is_empty() {
                 route_attempts += 1;
                 fill_recipe = fill::picked(&response, &route_candidates);
+                let mut recovered_pattern = false;
+                if fill_recipe.is_none() {
+                    fill_recipe = fill::pattern_after_none(&response, &route_candidates, &original);
+                    if let Some(found) = &fill_recipe {
+                        recovered_pattern = true;
+                        audit.record(
+                            "route_none",
+                            &response,
+                            &json!({"reason":"explicit none; trying one matching pattern fill"}),
+                        )?;
+                        audit.record("route_pattern_recovery", &response, &json!({"recipe":found["id"],"reason":"explicit none with clear repetition and an inspected target; offer one fill"}))?;
+                    }
+                }
                 route_candidates.clear();
                 fill_error = None;
                 form_reply_retried = false;
                 if let Some(found) = &fill_recipe {
-                    audit.record("route_picked", &response, &json!({"recipe":found["id"]}))?;
+                    if !recovered_pattern {
+                        audit.record("route_picked", &response, &json!({"recipe":found["id"]}))?;
+                    }
                     audit.record(
                         "fill_offered",
                         &Value::Null,
@@ -7578,6 +7593,121 @@ mod tests {
                 .contains("pilot_fill"));
             let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
             assert!(log.contains("route_none"));
+        }
+    }
+
+    mod dev_pattern_route {
+        include!("../tests/support/dev_pattern_route.rs");
+    }
+
+    #[test]
+    fn route_none_pattern_recovery_is_once_audited_and_can_decline() {
+        let library = crate::recipe_library::Library::embedded().unwrap();
+        let (kind, id, text) = dev_pattern_route::chatty_cases()
+            .into_iter()
+            .find(|(_, _, text)| library.form_band(text).unwrap()["band"] == "route")
+            .unwrap();
+        let setup = dev_pattern_route::setup(kind);
+        for outcome in ["accept", "decline", "invalid"] {
+            let decline = outcome == "decline";
+            let args = match id {
+                "grid_pattern" => {
+                    json!({"target":"last_feature","rows":3,"columns":4,"spacing1":12,"spacing2":12,"plane":"XY"})
+                }
+                "linear_pattern" => {
+                    json!({"target":"last_feature","count":4,"direction":"X","spacing":12})
+                }
+                _ => json!({"target":"last_feature","count":6,"axis":"Z","angle_deg":360}),
+            };
+            let mut replies = vec![call("pilot_route", json!({"recipe":"none"}))];
+            if outcome == "invalid" {
+                replies.extend((0..3).map(|_| call("pilot_fill", json!({"bogus":1}))));
+            } else {
+                replies.push(call(
+                    "pilot_fill",
+                    if decline {
+                        json!({"decline":true})
+                    } else {
+                        args
+                    },
+                ));
+            }
+            replies.push(reply("Use native tools."));
+            let mut f = fill_fixture(replies);
+            f.proxy.cfg.direct_recipes = false;
+            let mut req = fill_request();
+            req["messages"] =
+                json!([dev_pattern_route::request(&text, &setup)["messages"][0].clone()]);
+            for _ in 0..4 {
+                let out = f.chat(req.clone());
+                assert_eq!(out.status, 200);
+                let value: Value = serde_json::from_slice(&out.body).unwrap();
+                let message = &value["choices"][0]["message"];
+                let Some(calls) = message["tool_calls"].as_array().filter(|calls| {
+                    !calls.is_empty()
+                        && calls
+                            .iter()
+                            .all(|c| c["id"].as_str().unwrap().starts_with("pilot_context_"))
+                }) else {
+                    break;
+                };
+                req["messages"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(message.clone());
+                for c in calls {
+                    let args: Value =
+                        serde_json::from_str(c["function"]["arguments"].as_str().unwrap()).unwrap();
+                    let data = match args["command"].as_str().unwrap() {
+                        "timeline.inspect" => setup["detail"].clone(),
+                        "component.list" => json!({"components":[]}),
+                        "joint.list" => json!({"joints":[]}),
+                        "model.faces" => json!({"body":"Plate","faces":[]}),
+                        "model.edges" => json!({"body":"Plate","edges":[]}),
+                        _ => setup["document"].clone(),
+                    };
+                    req["messages"].as_array_mut().unwrap().push(
+                        json!({"role":"tool","tool_call_id":c["id"],"content":data.to_string()}),
+                    );
+                }
+            }
+            let script = f.proxy.scripted.as_ref().unwrap().borrow();
+            assert_eq!(
+                script.requests.len(),
+                match outcome {
+                    "accept" => 2,
+                    "decline" => 3,
+                    _ => 5,
+                }
+            );
+            assert_eq!(
+                script.requests[0]["tools"][0]["function"]["name"],
+                "pilot_route"
+            );
+            assert_eq!(
+                script.requests[1]["tools"][0]["function"]["name"],
+                "pilot_fill"
+            );
+            if outcome != "accept" {
+                let native = script.requests.last().unwrap();
+                assert!(!native["tools"].to_string().contains("pilot_fill"));
+                assert!(!native["tools"].to_string().contains("pilot_route"));
+            }
+            let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+            assert_eq!(
+                log.matches("\"kind\":\"route_pattern_recovery\"").count(),
+                1,
+                "{log}"
+            );
+            assert!(
+                log.contains(match outcome {
+                    "accept" => "fill_accepted",
+                    "decline" => "fill_declined",
+                    _ => "fill_invalid",
+                }),
+                "{log}"
+            );
+            assert!(!log.contains("route_picked"));
         }
     }
 

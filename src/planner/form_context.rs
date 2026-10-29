@@ -159,6 +159,35 @@ pub(crate) fn default_body(request: &Value) -> Result<String, String> {
     Err("args.body: target is ambiguous; select one body or supply its exact inspected name".into())
 }
 
+/// Conservative evidence for retrying an abstained existing-feature route.
+/// A bare plate is not evidence of the peg or hole the user wants repeated.
+pub(crate) fn pattern_seed_matches(request: &Value, hole: bool) -> bool {
+    let Ok(body) = default_body(request) else {
+        return false;
+    };
+    let data = payloads(request);
+    let Some(doc) = document(&data) else {
+        return false;
+    };
+    let features = active_features(doc);
+    let Some(seed) = features.first().and_then(|f| detail(&data, f)) else {
+        return false;
+    };
+    let kind = seed["type"].as_str().unwrap_or("");
+    let def = &seed["definition"];
+    let compatible = if hole {
+        kind == "HoleFeature"
+    } else {
+        matches!(kind, "CylinderFeature" | "ExtrudeFeature") && def["operation"] == "join"
+    };
+    compatible
+        && ["targets", "participants"].iter().any(|key| {
+            def[*key]
+                .as_array()
+                .is_some_and(|names| names.len() == 1 && names[0] == body)
+        })
+}
+
 pub(crate) fn summary(request: &Value, joint: bool, joint_origins: bool) -> String {
     let data = payloads(request);
     let Some(doc) = document(&data) else {

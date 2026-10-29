@@ -74,6 +74,13 @@ Request side:
   unstated optionals, and decline for mismatches. Reuse build validation and expansion.
   Scores from 1.5 inclusive to 4.5 exclusive offer a top-four `pilot_route`
   question first; lower scores use ordinary tools. A declined fill never routes.
+  An explicit route `none` may offer one matching top-four grid, row or circular
+  pattern fill for a clear peg, boss or hole repetition request with an inspected,
+  unambiguous target and a matching latest joined feature or hole. This recovery
+  is audited as `route_pattern_recovery`, adds no field values, and retains
+  decline, validation and the shared request cap.
+  Ambiguous, negative, explanatory and unsupported requests retain `none`;
+  valid model selections are never rejected based on request wording.
   Invalid fills get at most two field-error retries (three attempts). An off-form or text
   reply gets one retry of the same clean request with a one-line problem note, then
   restores ordinary tools. Decline or a third invalid fill also restores ordinary tools.
