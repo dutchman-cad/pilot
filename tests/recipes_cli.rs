@@ -2546,12 +2546,16 @@ fn replay_development_feature_forms(only: Option<&str>, model_variant: bool) {
             });
             if mutation && plan.continuation.is_none() {
                 if id == "revolute_joint" {
+                    let native_angle = commands
+                        .iter()
+                        .find(|c| c["command"] == "joint.drive")
+                        .unwrap()["params"]["value"]
+                        .as_f64();
                     assert!(
                         plan.calls
                             .iter()
                             .any(|c| c["arguments"]["command"] == "joint.drive"
-                                && c["arguments"]["params"]["value"].as_f64()
-                                    == args["angle_deg"].as_f64()),
+                                && c["arguments"]["params"]["value"].as_f64() == native_angle),
                         "{}: missing requested joint drive",
                         fixture["id"]
                     );
@@ -2722,3 +2726,6 @@ fn public_binary_wall_derived_lip_defaults() {
         );
     }
 }
+
+#[path = "support/dev_joint_profile.rs"]
+mod dev_joint_profile;

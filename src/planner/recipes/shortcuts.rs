@@ -15,6 +15,8 @@ enum Build {
         web_thickness: Option<f64>,
         flange_thickness: Option<f64>,
         stem_offset: Option<f64>,
+        #[serde(default)]
+        centred: bool,
         depth: f64,
     },
     Plate {
@@ -140,6 +142,7 @@ pub(crate) fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<
             web_thickness,
             flange_thickness,
             stem_offset,
+            centred,
             depth,
         } => {
             let shape = if kind == "rectangle" { "R" } else { &kind };
@@ -164,7 +167,7 @@ pub(crate) fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<
                 flange,
                 offset: stem_offset,
                 separate: web != flange,
-                centred: false,
+                centred,
                 flipped: false,
                 distance: depth,
             }
@@ -461,6 +464,7 @@ pub(crate) fn tool() -> Value {
                 json!({"type":"number","description":"T stem centre from left."}),
             ),
             ("depth", n.clone()),
+            ("centred", b.clone()),
         ],
         &["shape", "kind", "plane", "width", "height", "depth"],
     );

@@ -791,6 +791,7 @@ impl Ranker for Bm25 {
                                     // New form-only choices must not shift the calibrated BM25 corpus.
                                     .filter(|k| {
                                         !(r.id == "enclosure" && k.as_str() == "inside"
+                                            || r.id == "profile" && k.as_str() == "centred"
                                             || r.id == "shell" && k.as_str() == "open"
                                             || matches!(r.id.as_str(), "fillet" | "chamfer")
                                                 && matches!(k.as_str(), "edges" | "corner_sides"))

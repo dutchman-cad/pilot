@@ -208,6 +208,10 @@ fn requested_fields(schema: &mut Value, recipe: &Value, request: &str) -> Result
         }
     };
     match recipe["id"].as_str() {
+        Some("profile") => gate(
+            "centred",
+            has(&["centred", "centered", "centre", "center", "origin"]),
+        ),
         Some("plate") => {
             gate("corner_sides", side);
             let placed = side || has(&["edge", "edges", "offset", "offsets"]);
@@ -560,6 +564,28 @@ mod tests {
                     }
                 }
             }
+        }
+    }
+
+    #[test]
+    fn profile_centring_is_offered_only_when_named() {
+        let lib = crate::recipe_library::Library::embedded().unwrap();
+        let profile = lib.recipes.iter().find(|r| r.id == "profile").unwrap();
+        let recipe =
+            json!({"id":"profile","schema":crate::recipe_library::forms::flat(&profile.schema)});
+        for (text, offered) in [
+            ("Make a C profile", false),
+            ("A C centred on the origin", true),
+            ("Center the T section", true),
+        ] {
+            let mut req = request(text);
+            offer(&mut req, &recipe, None).unwrap();
+            assert_eq!(
+                req["tools"][0]["function"]["parameters"]["properties"]
+                    .get("centred")
+                    .is_some(),
+                offered
+            );
         }
     }
 

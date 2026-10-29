@@ -53,6 +53,11 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties": false,
     "properties": {
+      "centred": {
+        "default": false,
+        "description": "True only for centred/centered/on the origin",
+        "type": "boolean"
+      },
       "depth": {
         "$ref": "#/$defs/Length",
         "description": "Extrusion distance normal to plane"
@@ -109,6 +114,10 @@
     "x-pilot-fill": {
       "groups": [],
       "properties": {
+        "centred": {
+          "type": "boolean",
+          "x-slot": "/centred"
+        },
         "depth": {
           "exclusiveMinimum": 0,
           "maximum": 1000000,

@@ -157,14 +157,23 @@ pub fn compact(s: &Value) -> Value {
             "centred" if root["x-pilot-expander"] == "enclosure" => {
                 "Box centred in XYZ; else corner origin"
             }
+            "centred" if root["x-pilot-expander"] == "profile" => {
+                "Centre section in sketch plane; extrusion starts there"
+            }
             "centred" => "centred/centered/on the origin",
             "kind" if out["enum"][0] == "fillet" => "round/bevel",
             "kind" => "Section outline",
             "size_kind" => "across_flats: edge to edge; across_corners: vertex to vertex",
             "orientation" => "Omit: longer-side rows; pointy_top: X rows; flat_top: Y rows",
             "mode" => "fill: fit; exact: rows and columns",
-            "web_thickness" => "Vertical wall thickness, not leg length; U bottom",
-            "flange_thickness" => "Horizontal wall thickness, not leg length; U sides",
+            "web_thickness" => "T stem / C back / L vertical / U bottom thickness",
+            "flange_thickness" => "T cap / C top and bottom / L horizontal / U sides thickness",
+            "width" if root["x-pilot-expander"] == "profile" => {
+                "Overall sketch X; C opens toward +X"
+            }
+            "height" if root["x-pilot-expander"] == "profile" => {
+                "Overall sketch Y; T stem below cap plus cap thickness"
+            }
             "stem_offset" => "T centre from left; omit: centred",
             "length" if root["x-pilot-expander"] == "plate" => {
                 "Rectangle X; length+width OR diameter"
@@ -610,6 +619,12 @@ pub fn request_defaults(
                 json!({"field":field,"before":null,"after":value,"defaulted":true,"rule":rule}),
             ]);
         }
+        return Ok(Vec::new());
+    }
+    if words
+        .iter()
+        .any(|w| matches!(*w, "limit" | "limits" | "range"))
+    {
         return Ok(Vec::new());
     }
     let mut angles = Vec::new();
