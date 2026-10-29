@@ -144,6 +144,17 @@ it as a well-formed stream):
    ("your reply was empty; answer or call a tool"). Twice empty: pass it through.
 4. **Logging.** Each rewrite is recorded (`--log FILE`, JSON lines: time, model, kind, before,
    after). A response header `x-dutchman-pilot: rewrites=N` tells clients something changed.
+   Each upstream chat attempt also records content-free `upstream_request` and
+   `upstream_response` observations in `after`, without increasing the rewrite count.
+   `body_fnv1a64` fingerprints the exact sent/received body bytes (16 lowercase hex digits).
+   Requests include `messages_fnv1a64`, `tools_fnv1a64`, and `options_fnv1a64` over compact
+   JSON; options include all top-level fields except messages and tools, and missing
+   components serialize as null. They include message/tool counts, tool names, the step
+   (`fill`, `route`, `passthrough`, or `retry`), zero-based wire attempt, and retry flag.
+   Responses include `message_fnv1a64` over the first choice's compact JSON message
+   (assembled for SSE; null when unavailable) and its tool call names. Names are capped
+   at 128 entries of 128 characters. No text, descriptions, or argument values are added.
+   FNV-1a is a deterministic comparison aid, not a cryptographic integrity guarantee.
 
 Pilot does not depend on SolidCraft crates; it talks to SolidCraft only through its public
 interfaces.

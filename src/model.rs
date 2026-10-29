@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 mod direct;
 mod fill;
+mod fingerprint;
 mod history;
 mod recovery;
 mod shortcuts;
@@ -251,6 +252,7 @@ struct Scripted {
     reject_tools: bool,
     replies: std::collections::VecDeque<Upstream>,
     requests: Vec<Value>,
+    request_bytes: Vec<Vec<u8>>,
 }
 impl Server {
     pub fn bind(mut cfg: Config) -> Result<Self, String> {
@@ -593,6 +595,7 @@ impl Proxy {
         #[cfg(test)]
         if let Some(script) = &self.scripted {
             let mut script = script.borrow_mut();
+            script.request_bytes.push(body.to_vec());
             script
                 .requests
                 .push(serde_json::from_slice(body).unwrap_or(Value::Null));
@@ -1419,6 +1422,16 @@ impl Proxy {
                 audit,
             )?;
             let wire = json_bytes(&outgoing)?;
+            let step = if !route_candidates.is_empty() {
+                "route"
+            } else if fill_recipe.is_some() {
+                "fill"
+            } else if wire_attempt > 0 {
+                "retry"
+            } else {
+                "passthrough"
+            };
+            fingerprint::request(audit, &wire, &outgoing, step, wire_attempt)?;
             if fill_recipe.is_some() || !route_candidates.is_empty() {
                 audit.record("form_request", &Value::Null, &json!({"bytes":wire.len(),"characters":history::chars(&outgoing),"tool":outgoing["tools"][0]["function"]["name"]}))?;
                 form_attempts += 1;
@@ -1442,6 +1455,12 @@ impl Proxy {
                     return Ok(reply);
                 }
             };
+            fingerprint::response(
+                audit,
+                &upstream.body,
+                upstream.content_type.starts_with("text/event-stream"),
+                wire_attempt,
+            )?;
             if (!text_mode || fill_recipe.is_some() || !route_candidates.is_empty())
                 && !tools.is_empty()
                 && text_mode::rejected(upstream.status, &upstream.body)
@@ -3168,6 +3187,7 @@ mod tests {
                             })
                             .collect(),
                         requests: Vec::new(),
+                        request_bytes: Vec::new(),
                     })),
                 },
                 dir,
@@ -3550,6 +3570,119 @@ mod tests {
             totals[0], totals[1]
         );
         assert!(percent > 65.0);
+    }
+
+    #[test]
+    fn response_fingerprints_cover_streams_errors_and_private_arguments() {
+        let f = Fixture::new(vec![]);
+        let mut audit = f.audit();
+        let response = call("inspect", json!({"private":"RESPONSE_PRIVATE_4891"}));
+        let json_wire = format!("  {response}\n").into_bytes();
+        let stream_wire = format!("data: {}\n\ndata: [DONE]\n\n", json!({
+            "choices":[{"index":0,"delta":{
+                "content":"RESPONSE_PRIVATE_4891",
+                "tool_calls":[{"index":0,"id":"c","function":{"name":"inspect","arguments":"{\"private\":42}"}}]
+            },"finish_reason":"tool_calls"}]
+        })).into_bytes();
+        let error_wire = b"upstream error RESPONSE_PRIVATE_4891";
+        fingerprint::response(&mut audit, &json_wire, false, 0).unwrap();
+        fingerprint::response(&mut audit, &stream_wire, true, 1).unwrap();
+        fingerprint::response(&mut audit, error_wire, false, 2).unwrap();
+        assert_eq!(audit.count, 0);
+        let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+        assert!(!log.contains("RESPONSE_PRIVATE_4891"));
+        assert!(!log.contains("arguments"));
+        let events: Vec<Value> = log
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        for (event, wire) in
+            events
+                .iter()
+                .zip([json_wire.as_slice(), stream_wire.as_slice(), error_wire])
+        {
+            assert_eq!(event["after"]["body_fnv1a64"], fingerprint::fnv1a64(wire));
+        }
+        for event in &events[..2] {
+            assert_eq!(event["after"]["tool_call_names"], json!(["inspect"]));
+        }
+        let assembled = collect_sse(&stream_wire).unwrap();
+        assert_eq!(
+            events[1]["after"]["message_fnv1a64"],
+            fingerprint::fnv1a64(&serde_json::to_vec(&assembled["choices"][0]["message"]).unwrap())
+        );
+        assert!(events[2]["after"]["message_fnv1a64"].is_null());
+        assert_eq!(events[2]["after"]["tool_call_names"], json!([]));
+    }
+
+    #[test]
+    fn wire_fingerprints_match_received_bytes_and_do_not_log_content() {
+        let responses = vec![reply(""), reply("Ready."), reply("Ready.")];
+        let mut f = Fixture::new(responses.clone());
+        f.proxy.cfg.planner = false;
+        f.proxy.cfg.no_hints = true;
+        let req = json!({"model":"unit","temperature":0.2,"seed":42,
+            "messages":[{"role":"user","content":"WIRE_SENTINEL_PRIVATE_4891"}],
+            "tools":[{"type":"function","function":{"name":"inspect",
+                "description":"PRIVATE_TOOL_DESCRIPTION_4891","parameters":{"type":"object"}}}]});
+        assert_eq!(f.chat(req.clone()).status, 200);
+        assert_eq!(f.chat(req).status, 200);
+        let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+        assert!(!log.contains("WIRE_SENTINEL_PRIVATE_4891"));
+        assert!(!log.contains("PRIVATE_TOOL_DESCRIPTION_4891"));
+        let events: Vec<Value> = log
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        let requests: Vec<_> = events
+            .iter()
+            .filter(|e| e["kind"] == "upstream_request")
+            .collect();
+        let replies: Vec<_> = events
+            .iter()
+            .filter(|e| e["kind"] == "upstream_response")
+            .collect();
+        let script = f.proxy.scripted.as_ref().unwrap().borrow();
+        assert_eq!(requests.len(), 3);
+        assert_eq!(replies.len(), 3);
+        for (event, wire) in requests.iter().zip(&script.request_bytes) {
+            let after = &event["after"];
+            assert_eq!(after["body_fnv1a64"], fingerprint::fnv1a64(wire));
+            let mut body: Value = serde_json::from_slice(wire).unwrap();
+            for key in ["messages", "tools"] {
+                assert_eq!(
+                    after[format!("{key}_fnv1a64")],
+                    fingerprint::fnv1a64(&serde_json::to_vec(&body[key]).unwrap())
+                );
+            }
+            body.as_object_mut().unwrap().remove("messages");
+            body.as_object_mut().unwrap().remove("tools");
+            assert_eq!(
+                after["options_fnv1a64"],
+                fingerprint::fnv1a64(&serde_json::to_vec(&body).unwrap())
+            );
+            assert_eq!(after["tool_names"], json!(["inspect"]));
+            assert_eq!(after["tool_count"], 1);
+        }
+        assert_eq!(script.request_bytes[0], script.request_bytes[2]);
+        assert_eq!(
+            requests[0]["after"]["body_fnv1a64"],
+            requests[2]["after"]["body_fnv1a64"]
+        );
+        assert_eq!(requests[0]["after"]["step"], "passthrough");
+        assert_eq!(requests[1]["after"]["step"], "retry");
+        for (event, response) in replies.iter().zip(responses) {
+            assert_eq!(
+                event["after"]["body_fnv1a64"],
+                fingerprint::fnv1a64(&serde_json::to_vec(&response).unwrap())
+            );
+            assert_eq!(
+                event["after"]["message_fnv1a64"],
+                fingerprint::fnv1a64(
+                    &serde_json::to_vec(&response["choices"][0]["message"]).unwrap()
+                )
+            );
+        }
     }
 
     #[test]
@@ -7931,6 +8064,21 @@ mod tests {
         assert_eq!(chat_forms(&mut f, req).status, 200);
         let script = f.proxy.scripted.as_ref().unwrap().borrow();
         assert_eq!(script.requests.len(), 4);
+        let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+        let fingerprints: Vec<Value> = log
+            .lines()
+            .map(|line| serde_json::from_str::<Value>(line).unwrap())
+            .filter(|event| event["kind"] == "upstream_request")
+            .collect();
+        assert_eq!(fingerprints.len(), 4);
+        for (i, event) in fingerprints.iter().enumerate() {
+            assert_eq!(
+                event["after"]["body_fnv1a64"],
+                fingerprint::fnv1a64(&script.request_bytes[i])
+            );
+            assert_eq!(event["after"]["step"], if i < 2 { "route" } else { "fill" });
+            assert_eq!(event["after"]["attempt"], i);
+        }
         for (i, tool) in ["pilot_route", "pilot_route", "pilot_fill", "pilot_fill"]
             .iter()
             .enumerate()
