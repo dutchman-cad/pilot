@@ -72,6 +72,12 @@ pub(super) fn calls(request: &Value, plan: &planner::Plan, index: usize) -> Valu
         json!({"id":id,"type":"function","function":{"name":c["tool"],"arguments":c["arguments"].to_string()}})
     }).collect::<Vec<_>>())
 }
+pub(super) enum Outcome {
+    Reply(Reply),
+    Form,
+    Continue,
+}
+
 impl Proxy {
     pub(super) fn direct_turn(
         &self,
@@ -80,7 +86,7 @@ impl Proxy {
         index: usize,
         conversation: &mut Conversation,
         audit: &mut Audit,
-    ) -> Result<Option<Reply>, String> {
+    ) -> Result<Outcome, String> {
         if conversation.direct_index != index {
             conversation.direct = None;
             conversation.direct_failed = false;
@@ -88,7 +94,7 @@ impl Proxy {
             conversation.direct_index = index;
         }
         if conversation.direct_failed {
-            return Ok(None);
+            return Ok(Outcome::Continue);
         }
         if let Some((previous_index, previous, emitted)) = conversation.direct.take() {
             if previous_index == index {
@@ -115,12 +121,12 @@ impl Proxy {
                 let difference = if !valid {
                     Some("Recipe completion failed: a tool returned an error, or the expected tool results are missing or invalid. Inspect the design and recover; do not repeat accepted changes.".to_string())
                 } else if previous.rule == "resolve_pattern" {
-                    recipe.is_none().then(|| "Pattern target is unresolved: inspect a single body or last feature and clarify count or overlap. No pattern was created.".into())
+                    recipe.is_none().then(|| "Pattern target is unresolved: inspect a single body or last feature and clarify count or overlap. No pattern plan was built.".into())
                 } else if previous.rule == "resolve_joint" {
-                    recipe.is_none().then(|| "Joint target is unresolved: inspect exactly one matching pin and hole pair. No joint was created.".into())
+                    recipe.is_none().then(|| "Joint target is unresolved: inspect exactly one matching pin and hole pair. No joint plan was built.".into())
                 } else if previous.rule == "resolve_body" {
                     recipe.as_ref().is_none_or(|p| p.rule == "resolve_body").then(||
-                        "Recipe target is unresolved: inspection must identify exactly one requested body. No change was made.".into())
+                        "Recipe target is unresolved: inspection must identify exactly one requested body. No edit plan was built. No change was made.".into())
                 } else if previous.continuation.is_some() {
                     recipe.is_none().then(|| "Recipe completion is unverified: the edge lookup could not resolve the requested edges.".into())
                 } else if let Some(expected) = &previous.expected {
@@ -136,6 +142,30 @@ impl Proxy {
                         })
                 };
                 if let Some(reason) = difference {
+                    // These recipes have only read the design. Their successful reads
+                    // are also valid form context; no accepted mutation needs recovery.
+                    let provisional = matches!(
+                        previous.rule,
+                        "resolve_body" | "resolve_joint" | "resolve_pattern"
+                    );
+                    if provisional
+                        && fill::inspection_results(request, &emitted)
+                        && self.cfg.upstream != "none"
+                        && !self.cfg.no_fill
+                        && !self.cfg.no_shortcuts
+                        && !self.cfg.solidcraft98
+                        && shortcuts::supported(request)
+                    {
+                        conversation.recipe = None;
+                        conversation.pending_recipe = None;
+                        conversation.completion_checked = false;
+                        audit.record(
+                            "direct_recipe_form_handback",
+                            &json!({"rule":previous.rule}),
+                            &json!({"reason":reason}),
+                        )?;
+                        return Ok(Outcome::Form);
+                    }
                     conversation.direct_failed = true;
                     conversation.completion_checked = true;
                     conversation.pending_recipe = None;
@@ -149,11 +179,11 @@ impl Proxy {
                             "Exact match (no model): {reason} No model is configured to recover."
                         );
                         audit.record("direct_recipe_reply", &Value::Null, &json!({"rule":previous.rule,"from_model":false,"text":text,"verified":false}))?;
-                        return Ok(Some(reply(request, text, audit.count)?));
+                        return Ok(Outcome::Reply(reply(request, text, audit.count)?));
                     }
                     conversation.direct_handback = Some(reason);
                     // The caller adds this hand-back before entering the ordinary model path.
-                    return Ok(None);
+                    return Ok(Outcome::Continue);
                 }
                 if previous.continuation.is_none()
                     && !matches!(
@@ -172,12 +202,12 @@ impl Proxy {
                         &Value::Null,
                         &json!({"rule":previous.rule,"from_model":false,"text":text}),
                     )?;
-                    return Ok(Some(reply(request, text, audit.count)?));
+                    return Ok(Outcome::Reply(reply(request, text, audit.count)?));
                 }
             }
         }
         let Some(plan) = recipe else {
-            return Ok(None);
+            return Ok(Outcome::Continue);
         };
         if plan.calls.is_empty() {
             let text = planner::direct_summary(request, plan);
@@ -186,11 +216,11 @@ impl Proxy {
                 &Value::Null,
                 &json!({"rule":plan.rule,"from_model":false,"text":text}),
             )?;
-            return Ok(Some(reply(request, text, audit.count)?));
+            return Ok(Outcome::Reply(reply(request, text, audit.count)?));
         }
         if plan.rule == "resolve_pattern" {
             if conversation.pattern_inspections >= 4 {
-                return Ok(Some(reply(request, "Pattern inspection limit reached; clarify the target or geometry. No pattern was created.".into(), audit.count)?));
+                return Ok(Outcome::Reply(reply(request, "Pattern inspection limit reached; clarify the target or geometry. No pattern plan was built.".into(), audit.count)?));
             }
             conversation.pattern_inspections += 1;
         }
@@ -200,7 +230,12 @@ impl Proxy {
         conversation.direct = Some((index, plan.clone(), message.clone()));
         conversation.recipe = plan.expected.clone().map(|e| (index, e));
         conversation.pending_recipe = plan.continuation.as_ref().map(|_| plan.clone());
-        Ok(Some(response(request, message, "tool_calls", audit.count)?))
+        Ok(Outcome::Reply(response(
+            request,
+            message,
+            "tool_calls",
+            audit.count,
+        )?))
     }
 }
 

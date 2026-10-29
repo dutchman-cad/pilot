@@ -1002,11 +1002,17 @@ impl Proxy {
         {
             recipe = planner::inspect_for_edit(&body, &self.catalog)?;
         }
+        let mut form_allowed = form_allowed;
         if self.cfg.direct_recipes || shortcut_active {
-            if let Some(reply) =
-                self.direct_turn(&original, &recipe, user_index, conversation, audit)?
-            {
-                return Ok(reply);
+            match self.direct_turn(&original, &recipe, user_index, conversation, audit)? {
+                direct::Outcome::Reply(reply) => return Ok(reply),
+                direct::Outcome::Form => {
+                    // Retain the inspection messages for the same context reader used
+                    // by form_inspect, while restoring this turn's form eligibility.
+                    form_allowed = true;
+                    recipe = None;
+                }
+                direct::Outcome::Continue => {}
             }
         }
         if conversation.direct_failed {
@@ -1660,7 +1666,7 @@ impl Proxy {
                         )?;
                         audit.record("shortcut", &args, &json!({"args":args,"rule":plan.rule}))?;
                         conversation.shortcut_args = Some((user_index, args));
-                        if let Some(reply) = self.direct_turn(
+                        if let direct::Outcome::Reply(reply) = self.direct_turn(
                             &original,
                             &Some(*plan),
                             user_index,
@@ -1753,7 +1759,7 @@ impl Proxy {
                     Ok((args, plan)) => {
                         audit.record("shortcut", &args, &json!({"args":args,"rule":plan.rule}))?;
                         conversation.shortcut_args = Some((user_index, args));
-                        if let Some(reply) = self.direct_turn(
+                        if let direct::Outcome::Reply(reply) = self.direct_turn(
                             &original,
                             &Some(plan),
                             user_index,
