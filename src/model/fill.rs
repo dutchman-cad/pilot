@@ -179,6 +179,14 @@ fn requested_fields(schema: &mut Value, recipe: &Value, request: &str) -> Result
     let words = text
         .split(|c: char| !c.is_ascii_alphanumeric())
         .filter(|word| !word.is_empty());
+    // A circle radius, not a corner radius: "radius" within three words of a circle.
+    let list: Vec<_> = words.clone().collect();
+    let circle_radius = list.iter().enumerate().any(|(i, w)| {
+        matches!(*w, "radius" | "radii")
+            && list[i.saturating_sub(3)..(i + 4).min(list.len())]
+                .iter()
+                .any(|n| matches!(*n, "circle" | "bolt" | "pcd" | "pitch"))
+    });
     let named_corner = words.clone().zip(words.skip(1)).any(|(count, corner)| {
         matches!(count, "one" | "two" | "1" | "2" | "single")
             && matches!(corner, "corner" | "corners")
@@ -217,7 +225,7 @@ fn requested_fields(schema: &mut Value, recipe: &Value, request: &str) -> Result
             let placed = side || has(&["edge", "edges", "offset", "offsets"]);
             gate("row_offset_x", placed);
             gate("row_offset_y", placed);
-            gate("bolt_circle_radius", has(&["radius", "radii"]));
+            gate("bolt_circle_radius", circle_radius);
         }
         Some("chamfer" | "fillet") => {
             gate("corner_sides", side);
@@ -487,7 +495,7 @@ mod tests {
             (
                 "plate",
                 "bolt_circle_radius",
-                "Make a plate with six holes on a 60 mm bolt circle",
+                "Make a plate with six holes on a 60 mm bolt circle and 5 mm corner radius",
                 "Make a plate with six holes on a 30 mm radius circle",
             ),
             (
