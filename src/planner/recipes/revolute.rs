@@ -584,6 +584,34 @@ pub(super) fn validate_angle(value: f64) -> Result<(), String> {
     }
     Ok(())
 }
+// Prefer exact spelling, then a unique case-insensitive whole name. Component
+// and occurrence names both identify the same measured contact occurrence.
+fn component_matches<'a>(os: &[(&'a Value, &'a Value)], name: &str) -> Vec<(&'a Value, &'a Value)> {
+    let matching = |exact: bool| {
+        os.iter()
+            .copied()
+            .filter(|(c, o)| {
+                [o["name"].as_str(), c["name"].as_str()]
+                    .into_iter()
+                    .flatten()
+                    .any(|n| {
+                        if exact {
+                            n == name
+                        } else {
+                            n.eq_ignore_ascii_case(name)
+                        }
+                    })
+            })
+            .collect::<Vec<_>>()
+    };
+    let exact = matching(true);
+    if exact.is_empty() {
+        matching(false)
+    } else {
+        exact
+    }
+}
+
 fn select_inner(
     request: &Value,
     text: &str,
@@ -740,15 +768,7 @@ fn select_inner(
                 .zip([base, arm])
         {
             if let Some(name) = name {
-                let matches = os
-                    .iter()
-                    .filter(|(c, o)| {
-                        [o["name"].as_str(), c["name"].as_str()]
-                            .into_iter()
-                            .flatten()
-                            .any(|n| n.eq_ignore_ascii_case(name))
-                    })
-                    .collect::<Vec<_>>();
+                let matches = component_matches(&os, name);
                 if matches.len() != 1 || matches[0].1["id"] != occurrence["id"] {
                     return Err(format!(
                         "{field} {name:?} matched {} components but requires exactly 1 measured contact component; inspect and use its exact name", matches.len()
@@ -938,5 +958,25 @@ impl JointExpected {
             )
         };
         (valid()!=Some(true)).then(|| "Revolute joint verification failed: inspect component.list and joint.list; the base must stay fixed, the arm upright, and both contact-circle pivots coincident at the requested angle. Do not repeat accepted changes.".into())
+    }
+}
+
+#[cfg(test)]
+mod component_name_tests {
+    use super::*;
+    #[test]
+    fn whole_names_win_and_ambiguity_stays_rejected() {
+        let base = json!({"name":"Base","id":1});
+        let lower = json!({"name":"base","id":2});
+        let extended = json!({"name":"Base support","id":3});
+        let os = [(&base, &base), (&extended, &extended)];
+        assert_eq!(component_matches(&os, "Base"), vec![(&base, &base)]);
+        assert_eq!(component_matches(&os, "BASE"), vec![(&base, &base)]);
+        assert!(component_matches(&os, "Bas").is_empty());
+        let os = [(&base, &base), (&lower, &lower)];
+        assert_eq!(component_matches(&os, "Base"), vec![(&base, &base)]);
+        assert_eq!(component_matches(&os, "BASE").len(), 2);
+        let os = [(&base, &base), (&base, &extended)];
+        assert_eq!(component_matches(&os, "Base").len(), 2);
     }
 }
