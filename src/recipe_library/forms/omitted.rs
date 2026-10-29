@@ -88,6 +88,9 @@ pub(super) fn recover(
     }
     let words = tokens(&text.to_ascii_lowercase());
     let mut changes = Vec::new();
+    if schema["x-pilot-expander"] == "profile" {
+        profile(args, &words, &mut changes)?;
+    }
     if schema["x-pilot-expander"] == "profile" && args.get("depth").is_none() {
         let mut unused = Vec::new();
         for i in 0..words.len() {
@@ -127,6 +130,87 @@ pub(super) fn recover(
         plate(args, &words, &mut changes)?;
     }
     Ok(changes)
+}
+
+fn profile(args: &mut Value, words: &[String], changes: &mut Vec<Value>) -> Result<(), String> {
+    if args.get("plane").is_none() {
+        let mut planes = Vec::new();
+        for (i, word) in words.iter().enumerate() {
+            let plane = match word.as_str() {
+                "xy" => Some("XY"),
+                "xz" => Some("XZ"),
+                "yz" => Some("YZ"),
+                "top" if words.get(i + 1).is_some_and(|s| s == "plane") => Some("XY"),
+                "front" if words.get(i + 1).is_some_and(|s| s == "plane") => Some("XZ"),
+                "right" if words.get(i + 1).is_some_and(|s| s == "plane") => Some("YZ"),
+                _ => None,
+            };
+            if let Some(plane) = plane {
+                if !planes.contains(&plane) {
+                    planes.push(plane);
+                }
+            }
+        }
+        if planes.len() > 1
+            || (!planes.is_empty()
+                && words
+                    .iter()
+                    .any(|s| matches!(s.as_str(), "not" | "without" | "or" | "either")))
+        {
+            return Err("plane requires one unambiguous XY, XZ or YZ sketch plane".into());
+        }
+        if let Some(plane) = planes.first() {
+            args["plane"] = json!(plane);
+            changes.push(json!({"field":"plane","before":null,"after":plane,"defaulted":true,"rule":"explicit sketch plane in request"}));
+        }
+    }
+    if args["kind"] != "T" || args.get("stem_offset").is_some() {
+        return Ok(());
+    }
+    let offsets: Vec<_> = words
+        .iter()
+        .enumerate()
+        .filter(|(_, s)| *s == "offset")
+        .collect();
+    let Some((i, _)) = offsets.first() else {
+        return Ok(());
+    };
+    let error = || "stem_offset requires one length measured from the left or centre".to_string();
+    if offsets.len() != 1
+        || words
+            .iter()
+            .any(|s| matches!(s.as_str(), "not" | "without" | "or" | "either"))
+    {
+        return Err(error());
+    }
+    let (value, end) = length(words, i + 1).ok_or_else(error)?;
+    let mut tail = &words[end..];
+    tail = tail.strip_prefix(&["from".into()]).ok_or_else(error)?;
+    if tail.first().is_some_and(|s| s == "the") {
+        tail = &tail[1..];
+    }
+    let offset = match tail.first().map(String::as_str) {
+        Some("left") => value,
+        Some("centre" | "center") => {
+            args["width"]
+                .as_f64()
+                .ok_or("stem_offset from centre requires width in mm")?
+                / 2.
+                + value
+        }
+        _ => return Err(error()),
+    };
+    if !offset.is_finite() || !(0. ..=1_000_000.).contains(&offset) {
+        return Err("stem_offset from left must be between 0 and 1000000 mm".into());
+    }
+    default(
+        args,
+        changes,
+        "stem_offset",
+        offset,
+        "explicit stem centre offset; converted to distance from left",
+    );
+    Ok(())
 }
 
 fn plate(args: &mut Value, words: &[String], changes: &mut Vec<Value>) -> Result<(), String> {

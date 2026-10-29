@@ -158,7 +158,7 @@ pub(crate) fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<
                     _ => return Err(format!("thickness {} web_thickness {} flange_thickness {} require 1 uniform or 2 separate leg sizes; supply thickness alone or both web_thickness and flange_thickness", args["thickness"], args["web_thickness"], args["flange_thickness"])),
                 }
             };
-            let slots = closed_profile::Profile {
+            let mut profile = closed_profile::Profile {
                 shape: shape.into(),
                 plane,
                 width,
@@ -170,8 +170,26 @@ pub(crate) fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<
                 centred,
                 flipped: false,
                 distance: depth,
+            };
+            let text = request["messages"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .rev()
+                .find(|m| m["role"] == "user")
+                .and_then(|m| m["content"].as_str())
+                .unwrap_or("");
+            if text.len() > 65_536 {
+                return Err("profile request exceeds 65536 bytes".into());
             }
-            .into_slots()?;
+            if let Some((orientation, flipped)) = closed_profile::opening(&slots::tokens(text))? {
+                if !matches!(profile.shape.as_str(), "U" | "C") {
+                    return Err("opening requires kind U or C".into());
+                }
+                profile.shape = orientation.into();
+                profile.flipped = flipped;
+            }
+            let slots = profile.into_slots()?;
             ("closed_profile", slots)
         }
         Build::Enclosure {
