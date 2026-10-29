@@ -46,14 +46,23 @@ pub fn chatty_cases() -> Vec<(&'static str, &'static str, String)> {
     // Deliberately conversational preamble: exercise coverage dilution without
     // changing the CAD instruction, geometry or supported operation.
     let preamble = "Good morning! Yesterday my workshop session ended early because the weather turned miserable. Today feels calmer, so I finally sat down again after breakfast. The coffee went cold while I tidied the desk, found my notebook beneath several receipts, checked the calendar, and settled into a comfortable chair. My neighbour mentioned their weekend hiking trip and sent lovely photographs yesterday evening. Meanwhile the radio played quietly beside the window. Anyway, those distractions are finished, everything feels peaceful, and I am ready to continue the small project we started earlier. I appreciate your patience while I gather my thoughts; writing everything down helps me concentrate. Here is the actual change I would like: ";
-    cases().into_iter().enumerate().filter(|(i, _)| i % 3 == 0).map(|(_, (kind, id, text))| (kind, id, format!("{preamble}{text}"))).collect()
+    cases()
+        .into_iter()
+        .enumerate()
+        .filter(|(i, _)| i % 3 == 0)
+        .map(|(_, (kind, id, text))| (kind, id, format!("{preamble}{text}")))
+        .collect()
 }
 
 // Public-command setup and corresponding inspection payloads for the offline replay.
 pub fn setup(kind: &str) -> Value {
     let hole = kind == "hole";
     let volume = 72_000.0 + std::f64::consts::PI * 4.0 * if hole { -5.0 } else { 3.0 };
-    let feature = if hole { "HoleFeature" } else { "CylinderFeature" };
+    let feature = if hole {
+        "HoleFeature"
+    } else {
+        "CylinderFeature"
+    };
     let name = if hole { "Hole1" } else { "Cylinder1" };
     let command = if hole {
         json!({"command":"solid.hole","params":{"position":[20,0,5],"diameter":4}})
