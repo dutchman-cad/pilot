@@ -88,6 +88,11 @@ Request side:
   centred/centered/centre/center name the same placement field; centred plates centre
   in the sketch plane and extend from that plane through their thickness. open:true
   means the default top opening; explicit top/bottom choices remain available.
+  For omitted enclosure opening choices, an explicit opening or a cover/lid's bottom
+  opening is inferred and audited. Enclosure sizes are outside box dimensions including
+  the floor and excluding the raised lip, unless inside:true. An outer lip is flush with
+  the outer wall face. A plate's explicit front-plane request supplies an omitted XZ
+  plane; front face/edge alone does not. Supplied choices always win.
   Existing-part edit verbs may replace creation forms with edit forms after inspection
   confirms a body; pattern and joint forms retain their routing, and creation requests
   retain creation forms. Matching

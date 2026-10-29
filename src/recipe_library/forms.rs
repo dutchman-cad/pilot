@@ -154,6 +154,9 @@ pub fn compact(s: &Value) -> Value {
         let description = match key {
             "edges" => "vertical: four corners through thickness; all: rims too",
             "side" => "inner: flush with inner wall face; outer: outer face",
+            "centred" if root["x-pilot-expander"] == "enclosure" => {
+                "Box centred in XYZ; else corner origin"
+            }
             "centred" => "centred/centered/on the origin",
             "kind" if out["enum"][0] == "fillet" => "round/bevel",
             "kind" => "Section outline",
@@ -163,31 +166,37 @@ pub fn compact(s: &Value) -> Value {
             "web_thickness" => "Vertical wall thickness, not leg length; U bottom",
             "flange_thickness" => "Horizontal wall thickness, not leg length; U sides",
             "stem_offset" => "T centre from left; omit: centred",
-            "length" if root["x-pilot-expander"] == "plate" => "Base X; or use diameter",
-            "width" if root["x-pilot-expander"] == "plate" => "Base Y; omit if round",
-            "diameter" if root["x-pilot-expander"] == "plate" => "Round; or length+width",
-            "boss_diameter" => "Joined; needs height",
-            "boss_height" => "Rise above top",
-            "boss_offset_x" | "boss_offset_y" => "Single; from plate centre",
-            "row_count" => "Total in row",
-            "row_pitch" => "Centre pitch",
+            "length" if root["x-pilot-expander"] == "plate" => {
+                "Rectangle X; length+width OR diameter"
+            }
+            "width" if root["x-pilot-expander"] == "plate" => "Rectangle Y; omit with diameter",
+            "length" if root["x-pilot-expander"] == "enclosure" => "Box X",
+            "width" if root["x-pilot-expander"] == "enclosure" => "Box Y",
+            "diameter" if root["x-pilot-expander"] == "plate" => "Round base; omit length/width",
+            "boss_diameter" => "Joined peg/boss; needs boss_height",
+            "boss_height" => "Rise above plate top",
+            "boss_offset_x" | "boss_offset_y" => "From plate centre; single boss only; omit: 0",
+            "row_count" => "Total features in centred row",
+            "row_pitch" => "Centre spacing",
             "row_offset_x" | "row_offset_y" => "Row centre - plate centre",
             "row_axis" => "Sketch axis; omit: X",
-            "grid_columns" => "X; A x B: A on longer side",
-            "grid_rows" => "Y; 7x5 on 120x80: rows=5",
-            "grid_pitch_x" | "grid_pitch_y" => "Pitch; one value: both",
-            "bolt_hole_count" => "Total holes/bosses",
-            "bolt_circle_diameter" => "Circle diameter = 2*radius",
+            "grid_columns" => "Sketch X; A x B: A along longer side",
+            "grid_rows" => "Sketch Y; explicit rows/columns win",
+            "grid_pitch_x" | "grid_pitch_y" => "Centre spacing; single pitch: use for both",
+            "bolt_hole_count" => "Circle feature count (holes OR bosses)",
+            "bolt_circle_diameter" => "Feature-centre circle diameter",
             "bolt_circle_radius" => "Circle radius",
             "hole_diameter" => "Pattern holes",
             "size" if root["x-pilot-expander"] == "honeycomb_pattern" => "Hex span",
             "size" => "Radius/bevel",
             "bore_diameter" => "Centre bore",
-            "floor" => "Omit: wall",
+            "floor" => "Base/roof thickness; omit: wall",
             "inside" => "True: clear inside dimensions; outside adds 2 walls and one floor",
             "lip" => "Request ring; omit sizes: height=wall, width=wall/2",
             "corner_sides" => "right=+X; top=+Y",
             "target" => "body: solid; last_feature: latest feature",
+            "lip_side" => "Flush with inner/outer wall face",
+            "lip_height" => "Rise beyond opening",
             "open" => "Removed face",
             "axis" if root["x-pilot-expander"] == "joint" => {
                 "Aligned world axis; omit: Z; named origins keep their frames"
@@ -253,6 +262,10 @@ pub fn compact(s: &Value) -> Value {
         Some("cross_drilled_box" | "plate")
     ) {
         out["description"] = s["description"].clone();
+    }
+    if s["x-pilot-expander"] == "enclosure" {
+        out["description"] =
+            json!("Outside box incl floor, excl lip; inside:true: cavity; cover/lid opens bottom.");
     }
     out
 }
@@ -503,16 +516,17 @@ pub(crate) fn aliases(args: &mut Value, schema: &Value) -> Result<Vec<Value>, St
     Ok(changes)
 }
 
-/// Only one explicit rotation in the latest request fills an omitted joint angle.
+/// Infer bounded, non-dimensional choices from the latest request, never override slots.
 pub fn request_defaults(
     args: &mut Value,
     schema: &Value,
     request: &Value,
 ) -> Result<Vec<Value>, String> {
     crate::repair::check_value(args)?;
-    if schema["x-pilot-expander"] != "revolute_joint"
-        || args.get("angle_deg").is_some()
+    let id = schema["x-pilot-expander"].as_str().unwrap_or("");
+    if !matches!(id, "revolute_joint" | "enclosure" | "plate")
         || args["decline"] == true
+        || (id == "revolute_joint" && args.get("angle_deg").is_some())
     {
         return Ok(Vec::new());
     }
@@ -525,7 +539,14 @@ pub fn request_defaults(
         .and_then(|m| m["content"].as_str())
         .unwrap_or("");
     if text.len() > 65_536 {
-        return Err("joint angle request exceeds 65536 bytes".into());
+        return Err(format!(
+            "{} request exceeds 65536 bytes",
+            if id == "revolute_joint" {
+                "joint angle"
+            } else {
+                "form default"
+            }
+        ));
     }
     let text = text.to_ascii_lowercase().replace('°', " degrees ");
     let words: Vec<_> = text
@@ -533,6 +554,64 @@ pub fn request_defaults(
         .map(|s| s.trim_end_matches('.'))
         .filter(|s| !s.is_empty())
         .collect();
+    if id != "revolute_joint" {
+        // Hyphens are separators for open-top and front-plane, not axis signs.
+        let words: Vec<_> = text
+            .split(|c: char| !c.is_ascii_alphanumeric())
+            .filter(|s| !s.is_empty())
+            .collect();
+        let has_pair = |a, b| words.windows(2).any(|w| w == [a, b]);
+        let choice = if id == "enclosure" && args.get("open").is_none() {
+            let top =
+                has_pair("open", "top") || has_pair("top", "open") || has_pair("top", "opening");
+            let bottom = has_pair("open", "bottom")
+                || has_pair("open", "underside")
+                || has_pair("bottom", "open")
+                || has_pair("underside", "open")
+                || has_pair("bottom", "opening");
+            // A lip "for a lid" does not turn an enclosure into a cover.
+            let cover = words
+                .iter()
+                .position(|w| {
+                    matches!(
+                        *w,
+                        "cover"
+                            | "lid"
+                            | "enclosure"
+                            | "housing"
+                            | "box"
+                            | "case"
+                            | "container"
+                            | "tray"
+                    )
+                })
+                .is_some_and(|n| {
+                    matches!(words[n], "cover" | "lid")
+                        && !words[..n]
+                            .iter()
+                            .any(|w| matches!(*w, "no" | "not" | "without"))
+                });
+            match (top, bottom) {
+                (true, false) => Some(("open", "top", "explicit opening in request")),
+                (false, true) => Some(("open", "bottom", "explicit opening in request")),
+                (false, false) if cover => Some(("open", "bottom", "cover/lid opens underneath")),
+                _ => None,
+            }
+        } else if id == "plate" && args.get("plane").is_none() && has_pair("front", "plane") {
+            Some(("plane", "XZ", "front plane is XZ"))
+        } else {
+            None
+        };
+        if let Some((field, value, rule)) = choice {
+            args.as_object_mut()
+                .ok_or("args requires one object")?
+                .insert(field.into(), json!(value));
+            return Ok(vec![
+                json!({"field":field,"before":null,"after":value,"defaulted":true,"rule":rule}),
+            ]);
+        }
+        return Ok(Vec::new());
+    }
     let mut angles = Vec::new();
     for pair in words.windows(2) {
         if matches!(pair[1], "deg" | "degree" | "degrees") {
@@ -719,6 +798,9 @@ pub fn coerce(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> {
                     "round" | "rounded" => "fillet",
                     "bevel" | "beveled" => "chamfer",
                     "corners" | "side" | "sides" => "vertical",
+                    "front" if key == "plane" => "XZ",
+                    "top" if key == "plane" => "XY",
+                    "right" if key == "plane" => "YZ",
                     "inside" => "inner",
                     "outside" => "outer",
                     _ if choices.iter().any(|c| c == "U") => section_kind(lower).unwrap_or(lower),
