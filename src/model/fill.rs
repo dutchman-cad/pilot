@@ -208,7 +208,13 @@ fn requested_fields(schema: &mut Value, recipe: &Value, request: &str) -> Result
         }
     };
     match recipe["id"].as_str() {
-        Some("plate") => gate("corner_sides", side),
+        Some("plate") => {
+            gate("corner_sides", side);
+            let placed = side || has(&["edge", "edges", "offset", "offsets"]);
+            gate("row_offset_x", placed);
+            gate("row_offset_y", placed);
+            gate("bolt_circle_radius", has(&["radius", "radii"]));
+        }
         Some("chamfer" | "fillet") => {
             gate("corner_sides", side);
             gate(
@@ -463,6 +469,24 @@ mod tests {
                 "Make a plate rounded on the right side",
             ),
             (
+                "plate",
+                "row_offset_x",
+                "Make a plate with a row of five holes 15 mm apart",
+                "Make a plate with a row of five studs along the front edge",
+            ),
+            (
+                "plate",
+                "row_offset_y",
+                "Make a plate with a row of five holes 15 mm apart",
+                "Make a plate with a row of holes offset 10 mm",
+            ),
+            (
+                "plate",
+                "bolt_circle_radius",
+                "Make a plate with six holes on a 60 mm bolt circle",
+                "Make a plate with six holes on a 30 mm radius circle",
+            ),
+            (
                 "chamfer",
                 "corner_sides",
                 "Bevel all edges",
@@ -519,7 +543,12 @@ mod tests {
                     "{id}.{field}: {text}"
                 );
                 let new_fields: &[&str] = match id {
-                    "plate" => &["corner_sides"],
+                    "plate" => &[
+                        "corner_sides",
+                        "row_offset_x",
+                        "row_offset_y",
+                        "bolt_circle_radius",
+                    ],
                     "chamfer" | "fillet" => &["corner_sides", "edges"],
                     "enclosure" => &["inside", "lip"],
                     "shell" => &["open"],
