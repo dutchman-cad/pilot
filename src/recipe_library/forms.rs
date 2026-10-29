@@ -689,17 +689,10 @@ fn lip_defaults(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> 
 /// Coerce supplied values and audit the documented wall-derived lip defaults.
 pub fn coerce(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> {
     crate::repair::check_value(args)?;
-    let pattern_changes = if crate::planner::patterns::is_pattern(
-        schema["x-pilot-expander"].as_str().unwrap_or(""),
-    ) {
-        crate::planner::patterns::coerce(args)?
-    } else {
-        Vec::new()
-    };
     let fields = schema["properties"]
         .as_object()
         .ok_or("fill schema needs properties")?;
-    let mut changes = pattern_changes;
+    let mut changes = Vec::new();
     changes.extend(aliases(args, schema)?);
     if schema["x-pilot-expander"] == "joint" {
         changes.extend(crate::planner::joints::coerce(args)?);
@@ -713,6 +706,11 @@ pub fn coerce(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> {
         }) else {
             continue;
         };
+        let field = field["$ref"]
+            .as_str()
+            .and_then(|reference| reference.strip_prefix('#'))
+            .and_then(|pointer| schema.pointer(pointer))
+            .unwrap_or(field);
         let before = value.clone();
         if key == "corner_edges" && *value == true {
             *value = json!("vertical");
@@ -789,6 +787,40 @@ pub fn coerce(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> {
                     }
                 }
             } else if let Some(choices) = field["enum"].as_array() {
+                // Exact choices stay intact, even if another choice is their prefix.
+                if choices.iter().any(|choice| choice == value) {
+                    if *value != before {
+                        changes.push(json!({"field":key,"before":before,"after":value}));
+                    }
+                    continue;
+                }
+                let candidates: Vec<_> = choices
+                    .iter()
+                    .filter(|choice| {
+                        choice.as_str().is_some_and(|choice| {
+                            !choice.is_empty()
+                                && (text.eq_ignore_ascii_case(choice)
+                                    || text.get(..choice.len()).is_some_and(|prefix| {
+                                        prefix.eq_ignore_ascii_case(choice)
+                                            && text[choice.len()..]
+                                                .chars()
+                                                .next()
+                                                .is_some_and(|c| !c.is_alphanumeric())
+                                    }))
+                        })
+                    })
+                    .collect();
+                if candidates.len() == 1 {
+                    *value = candidates[0].clone();
+                    changes.push(json!({"field":key,"before":before,"after":value}));
+                    continue;
+                }
+                if candidates.len() > 1 {
+                    if *value != before {
+                        changes.push(json!({"field":key,"before":before,"after":value}));
+                    }
+                    continue;
+                }
                 let lower = text.to_ascii_lowercase();
                 let lower = lower
                     .strip_suffix(" plane")
@@ -817,6 +849,9 @@ pub fn coerce(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> {
         if *value != before {
             changes.push(json!({"field":key,"before":before,"after":value}));
         }
+    }
+    if crate::planner::patterns::is_pattern(schema["x-pilot-expander"].as_str().unwrap_or("")) {
+        changes.extend(crate::planner::patterns::coerce(args)?);
     }
     // Older fills put corner names in corner_edges. Move the explicit subset.
     if matches!(
@@ -1286,4 +1321,65 @@ pub fn to_slots(args: &Value, schema: &Value) -> Result<Value, String> {
         }
     }
     Ok(out)
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod choice_tests {
+    use super::*;
+
+    #[test]
+    fn unique_choice_prefixes_and_trimmed_case_are_audited() {
+        let schema = json!({"properties":{"plane":{"type":"string","enum":["XY","XZ","YZ"]}}});
+        for input in [
+            "XY:+Z",
+            "XY plane",
+            "XY(normal)",
+            "XY-plane",
+            "XY, +Z",
+            " xy ",
+        ] {
+            let mut args = json!({"plane":input});
+            assert_eq!(
+                coerce(&mut args, &schema).unwrap(),
+                vec![json!({"field":"plane","before":input,"after":"XY"})]
+            );
+            assert_eq!(args["plane"], "XY");
+        }
+        for input in ["XYZ", "XY1", "YX", "prefix XY", "XYé"] {
+            let mut args = json!({"plane":input});
+            assert!(coerce(&mut args, &schema).unwrap().is_empty());
+            assert_eq!(args["plane"], input);
+            assert!(crate::recipe_library::validate_structure(&args, &schema).is_err());
+        }
+        let mut args = json!({"plane":"XY"});
+        assert!(coerce(&mut args, &schema).unwrap().is_empty());
+    }
+
+    #[test]
+    fn ambiguous_choices_stay_invalid_and_exact_choices_survive() {
+        for choices in [json!(["A", "A-B"]), json!(["XY", "xy"])] {
+            let schema = json!({"properties":{"choice":{"type":"string","enum":choices}}});
+            let input = if choices[0] == "A" {
+                "A-B: detail"
+            } else {
+                "xY"
+            };
+            let mut args = json!({"choice":input});
+            assert!(coerce(&mut args, &schema).unwrap().is_empty());
+            assert_eq!(args["choice"], input);
+            assert!(crate::recipe_library::validate_structure(&args, &schema).is_err());
+            let mut exact = json!({"choice":choices[1]});
+            assert!(coerce(&mut exact, &schema).unwrap().is_empty());
+        }
+    }
+
+    #[test]
+    fn referenced_pattern_choices_are_coerced_before_validation() {
+        let schema = crate::planner::patterns::schema("grid_pattern").unwrap();
+        let mut args = json!({"target":"body: whole solid","plane":"XY:+Z","rows":2,"columns":2,"spacing1":20,"spacing2":20});
+        let changes = coerce(&mut args, &schema).unwrap();
+        assert_eq!(changes.len(), 2);
+        crate::recipe_library::validate_structure(&args, &schema).unwrap();
+    }
 }
