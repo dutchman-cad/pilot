@@ -810,16 +810,33 @@ fn select_inner(
         .find(|(_, o)| o["id"] == arm["id"])
         .and_then(|(c, _)| c["name"].as_str());
     let lower = user_text.to_ascii_lowercase();
-    // These exact negative constraints are explicit; other negation or
-    // alternatives cannot establish a conflict with a typed fill.
-    let conflict_text = lower
-        .replace("must not move", "must stay fixed")
-        .replace("should not move", "should stay fixed");
-    let lower = if typed.is_some() && crate::recipe_library::forms::unclear_request(&conflict_text)
-    {
-        String::new()
-    } else {
-        lower
+    // A role phrase counts unless a negation or alternative sits right next to it
+    // ("do not rotate the base", "rotate the base or the arm"); one elsewhere in
+    // the request leaves a clear "rotate the lever" in force.
+    let stated = |phrase: &str| {
+        lower.match_indices(phrase).any(|(at, _)| {
+            let end = at + phrase.len();
+            let before = lower[..at].split_whitespace().rev().take(2);
+            let after = lower[end..]
+                .split(|c: char| !c.is_ascii_alphanumeric())
+                .filter(|w| !w.is_empty())
+                .take(2);
+            typed.is_none()
+                || !before.chain(after).any(|w| {
+                    matches!(
+                        w.trim_matches(|c: char| !c.is_ascii_alphanumeric()),
+                        "not"
+                            | "no"
+                            | "never"
+                            | "or"
+                            | "either"
+                            | "neither"
+                            | "instead"
+                            | "don't"
+                            | "dont"
+                    )
+                })
+        })
     };
     for name in [Some(base_name), base_component].into_iter().flatten() {
         for verb in ["swing", "rotate", "rotated", "turn", "turned", "drive"] {
@@ -828,7 +845,7 @@ fn select_inner(
                 format!("{verb} the {}", name.to_ascii_lowercase()),
             ]
             .iter()
-            .any(|s| lower.contains(s))
+            .any(|s| stated(s))
             {
                 return Ok(None);
             }
@@ -845,7 +862,7 @@ fn select_inner(
             format!("ground {name}"),
         ]
         .iter()
-        .any(|s| lower.contains(s))
+        .any(|s| stated(s))
         {
             return Ok(None);
         }
