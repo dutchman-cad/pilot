@@ -810,6 +810,17 @@ fn select_inner(
         .find(|(_, o)| o["id"] == arm["id"])
         .and_then(|(c, _)| c["name"].as_str());
     let lower = user_text.to_ascii_lowercase();
+    // These exact negative constraints are explicit; other negation or
+    // alternatives cannot establish a conflict with a typed fill.
+    let conflict_text = lower
+        .replace("must not move", "must stay fixed")
+        .replace("should not move", "should stay fixed");
+    let lower = if typed.is_some() && crate::recipe_library::forms::unclear_request(&conflict_text)
+    {
+        String::new()
+    } else {
+        lower
+    };
     for name in [Some(base_name), base_component].into_iter().flatten() {
         for verb in ["swing", "rotate", "rotated", "turn", "turned", "drive"] {
             if [
