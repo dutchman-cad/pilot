@@ -601,6 +601,9 @@ pub fn request_defaults(
         } else {
             None
         };
+        if id == "plate" {
+            recovered.extend(grid_rows(args, &text)?);
+        }
         if let Some((field, value, rule)) = choice {
             args.as_object_mut()
                 .ok_or("args requires one object")?
@@ -832,12 +835,12 @@ pub fn coerce(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> {
                     .or_else(|| lower.strip_suffix("-plane"))
                     .unwrap_or(&lower);
                 let synonym = match lower {
-                    "round" | "rounded" => "fillet",
+                    "round" | "rounded" | "radius" => "fillet",
                     "bevel" | "beveled" => "chamfer",
                     "corners" | "side" | "sides" => "vertical",
                     "front" if key == "plane" => "XZ",
                     "top" if key == "plane" => "XY",
-                    "right" if key == "plane" => "YZ",
+                    "right" | "r" if key == "plane" => "YZ",
                     "inside" => "inner",
                     "outside" => "outer",
                     _ if choices.iter().any(|c| c == "U") => section_kind(lower).unwrap_or(lower),
@@ -927,10 +930,84 @@ pub fn coerce(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> {
             }
         }
     }
+    changes.extend(drop_unused_stem(args, schema)?);
     changes.extend(lip_defaults(args, schema)?);
     changes.extend(defaults(args, schema)?);
     changes.extend(legacy_hole_coordinates(args, schema)?);
     Ok(changes)
+}
+
+/// A stem offset has no geometric meaning for a known non-T section.
+fn drop_unused_stem(args: &mut Value, schema: &Value) -> Result<Vec<Value>, String> {
+    if schema["x-pilot-expander"] == "profile"
+        && matches!(args["kind"].as_str(), Some("L" | "U" | "C" | "rectangle"))
+    {
+        if let Some(before) = args
+            .as_object_mut()
+            .ok_or("args requires one object")?
+            .remove("stem_offset")
+        {
+            return Ok(vec![
+                json!({"field":"stem_offset","before":before,"after":null,"rule":"stem_offset is unused for non-T profiles"}),
+            ]);
+        }
+    }
+    Ok(Vec::new())
+}
+
+/// Infer counts only from a single count pair explicitly attached to a hole grid.
+fn grid_rows(args: &mut Value, text: &str) -> Result<Vec<Value>, String> {
+    if args.get("grid_rows").is_some() || args.get("grid").is_some() {
+        return Ok(Vec::new());
+    }
+    let columns = args["grid_columns"]
+        .as_u64()
+        .or_else(|| args["grid_columns"].as_str()?.parse().ok());
+    let text = text.replace(['×', 'x'], " x ");
+    let words: Vec<_> = text
+        .split(|c: char| !c.is_ascii_alphanumeric() && !matches!(c, '.' | '-' | '+'))
+        .filter(|s| !s.is_empty())
+        .collect();
+    if words
+        .iter()
+        .any(|w| matches!(*w, "no" | "not" | "without" | "or" | "rows" | "columns"))
+    {
+        return Ok(Vec::new());
+    }
+    let pairs: Vec<_> = words
+        .windows(3)
+        .enumerate()
+        .filter(|(_, w)| {
+            let numeric =
+                |s: &str| s.starts_with(|c: char| c.is_ascii_digit() || matches!(c, '+' | '-'));
+            matches!(w[1], "x" | "by") && numeric(w[0]) && numeric(w[2])
+        })
+        .collect();
+    if let [(i, pair)] = pairs.as_slice() {
+        let (Ok(a), Ok(b)) = (
+            pair[0].parse::<u64>(),
+            pair[2].trim_end_matches('.').parse::<u64>(),
+        ) else {
+            return Ok(Vec::new());
+        };
+        let context = &words[i.saturating_sub(2)..(i + 5).min(words.len())];
+        let units = ["mm", "cm", "in", "inch", "inches"];
+        if Some(a) == columns
+            && (1..=64).contains(&b)
+            && context
+                .iter()
+                .any(|w| matches!(*w, "grid" | "array" | "holes"))
+            && !context.iter().any(|w| units.contains(w))
+        {
+            args.as_object_mut()
+                .ok_or("args requires one object")?
+                .insert("grid_rows".into(), json!(b));
+            return Ok(vec![
+                json!({"field":"grid_rows","before":null,"after":b,"rule":"single explicit hole grid count pair with matching grid_columns"}),
+            ]);
+        }
+    }
+    Ok(Vec::new())
 }
 
 /// Read a profile section name such as "T-section", "U_CHANNEL" or "equal angle".
@@ -955,7 +1032,7 @@ fn section_kind(text: &str) -> Option<&'static str> {
     } else if has("tee") {
         Some("T")
     } else if has("channel") {
-        Some("U")
+        Some("C")
     } else if words
         .iter()
         .any(|w| matches!(*w, "rect" | "rectangular" | "rectangle" | "bar" | "flat"))
@@ -1109,6 +1186,7 @@ pub fn to_slots(args: &Value, schema: &Value) -> Result<Value, String> {
     crate::repair::check_value(args)?;
     let mut args = args.clone();
     aliases(&mut args, schema)?;
+    drop_unused_stem(&mut args, schema)?;
     let Some(fill) = schema.get("x-pilot-fill") else {
         return Ok(args);
     };

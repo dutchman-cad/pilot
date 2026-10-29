@@ -1654,7 +1654,7 @@ fn profile_fills_accept_kind_and_plane_wording_and_specific_thickness() {
     for (kind, expected) in [
         ("equal angle", "L"),
         ("Angle", "L"),
-        ("channel", "U"),
+        ("channel", "C"),
         ("T-bar", "T"),
         ("C channel", "C"),
         ("rectangular", "rectangle"),
@@ -2112,4 +2112,199 @@ fn profile_centring_cannot_be_discarded_by_the_l_builder() {
     let lib = Library::embedded().unwrap();
     let error = lib.build(&json!({"recipe":"profile","args":{"kind":"L","width":30,"height":20,"thickness":3,"depth":10,"centred":true}}), &json!({"messages":[]}), &Catalog::bundled().unwrap()).unwrap_err();
     assert!(error.contains("centred L profiles"), "{error}");
+}
+
+#[test]
+fn unused_profile_offsets_and_aliases_preserve_geometry() {
+    let lib = Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    let schema = forms::flat(
+        &lib.recipes
+            .iter()
+            .find(|r| r.id == "profile")
+            .unwrap()
+            .schema,
+    );
+    for (kind, canonical) in [
+        ("Channel", "C"),
+        ("channel", "C"),
+        ("Tee", "T"),
+        ("rectangular", "rectangle"),
+        ("rect", "rectangle"),
+    ] {
+        for (plane, canonical_plane) in [
+            ("Top plane", "XY"),
+            ("Front plane", "XZ"),
+            ("Right plane", "YZ"),
+            ("top", "XY"),
+            ("R", "YZ"),
+        ] {
+            let mut args = json!({"kind":kind,"width":40,"height":30,"depth":20,"thickness":4,"plane":plane,"stem_offset":100});
+            if canonical == "rectangle" {
+                args.as_object_mut().unwrap().remove("thickness");
+            }
+            let changes = forms::coerce(&mut args, &schema).unwrap();
+            assert_eq!(args["kind"], canonical);
+            assert_eq!(args["plane"], canonical_plane);
+            let build = |a| {
+                lib.build(
+                    &json!({"recipe":"profile","args":a}),
+                    &json!({"messages":[]}),
+                    &cat,
+                )
+            };
+            if canonical == "T" {
+                assert_eq!(args["stem_offset"], 100);
+                assert!(build(args).unwrap_err().contains("stem_offset"));
+            } else {
+                assert!(args.get("stem_offset").is_none());
+                assert!(changes
+                    .iter()
+                    .any(|c| c["field"] == "stem_offset" && c["after"].is_null()));
+                let mut expected = json!({"kind":canonical,"width":40,"height":30,"depth":20,"thickness":4,"plane":canonical_plane});
+                if canonical == "rectangle" {
+                    expected.as_object_mut().unwrap().remove("thickness");
+                }
+                assert_eq!(build(args).unwrap().calls, build(expected).unwrap().calls);
+            }
+        }
+    }
+    for args in [
+        json!({"kind":"T","stem_offset":0}),
+        json!({"kind":"unknown","stem_offset":100}),
+    ] {
+        let mut value = args.clone();
+        forms::coerce(&mut value, &schema).unwrap();
+        assert_eq!(value["stem_offset"], args["stem_offset"]);
+    }
+}
+
+#[test]
+fn plate_grid_rows_require_one_unambiguous_request_count_pair() {
+    let lib = Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    let schema = &lib.recipes.iter().find(|r| r.id == "plate").unwrap().schema;
+    let base = json!({"length":100,"width":80,"thickness":8,"grid_columns":3,"grid_pitch_x":20,"grid_pitch_y":20,"grid_hole_diameter":4});
+    for text in [
+        "Make a plate with a 3 x 2 hole grid",
+        "Plate with a 3 by 2 grid",
+        "Plate with 3x2 holes",
+        "Make a box plate with a 3x2 hole grid by the end",
+        "Plate with a 3 × 2 grid",
+    ] {
+        let req = json!({"messages":[{"role":"user","content":text}]});
+        let mut args = base.clone();
+        let changes = forms::request_defaults(&mut args, schema, &req).unwrap();
+        assert_eq!(args["grid_rows"], 2, "{text}");
+        assert!(changes
+            .iter()
+            .any(|c| c["field"] == "grid_rows" && c["after"] == 2));
+        let plan = lib
+            .build(&json!({"recipe":"plate","args":base}), &req, &cat)
+            .unwrap();
+        assert_eq!(
+            plan.calls,
+            lib.build(&json!({"recipe":"plate","args":args}), &req, &cat)
+                .unwrap()
+                .calls
+        );
+    }
+    for text in [
+        "Plate with a 2 by 3 grid",
+        "Plate with a 3 by 2 or 3 by 4 grid",
+        "Plate with a 3 by 2 mm grid",
+        "Plate dimensions 3 by 2",
+        "Plate with a 3 by 65 grid",
+        "Plate with a 3 by 0 grid",
+        "Plate with a 3 by 2.5 grid",
+        "Plate without a 3 by 2 grid",
+        "Plate grid 3 by 2, 3 rows",
+        "Plate grid 3 by 2 by 4",
+        "Plate grid 3 by 2 and 5.5 by 4",
+    ] {
+        let req = json!({"messages":[{"role":"user","content":text}]});
+        let mut args = base.clone();
+        assert!(
+            forms::request_defaults(&mut args, schema, &req)
+                .unwrap()
+                .is_empty(),
+            "{text}"
+        );
+        assert!(
+            lib.build(&json!({"recipe":"plate","args":args}), &req, &cat)
+                .unwrap_err()
+                .contains("grid_rows"),
+            "{text}"
+        );
+    }
+    let mut args = base;
+    args["grid_rows"] = json!(4);
+    assert!(forms::request_defaults(
+        &mut args,
+        schema,
+        &json!({"messages":[{"role":"user","content":"3 by 2 grid"}]})
+    )
+    .unwrap()
+    .is_empty());
+    assert_eq!(args["grid_rows"], 4);
+}
+
+#[test]
+fn plate_corner_and_plane_aliases_are_bounded_choices() {
+    let lib = Library::embedded().unwrap();
+    let schema = &lib.recipes.iter().find(|r| r.id == "plate").unwrap().schema;
+    for (plane, expected) in [
+        ("Top plane", "XY"),
+        ("Front plane", "XZ"),
+        ("Right plane", "YZ"),
+        ("top", "XY"),
+        ("R", "YZ"),
+    ] {
+        for kind in ["radius", "rounded"] {
+            let mut args = json!({"plane":plane,"corner_kind":kind,"corner_size":2});
+            let changes = forms::coerce(&mut args, &forms::flat(schema)).unwrap();
+            assert_eq!(args["plane"], expected);
+            assert_eq!(args["corner_kind"], "fillet");
+            assert!(changes.iter().any(|c| c["field"] == "corner_kind"));
+            forms::to_slots(&args, schema).unwrap();
+        }
+    }
+    for (field, value) in [
+        ("plane", "Bottom plane"),
+        ("plane", "Front plane offset"),
+        ("corner_kind", "radius 5"),
+        ("corner_kind", "ellipse"),
+    ] {
+        let mut args = json!({field:value});
+        forms::coerce(&mut args, &forms::flat(schema)).unwrap();
+        assert_eq!(args[field], value);
+        assert!(forms::to_slots(&args, schema).is_err());
+    }
+}
+
+#[test]
+fn unneeded_pattern_join_is_removed_without_allowing_overlap() {
+    let lib = Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    let snapshot = json!({"bodies":[{"name":"Post","volume_mm3":128,"bbox":{"min":[28,-2,0],"max":[32,2,8]}}],"timeline":[{"id":1,"name":"Box1","type":"BoxFeature"}]});
+    let detail = json!({"id":1,"name":"Box1","type":"BoxFeature","definition":{"body_names":["Post"],"corner":[28,-2,0],"length":"4","width":"4","height":"8"}});
+    let req = json!({"messages":[{"role":"user","content":"Pattern this post around Z"},{"role":"tool","content":snapshot.to_string()},{"role":"tool","content":detail.to_string()}]});
+    for target in ["body", "last_feature"] {
+        let args = json!({"target":target,"count":6,"angle_deg":360,"axis":"Z","join":true});
+        let build =
+            |a, r: &Value| lib.build(&json!({"recipe":"circular_pattern","args":a}), r, &cat);
+        let plan = build(args.clone(), &req).unwrap();
+        let mut without = args.clone();
+        without.as_object_mut().unwrap().remove("join");
+        assert_eq!(plan.rule, "circular_pattern");
+        assert_eq!(plan.calls, build(without, &req).unwrap().calls);
+        let mut overlapping = args.clone();
+        overlapping["angle_deg"] = json!(10);
+        assert!(build(overlapping, &req)
+            .unwrap_err()
+            .contains("overlapping"));
+        let mut explicit = req.clone();
+        explicit["messages"][0]["content"] = json!("Join the patterned posts");
+        assert!(build(args, &explicit).unwrap_err().contains("join"));
+    }
 }

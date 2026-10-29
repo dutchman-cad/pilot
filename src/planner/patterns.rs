@@ -338,6 +338,50 @@ pub(crate) fn resolve(args: &mut Value, request: &Value) -> Result<Vec<Value>, S
             }
         }
     }
+    // Removing permission never enables overlapping instances. Keep explicit
+    // requests to join subject to the original validation error.
+    let explicit_join = text.split(|c: char| !c.is_ascii_alphanumeric()).any(|w| {
+        matches!(
+            w,
+            "join"
+                | "joined"
+                | "joining"
+                | "merge"
+                | "merged"
+                | "fuse"
+                | "fused"
+                | "fusing"
+                | "union"
+        )
+    });
+    if args["join"] == true && !explicit_join {
+        let unjoined = if args["target"] == "body" {
+            true
+        } else if args["target"] == "last_feature" {
+            let last = data["timeline"].as_array().and_then(|t| t.last());
+            request["messages"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .rev()
+                .take(4096)
+                .filter(|m| m["role"] == "tool")
+                .filter_map(tool_payload)
+                .take_while(|v| !v["timeline"].is_array())
+                .find(|v| {
+                    last.is_some_and(|last| v["id"] == last["id"] && v["name"] == last["name"])
+                        && v["definition"].is_object()
+                })
+                .is_some_and(|v| v["definition"]["operation"] != "join")
+        } else {
+            false
+        };
+        if unjoined {
+            args.as_object_mut()
+                .ok_or("pattern args requires one object")?
+                .remove("join");
+        }
+    }
     let mut chosen = args["body"].as_str().map(str::to_owned);
     if args["target"] == "last_feature" {
         let last = data["timeline"].as_array().and_then(|t| t.last());
@@ -1221,6 +1265,29 @@ pub fn repetition_hint(request: &Value) -> Option<&'static str> {
 #[allow(clippy::unwrap_used)]
 mod form_tests {
     use super::*;
+    #[test]
+    fn unnecessary_join_removal_is_audited_only_after_inspection() {
+        let snapshot = json!({"bodies":[{"name":"Post"}],"timeline":[{"id":1,"name":"Box1"}]});
+        let detail = json!({"id":1,"name":"Box1","definition":{}});
+        let mut req = json!({"messages":[{"role":"user","content":"Pattern the post"},{"role":"tool","content":snapshot.to_string()},{"role":"tool","content":detail.to_string()}]});
+        for target in ["body", "last_feature"] {
+            let mut args = json!({"target":target,"body":"Post","join":true});
+            let changes = resolve(&mut args, &req).unwrap();
+            assert!(args.get("join").is_none());
+            assert!(changes
+                .iter()
+                .any(|c| c["field"] == "join" && c["before"] == true && c["after"].is_null()));
+        }
+        req["messages"][2]["content"] =
+            json!(json!({"id":1,"name":"Box1","definition":{"operation":"join"}}).to_string());
+        let mut args = json!({"target":"last_feature","body":"Post","join":true});
+        resolve(&mut args, &req).unwrap();
+        assert_eq!(args["join"], true);
+        req["messages"].as_array_mut().unwrap().pop();
+        resolve(&mut args, &req).unwrap();
+        assert_eq!(args["join"], true);
+    }
+
     #[test]
     fn near_miss_targets_use_inspected_bodies_before_feature_words() {
         let request = json!({"messages":[{"role":"tool","content":json!({"bodies":[{"name":"Stud"},{"name":"Bracket"},{"name":"Hole"},{"name":"Boss"}],"timeline":[{"type":"ExtrudeFeature"}]}).to_string()}]});
