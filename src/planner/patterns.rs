@@ -174,6 +174,41 @@ pub(crate) fn resolve(args: &mut Value, request: &Value) -> Result<Vec<Value>, S
         .filter(|s| s.len() <= MAX_TEXT)
         .unwrap_or("")
         .to_lowercase();
+    // Counts are totals. Convert a literal additional-copy fill once, including
+    // when this form resumes after inspection with its already converted slots.
+    let words: Vec<_> = text
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .take(4096)
+        .collect();
+    let excludes_original = text.contains("not including")
+        || text.contains("excluding")
+        || text.contains("without the original");
+    let totals = !excludes_original
+        && (text.contains("in total")
+            || text.contains("including")
+            || text.contains("altogether")
+            || text.contains("original included")
+            || text.contains("row of"));
+    let supplied_count = args["count"].as_u64();
+    if !totals {
+        let additional: Vec<_> = words
+            .windows(2)
+            .filter_map(|w| {
+                matches!(w[1], "copies" | "more" | "additional")
+                    .then(|| copy_number(w[0]))
+                    .flatten()
+            })
+            .collect();
+        if let [n] = additional.as_slice() {
+            if args["count"].as_u64() == Some(*n) {
+                if !(1..500).contains(n) {
+                    return Err("count: additional copies plus original must be 2..500".into());
+                }
+                args["count"] = json!(n + 1);
+            }
+        }
+    }
     if text.split_whitespace().any(|w| w == "around")
         && ![
             "degree", "deg", "°", "partial", "arc", "radian", "half", "quarter", "semi", "span",
@@ -181,12 +216,15 @@ pub(crate) fn resolve(args: &mut Value, request: &Value) -> Result<Vec<Value>, S
         ]
         .iter()
         .any(|w| text.contains(w))
-        && args["count"].as_u64().is_some_and(|n| {
-            (2..=500).contains(&n)
-                && args["angle_deg"]
-                    .as_f64()
-                    .is_some_and(|a| (a.abs() * n as f64 - 360.).abs() < 1e-8)
-        })
+        && supplied_count
+            .into_iter()
+            .chain(args["count"].as_u64())
+            .any(|n| {
+                (2..=500).contains(&n)
+                    && args["angle_deg"]
+                        .as_f64()
+                        .is_some_and(|a| (a.abs() * n as f64 - 360.).abs() < 1e-8)
+            })
     {
         args["angle_deg"] = json!(args["angle_deg"].as_f64().unwrap_or(360.).signum() * 360.);
     }
@@ -327,6 +365,40 @@ pub(crate) fn resolve(args: &mut Value, request: &Value) -> Result<Vec<Value>, S
         ));
     }
     Ok(changes(&before, args))
+}
+
+fn copy_number(word: &str) -> Option<u64> {
+    let names = [
+        "zero",
+        "one",
+        "two",
+        "three",
+        "four",
+        "five",
+        "six",
+        "seven",
+        "eight",
+        "nine",
+        "ten",
+        "eleven",
+        "twelve",
+        "thirteen",
+        "fourteen",
+        "fifteen",
+        "sixteen",
+        "seventeen",
+        "eighteen",
+        "nineteen",
+        "twenty",
+    ];
+    if word == "dozen" {
+        return Some(12);
+    }
+    names
+        .iter()
+        .position(|name| *name == word)
+        .map(|n| n as u64)
+        .or_else(|| word.parse().ok())
 }
 
 /// Deliberately narrow CAD repetition cues; unrelated file/clipboard operations stay out.

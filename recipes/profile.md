@@ -59,7 +59,7 @@
       },
       "flange_thickness": {
         "$ref": "#/$defs/Length",
-        "description": "Horizontal leg/flange; U sides; omit with thickness"
+        "description": "Wall thickness of horizontal leg/flange; U sides; omit with thickness"
       },
       "height": {
         "$ref": "#/$defs/Length"
@@ -92,7 +92,7 @@
       },
       "web_thickness": {
         "$ref": "#/$defs/Length",
-        "description": "Vertical leg/stem/web; U bottom; omit with thickness"
+        "description": "Wall thickness of vertical leg/stem/web; U bottom; omit with thickness"
       },
       "width": {
         "$ref": "#/$defs/Length"

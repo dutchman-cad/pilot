@@ -78,6 +78,10 @@ struct Row {
     pitch: f64,
     #[serde(default = "x_axis")]
     axis: String,
+    #[serde(default)]
+    offset_x: f64,
+    #[serde(default)]
+    offset_y: f64,
 }
 fn x_axis() -> String {
     "X".into()
@@ -274,7 +278,17 @@ pub(crate) fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<
                 }
                 for k in 0..r.count {
                     let v = (k as f64 - (r.count - 1) as f64 / 2.0) * r.pitch;
-                    positions.push(if r.axis == "X" { [v, 0.0] } else { [0.0, v] });
+                    let p = if r.axis == "X" {
+                        [v + r.offset_x, r.offset_y]
+                    } else {
+                        [r.offset_x, v + r.offset_y]
+                    };
+                    if p.iter().any(|v| !v.is_finite() || v.abs() > MAX_MM) {
+                        return Err(
+                            "row offsets and extent must stay within -1000000..1000000 mm".into(),
+                        );
+                    }
+                    positions.push(p);
                 }
             }
             if positions.len() > 64 {
@@ -512,6 +526,14 @@ pub(crate) fn tool() -> Value {
                         ("count", i),
                         ("pitch", n.clone()),
                         ("axis", choice(&["X", "Y"])),
+                        (
+                            "offset_x",
+                            json!({"type":"number","minimum":-1000000,"maximum":1000000}),
+                        ),
+                        (
+                            "offset_y",
+                            json!({"type":"number","minimum":-1000000,"maximum":1000000}),
+                        ),
                     ],
                     &["count", "pitch"],
                 ),

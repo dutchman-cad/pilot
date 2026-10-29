@@ -13,6 +13,131 @@ struct Session {
 }
 
 #[test]
+fn dev_profile_pattern_replays_literal_references_and_forms() {
+    use dutchman_pilot::recipe_library::{forms, Library};
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let cases: Vec<Value> =
+        serde_json::from_str(include_str!("fixtures/dev_profile_pattern.json")).unwrap();
+    let lib = Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    for case in cases {
+        eprintln!("LPAT {}: {}", case["category"], case["prompt"]);
+        let check = |s: &mut Session| {
+            let expected = &case["expected"];
+            let min = std::array::from_fn(|i| expected["bbox"]["min"][i].as_f64().unwrap());
+            let max = std::array::from_fn(|i| expected["bbox"]["max"][i].as_f64().unwrap());
+            check_shortcut_body(s, expected["volume"].as_f64().unwrap(), min, max, false);
+        };
+        let centres = |s: &mut Session| {
+            let state = s.execute("document.inspect", json!({"measure":true}));
+            let faces = s.execute("model.faces", json!({"body":state["bodies"][0]["name"]}));
+            let mut centres: Vec<[i64; 4]> = faces["faces"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter_map(|f| f.get("cylinder"))
+                .map(|c| {
+                    // Cylinder origins can slide along their infinite axes.
+                    // Compare axis lines projected onto the sketch plane.
+                    let axis = (0..3)
+                        .max_by(|a, b| {
+                            c["axis"][*a]
+                                .as_f64()
+                                .unwrap()
+                                .abs()
+                                .total_cmp(&c["axis"][*b].as_f64().unwrap().abs())
+                        })
+                        .unwrap();
+                    std::array::from_fn(|i| {
+                        if i == 3 {
+                            (c["radius"].as_f64().unwrap() * 1000.).round() as i64
+                        } else if i == axis {
+                            0
+                        } else {
+                            (c["origin"][i].as_f64().unwrap() * 1000.).round() as i64
+                        }
+                    })
+                })
+                .collect();
+            centres.sort();
+            centres.dedup();
+            centres
+        };
+        let mut reference = Session::new(&path);
+        for c in case["commands"].as_array().unwrap() {
+            reference.execute(c["command"].as_str().unwrap(), c["params"].clone());
+        }
+        check(&mut reference);
+        let reference_centres = centres(&mut reference);
+        let mut session = Session::new(&path);
+        for c in case["setup"].as_array().into_iter().flatten() {
+            session.execute(c["command"].as_str().unwrap(), c["params"].clone());
+        }
+        let mut req = json!({"messages":[{"role":"user","content":case["prompt"]}],"tools":[{"function":{"name":"execute"}}]});
+        let schema = &lib
+            .recipes
+            .iter()
+            .find(|r| r.id == case["recipe"].as_str().unwrap())
+            .unwrap()
+            .schema;
+        let mut args = case["args"].clone();
+        forms::coerce(&mut args, &forms::flat(schema)).unwrap();
+        let mut complete = false;
+        for _ in 0..6 {
+            let plan = lib
+                .build(&json!({"recipe":case["recipe"],"args":args}), &req, &cat)
+                .unwrap();
+            for c in &plan.calls {
+                let result = session.execute(
+                    c["arguments"]["command"].as_str().unwrap(),
+                    c["arguments"]["params"].clone(),
+                );
+                req["messages"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(json!({"role":"tool","content":result.to_string()}));
+            }
+            if plan.expected.is_some() {
+                complete = true;
+                break;
+            }
+        }
+        assert!(complete, "inspection cap: {}", case["prompt"]);
+        check(&mut session);
+        assert_eq!(
+            centres(&mut session),
+            reference_centres,
+            "feature locations: {}",
+            case["prompt"]
+        );
+        let exact_req = json!({"messages":[{"role":"user","content":case["prompt"]}],"tools":[{"function":{"name":"execute"}}]});
+        let exact_plan = planner::plan(&exact_req, &cat).unwrap();
+        if matches!(
+            case["category"].as_str(),
+            Some("numbers_first" | "drafting")
+        ) {
+            assert!(
+                exact_plan.is_some(),
+                "angle tuple must match: {}",
+                case["prompt"]
+            );
+        }
+        if let Some(plan) = exact_plan {
+            let mut exact = Session::new(&path);
+            for c in &plan.calls {
+                exact.execute(
+                    c["arguments"]["command"].as_str().unwrap(),
+                    c["arguments"]["params"].clone(),
+                );
+            }
+            check(&mut exact);
+        }
+    }
+}
+
+#[test]
 fn public_binary_sketch_axes_and_world_holes() {
     let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
         return;
@@ -1800,7 +1925,7 @@ fn development_dp08_dp12_fills_after_part_creation() {
                 json!({"diameter":8,"height":5,"base":[9,9,4],"operation":"join","targets":["Base"]})
             });
         }
-        let mut request = json!({"messages":[{"role":"user","content":if circular {"6 copies around Z"} else {"repeat the boss in a centred 3 by 3 grid at 16 mm spacing"}}]});
+        let mut request = json!({"messages":[{"role":"user","content":if circular {"6 in total around Z"} else {"repeat the boss in a centred 3 by 3 grid at 16 mm spacing"}}]});
         let mut expected = None;
         for _ in 0..4 {
             let plan = library

@@ -34,8 +34,14 @@ pub(crate) fn describe(s: &mut Value) {
                 "kind" if v["enum"][0] == "fillet" => ("fillet: round; chamfer: bevel", None),
                 "kind" => ("Cross-section outline", None),
                 "thickness" => ("Plate thickness or uniform profile legs", None),
-                "web_thickness" => ("Vertical leg/stem/web; U bottom; omit with thickness", None),
-                "flange_thickness" => ("Horizontal leg/flange; U sides; omit with thickness", None),
+                "web_thickness" => (
+                    "Wall thickness of vertical leg/stem/web; U bottom; omit with thickness",
+                    None,
+                ),
+                "flange_thickness" => (
+                    "Wall thickness of horizontal leg/flange; U sides; omit with thickness",
+                    None,
+                ),
                 "stem_offset" => ("T stem centre from left; omitted: centred", None),
                 "depth" => ("Extrusion distance normal to plane", None),
                 "floor" => ("Base thickness; omitted: wall", None),
@@ -81,7 +87,10 @@ pub(crate) fn describe(s: &mut Value) {
                 "web" => ("Minimum material between hex holes", None),
                 "border" => ("Minimum uncut margin", None),
                 "rows" | "columns" => ("Instance count; honeycomb requires exact mode", None),
-                "target" => ("body: whole solid; last_feature: latest feature", None),
+                "target" => (
+                    "body: whole part + base; last_feature: latest boss/hole/slot only",
+                    None,
+                ),
                 "body" => ("Exact inspected body name; omit only if unambiguous", None),
                 "join" => (
                     "Allow overlap of joined last features only",
@@ -154,25 +163,25 @@ pub fn compact(s: &Value) -> Value {
             "size_kind" => "across_flats: edge to edge; across_corners: vertex to vertex",
             "orientation" => "Omit: longer-side rows; pointy_top: X rows; flat_top: Y rows",
             "mode" => "fill: fit; exact: rows and columns",
-            "web_thickness" => "Vertical leg; U bottom",
-            "flange_thickness" => "Horizontal leg; U sides",
+            "web_thickness" => "Vertical wall thickness, not leg length; U bottom",
+            "flange_thickness" => "Horizontal wall thickness, not leg length; U sides",
             "stem_offset" => "T centre from left; omit: centred",
-            "length" if root["x-pilot-expander"] == "plate" => {
-                "Rectangle X; length+width OR diameter"
-            }
-            "width" if root["x-pilot-expander"] == "plate" => "Rectangle Y; omit with diameter",
-            "diameter" if root["x-pilot-expander"] == "plate" => "Round base; omit length/width",
-            "boss_diameter" => "Joined peg/boss; needs boss_height",
-            "boss_height" => "Rise above plate top",
-            "boss_offset_x" | "boss_offset_y" => "From plate centre; single boss only; omit: 0",
-            "row_count" => "Total features in centred row",
-            "row_pitch" => "Centre spacing",
+            "length" if root["x-pilot-expander"] == "plate" => "Base X; or use diameter",
+            "width" if root["x-pilot-expander"] == "plate" => "Base Y; omit if round",
+            "diameter" if root["x-pilot-expander"] == "plate" => "Round; or length+width",
+            "boss_diameter" => "Joined; needs height",
+            "boss_height" => "Rise above top",
+            "boss_offset_x" | "boss_offset_y" => "Single; from plate centre",
+            "row_count" => "Total in row",
+            "row_pitch" => "Centre pitch",
+            "row_offset_x" | "row_offset_y" => "Row centre - plate centre",
             "row_axis" => "Sketch axis; omit: X",
-            "grid_columns" => "Along X; A x B: A along longer side unless stated",
-            "grid_rows" => "Along Y; 7 x 5 on 120 x 80: rows=5, columns=7",
-            "grid_pitch_x" | "grid_pitch_y" => "Centre spacing; single pitch: use for both",
-            "bolt_hole_count" => "Circle feature count (holes OR bosses)",
-            "bolt_circle_diameter" => "Feature-centre circle diameter",
+            "grid_columns" => "X; A x B: A on longer side",
+            "grid_rows" => "Y; 7x5 on 120x80: rows=5",
+            "grid_pitch_x" | "grid_pitch_y" => "Pitch; one value: both",
+            "bolt_hole_count" => "Total holes/bosses",
+            "bolt_circle_diameter" => "Circle diameter = 2*radius",
+            "bolt_circle_radius" => "Circle radius",
             "hole_diameter" => "Pattern holes",
             "size" if root["x-pilot-expander"] == "honeycomb_pattern" => "Hex span",
             "size" => "Radius/bevel",
@@ -181,13 +190,37 @@ pub fn compact(s: &Value) -> Value {
             "inside" => "True: clear inside dimensions; outside adds 2 walls and one floor",
             "lip" => "Request ring; omit sizes: height=wall, width=wall/2",
             "corner_sides" => "right=+X; top=+Y",
-            "target" => "body: solid; last_feature: latest feature",
+            "target" => "body: whole part; last_feature: boss/hole/slot only",
             "open" => "Removed face",
             "axis" if root["x-pilot-expander"] == "joint" => {
                 "Aligned world axis; omit: Z; named origins keep their frames"
             }
+            "axis" if root["x-pilot-expander"] == "circular_pattern" => {
+                "Through origin; seed sets circle radius"
+            }
             "direction" | "axis" => "World axis",
-            "plane" => "Axes of plane",
+            "count"
+                if crate::planner::patterns::is_pattern(
+                    root["x-pilot-expander"].as_str().unwrap_or(""),
+                ) =>
+            {
+                "Includes seed; N copies/more: N+1; N total/slots/row: N"
+            }
+            "spacing" => "Centre pitch in mm; 1 in apart = 25.4",
+            "total_length" => "First to last centre = spacing*(count-1)",
+            "edge" => "Inspected straight edge, start to end; seed stays fixed",
+            "angle_deg" if root["x-pilot-expander"] == "circular_pattern" => {
+                "Sweep: full 360; partial arcs include both ends"
+            }
+            "width" if root["x-pilot-expander"] == "profile" => {
+                "L A x B x t: outside leg A on sketch X"
+            }
+            "height" if root["x-pilot-expander"] == "profile" => {
+                "L A x B x t: outside leg B on sketch Y"
+            }
+            "thickness" if root["x-pilot-expander"] == "profile" => "L A x B x t: wall thickness t",
+            "depth" => "Extrusion length",
+            "plane" => "XY:+Z; XZ:+Y, sketch Y=-Z; YZ:+X",
             k if root["x-pilot-expander"] == "joint"
                 && (k.starts_with("limit")
                     || k.starts_with("component_")
@@ -256,9 +289,9 @@ pub(crate) fn check_definition(fill: &Value) -> Result<(), String> {
         if let Some(scale) = field.get("x-scale") {
             if scale
                 .as_f64()
-                .is_none_or(|s| !s.is_finite() || s <= 0.0 || s > 1.0)
+                .is_none_or(|s| !s.is_finite() || s <= 0.0 || s > 2.0)
             {
-                return Err("fill scale must be positive and at most 1".into());
+                return Err("fill scale must be positive and at most 2".into());
             }
         }
         if let Some(trigger) = field.get("x-default-when") {
@@ -315,8 +348,7 @@ pub fn flat(schema: &Value) -> Value {
     };
     let mut out = json!({"type":"object","additionalProperties":false,"properties":fill["properties"],"required":fill["required"],"x-pilot-expander":schema["x-pilot-expander"]});
     if schema["x-pilot-expander"] == "plate" {
-        out["description"] =
-            json!("Base with holes OR bosses; centred layouts; no layout: single boss.");
+        out["description"] = json!("Centred holes OR bosses; no layout: single boss.");
     }
     if schema["x-pilot-expander"] == "cross_drilled_box" {
         out["description"] =
@@ -1005,6 +1037,10 @@ pub fn to_slots(args: &Value, schema: &Value) -> Result<Value, String> {
                         && fields[key]["x-slot"]
                             .as_str()
                             .is_none_or(|path| args.pointer(path).is_none())
+                        && !fields.iter().any(|(alternate, field)| {
+                            field["x-slot"] == fields[key]["x-slot"]
+                                && object.contains_key(alternate)
+                        })
                     {
                         return Err(format!(
                             "args.{key} missing; supply {key} to complete this feature"

@@ -403,6 +403,24 @@ pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
             .iter()
             .all(|s| s == "x" || s == "by" || slots::scale(s).is_some());
     for (n, v) in d.iter().enumerate() {
+        // Drafting angles: outside leg X x outside leg Y x wall x length.
+        if shape == "L"
+            && tuple
+            && n < 4
+            && (n < 2 || {
+                let between = &i.t[d[n - 1].index + 1..v.index];
+                between.iter().any(|s| s == "x" || s == "by")
+                    && between
+                        .iter()
+                        .all(|s| s == "x" || s == "by" || slots::scale(s).is_some())
+            })
+        {
+            assigned.push((
+                [Role::Width, Role::Height, Role::Thickness, Role::Depth][n],
+                v.value,
+            ));
+            continue;
+        }
         if tuple && n < 2 {
             assigned.push((if n == 0 { Role::Width } else { Role::Height }, v.value));
             continue;

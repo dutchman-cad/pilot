@@ -139,7 +139,7 @@ fn field_type(name: &str, s: &Value) -> Value {
         "plane" => json!({"$ref":"#/$defs/Plane"}),
         "count" | "rows" | "columns" => json!({"$ref":"#/$defs/Count"}),
         "angle_deg" | "start_deg" => json!({"$ref":"#/$defs/Angle"}),
-        "boss_offset_x" | "boss_offset_y" => {
+        "boss_offset_x" | "boss_offset_y" | "offset_x" | "offset_y" => {
             json!({"type":"number","minimum":-1000000,"maximum":1000000})
         }
         "stem_offset" => json!({"type":"number","minimum":0,"maximum":1000000}),

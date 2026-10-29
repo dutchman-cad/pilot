@@ -213,6 +213,16 @@
           "count": {
             "$ref": "#/$defs/Count"
           },
+          "offset_x": {
+            "type": "number",
+            "minimum": -1000000,
+            "maximum": 1000000
+          },
+          "offset_y": {
+            "type": "number",
+            "minimum": -1000000,
+            "maximum": 1000000
+          },
           "pitch": {
             "$ref": "#/$defs/Length"
           }
@@ -292,7 +302,9 @@
           "fields": [
             "row_count",
             "row_pitch",
-            "row_axis"
+            "row_axis",
+            "row_offset_x",
+            "row_offset_y"
           ],
           "required": [
             "row_count",
@@ -308,6 +320,15 @@
           "type": "number",
           "x-slot": "/bolt_circle/diameter",
           "x-unit": "mm"
+        },
+        "bolt_circle_radius": {
+          "description": "Radius of feature-centre circle; alternative to diameter",
+          "exclusiveMinimum": 0,
+          "maximum": 500000,
+          "type": "number",
+          "x-slot": "/bolt_circle/diameter",
+          "x-unit": "mm",
+          "x-scale": 2
         },
         "bolt_hole_count": {
           "description": "Feature count on circle, including bosses when boss_diameter is given",
@@ -480,6 +501,22 @@
           "type": "string",
           "x-default-when": "row_count",
           "x-slot": "/row/axis"
+        },
+        "row_offset_x": {
+          "description": "Row centre offset from plate centre in sketch X",
+          "type": "number",
+          "minimum": -1000000,
+          "maximum": 1000000,
+          "x-slot": "/row/offset_x",
+          "x-unit": "mm"
+        },
+        "row_offset_y": {
+          "description": "Row centre offset from plate centre in sketch Y",
+          "type": "number",
+          "minimum": -1000000,
+          "maximum": 1000000,
+          "x-slot": "/row/offset_y",
+          "x-unit": "mm"
         },
         "row_count": {
           "description": "Total number of holes or bosses in centred row",

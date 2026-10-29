@@ -4,6 +4,81 @@ use dutchman_pilot::{catalog::Catalog, recipe_library::*};
 use serde_json::{json, Value};
 
 #[test]
+fn pattern_copy_counts_are_totals_and_inspection_is_idempotent() {
+    let lib = Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    for recipe in ["linear_pattern", "circular_pattern"] {
+        for (text, input, total) in [
+            ("12 copies", 12, 13),
+            ("12 copies", 13, 13),
+            ("12 more", 12, 13),
+            ("12 additional copies", 12, 13),
+            ("a dozen more", 12, 13),
+            ("twelve copies", 12, 13),
+            ("12 in total", 12, 12),
+            ("a row of 12", 12, 12),
+            ("12 copies including the original", 12, 12),
+            ("12 copies excluding the original", 12, 13),
+            ("12 copies not including the original", 12, 13),
+            ("12 copies altogether", 12, 12),
+            ("12 slots 1 in apart", 12, 12),
+            ("1 more", 1, 2),
+            ("499 copies", 499, 500),
+        ] {
+            let request = json!({"messages":[{"role":"user","content":text}]});
+            let mut args = if recipe == "linear_pattern" {
+                json!({"target":"body","count":input,"spacing":25.4,"direction":"X"})
+            } else {
+                json!({"target":"body","count":input,"axis":"Z","angle_deg":360})
+            };
+            for _ in 0..2 {
+                let plan = lib
+                    .build(&json!({"recipe":recipe,"args":args}), &request, &cat)
+                    .unwrap();
+                assert_eq!(plan.slots["count"], total, "{text}");
+                args = plan.slots;
+            }
+        }
+        let args = if recipe == "linear_pattern" {
+            json!({"target":"body","count":500,"spacing":1,"direction":"X"})
+        } else {
+            json!({"target":"body","count":500,"axis":"Z","angle_deg":360})
+        };
+        assert!(lib
+            .build(
+                &json!({"recipe":recipe,"args":args}),
+                &json!({"messages":[{"role":"user","content":"500 more"}]}),
+                &cat
+            )
+            .is_err());
+    }
+    let request = json!({"messages":[{"role":"user","content":"12 copies around Z"}]});
+    let plan = lib.build(&json!({"recipe":"circular_pattern","args":{"target":"body","count":12,"axis":"Z","angle_deg":30}}), &request, &cat).unwrap();
+    assert_eq!(plan.slots["count"], 13);
+    assert_eq!(plan.slots["angle_deg"], 360.);
+}
+
+#[test]
+fn bolt_circle_radius_and_diameter_must_agree_after_scaling() {
+    let lib = Library::embedded().unwrap();
+    let schema = &lib.recipes.iter().find(|r| r.id == "plate").unwrap().schema;
+    let args = json!({"bolt_hole_count":4,"bolt_circle_radius":50.8,"bolt_circle_diameter":101.6,"boss_diameter":12.7,"boss_height":50.8});
+    assert_eq!(
+        forms::to_slots(&args, schema).unwrap()["bolt_circle"]["diameter"],
+        101.6
+    );
+    let mut bad = args;
+    bad["bolt_circle_diameter"] = json!(50.8);
+    assert!(forms::to_slots(&bad, schema).is_err());
+    let mut inches = json!({"bolt_hole_count":4,"bolt_circle_radius":"2 in","boss_diameter":"1/2 in","boss_height":"2 in"});
+    forms::coerce(&mut inches, &forms::flat(schema)).unwrap();
+    let slots = forms::to_slots(&inches, schema).unwrap();
+    assert_eq!(slots["bolt_circle"]["diameter"], 101.6);
+    assert_eq!(slots["boss_diameter"], 12.7);
+    assert_eq!(slots["boss_height"], 50.8);
+}
+
+#[test]
 fn recipe_text_accepts_windows_line_endings_and_one_leading_bom() {
     let text = include_str!("../recipes/box.md");
     let text = text
@@ -1511,7 +1586,7 @@ fn joined_boss_pattern_spacing_uses_tool_extent() {
 fn circular_post_bounds_rotate_and_step_angle_is_not_a_short_arc() {
     let library = Library::embedded().unwrap();
     let catalog = Catalog::bundled().unwrap();
-    let mut request = json!({"messages":[{"role":"user","content":"a post at X=30, 6 copies around Z"},{"role":"tool","content":json!({"bodies":[{"name":"Post","volume_mm3":1608.495,"bbox":{"min":[26,-4,0],"max":[34,4,8]}}],"timeline":[]}).to_string()}]});
+    let mut request = json!({"messages":[{"role":"user","content":"a post at X=30, 6 in total around Z"},{"role":"tool","content":json!({"bodies":[{"name":"Post","volume_mm3":1608.495,"bbox":{"min":[26,-4,0],"max":[34,4,8]}}],"timeline":[]}).to_string()}]});
     for axis in ["0, 0, 1", "[0, 0, 1]", "(0 0 1)"] {
         let envelope = json!({"recipe":"circular_pattern","args":{"target":"body","body":"post","axis":axis,"count":6,"angle_deg":60}});
         let plan = library.build(&envelope, &request, &catalog).unwrap();
@@ -1526,7 +1601,7 @@ fn circular_post_bounds_rotate_and_step_angle_is_not_a_short_arc() {
             "{error}"
         );
         assert!(!error.contains("spacing [0,0]"), "{error}");
-        request["messages"][0]["content"] = json!("a post at X=30, 6 copies around Z");
+        request["messages"][0]["content"] = json!("a post at X=30, 6 in total around Z");
     }
 }
 
