@@ -210,7 +210,12 @@ pub(crate) fn resolve(args: &mut Value, request: &Value) -> Result<Vec<Value>, S
             || text.contains("original included")
             || text.contains("row of"));
     let supplied_count = args["count"].as_u64();
-    if !totals {
+    let clear = !crate::recipe_library::forms::unclear_request(
+        &text
+            .replace("not including", "excluding")
+            .replace("without the original", "excluding original"),
+    );
+    if clear && !totals {
         let additional: Vec<_> = words
             .windows(2)
             .filter_map(|w| {
@@ -228,7 +233,8 @@ pub(crate) fn resolve(args: &mut Value, request: &Value) -> Result<Vec<Value>, S
             }
         }
     }
-    if text.split_whitespace().any(|w| w == "around")
+    if clear
+        && text.split_whitespace().any(|w| w == "around")
         && ![
             "degree", "deg", "°", "partial", "arc", "radian", "half", "quarter", "semi", "span",
             "sweep", "angle", "sector", "between",
@@ -354,7 +360,7 @@ pub(crate) fn resolve(args: &mut Value, request: &Value) -> Result<Vec<Value>, S
                 | "union"
         )
     });
-    if args["join"] == true && !explicit_join {
+    if clear && args["join"] == true && !explicit_join {
         let unjoined = if args["target"] == "body" {
             true
         } else if args["target"] == "last_feature" {
@@ -1265,6 +1271,35 @@ pub fn repetition_hint(request: &Value) -> Option<&'static str> {
 #[allow(clippy::unwrap_used)]
 mod form_tests {
     use super::*;
+    #[test]
+    fn unclear_counts_arcs_and_join_hints_preserve_supplied_values() {
+        for text in [
+            "not 500 copies",
+            "500 copies or keep it",
+            "not 6 copies around Z",
+            "6 copies around Z or along X",
+        ] {
+            let original = json!({"target":"body","body":"Post","count":if text.contains("500") {500} else {6},"angle_deg":60,"join":true});
+            let mut args = original.clone();
+            let request = json!({"messages":[{"role":"user","content":text},{"role":"tool","content":json!({"bodies":[{"name":"Post"}],"timeline":[]}).to_string()}]});
+            assert!(resolve(&mut args, &request).unwrap().is_empty(), "{text}");
+            assert_eq!(args, original);
+        }
+        let req = |text| json!({"messages":[{"role":"user","content":text}]});
+        let mut args = json!({"count":6,"angle_deg":60});
+        assert!(!resolve(&mut args, &req("6 copies around Z"))
+            .unwrap()
+            .is_empty());
+        assert_eq!(args, json!({"count":7,"angle_deg":360.}));
+        assert!(resolve(&mut json!({"count":500}), &req("500 copies"))
+            .unwrap_err()
+            .contains("2..500"));
+        assert!(resolve(
+            &mut json!({"body":true,"target":"last_feature"}),
+            &req("not copies")
+        )
+        .is_err());
+    }
     #[test]
     fn unnecessary_join_removal_is_audited_only_after_inspection() {
         let snapshot = json!({"bodies":[{"name":"Post"}],"timeline":[{"id":1,"name":"Box1"}]});

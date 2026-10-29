@@ -316,6 +316,9 @@ pub(super) fn partial_edge_edit(recipe: &Value, request: &Value) -> bool {
         return false;
     }
     let text = last_user(request).to_ascii_lowercase();
+    if crate::recipe_library::forms::unclear_request(&text) {
+        return false;
+    }
     let words: Vec<_> = text
         .split(|c: char| !c.is_ascii_alphabetic())
         .filter(|w| !w.is_empty())
@@ -429,15 +432,16 @@ pub(super) fn accept(
                 .to_ascii_lowercase()
                 .contains(&n.to_ascii_lowercase())
         });
-        if pronoun && !explicit && args["target"] != "last_feature" {
-            match planner::form_context::default_body(request) {
-                Ok(name) => {
-                    if args.get("body").is_some_and(|b| *b != name) {
-                        return Outcome::Invalid(format!("args.body must use the current target {name:?} (selection, last created body, or only body)"));
-                    }
-                    args["body"] = json!(name);
+        if pronoun
+            && !explicit
+            && args["target"] != "last_feature"
+            && !crate::recipe_library::forms::unclear_request(last_user(request))
+        {
+            if let Ok(name) = planner::form_context::default_body(request) {
+                if args.get("body").is_some_and(|b| *b != name) {
+                    return Outcome::Invalid(format!("args.body must use the current target {name:?} (selection, last created body, or only body)"));
                 }
-                Err(e) => return Outcome::Invalid(e),
+                args["body"] = json!(name);
             }
         }
     }
@@ -1089,7 +1093,7 @@ mod tests {
     }
 
     #[test]
-    fn implicit_form_targets_default_from_selection_and_reject_ambiguity() {
+    fn implicit_form_targets_default_only_when_clear() {
         let library = crate::recipe_library::Library::embedded().unwrap();
         let catalog = Catalog::bundled().unwrap();
         let mut req = request("fillet all edges of these with radius 0.5 mm");
@@ -1098,17 +1102,50 @@ mod tests {
         assert_eq!(recipe["id"], "fillet");
         let response = json!({"choices":[{"message":{"tool_calls":[{"function":{"name":"pilot_fill","arguments":"{\"amount\":0.5}"}}]}}]});
         assert!(
-            matches!(accept(&response,&recipe,&req,&library,&catalog),Outcome::Invalid(e) if e.contains("ambiguous"))
+            matches!(accept(&response,&recipe,&req,&library,&catalog),Outcome::Invalid(e) if e.contains("exactly 1 inspected"))
         );
         req["selection"] = json!(["Plate", "Peg"]);
         assert!(
-            matches!(accept(&response,&recipe,&req,&library,&catalog),Outcome::Invalid(e) if e.contains("ambiguous"))
+            matches!(accept(&response,&recipe,&req,&library,&catalog),Outcome::Invalid(e) if e.contains("exactly 1 inspected"))
         );
+        let supplied = |body: &str| json!({"choices":[{"message":{"tool_calls":[{"function":{"name":"pilot_fill","arguments":json!({"body":body,"amount":0.5}).to_string()}}]}}]});
+        assert!(matches!(
+            accept(&supplied("Plate"), &recipe, &req, &library, &catalog),
+            Outcome::Build(_, _)
+        ));
+        assert!(matches!(
+            accept(&supplied("Missing"), &recipe, &req, &library, &catalog),
+            Outcome::Invalid(_)
+        ));
         req["selection"] = json!(["Peg"]);
+        assert!(
+            matches!(accept(&supplied("Plate"), &recipe, &req, &library, &catalog), Outcome::Invalid(e) if e.contains("current target"))
+        );
+        req["messages"][0]["content"] = json!("fillet it or leave it alone");
+        assert!(matches!(
+            accept(&supplied("Plate"), &recipe, &req, &library, &catalog),
+            Outcome::Build(_, _)
+        ));
+        req["messages"][0]["content"] = json!("fillet it");
         let Outcome::Build(envelope, _) = accept(&response, &recipe, &req, &library, &catalog)
         else {
             panic!("selected target not defaulted");
         };
         assert_eq!(envelope["args"]["body"], "Peg");
+    }
+
+    #[test]
+    fn partial_edit_requires_clear_extra_action() {
+        let recipe = json!({"id":"fillet"});
+        assert!(partial_edge_edit(
+            &recipe,
+            &request("fillet corners and drill a hole")
+        ));
+        for text in [
+            "fillet corners, do not drill a hole",
+            "fillet corners or add holes",
+        ] {
+            assert!(!partial_edge_edit(&recipe, &request(text)));
+        }
     }
 }

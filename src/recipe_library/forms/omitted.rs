@@ -86,6 +86,9 @@ pub(super) fn recover(
     if text.len() > 65_536 {
         return Err("omitted field request exceeds 65536 bytes".into());
     }
+    if super::unclear_request(text) {
+        return Ok(Vec::new());
+    }
     let words = tokens(&text.to_ascii_lowercase());
     let mut changes = Vec::new();
     if schema["x-pilot-expander"] == "profile" && args.get("depth").is_none() {
@@ -163,22 +166,15 @@ fn plate(args: &mut Value, words: &[String], changes: &mut Vec<Value>) -> Result
             w == "bosses" || w == "pegs"
         }
     }) {
-        return Err(
-            "single feature requires one position; supply an explicit layout for multiple features"
-                .into(),
-        );
+        return Ok(());
     }
     let mentions: Vec<_> = words
         .iter()
         .enumerate()
         .filter(|(_, w)| feature_words.contains(&w.as_str()))
         .collect();
-    let ambiguous = || {
-        "single feature position is ambiguous; supply one position or an explicit layout"
-            .to_string()
-    };
     if mentions.len() > 1 {
-        return Err(ambiguous());
+        return Ok(());
     }
     let [(start, _)] = mentions.as_slice() else {
         return Ok(());
@@ -190,7 +186,7 @@ fn plate(args: &mut Value, words: &[String], changes: &mut Vec<Value>) -> Result
             "or" | "either" | "each" | "two" | "both" | "not" | "off" | "never"
         )
     }) {
-        return Err(ambiguous());
+        return Ok(());
     }
     let size = [
         args["length"]
@@ -216,7 +212,7 @@ fn plate(args: &mut Value, words: &[String], changes: &mut Vec<Value>) -> Result
             .iter()
             .any(|s| matches!(s.as_str(), "not" | "off"))
     {
-        return Err(ambiguous());
+        return Ok(());
     }
     for i in 0..tail.len() {
         if matches!(
@@ -224,7 +220,7 @@ fn plate(args: &mut Value, words: &[String], changes: &mut Vec<Value>) -> Result
             "centred" | "centered" | "centre" | "center" | "middle"
         ) {
             if centre {
-                return Err(ambiguous());
+                return Ok(());
             }
             centre = true;
         }
@@ -242,7 +238,7 @@ fn plate(args: &mut Value, words: &[String], changes: &mut Vec<Value>) -> Result
                     return Ok(());
                 };
                 if coordinates[axis].is_some() {
-                    return Err(ambiguous());
+                    return Ok(());
                 }
                 coordinates[axis] = Some(
                     n - if args["centred"] == true {
@@ -262,7 +258,7 @@ fn plate(args: &mut Value, words: &[String], changes: &mut Vec<Value>) -> Result
                     .is_some_and(|s| matches!(s.as_str(), "and" | ","))
                 && tail.get(end).is_none_or(|s| s != "from")
             {
-                return Err(ambiguous());
+                return Ok(());
             }
             if tail.get(end).is_some_and(|w| w == "from") {
                 let mut edge = end + 1;
@@ -281,7 +277,7 @@ fn plate(args: &mut Value, words: &[String], changes: &mut Vec<Value>) -> Result
                     return Ok(());
                 };
                 if coordinates[axis].is_some() {
-                    return Err(ambiguous());
+                    return Ok(());
                 }
                 coordinates[axis] = Some(if matches!(side.as_str(), "left" | "bottom") {
                     n - size / 2.
@@ -292,12 +288,9 @@ fn plate(args: &mut Value, words: &[String], changes: &mut Vec<Value>) -> Result
         }
     }
     if centre && coordinates.iter().any(Option::is_some) {
-        return Err(ambiguous());
+        return Ok(());
     }
     if !centre && coordinates.iter().all(Option::is_none) {
-        if tail.iter().any(|s| matches!(s.as_str(), "at" | "from")) {
-            return Err(ambiguous());
-        }
         return Ok(());
     }
     for (axis, key) in ["boss_offset_x", "boss_offset_y"].iter().enumerate() {
@@ -305,4 +298,105 @@ fn plate(args: &mut Value, words: &[String], changes: &mut Vec<Value>) -> Result
             "single feature position in request; absolute coordinates and edge distances converted to plate-centre offsets");
     }
     Ok(())
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn uncertain_positions_abstain_without_partial_offsets() {
+        let schema = json!({"x-pilot-expander":"plate"});
+        for text in [
+            "holes at X=40",
+            "hole and bore at X=40",
+            "hole at X=40 or X=60",
+            "not centred hole",
+            "hole not centred",
+            "centred hole at centre",
+            "hole at X=40 and X=60",
+            "hole at X=40 and 60",
+            "hole 20 from left and 30 from right",
+            "hole at centre X=40",
+            "hole at an offset of 20",
+            "hole 20 from",
+            "hole at either edge",
+            "hole at each corner",
+            "hole off centre",
+            "hole at two positions",
+            "hole at both sides",
+            "hole never centred",
+        ] {
+            let original = json!({"length":100,"width":80,"thickness":6,"hole_diameter":8});
+            let mut args = original.clone();
+            let request = json!({"messages":[{"role":"user","content":text}]});
+            assert!(
+                recover(&mut args, &schema, &request).unwrap().is_empty(),
+                "{text}"
+            );
+            assert_eq!(args, original, "{text}");
+            // Explicit model offsets also survive uncertain request evidence.
+            args["boss_offset_x"] = json!(12);
+            let supplied = args.clone();
+            assert!(recover(&mut args, &schema, &request).unwrap().is_empty());
+            assert_eq!(args, supplied);
+        }
+    }
+
+    #[test]
+    fn clear_positions_and_depth_still_infer_and_bounds_still_reject() {
+        for (id, text, original, expected) in [
+            (
+                "plate",
+                "hole 20 from left",
+                json!({"length":100,"width":80,"hole_diameter":8}),
+                json!({"boss_offset_x":-30.,"boss_offset_y":0.}),
+            ),
+            (
+                "plate",
+                "hole at X=40 Y=30",
+                json!({"length":100,"width":80,"hole_diameter":8}),
+                json!({"boss_offset_x":-10.,"boss_offset_y":-10.}),
+            ),
+            (
+                "plate",
+                "centred hole",
+                json!({"length":100,"width":80,"hole_diameter":8}),
+                json!({"boss_offset_x":0.,"boss_offset_y":0.}),
+            ),
+            (
+                "profile",
+                "extrude 75 mm",
+                json!({"width":40}),
+                json!({"depth":75.}),
+            ),
+        ] {
+            let schema = json!({"x-pilot-expander":id});
+            let mut args = original;
+            let request = json!({"messages":[{"role":"user","content":text}]});
+            assert_eq!(
+                recover(&mut args, &schema, &request).unwrap().len(),
+                expected.as_object().unwrap().len()
+            );
+            for (key, value) in expected.as_object().unwrap() {
+                assert_eq!(args[key], *value);
+            }
+            let too_large = json!({"messages":[{"role":"user","content":"x".repeat(65_537)}]});
+            assert!(recover(&mut args, &schema, &too_large)
+                .unwrap_err()
+                .contains("65536"));
+            assert!(recover(&mut json!(false), &schema, &request).is_err());
+        }
+        let mut args = json!({"width":40});
+        let original = args.clone();
+        assert!(recover(
+            &mut args,
+            &json!({"x-pilot-expander":"profile"}),
+            &json!({"messages":[{"role":"user","content":"do not extrude 75 mm"}]})
+        )
+        .unwrap()
+        .is_empty());
+        assert_eq!(args, original);
+    }
 }
