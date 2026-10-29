@@ -73,8 +73,11 @@ impl Audit {
             .and_then(|()| self.file.flush())
             .map_err(|e| format!("cannot write rewrite log: {e}"))?;
         self.size += bytes.len() as u64;
-        // Size observations are audit records, not request rewrites.
-        if kind != "request_size" && kind != "form_request" {
+        // Wire and size observations are audit records, not request rewrites.
+        if !matches!(
+            kind,
+            "request_size" | "form_request" | "upstream_request" | "upstream_response"
+        ) {
             self.count += 1;
         }
         let kind = kind.split(':').next().unwrap_or(kind);

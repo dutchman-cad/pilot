@@ -4,6 +4,81 @@ use dutchman_pilot::{catalog::Catalog, recipe_library::*};
 use serde_json::{json, Value};
 
 #[test]
+fn pattern_copy_counts_are_totals_and_inspection_is_idempotent() {
+    let lib = Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    for recipe in ["linear_pattern", "circular_pattern"] {
+        for (text, input, total) in [
+            ("12 copies", 12, 13),
+            ("12 copies", 13, 13),
+            ("12 more", 12, 13),
+            ("12 additional copies", 12, 13),
+            ("a dozen more", 12, 13),
+            ("twelve copies", 12, 13),
+            ("12 in total", 12, 12),
+            ("a row of 12", 12, 12),
+            ("12 copies including the original", 12, 12),
+            ("12 copies excluding the original", 12, 13),
+            ("12 copies not including the original", 12, 13),
+            ("12 copies altogether", 12, 12),
+            ("12 slots 1 in apart", 12, 12),
+            ("1 more", 1, 2),
+            ("499 copies", 499, 500),
+        ] {
+            let request = json!({"messages":[{"role":"user","content":text}]});
+            let mut args = if recipe == "linear_pattern" {
+                json!({"target":"body","count":input,"spacing":25.4,"direction":"X"})
+            } else {
+                json!({"target":"body","count":input,"axis":"Z","angle_deg":360})
+            };
+            for _ in 0..2 {
+                let plan = lib
+                    .build(&json!({"recipe":recipe,"args":args}), &request, &cat)
+                    .unwrap();
+                assert_eq!(plan.slots["count"], total, "{text}");
+                args = plan.slots;
+            }
+        }
+        let args = if recipe == "linear_pattern" {
+            json!({"target":"body","count":500,"spacing":1,"direction":"X"})
+        } else {
+            json!({"target":"body","count":500,"axis":"Z","angle_deg":360})
+        };
+        assert!(lib
+            .build(
+                &json!({"recipe":recipe,"args":args}),
+                &json!({"messages":[{"role":"user","content":"500 more"}]}),
+                &cat
+            )
+            .is_err());
+    }
+    let request = json!({"messages":[{"role":"user","content":"12 copies around Z"}]});
+    let plan = lib.build(&json!({"recipe":"circular_pattern","args":{"target":"body","count":12,"axis":"Z","angle_deg":30}}), &request, &cat).unwrap();
+    assert_eq!(plan.slots["count"], 13);
+    assert_eq!(plan.slots["angle_deg"], 360.);
+}
+
+#[test]
+fn bolt_circle_radius_and_diameter_must_agree_after_scaling() {
+    let lib = Library::embedded().unwrap();
+    let schema = &lib.recipes.iter().find(|r| r.id == "plate").unwrap().schema;
+    let args = json!({"bolt_hole_count":4,"bolt_circle_radius":50.8,"bolt_circle_diameter":101.6,"boss_diameter":12.7,"boss_height":50.8});
+    assert_eq!(
+        forms::to_slots(&args, schema).unwrap()["bolt_circle"]["diameter"],
+        101.6
+    );
+    let mut bad = args;
+    bad["bolt_circle_diameter"] = json!(50.8);
+    assert!(forms::to_slots(&bad, schema).is_err());
+    let mut inches = json!({"bolt_hole_count":4,"bolt_circle_radius":"2 in","boss_diameter":"1/2 in","boss_height":"2 in"});
+    forms::coerce(&mut inches, &forms::flat(schema)).unwrap();
+    let slots = forms::to_slots(&inches, schema).unwrap();
+    assert_eq!(slots["bolt_circle"]["diameter"], 101.6);
+    assert_eq!(slots["boss_diameter"], 12.7);
+    assert_eq!(slots["boss_height"], 50.8);
+}
+
+#[test]
 fn recipe_text_accepts_windows_line_endings_and_one_leading_bom() {
     let text = include_str!("../recipes/box.md");
     let text = text
@@ -946,9 +1021,11 @@ fn fill_forms_are_short_and_documented() {
         form["properties"]["decline"] = json!({"type":"boolean"});
         let size = form.to_string().chars().count() + line(&r.id).chars().count();
         eprintln!("{}: {size} characters", r.id);
-        // Plate includes both base outlines and three feature layouts.
+        // Plate includes both base outlines and three feature layouts. Corner sides,
+        // row offsets and circle radius are offered only when a request names them,
+        // so this full form is larger than the one most requests see.
         let cap = match r.id.as_str() {
-            "plate" => 2400,
+            "plate" => 2600,
             "joint" => 3000,
             _ => 1200,
         };
@@ -1136,7 +1213,7 @@ fn flat_coercions_and_partial_features_are_explicit() {
         ),
         ("plate", json!({"grid_rows":2}), "grid_columns"),
         ("plate", json!({"corner_kind":"fillet"}), "corner_size"),
-        ("enclosure", json!({"lip_width":1}), "lip_height"),
+        ("enclosure", json!({"lip_width":1}), "wall"),
         ("move", json!({"delta_x":5}), "delta_y"),
         (
             "cross_drilled_box",
@@ -1320,7 +1397,7 @@ fn consistent_representations_and_corner_defaults() {
 }
 
 #[test]
-fn audited_first_fills_replay_without_inventing_dimensions() {
+fn audited_first_fills_replay_with_documented_defaults() {
     let lib = Library::embedded().unwrap();
     let cat = Catalog::bundled().unwrap();
     let cases: Vec<Value> =
@@ -1342,7 +1419,12 @@ fn audited_first_fills_replay_without_inventing_dimensions() {
                 );
             }
             3 => {
-                assert!(result.unwrap_err().contains("lip_height missing"));
+                let error = result.unwrap_err();
+                assert!(
+                    error.contains("open") && error.contains("top") && error.contains("bottom"),
+                    "{error}"
+                );
+                assert!(!error.contains("lip_height missing"));
             }
             _ => panic!("unexpected audit case {index}"),
         }
@@ -1506,7 +1588,7 @@ fn joined_boss_pattern_spacing_uses_tool_extent() {
 fn circular_post_bounds_rotate_and_step_angle_is_not_a_short_arc() {
     let library = Library::embedded().unwrap();
     let catalog = Catalog::bundled().unwrap();
-    let mut request = json!({"messages":[{"role":"user","content":"a post at X=30, 6 copies around Z"},{"role":"tool","content":json!({"bodies":[{"name":"Post","volume_mm3":1608.495,"bbox":{"min":[26,-4,0],"max":[34,4,8]}}],"timeline":[]}).to_string()}]});
+    let mut request = json!({"messages":[{"role":"user","content":"a post at X=30, 6 in total around Z"},{"role":"tool","content":json!({"bodies":[{"name":"Post","volume_mm3":1608.495,"bbox":{"min":[26,-4,0],"max":[34,4,8]}}],"timeline":[]}).to_string()}]});
     for axis in ["0, 0, 1", "[0, 0, 1]", "(0 0 1)"] {
         let envelope = json!({"recipe":"circular_pattern","args":{"target":"body","body":"post","axis":axis,"count":6,"angle_deg":60}});
         let plan = library.build(&envelope, &request, &catalog).unwrap();
@@ -1521,7 +1603,7 @@ fn circular_post_bounds_rotate_and_step_angle_is_not_a_short_arc() {
             "{error}"
         );
         assert!(!error.contains("spacing [0,0]"), "{error}");
-        request["messages"][0]["content"] = json!("a post at X=30, 6 copies around Z");
+        request["messages"][0]["content"] = json!("a post at X=30, 6 in total around Z");
     }
 }
 
@@ -1572,7 +1654,7 @@ fn profile_fills_accept_kind_and_plane_wording_and_specific_thickness() {
     for (kind, expected) in [
         ("equal angle", "L"),
         ("Angle", "L"),
-        ("channel", "U"),
+        ("channel", "C"),
         ("T-bar", "T"),
         ("C channel", "C"),
         ("rectangular", "rectangle"),
@@ -1827,4 +1909,402 @@ fn joint_form_preserves_limit_units_and_audits_axis_default() {
         .unwrap();
     forms::coerce(&mut legacy, &forms::flat(&legacy_schema.schema)).unwrap();
     assert!(legacy.get("axis").is_none());
+}
+
+#[test]
+fn feature_wording_defaults_aliases_and_edit_context() {
+    use dutchman_pilot::recipe_library::forms;
+    let lib = Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    let schema = &lib
+        .recipes
+        .iter()
+        .find(|r| r.id == "enclosure")
+        .unwrap()
+        .schema;
+    for alias in ["centred", "centered", "centre", "center"] {
+        let mut args = json!({"length":"3 in","width":"2 in","height":"1 in","wall":"1/8 in","floor":"1/4 in","inside":true,"open":true,"lip":true,alias:false});
+        let changes = forms::coerce(&mut args, &forms::flat(schema)).unwrap();
+        assert_eq!(changes.iter().filter(|c| c["defaulted"] == true).count(), 2);
+        assert_eq!(args["lip_height"], 3.175);
+        assert_eq!(args["lip_width"], 1.5875);
+        assert_eq!(args["open"], "top");
+        let plan = lib
+            .build(
+                &json!({"recipe":"enclosure","args":args}),
+                &json!({"messages":[]}),
+                &cat,
+            )
+            .unwrap();
+        assert!(
+            (plan.calls[0]["arguments"]["params"]["length"]
+                .as_f64()
+                .unwrap()
+                - 82.55)
+                .abs()
+                < 1e-9
+        );
+        assert_eq!(plan.calls[0]["arguments"]["params"]["height"], 31.75);
+    }
+    let mut conflict = json!({"centred":false,"centered":true});
+    assert!(forms::coerce(&mut conflict, &forms::flat(schema))
+        .unwrap_err()
+        .contains("conflicts"));
+    let plate = &lib.recipes.iter().find(|r| r.id == "plate").unwrap().schema;
+    for (word, side) in [
+        (json!(["top_right", "bottom_right"]), "right"),
+        (json!("top-left bottom-left"), "left"),
+        (json!("top right and bottom right"), "right"),
+        (json!("right (+X)"), "right"),
+        (json!("-X"), "left"),
+    ] {
+        let mut a =
+            json!({"length":80,"width":60,"thickness":4,"corner_size":3,"corner_edges":word});
+        forms::coerce(&mut a, &forms::flat(plate)).unwrap();
+        assert_eq!(a["corner_sides"], side);
+        let p = lib
+            .build(
+                &json!({"recipe":"plate","args":a}),
+                &json!({"messages":[]}),
+                &cat,
+            )
+            .unwrap();
+        let treatment = p
+            .calls
+            .iter()
+            .find(|c| c["arguments"]["command"] == "solid.fillet")
+            .unwrap();
+        assert_eq!(
+            treatment["arguments"]["params"]["edges"]
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
+    }
+    for (prompt,id) in [
+        ("Bevel the right edges of the existing plate", "chamfer"),
+        ("Hollow out Case from underneath, leave the bottom open. 2mm walls and 2mm closed top. Keep the outside dimensions and position as they are.", "shell"),
+        ("Round the upright corners on this plate", "fillet"),
+    ] {
+        let found=lib.form_band_in_design(prompt, &["Plate".to_owned()]).unwrap();
+        assert_eq!(found["recipes"][0]["id"], id, "{found}");
+        assert_eq!(found["band"], "fill");
+        assert_eq!(lib.form_band_in_design(prompt, &[]).unwrap(), lib.form_band(prompt).unwrap());
+    }
+    for creation in [
+        "Make a plate with a bolt circle and rounded corners",
+        "Add a plate with a bolt circle, then round it",
+    ] {
+        assert_eq!(
+            lib.form_band_in_design(creation, &["Plate".to_owned()])
+                .unwrap(),
+            lib.form_band(creation).unwrap()
+        );
+    }
+    for id in ["fillet", "chamfer"] {
+        let request = json!({"messages":[]});
+        let conflict = json!({"recipe":id,"args":{"body":"Plate","amount":1,"edges":"all","corner_sides":"right"}});
+        assert!(lib
+            .build(&conflict, &request, &cat)
+            .unwrap_err()
+            .contains("requires vertical"));
+        let all = json!({"recipe":id,"args":{"body":"Plate","amount":1,"edges":"all","corner_sides":"all"}});
+        let legacy = json!({"recipe":id,"args":{"body":"Plate","amount":1}});
+        assert_eq!(
+            lib.build(&all, &request, &cat).unwrap().calls,
+            lib.build(&legacy, &request, &cat).unwrap().calls
+        );
+    }
+}
+
+#[test]
+fn request_joint_angle_never_overrides_a_fill_or_chooses_between_angles() {
+    let lib = Library::embedded().unwrap();
+    let schema = &lib
+        .recipes
+        .iter()
+        .find(|r| r.id == "revolute_joint")
+        .unwrap()
+        .schema;
+    for text in [
+        "pivot at 30 degrees or 90 degrees",
+        "pivot without an angle",
+        "use a quarter turn then 30 degrees",
+    ] {
+        let mut args = json!({});
+        assert!(forms::request_defaults(
+            &mut args,
+            schema,
+            &json!({"messages":[{"role":"user","content":text}]})
+        )
+        .unwrap()
+        .is_empty());
+        assert!(args.get("angle_deg").is_none());
+    }
+    for supplied in [json!(0), json!(45), json!("30°"), Value::Null] {
+        let mut args = json!({"angle_deg":supplied});
+        assert!(forms::request_defaults(
+            &mut args,
+            schema,
+            &json!({"messages":[{"role":"user","content":"pivot at 90°"}]})
+        )
+        .unwrap()
+        .is_empty());
+        assert_eq!(args["angle_deg"], supplied);
+    }
+    assert!(forms::request_defaults(
+        &mut json!(42),
+        schema,
+        &json!({"messages":[{"role":"user","content":"pivot at 90°"}]})
+    )
+    .unwrap_err()
+    .contains("object"));
+}
+
+#[test]
+fn flat_plural_variants_use_listed_fields_and_refuse_conflicts() {
+    let lib = Library::embedded().unwrap();
+    let schema = &lib.recipes.iter().find(|r| r.id == "plate").unwrap().schema;
+    let flat = forms::flat(schema);
+    for alias in ["hole_diameter", "holes_diameter", "grid_holes_diameter"] {
+        let mut args = json!({"length":90,"width":60,"thickness":4,"grid_columns":3,"grid_rows":2,"grid_pitch_x":20,"grid_pitch_y":30,alias:"5 mm"});
+        forms::coerce(&mut args, &flat).unwrap();
+        let slots = forms::to_slots(&args, schema).unwrap();
+        assert_eq!(slots["hole_diameter"].as_f64(), Some(5.));
+    }
+    let mut conflict = json!({"holes_diameter":4,"hole_diameter":5});
+    assert!(forms::coerce(&mut conflict, &flat)
+        .unwrap_err()
+        .contains("conflicts"));
+    let mut bosses = json!({"bosses_diameter":6});
+    forms::coerce(&mut bosses, &flat).unwrap();
+    assert_eq!(bosses["boss_diameter"], 6);
+    let mut unknown = json!({"unlisted_holes_diameter":4});
+    forms::coerce(&mut unknown, &flat).unwrap();
+    assert!(forms::to_slots(&unknown, schema)
+        .unwrap_err()
+        .contains("unknown"));
+}
+
+#[test]
+fn joint_limit_is_not_inferred_as_current_rotation() {
+    let lib = Library::embedded().unwrap();
+    let schema = &lib
+        .recipes
+        .iter()
+        .find(|r| r.id == "revolute_joint")
+        .unwrap()
+        .schema;
+    let mut args = json!({});
+    let changes = forms::request_defaults(
+        &mut args,
+        schema,
+        &json!({"messages":[{"role":"user","content":"Add a hinge with a limit of 90 degrees"}]}),
+    )
+    .unwrap();
+    assert!(changes.is_empty());
+    assert!(args.get("angle_deg").is_none());
+}
+
+#[test]
+fn profile_centring_cannot_be_discarded_by_the_l_builder() {
+    let lib = Library::embedded().unwrap();
+    let error = lib.build(&json!({"recipe":"profile","args":{"kind":"L","width":30,"height":20,"thickness":3,"depth":10,"centred":true}}), &json!({"messages":[]}), &Catalog::bundled().unwrap()).unwrap_err();
+    assert!(error.contains("centred L profiles"), "{error}");
+}
+
+#[test]
+fn unused_profile_offsets_and_aliases_preserve_geometry() {
+    let lib = Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    let schema = forms::flat(
+        &lib.recipes
+            .iter()
+            .find(|r| r.id == "profile")
+            .unwrap()
+            .schema,
+    );
+    for (kind, canonical) in [
+        ("Channel", "C"),
+        ("channel", "C"),
+        ("Tee", "T"),
+        ("rectangular", "rectangle"),
+        ("rect", "rectangle"),
+    ] {
+        for (plane, canonical_plane) in [
+            ("Top plane", "XY"),
+            ("Front plane", "XZ"),
+            ("Right plane", "YZ"),
+            ("top", "XY"),
+            ("R", "YZ"),
+        ] {
+            let mut args = json!({"kind":kind,"width":40,"height":30,"depth":20,"thickness":4,"plane":plane,"stem_offset":100});
+            if canonical == "rectangle" {
+                args.as_object_mut().unwrap().remove("thickness");
+            }
+            let changes = forms::coerce(&mut args, &schema).unwrap();
+            assert_eq!(args["kind"], canonical);
+            assert_eq!(args["plane"], canonical_plane);
+            let build = |a| {
+                lib.build(
+                    &json!({"recipe":"profile","args":a}),
+                    &json!({"messages":[]}),
+                    &cat,
+                )
+            };
+            if canonical == "T" {
+                assert_eq!(args["stem_offset"], 100);
+                assert!(build(args).unwrap_err().contains("stem_offset"));
+            } else {
+                assert!(args.get("stem_offset").is_none());
+                assert!(changes
+                    .iter()
+                    .any(|c| c["field"] == "stem_offset" && c["after"].is_null()));
+                let mut expected = json!({"kind":canonical,"width":40,"height":30,"depth":20,"thickness":4,"plane":canonical_plane});
+                if canonical == "rectangle" {
+                    expected.as_object_mut().unwrap().remove("thickness");
+                }
+                assert_eq!(build(args).unwrap().calls, build(expected).unwrap().calls);
+            }
+        }
+    }
+    for args in [
+        json!({"kind":"T","stem_offset":0}),
+        json!({"kind":"unknown","stem_offset":100}),
+    ] {
+        let mut value = args.clone();
+        forms::coerce(&mut value, &schema).unwrap();
+        assert_eq!(value["stem_offset"], args["stem_offset"]);
+    }
+}
+
+#[test]
+fn plate_grid_rows_require_one_unambiguous_request_count_pair() {
+    let lib = Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    let schema = &lib.recipes.iter().find(|r| r.id == "plate").unwrap().schema;
+    let base = json!({"length":100,"width":80,"thickness":8,"grid_columns":3,"grid_pitch_x":20,"grid_pitch_y":20,"grid_hole_diameter":4});
+    for text in [
+        "Make a plate with a 3 x 2 hole grid",
+        "Plate with a 3 by 2 grid",
+        "Plate with 3x2 holes",
+        "Make a box plate with a 3x2 hole grid by the end",
+        "Plate with a 3 × 2 grid",
+    ] {
+        let req = json!({"messages":[{"role":"user","content":text}]});
+        let mut args = base.clone();
+        let changes = forms::request_defaults(&mut args, schema, &req).unwrap();
+        assert_eq!(args["grid_rows"], 2, "{text}");
+        assert!(changes
+            .iter()
+            .any(|c| c["field"] == "grid_rows" && c["after"] == 2));
+        let plan = lib
+            .build(&json!({"recipe":"plate","args":base}), &req, &cat)
+            .unwrap();
+        assert_eq!(
+            plan.calls,
+            lib.build(&json!({"recipe":"plate","args":args}), &req, &cat)
+                .unwrap()
+                .calls
+        );
+    }
+    for text in [
+        "Plate with a 2 by 3 grid",
+        "Plate with a 3 by 2 or 3 by 4 grid",
+        "Plate with a 3 by 2 mm grid",
+        "Plate dimensions 3 by 2",
+        "Plate with a 3 by 65 grid",
+        "Plate with a 3 by 0 grid",
+        "Plate with a 3 by 2.5 grid",
+        "Plate without a 3 by 2 grid",
+        "Plate grid 3 by 2, 3 rows",
+        "Plate grid 3 by 2 by 4",
+        "Plate grid 3 by 2 and 5.5 by 4",
+    ] {
+        let req = json!({"messages":[{"role":"user","content":text}]});
+        let mut args = base.clone();
+        assert!(
+            forms::request_defaults(&mut args, schema, &req)
+                .unwrap()
+                .is_empty(),
+            "{text}"
+        );
+        assert!(
+            lib.build(&json!({"recipe":"plate","args":args}), &req, &cat)
+                .unwrap_err()
+                .contains("grid_rows"),
+            "{text}"
+        );
+    }
+    let mut args = base;
+    args["grid_rows"] = json!(4);
+    assert!(forms::request_defaults(
+        &mut args,
+        schema,
+        &json!({"messages":[{"role":"user","content":"3 by 2 grid"}]})
+    )
+    .unwrap()
+    .is_empty());
+    assert_eq!(args["grid_rows"], 4);
+}
+
+#[test]
+fn plate_corner_and_plane_aliases_are_bounded_choices() {
+    let lib = Library::embedded().unwrap();
+    let schema = &lib.recipes.iter().find(|r| r.id == "plate").unwrap().schema;
+    for (plane, expected) in [
+        ("Top plane", "XY"),
+        ("Front plane", "XZ"),
+        ("Right plane", "YZ"),
+        ("top", "XY"),
+        ("R", "YZ"),
+    ] {
+        for kind in ["radius", "rounded"] {
+            let mut args = json!({"plane":plane,"corner_kind":kind,"corner_size":2});
+            let changes = forms::coerce(&mut args, &forms::flat(schema)).unwrap();
+            assert_eq!(args["plane"], expected);
+            assert_eq!(args["corner_kind"], "fillet");
+            assert!(changes.iter().any(|c| c["field"] == "corner_kind"));
+            forms::to_slots(&args, schema).unwrap();
+        }
+    }
+    for (field, value) in [
+        ("plane", "Bottom plane"),
+        ("plane", "Front plane offset"),
+        ("corner_kind", "radius 5"),
+        ("corner_kind", "ellipse"),
+    ] {
+        let mut args = json!({field:value});
+        forms::coerce(&mut args, &forms::flat(schema)).unwrap();
+        assert_eq!(args[field], value);
+        assert!(forms::to_slots(&args, schema).is_err());
+    }
+}
+
+#[test]
+fn unneeded_pattern_join_is_removed_without_allowing_overlap() {
+    let lib = Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    let snapshot = json!({"bodies":[{"name":"Post","volume_mm3":128,"bbox":{"min":[28,-2,0],"max":[32,2,8]}}],"timeline":[{"id":1,"name":"Box1","type":"BoxFeature"}]});
+    let detail = json!({"id":1,"name":"Box1","type":"BoxFeature","definition":{"body_names":["Post"],"corner":[28,-2,0],"length":"4","width":"4","height":"8"}});
+    let req = json!({"messages":[{"role":"user","content":"Pattern this post around Z"},{"role":"tool","content":snapshot.to_string()},{"role":"tool","content":detail.to_string()}]});
+    for target in ["body", "last_feature"] {
+        let args = json!({"target":target,"count":6,"angle_deg":360,"axis":"Z","join":true});
+        let build =
+            |a, r: &Value| lib.build(&json!({"recipe":"circular_pattern","args":a}), r, &cat);
+        let plan = build(args.clone(), &req).unwrap();
+        let mut without = args.clone();
+        without.as_object_mut().unwrap().remove("join");
+        assert_eq!(plan.rule, "circular_pattern");
+        assert_eq!(plan.calls, build(without, &req).unwrap().calls);
+        let mut overlapping = args.clone();
+        overlapping["angle_deg"] = json!(10);
+        assert!(build(overlapping, &req)
+            .unwrap_err()
+            .contains("overlapping"));
+        let mut explicit = req.clone();
+        explicit["messages"][0]["content"] = json!("Join the patterned posts");
+        assert!(build(args, &explicit).unwrap_err().contains("join"));
+    }
 }

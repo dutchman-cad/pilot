@@ -1859,6 +1859,13 @@ pub(super) fn resume(
     let Some(messages) = request["messages"].as_array() else {
         return Ok(None);
     };
+    if previous.slots["x-pilot-corner-edit"] == true {
+        let mut args = previous.slots.clone();
+        args.as_object_mut()
+            .ok_or("edge edit slots require an object")?
+            .remove("x-pilot-corner-edit");
+        return shortcuts::existing_corners(previous.rule, &args, request, catalog).map(Some);
+    }
     let input = Input {
         text: "",
         t: Vec::new(),

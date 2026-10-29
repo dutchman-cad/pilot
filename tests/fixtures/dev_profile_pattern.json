@@ -1,0 +1,4582 @@
+[
+  {
+    "category": "numbers_first",
+    "prompt": "40 x 30 x 5 angle, 100 long",
+    "recipe": "profile",
+    "args": {
+      "kind": "L",
+      "width": 40,
+      "height": 30,
+      "thickness": 5,
+      "depth": 100
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40,
+              0
+            ],
+            [
+              40,
+              5
+            ],
+            [
+              5,
+              5
+            ],
+            [
+              5,
+              30
+            ],
+            [
+              0,
+              30
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          40,
+          30,
+          100
+        ]
+      },
+      "volume": 32500
+    }
+  },
+  {
+    "category": "numbers_first",
+    "prompt": "Make a 40 by 30 by 5 mm angle, 100 mm long",
+    "recipe": "profile",
+    "args": {
+      "kind": "L",
+      "width": 40,
+      "height": 30,
+      "thickness": 5,
+      "depth": 100
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40,
+              0
+            ],
+            [
+              40,
+              5
+            ],
+            [
+              5,
+              5
+            ],
+            [
+              5,
+              30
+            ],
+            [
+              0,
+              30
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          40,
+          30,
+          100
+        ]
+      },
+      "volume": 32500
+    }
+  },
+  {
+    "category": "numbers_first",
+    "prompt": "40×30×5 angle profile; extrude 100 mm",
+    "recipe": "profile",
+    "args": {
+      "kind": "L",
+      "width": 40,
+      "height": 30,
+      "thickness": 5,
+      "depth": 100
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40,
+              0
+            ],
+            [
+              40,
+              5
+            ],
+            [
+              5,
+              5
+            ],
+            [
+              5,
+              30
+            ],
+            [
+              0,
+              30
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          40,
+          30,
+          100
+        ]
+      },
+      "volume": 32500
+    }
+  },
+  {
+    "category": "numbers_first",
+    "prompt": "Build 40 x 30 x 5 angle length 100",
+    "recipe": "profile",
+    "args": {
+      "kind": "L",
+      "width": 40,
+      "height": 30,
+      "thickness": 5,
+      "depth": 100
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40,
+              0
+            ],
+            [
+              40,
+              5
+            ],
+            [
+              5,
+              5
+            ],
+            [
+              5,
+              30
+            ],
+            [
+              0,
+              30
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          40,
+          30,
+          100
+        ]
+      },
+      "volume": 32500
+    }
+  },
+  {
+    "category": "numbers_first",
+    "prompt": "Create a 40 x 30 x 5 angle 100 deep",
+    "recipe": "profile",
+    "args": {
+      "kind": "L",
+      "width": 40,
+      "height": 30,
+      "thickness": 5,
+      "depth": 100
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40,
+              0
+            ],
+            [
+              40,
+              5
+            ],
+            [
+              5,
+              5
+            ],
+            [
+              5,
+              30
+            ],
+            [
+              0,
+              30
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          40,
+          30,
+          100
+        ]
+      },
+      "volume": 32500
+    }
+  },
+  {
+    "category": "drafting",
+    "prompt": "L 50x30x4, 200 long",
+    "recipe": "profile",
+    "args": {
+      "kind": "L",
+      "width": 50,
+      "height": 30,
+      "thickness": 4,
+      "depth": 200
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              50,
+              0
+            ],
+            [
+              50,
+              4
+            ],
+            [
+              4,
+              4
+            ],
+            [
+              4,
+              30
+            ],
+            [
+              0,
+              30
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 200
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          50,
+          30,
+          200
+        ]
+      },
+      "volume": 60800
+    }
+  },
+  {
+    "category": "drafting",
+    "prompt": "L50×30×4 x 200",
+    "recipe": "profile",
+    "args": {
+      "kind": "L",
+      "width": 50,
+      "height": 30,
+      "thickness": 4,
+      "depth": 200
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              50,
+              0
+            ],
+            [
+              50,
+              4
+            ],
+            [
+              4,
+              4
+            ],
+            [
+              4,
+              30
+            ],
+            [
+              0,
+              30
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 200
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          50,
+          30,
+          200
+        ]
+      },
+      "volume": 60800
+    }
+  },
+  {
+    "category": "drafting",
+    "prompt": "Make L 50 x 30 x 4 mm, extrude 200",
+    "recipe": "profile",
+    "args": {
+      "kind": "L",
+      "width": 50,
+      "height": 30,
+      "thickness": 4,
+      "depth": 200
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              50,
+              0
+            ],
+            [
+              50,
+              4
+            ],
+            [
+              4,
+              4
+            ],
+            [
+              4,
+              30
+            ],
+            [
+              0,
+              30
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 200
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          50,
+          30,
+          200
+        ]
+      },
+      "volume": 60800
+    }
+  },
+  {
+    "category": "drafting",
+    "prompt": "Build an L50x30x4 profile depth 200",
+    "recipe": "profile",
+    "args": {
+      "kind": "L",
+      "width": 50,
+      "height": 30,
+      "thickness": 4,
+      "depth": 200
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              50,
+              0
+            ],
+            [
+              50,
+              4
+            ],
+            [
+              4,
+              4
+            ],
+            [
+              4,
+              30
+            ],
+            [
+              0,
+              30
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 200
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          50,
+          30,
+          200
+        ]
+      },
+      "volume": 60800
+    }
+  },
+  {
+    "category": "drafting",
+    "prompt": "Create L 50 by 30 by 4, length 200",
+    "recipe": "profile",
+    "args": {
+      "kind": "L",
+      "width": 50,
+      "height": 30,
+      "thickness": 4,
+      "depth": 200
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              50,
+              0
+            ],
+            [
+              50,
+              4
+            ],
+            [
+              4,
+              4
+            ],
+            [
+              4,
+              30
+            ],
+            [
+              0,
+              30
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 200
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          50,
+          30,
+          200
+        ]
+      },
+      "volume": 60800
+    }
+  },
+  {
+    "category": "boss_copies",
+    "prompt": "Repeat this boss along X, 12 in total, 12 mm apart",
+    "recipe": "linear_pattern",
+    "args": {
+      "target": "last_feature",
+      "body": "Base",
+      "count": 12,
+      "spacing": 12,
+      "direction": "X"
+    },
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 200,
+          "width": 30,
+          "height": 5,
+          "body_name": "Base"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            5,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      }
+    ],
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 200,
+          "width": 30,
+          "height": 5,
+          "body_name": "Base"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            5,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            17,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            29,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            41,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            53,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            65,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            77,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            89,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            101,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            113,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            125,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            137,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          200,
+          30,
+          10
+        ]
+      },
+      "volume": 30753.98223686155
+    }
+  },
+  {
+    "category": "boss_copies",
+    "prompt": "Make 12 copies of this boss along X, 12 mm apart",
+    "recipe": "linear_pattern",
+    "args": {
+      "target": "last_feature",
+      "body": "Base",
+      "count": 12,
+      "spacing": 12,
+      "direction": "X"
+    },
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 200,
+          "width": 30,
+          "height": 5,
+          "body_name": "Base"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            5,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      }
+    ],
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 200,
+          "width": 30,
+          "height": 5,
+          "body_name": "Base"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            5,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            17,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            29,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            41,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            53,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            65,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            77,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            89,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            101,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            113,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            125,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            137,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            149,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          200,
+          30,
+          10
+        ]
+      },
+      "volume": 30816.814089933345
+    }
+  },
+  {
+    "category": "boss_copies",
+    "prompt": "Add a dozen more bosses along X at 12 mm spacing",
+    "recipe": "linear_pattern",
+    "args": {
+      "target": "last_feature",
+      "body": "Base",
+      "count": 12,
+      "spacing": 12,
+      "direction": "X"
+    },
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 200,
+          "width": 30,
+          "height": 5,
+          "body_name": "Base"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            5,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      }
+    ],
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 200,
+          "width": 30,
+          "height": 5,
+          "body_name": "Base"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            5,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            17,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            29,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            41,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            53,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            65,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            77,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            89,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            101,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            113,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            125,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            137,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            149,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          200,
+          30,
+          10
+        ]
+      },
+      "volume": 30816.814089933345
+    }
+  },
+  {
+    "category": "boss_copies",
+    "prompt": "Make a row of 12 bosses along X at 12 mm pitch",
+    "recipe": "linear_pattern",
+    "args": {
+      "target": "last_feature",
+      "body": "Base",
+      "count": 12,
+      "spacing": 12,
+      "direction": "X"
+    },
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 200,
+          "width": 30,
+          "height": 5,
+          "body_name": "Base"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            5,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      }
+    ],
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 200,
+          "width": 30,
+          "height": 5,
+          "body_name": "Base"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            5,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            17,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            29,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            41,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            53,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            65,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            77,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            89,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            101,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            113,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            125,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            137,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          200,
+          30,
+          10
+        ]
+      },
+      "volume": 30753.98223686155
+    }
+  },
+  {
+    "category": "boss_copies",
+    "prompt": "Make 12 copies including the original boss along X, spaced 12 mm",
+    "recipe": "linear_pattern",
+    "args": {
+      "target": "last_feature",
+      "body": "Base",
+      "count": 12,
+      "spacing": 12,
+      "direction": "X"
+    },
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 200,
+          "width": 30,
+          "height": 5,
+          "body_name": "Base"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            5,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      }
+    ],
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 200,
+          "width": 30,
+          "height": 5,
+          "body_name": "Base"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            5,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            17,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            29,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            41,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            53,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            65,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            77,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            89,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            101,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            113,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            125,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 5,
+          "base": [
+            137,
+            15,
+            5
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          200,
+          30,
+          10
+        ]
+      },
+      "volume": 30753.98223686155
+    }
+  },
+  {
+    "category": "edge_studs",
+    "prompt": "Build a 100 x 50 x 4 plate with 5 studs diameter 4 height 8 along the front edge, centres 5 mm in, starting 10 mm from the left, 15 mm apart",
+    "recipe": "plate",
+    "args": {
+      "length": 100,
+      "width": 50,
+      "thickness": 4,
+      "boss_diameter": 4,
+      "boss_height": 8,
+      "row_count": 5,
+      "row_pitch": 15,
+      "row_axis": "X",
+      "row_offset_x": -10,
+      "row_offset_y": -20
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 100,
+          "width": 50,
+          "height": 4,
+          "body_name": "Base"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 8,
+          "base": [
+            10,
+            5,
+            4
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 8,
+          "base": [
+            25,
+            5,
+            4
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 8,
+          "base": [
+            40,
+            5,
+            4
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 8,
+          "base": [
+            55,
+            5,
+            4
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 8,
+          "base": [
+            70,
+            5,
+            4
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          100,
+          50,
+          12
+        ]
+      },
+      "volume": 20502.654824574365
+    }
+  },
+  {
+    "category": "edge_studs",
+    "prompt": "Make a 100 by 50 by 4 mm base, 4 studs 4 across and 8 tall along the back edge, centres 5 mm from it, first 20 from left, pitch 20",
+    "recipe": "plate",
+    "args": {
+      "length": 100,
+      "width": 50,
+      "thickness": 4,
+      "boss_diameter": 4,
+      "boss_height": 8,
+      "row_count": 4,
+      "row_pitch": 20,
+      "row_axis": "X",
+      "row_offset_x": 0,
+      "row_offset_y": 20
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 100,
+          "width": 50,
+          "height": 4,
+          "body_name": "Base"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 8,
+          "base": [
+            20,
+            45,
+            4
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 8,
+          "base": [
+            40,
+            45,
+            4
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 8,
+          "base": [
+            60,
+            45,
+            4
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 8,
+          "base": [
+            80,
+            45,
+            4
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          100,
+          50,
+          12
+        ]
+      },
+      "volume": 20402.123859659492
+    }
+  },
+  {
+    "category": "edge_studs",
+    "prompt": "100x50x4 mm plate: a row of 3 studs diameter 4 height 8 along the left edge, centres 5 mm from it, start 10 from front, 15 apart",
+    "recipe": "plate",
+    "args": {
+      "length": 100,
+      "width": 50,
+      "thickness": 4,
+      "boss_diameter": 4,
+      "boss_height": 8,
+      "row_count": 3,
+      "row_pitch": 15,
+      "row_axis": "Y",
+      "row_offset_x": -45,
+      "row_offset_y": 0
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 100,
+          "width": 50,
+          "height": 4,
+          "body_name": "Base"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 8,
+          "base": [
+            5,
+            10,
+            4
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 8,
+          "base": [
+            5,
+            25,
+            4
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 8,
+          "base": [
+            5,
+            40,
+            4
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          100,
+          50,
+          12
+        ]
+      },
+      "volume": 20301.59289474462
+    }
+  },
+  {
+    "category": "edge_studs",
+    "prompt": "Add 5 studs diameter 4 height 8 on a 100x50x4 plate, along X 5 from front; first centre X=10, last X=70",
+    "recipe": "plate",
+    "args": {
+      "length": 100,
+      "width": 50,
+      "thickness": 4,
+      "boss_diameter": 4,
+      "boss_height": 8,
+      "row_count": 5,
+      "row_pitch": 15,
+      "row_axis": "X",
+      "row_offset_x": -10,
+      "row_offset_y": -20
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 100,
+          "width": 50,
+          "height": 4,
+          "body_name": "Base"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 8,
+          "base": [
+            10,
+            5,
+            4
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 8,
+          "base": [
+            25,
+            5,
+            4
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 8,
+          "base": [
+            40,
+            5,
+            4
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 8,
+          "base": [
+            55,
+            5,
+            4
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 8,
+          "base": [
+            70,
+            5,
+            4
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          100,
+          50,
+          12
+        ]
+      },
+      "volume": 20502.654824574365
+    }
+  },
+  {
+    "category": "edge_studs",
+    "prompt": "Build a 100x50x4 mm base and 3 studs diameter 4 height 8 along the right edge, centres 5 mm from it; first 10 from front and pitch 15",
+    "recipe": "plate",
+    "args": {
+      "length": 100,
+      "width": 50,
+      "thickness": 4,
+      "boss_diameter": 4,
+      "boss_height": 8,
+      "row_count": 3,
+      "row_pitch": 15,
+      "row_axis": "Y",
+      "row_offset_x": 45,
+      "row_offset_y": 0
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 100,
+          "width": 50,
+          "height": 4,
+          "body_name": "Base"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 8,
+          "base": [
+            95,
+            10,
+            4
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 8,
+          "base": [
+            95,
+            25,
+            4
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 4,
+          "height": 8,
+          "base": [
+            95,
+            40,
+            4
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          100,
+          50,
+          12
+        ]
+      },
+      "volume": 20301.59289474462
+    }
+  },
+  {
+    "category": "inch_circle",
+    "prompt": "Make an 8 inch diameter base 1/4 inch thick, with 4 legs 1/2 inch across and 2 inches tall on a 2 inch radius circle around Z",
+    "recipe": "plate",
+    "args": {
+      "diameter": 203.2,
+      "thickness": 6.35,
+      "centred": true,
+      "boss_diameter": 12.7,
+      "boss_height": 50.8,
+      "bolt_hole_count": 4,
+      "bolt_circle_radius": 50.8
+    },
+    "commands": [
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 203.2,
+          "height": 6.35,
+          "body_name": "Base"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 12.7,
+          "height": 50.8,
+          "base": [
+            50.8,
+            0,
+            6.35
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 12.7,
+          "height": 50.8,
+          "base": [
+            3.110602869834277e-15,
+            50.8,
+            6.35
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 12.7,
+          "height": 50.8,
+          "base": [
+            -50.8,
+            6.221205739668554e-15,
+            6.35
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 12.7,
+          "height": 50.8,
+          "base": [
+            -9.33180860950283e-15,
+            -50.8,
+            6.35
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          -101.6,
+          -101.6,
+          0
+        ],
+        "max": [
+          101.6,
+          101.6,
+          57.15
+        ]
+      },
+      "volume": 231666.65944337595
+    }
+  },
+  {
+    "category": "inch_circle",
+    "prompt": "8 in round plate, .25 in thick: six legs .5 in diameter, 2 in high, on a 4 in bolt circle diameter",
+    "recipe": "plate",
+    "args": {
+      "diameter": 203.2,
+      "thickness": 6.35,
+      "centred": true,
+      "boss_diameter": 12.7,
+      "boss_height": 50.8,
+      "bolt_hole_count": 6,
+      "bolt_circle_diameter": 101.6
+    },
+    "commands": [
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 203.2,
+          "height": 6.35,
+          "body_name": "Base"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 12.7,
+          "height": 50.8,
+          "base": [
+            50.8,
+            0,
+            6.35
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 12.7,
+          "height": 50.8,
+          "base": [
+            25.400000000000006,
+            43.99409051224948,
+            6.35
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 12.7,
+          "height": 50.8,
+          "base": [
+            -25.399999999999988,
+            43.994090512249485,
+            6.35
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 12.7,
+          "height": 50.8,
+          "base": [
+            -50.8,
+            6.221205739668554e-15,
+            6.35
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 12.7,
+          "height": 50.8,
+          "base": [
+            -25.40000000000002,
+            -43.994090512249464,
+            6.35
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 12.7,
+          "height": 50.8,
+          "base": [
+            25.400000000000006,
+            -43.99409051224948,
+            6.35
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          -101.6,
+          -101.6,
+          0
+        ],
+        "max": [
+          101.6,
+          101.6,
+          57.15
+        ]
+      },
+      "volume": 244537.02941245236
+    }
+  },
+  {
+    "category": "inch_circle",
+    "prompt": "Create a round base diameter 8 inches thickness .25 inches with 8 round legs diameter .5 inches height 2 inches, circle radius 2 inches in XY",
+    "recipe": "plate",
+    "args": {
+      "diameter": 203.2,
+      "thickness": 6.35,
+      "centred": true,
+      "boss_diameter": 12.7,
+      "boss_height": 50.8,
+      "bolt_hole_count": 8,
+      "bolt_circle_radius": 50.8
+    },
+    "commands": [
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 203.2,
+          "height": 6.35,
+          "body_name": "Base"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 12.7,
+          "height": 50.8,
+          "base": [
+            50.8,
+            0,
+            6.35
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 12.7,
+          "height": 50.8,
+          "base": [
+            35.921024484276614,
+            35.92102448427661,
+            6.35
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 12.7,
+          "height": 50.8,
+          "base": [
+            3.110602869834277e-15,
+            50.8,
+            6.35
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 12.7,
+          "height": 50.8,
+          "base": [
+            -35.92102448427661,
+            35.921024484276614,
+            6.35
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 12.7,
+          "height": 50.8,
+          "base": [
+            -50.8,
+            6.221205739668554e-15,
+            6.35
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 12.7,
+          "height": 50.8,
+          "base": [
+            -35.92102448427662,
+            -35.92102448427661,
+            6.35
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 12.7,
+          "height": 50.8,
+          "base": [
+            -9.33180860950283e-15,
+            -50.8,
+            6.35
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 12.7,
+          "height": 50.8,
+          "base": [
+            35.9210244842766,
+            -35.92102448427662,
+            6.35
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ]
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          -101.6,
+          -101.6,
+          0
+        ],
+        "max": [
+          101.6,
+          101.6,
+          57.15
+        ]
+      },
+      "volume": 257407.3993815288
+    }
+  },
+  {
+    "category": "inch_circle",
+    "prompt": "Build an 8 inch disc 1/4 inch thick and four .5 inch diameter posts rising 2 inches, centres on a 4 inch PCD on the XZ plane",
+    "recipe": "plate",
+    "args": {
+      "diameter": 203.2,
+      "thickness": 6.35,
+      "centred": true,
+      "boss_diameter": 12.7,
+      "boss_height": 50.8,
+      "bolt_hole_count": 4,
+      "bolt_circle_diameter": 101.6,
+      "plane": "XZ"
+    },
+    "commands": [
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 203.2,
+          "height": 6.35,
+          "body_name": "Base",
+          "axis": "Y"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 12.7,
+          "height": 50.8,
+          "base": [
+            50.8,
+            6.35,
+            0
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ],
+          "axis": "Y"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 12.7,
+          "height": 50.8,
+          "base": [
+            3.110602869834277e-15,
+            6.35,
+            -50.8
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ],
+          "axis": "Y"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 12.7,
+          "height": 50.8,
+          "base": [
+            -50.8,
+            6.35,
+            -6.221205739668554e-15
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ],
+          "axis": "Y"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 12.7,
+          "height": 50.8,
+          "base": [
+            -9.33180860950283e-15,
+            6.35,
+            50.8
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ],
+          "axis": "Y"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          -101.6,
+          0,
+          -101.6
+        ],
+        "max": [
+          101.6,
+          57.15,
+          101.6
+        ]
+      },
+      "volume": 231666.65944337595
+    }
+  },
+  {
+    "category": "inch_circle",
+    "prompt": "Round platform 8 in across, .25 in thick; 6 legs .5 in across 2 in high, equally spaced about X, 2 in from centre on the YZ plane",
+    "recipe": "plate",
+    "args": {
+      "diameter": 203.2,
+      "thickness": 6.35,
+      "centred": true,
+      "boss_diameter": 12.7,
+      "boss_height": 50.8,
+      "bolt_hole_count": 6,
+      "bolt_circle_radius": 50.8,
+      "plane": "YZ"
+    },
+    "commands": [
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 203.2,
+          "height": 6.35,
+          "body_name": "Base",
+          "axis": "X"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 12.7,
+          "height": 50.8,
+          "base": [
+            6.35,
+            50.8,
+            0
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ],
+          "axis": "X"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 12.7,
+          "height": 50.8,
+          "base": [
+            6.35,
+            25.400000000000006,
+            43.99409051224948
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ],
+          "axis": "X"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 12.7,
+          "height": 50.8,
+          "base": [
+            6.35,
+            -25.399999999999988,
+            43.994090512249485
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ],
+          "axis": "X"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 12.7,
+          "height": 50.8,
+          "base": [
+            6.35,
+            -50.8,
+            6.221205739668554e-15
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ],
+          "axis": "X"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 12.7,
+          "height": 50.8,
+          "base": [
+            6.35,
+            -25.40000000000002,
+            -43.994090512249464
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ],
+          "axis": "X"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "diameter": 12.7,
+          "height": 50.8,
+          "base": [
+            6.35,
+            25.400000000000006,
+            -43.99409051224948
+          ],
+          "operation": "join",
+          "targets": [
+            "Base"
+          ],
+          "axis": "X"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          -101.6,
+          -101.6
+        ],
+        "max": [
+          57.15,
+          101.6,
+          101.6
+        ]
+      },
+      "volume": 244537.02941245236
+    }
+  },
+  {
+    "category": "general_counts",
+    "prompt": "Make 5 slots 1 in apart along X",
+    "recipe": "linear_pattern",
+    "args": {
+      "target": "last_feature",
+      "body": "Base",
+      "count": 5,
+      "spacing": 25.4,
+      "direction": "X"
+    },
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 200,
+          "width": 30,
+          "height": 5,
+          "body_name": "Base"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            8,
+            11
+          ],
+          "p1": [
+            12,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      }
+    ],
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 200,
+          "width": 30,
+          "height": 5,
+          "body_name": "Base"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            8,
+            11
+          ],
+          "p1": [
+            12,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            33.4,
+            11
+          ],
+          "p1": [
+            37.4,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            58.8,
+            11
+          ],
+          "p1": [
+            62.8,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            84.19999999999999,
+            11
+          ],
+          "p1": [
+            88.19999999999999,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            109.6,
+            11
+          ],
+          "p1": [
+            113.6,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          200,
+          30,
+          5
+        ]
+      },
+      "volume": 29200
+    }
+  },
+  {
+    "category": "general_counts",
+    "prompt": "Make a row of 5 slots along X, 1 inch apart",
+    "recipe": "linear_pattern",
+    "args": {
+      "target": "last_feature",
+      "body": "Base",
+      "count": 5,
+      "spacing": 25.4,
+      "direction": "X"
+    },
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 200,
+          "width": 30,
+          "height": 5,
+          "body_name": "Base"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            8,
+            11
+          ],
+          "p1": [
+            12,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      }
+    ],
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 200,
+          "width": 30,
+          "height": 5,
+          "body_name": "Base"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            8,
+            11
+          ],
+          "p1": [
+            12,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            33.4,
+            11
+          ],
+          "p1": [
+            37.4,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            58.8,
+            11
+          ],
+          "p1": [
+            62.8,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            84.19999999999999,
+            11
+          ],
+          "p1": [
+            88.19999999999999,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            109.6,
+            11
+          ],
+          "p1": [
+            113.6,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          200,
+          30,
+          5
+        ]
+      },
+      "volume": 29200
+    }
+  },
+  {
+    "category": "general_counts",
+    "prompt": "Add five more slots along X, 1 in apart",
+    "recipe": "linear_pattern",
+    "args": {
+      "target": "last_feature",
+      "body": "Base",
+      "count": 5,
+      "spacing": 25.4,
+      "direction": "X"
+    },
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 200,
+          "width": 30,
+          "height": 5,
+          "body_name": "Base"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            8,
+            11
+          ],
+          "p1": [
+            12,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      }
+    ],
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 200,
+          "width": 30,
+          "height": 5,
+          "body_name": "Base"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            8,
+            11
+          ],
+          "p1": [
+            12,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            33.4,
+            11
+          ],
+          "p1": [
+            37.4,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            58.8,
+            11
+          ],
+          "p1": [
+            62.8,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            84.19999999999999,
+            11
+          ],
+          "p1": [
+            88.19999999999999,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            109.6,
+            11
+          ],
+          "p1": [
+            113.6,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            135,
+            11
+          ],
+          "p1": [
+            139,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          200,
+          30,
+          5
+        ]
+      },
+      "volume": 29040
+    }
+  },
+  {
+    "category": "general_counts",
+    "prompt": "Make 5 copies of the slot along X, 1 in apart",
+    "recipe": "linear_pattern",
+    "args": {
+      "target": "last_feature",
+      "body": "Base",
+      "count": 5,
+      "spacing": 25.4,
+      "direction": "X"
+    },
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 200,
+          "width": 30,
+          "height": 5,
+          "body_name": "Base"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            8,
+            11
+          ],
+          "p1": [
+            12,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      }
+    ],
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 200,
+          "width": 30,
+          "height": 5,
+          "body_name": "Base"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            8,
+            11
+          ],
+          "p1": [
+            12,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            33.4,
+            11
+          ],
+          "p1": [
+            37.4,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            58.8,
+            11
+          ],
+          "p1": [
+            62.8,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            84.19999999999999,
+            11
+          ],
+          "p1": [
+            88.19999999999999,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            109.6,
+            11
+          ],
+          "p1": [
+            113.6,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            135,
+            11
+          ],
+          "p1": [
+            139,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          200,
+          30,
+          5
+        ]
+      },
+      "volume": 29040
+    }
+  },
+  {
+    "category": "general_counts",
+    "prompt": "Repeat the slot along X for 5 in total, spaced 1 in",
+    "recipe": "linear_pattern",
+    "args": {
+      "target": "last_feature",
+      "body": "Base",
+      "count": 5,
+      "spacing": 25.4,
+      "direction": "X"
+    },
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 200,
+          "width": 30,
+          "height": 5,
+          "body_name": "Base"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            8,
+            11
+          ],
+          "p1": [
+            12,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      }
+    ],
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 200,
+          "width": 30,
+          "height": 5,
+          "body_name": "Base"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            8,
+            11
+          ],
+          "p1": [
+            12,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            33.4,
+            11
+          ],
+          "p1": [
+            37.4,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            58.8,
+            11
+          ],
+          "p1": [
+            62.8,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            84.19999999999999,
+            11
+          ],
+          "p1": [
+            88.19999999999999,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            109.6,
+            11
+          ],
+          "p1": [
+            113.6,
+            19
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 5,
+          "operation": "cut",
+          "targets": [
+            "Base"
+          ]
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          200,
+          30,
+          5
+        ]
+      },
+      "volume": 29200
+    }
+  }
+]

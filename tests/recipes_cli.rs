@@ -18,6 +18,131 @@ struct Session {
 }
 
 #[test]
+fn dev_profile_pattern_replays_literal_references_and_forms() {
+    use dutchman_pilot::recipe_library::{forms, Library};
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let cases: Vec<Value> =
+        serde_json::from_str(include_str!("fixtures/dev_profile_pattern.json")).unwrap();
+    let lib = Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    for case in cases {
+        eprintln!("LPAT {}: {}", case["category"], case["prompt"]);
+        let check = |s: &mut Session| {
+            let expected = &case["expected"];
+            let min = std::array::from_fn(|i| expected["bbox"]["min"][i].as_f64().unwrap());
+            let max = std::array::from_fn(|i| expected["bbox"]["max"][i].as_f64().unwrap());
+            check_shortcut_body(s, expected["volume"].as_f64().unwrap(), min, max, false);
+        };
+        let centres = |s: &mut Session| {
+            let state = s.execute("document.inspect", json!({"measure":true}));
+            let faces = s.execute("model.faces", json!({"body":state["bodies"][0]["name"]}));
+            let mut centres: Vec<[i64; 4]> = faces["faces"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter_map(|f| f.get("cylinder"))
+                .map(|c| {
+                    // Cylinder origins can slide along their infinite axes.
+                    // Compare axis lines projected onto the sketch plane.
+                    let axis = (0..3)
+                        .max_by(|a, b| {
+                            c["axis"][*a]
+                                .as_f64()
+                                .unwrap()
+                                .abs()
+                                .total_cmp(&c["axis"][*b].as_f64().unwrap().abs())
+                        })
+                        .unwrap();
+                    std::array::from_fn(|i| {
+                        if i == 3 {
+                            (c["radius"].as_f64().unwrap() * 1000.).round() as i64
+                        } else if i == axis {
+                            0
+                        } else {
+                            (c["origin"][i].as_f64().unwrap() * 1000.).round() as i64
+                        }
+                    })
+                })
+                .collect();
+            centres.sort();
+            centres.dedup();
+            centres
+        };
+        let mut reference = Session::new(&path);
+        for c in case["commands"].as_array().unwrap() {
+            reference.execute(c["command"].as_str().unwrap(), c["params"].clone());
+        }
+        check(&mut reference);
+        let reference_centres = centres(&mut reference);
+        let mut session = Session::new(&path);
+        for c in case["setup"].as_array().into_iter().flatten() {
+            session.execute(c["command"].as_str().unwrap(), c["params"].clone());
+        }
+        let mut req = json!({"messages":[{"role":"user","content":case["prompt"]}],"tools":[{"function":{"name":"execute"}}]});
+        let schema = &lib
+            .recipes
+            .iter()
+            .find(|r| r.id == case["recipe"].as_str().unwrap())
+            .unwrap()
+            .schema;
+        let mut args = case["args"].clone();
+        forms::coerce(&mut args, &forms::flat(schema)).unwrap();
+        let mut complete = false;
+        for _ in 0..6 {
+            let plan = lib
+                .build(&json!({"recipe":case["recipe"],"args":args}), &req, &cat)
+                .unwrap();
+            for c in &plan.calls {
+                let result = session.execute(
+                    c["arguments"]["command"].as_str().unwrap(),
+                    c["arguments"]["params"].clone(),
+                );
+                req["messages"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(json!({"role":"tool","content":result.to_string()}));
+            }
+            if plan.expected.is_some() {
+                complete = true;
+                break;
+            }
+        }
+        assert!(complete, "inspection cap: {}", case["prompt"]);
+        check(&mut session);
+        assert_eq!(
+            centres(&mut session),
+            reference_centres,
+            "feature locations: {}",
+            case["prompt"]
+        );
+        let exact_req = json!({"messages":[{"role":"user","content":case["prompt"]}],"tools":[{"function":{"name":"execute"}}]});
+        let exact_plan = planner::plan(&exact_req, &cat).unwrap();
+        if matches!(
+            case["category"].as_str(),
+            Some("numbers_first" | "drafting")
+        ) {
+            assert!(
+                exact_plan.is_some(),
+                "angle tuple must match: {}",
+                case["prompt"]
+            );
+        }
+        if let Some(plan) = exact_plan {
+            let mut exact = Session::new(&path);
+            for c in &plan.calls {
+                exact.execute(
+                    c["arguments"]["command"].as_str().unwrap(),
+                    c["arguments"]["params"].clone(),
+                );
+            }
+            check(&mut exact);
+        }
+    }
+}
+
+#[test]
 fn public_binary_sketch_axes_and_world_holes() {
     let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
         return;
@@ -307,6 +432,76 @@ impl Session {
                 c["arguments"]["params"].clone(),
             );
         }
+    }
+}
+
+#[test]
+fn public_binary_dev_joint_exact_matches_forms_at_ninety_degrees() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let fixture: Value =
+        serde_json::from_str(include_str!("fixtures/dev_joint_exact.json")).unwrap();
+    let catalog = Catalog::bundled().unwrap();
+    let library = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    for case in fixture["cases"].as_array().unwrap() {
+        let text = case["text"].as_str().unwrap();
+        let mut measured = Vec::new();
+        for form_path in [false, true] {
+            let mut session = Session::new(&path);
+            for command in fixture["setup"].as_array().unwrap() {
+                session.execute(
+                    command["command"].as_str().unwrap(),
+                    command["params"].clone(),
+                );
+            }
+            let mut request = json!({"messages":[{"role":"user","content":text}],"tools":[{"function":{"name":"execute"}}]});
+            let mut completed = false;
+            for stage in 0..3 {
+                let mut plan = planner::plan_direct(&request, &catalog)
+                    .unwrap()
+                    .unwrap_or_else(|| panic!("{text}: stage {stage}"));
+                if plan.rule == "revolute_joint" && form_path {
+                    let form = library
+                        .build(
+                            &json!({"recipe":"revolute_joint","args":fixture["form_args"]}),
+                            &request,
+                            &catalog,
+                        )
+                        .unwrap();
+                    assert_eq!(plan.calls, form.calls, "{text}");
+                    plan = form;
+                }
+                let calls: Vec<_> = plan.calls.iter().enumerate().map(|(n,c)| json!({"id":format!("dev_{stage}_{n}"),"function":{"name":"execute","arguments":c["arguments"].to_string()}})).collect();
+                request["messages"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(json!({"role":"assistant","tool_calls":calls}));
+                for (n, call) in plan.calls.iter().enumerate() {
+                    let result = session.execute(
+                        call["arguments"]["command"].as_str().unwrap(),
+                        call["arguments"]["params"].clone(),
+                    );
+                    request["messages"].as_array_mut().unwrap().push(json!({"role":"tool","tool_call_id":format!("dev_{stage}_{n}"),"content":result.to_string()}));
+                }
+                if plan.rule == "revolute_joint" {
+                    assert_eq!(
+                        planner::completion(&request, plan.expected.as_ref().unwrap()),
+                        None,
+                        "{text}: form={form_path}"
+                    );
+                    completed = true;
+                    break;
+                }
+                assert_eq!(plan.rule, "resolve_joint");
+            }
+            assert!(completed, "{text}: form={form_path}");
+            measured.push((
+                session.execute("component.list", json!({})),
+                session.execute("joint.list", json!({})),
+            ));
+        }
+        assert_eq!(measured[0], measured[1], "{text}");
     }
 }
 
@@ -813,6 +1008,49 @@ fn public_binary_typed_profile_shortcuts() {
         }
     }
 }
+#[test]
+fn public_binary_centred_plate_sits_on_sketch_plane() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let lib = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    for features in [
+        json!({}),
+        json!({"bore_diameter":4}),
+        json!({"row_count":3,"row_pitch":10,"hole_diameter":4}),
+        json!({"grid_columns":3,"grid_rows":2,"grid_pitch_x":10,"grid_pitch_y":10,"grid_hole_diameter":4}),
+        json!({"bolt_hole_count":4,"bolt_circle_diameter":20,"bolt_hole_diameter":4}),
+        json!({"diameter":40,"bolt_hole_count":4,"bolt_circle_diameter":20,"bolt_hole_diameter":4}),
+    ] {
+        let mut args = json!({"length":40,"width":40,"thickness":5,"centred":true});
+        args.as_object_mut()
+            .unwrap()
+            .extend(features.as_object().unwrap().clone());
+        if args.get("diameter").is_some() {
+            let obj = args.as_object_mut().unwrap();
+            obj.remove("length");
+            obj.remove("width");
+        }
+        let p = lib
+            .build(
+                &json!({"recipe":"plate","args":args}),
+                &json!({"messages":[]}),
+                &cat,
+            )
+            .unwrap();
+        let mut s = Session::new(&path);
+        s.run(&p);
+        check_shortcut_body(
+            &mut s,
+            p.expected.as_ref().unwrap().created_volume_mm3.unwrap(),
+            [-20., -20., 0.],
+            [20., 20., 5.],
+            false,
+        );
+    }
+}
+
 #[test]
 fn public_binary_typed_plate_shortcut() {
     let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
@@ -1776,7 +2014,7 @@ fn development_dp08_dp12_fills_after_part_creation() {
                 json!({"diameter":8,"height":5,"base":[9,9,4],"operation":"join","targets":["Base"]})
             });
         }
-        let mut request = json!({"messages":[{"role":"user","content":if circular {"6 copies around Z"} else {"repeat the boss in a centred 3 by 3 grid at 16 mm spacing"}}]});
+        let mut request = json!({"messages":[{"role":"user","content":if circular {"6 in total around Z"} else {"repeat the boss in a centred 3 by 3 grid at 16 mm spacing"}}]});
         let mut expected = None;
         for _ in 0..4 {
             let plan = library
@@ -2169,3 +2407,414 @@ fn public_binary_remaining_joint_types_and_named_origins() {
         }
     }
 }
+
+#[test]
+fn development_feature_forms_replay_reference_states() {
+    replay_development_feature_forms(None, false);
+}
+
+#[test]
+fn development_plural_hole_fields_replay() {
+    replay_development_feature_forms(Some("df-02"), true);
+}
+
+#[test]
+fn development_existing_plate_chamfer_preserves_twelve_holes() {
+    replay_development_feature_forms(Some("df-04"), true);
+}
+
+#[test]
+fn development_bottom_open_outer_lip_replay() {
+    replay_development_feature_forms(Some("df-11"), true);
+}
+
+#[test]
+fn development_matching_shell_dimensions_replay() {
+    replay_development_feature_forms(Some("df-12"), true);
+}
+
+#[test]
+fn development_omitted_joint_angle_replay() {
+    replay_development_feature_forms(Some("df-18"), true);
+}
+
+fn replay_development_feature_forms(only: Option<&str>, model_variant: bool) {
+    use dutchman_pilot::recipe_library::{forms, Library};
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let fixtures: Vec<Value> =
+        serde_json::from_str(include_str!("fixtures/dev_feature_forms.json")).unwrap();
+    let lib = Library::embedded().unwrap();
+    let catalog = Catalog::bundled().unwrap();
+    for fixture in fixtures {
+        if only.is_some_and(|id| fixture["id"] != id) {
+            continue;
+        }
+        let mut reference = Session::new(&path);
+        for c in fixture["commands"].as_array().unwrap() {
+            reference.execute(c["command"].as_str().unwrap(), c["params"].clone());
+        }
+        let want = reference.execute("document.inspect", json!({"measure":true}));
+        let (id, mut args) = match fixture["id"].as_str().unwrap() {
+            "df-02" => (
+                "plate",
+                json!({"length":"9 cm","width":"6 cm","thickness":"0.4 cm","centered":true,"grid_columns":3,"grid_rows":2,"grid_pitch_x":"2 cm","grid_pitch_y":"3 cm","grid_hole_diameter":"0.5 cm","corner_kind":"chamfer","corner_size":"0.3 cm","corner_edges":"vertical"}),
+            ),
+            "df-03" => (
+                "plate",
+                json!({"length":"4 in","width":"4 in","thickness":"1/4 in","bolt_hole_count":8,"bolt_circle_diameter":"2 1/2 in","bolt_hole_diameter":"1/4 in","corner_size":"3/8 in","corner_edges":"top_rightbottom_right"}),
+            ),
+            "df-04" => (
+                "chamfer",
+                json!({"body":"Plate","amount":4,"corner_sides":"right"}),
+            ),
+            "df-05" => (
+                "plate",
+                json!({"length":76.2,"width":50.8,"thickness":3.175,"centered":true,"grid_columns":3,"grid_rows":2,"grid_pitch_x":19.05,"grid_pitch_y":25.4,"grid_hole_diameter":4.7625,"corner_size":6.35,"corner_edges":true}),
+            ),
+            "df-06" => (
+                "plate",
+                json!({"length":"10cm","width":"8cm","thickness":"0.6cm","bolt_hole_count":4,"bolt_circle_diameter":"5cm","bolt_hole_diameter":"0.6cm","corner_kind":"bevel","corner_size":"0.5cm","corner_sides":"right side"}),
+            ),
+            "df-09" => (
+                "enclosure",
+                json!({"length":80,"width":60,"height":30,"wall":3,"centered":true,"open":true,"lip_width":1,"lip_height":2,"lip_side":"inner"}),
+            ),
+            "df-10" => (
+                "enclosure",
+                json!({"length":"3 in","width":"2 in","height":"1 in","wall":"1/8 in","floor":"1/4 in","inside":true,"open":true}),
+            ),
+            "df-11" => (
+                "enclosure",
+                json!({"length":70,"width":46,"height":24,"wall":3,"floor":5,"open":"bottom","lip_width":1,"lip_height":2,"lip_side":"outer"}),
+            ),
+            "df-12" => ("shell", json!({"body":"Case","wall":2,"open":"bottom"})),
+            "df-13" => (
+                "enclosure",
+                json!({"length":"6 cm","width":"4 cm","height":"2 cm","wall":"0.25 cm","floor":"0.4 cm","inside":true,"centered":false,"open":true,"lip_width":"0.1 cm","lip_height":"0.15 cm","lip_side":"outer"}),
+            ),
+            "df-15" => (
+                "revolute_joint",
+                json!({"pin_component":"Pedestal","hole_component":"Lever","angle_deg":30}),
+            ),
+            "df-16" => (
+                "revolute_joint",
+                json!({"pin_component":"Pedestal","hole_component":"Lever","angle_deg":60}),
+            ),
+            "df-18" => (
+                "revolute_joint",
+                json!({"pin_component":"Pedestal","hole_component":"Lever","angle_deg":"90°"}),
+            ),
+            _ => panic!("unknown development feature fixture"),
+        };
+        let mut session = Session::new(&path);
+        if model_variant {
+            match fixture["id"].as_str().unwrap() {
+                "df-02" => {
+                    let diameter = args
+                        .as_object_mut()
+                        .unwrap()
+                        .remove("grid_hole_diameter")
+                        .unwrap();
+                    args["grid_holes_diameter"] = diameter;
+                }
+                "df-12" => {
+                    args["length"] = json!(64.0001);
+                    args["width"] = json!(48);
+                    args["height"] = json!(26);
+                }
+                "df-18" => {
+                    args.as_object_mut().unwrap().remove("angle_deg");
+                }
+                _ => {}
+            }
+        }
+        let commands = fixture["commands"].as_array().unwrap();
+        let setup = if fixture["id"] == "df-04" {
+            // Hole creation is a separate operation in this multi-intent edit.
+            // Replay that public prefix, then fill the corner edit on this body.
+            commands
+                .iter()
+                .position(|c| c["command"] == "solid.chamfer")
+                .unwrap()
+        } else {
+            fixture["setup_steps"].as_u64().unwrap() as usize
+        };
+        for c in &commands[..setup] {
+            session.execute(c["command"].as_str().unwrap(), c["params"].clone());
+        }
+        let mut request = json!({"messages":[{"role":"user","content":fixture["prompt"]}]});
+        let before = session.execute("document.inspect", json!({"measure":true}));
+        // Joint forms obtain the full document/component/joint inspection together.
+        // A lone document result is not a complete joint inspection context.
+        if id != "revolute_joint" {
+            request["messages"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({"role":"tool","content":before.to_string()}));
+        }
+        if matches!(id, "chamfer" | "shell") {
+            let bodies: Vec<_> = before["bodies"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|b| b["name"].as_str().unwrap().to_owned())
+                .collect();
+            assert_eq!(
+                lib.form_band_in_design(fixture["prompt"].as_str().unwrap(), &bodies)
+                    .unwrap()["recipes"][0]["id"],
+                id
+            );
+        }
+        let schema = &lib.recipes.iter().find(|r| r.id == id).unwrap().schema;
+        forms::coerce(&mut args, &forms::flat(schema)).unwrap();
+        let inferred = forms::request_defaults(&mut args, schema, &request).unwrap();
+        if model_variant && fixture["id"] == "df-18" {
+            assert_eq!(args["angle_deg"], 90.);
+            assert_eq!(inferred.len(), 1);
+            assert_eq!(inferred[0]["defaulted"], true);
+        }
+        if fixture["id"] == "df-04" {
+            assert_eq!(before["bodies"][0]["face_types"]["cylinder"], 12);
+        }
+        if model_variant && fixture["id"] == "df-12" {
+            let mut disagreeing = args.clone();
+            disagreeing["length"] = json!(65);
+            let error = lib
+                .build(&json!({"recipe":id,"args":disagreeing}), &request, &catalog)
+                .unwrap_err();
+            assert!(error.contains("64 x 48 x 26 mm"), "{error}");
+        }
+        let mut previous: Option<planner::Plan> = None;
+        let mut built = false;
+        for stage in 0..4 {
+            let plan = if let Some(p) = previous.as_ref().filter(|p| p.continuation.is_some()) {
+                planner::resume(&request, p, &catalog).unwrap().unwrap()
+            } else {
+                lib.build(&json!({"recipe":id,"args":args}), &request, &catalog)
+                    .unwrap_or_else(|e| panic!("{}: {e}", fixture["id"]))
+            };
+            let calls: Vec<_> = plan.calls.iter().enumerate().map(|(i,c)| json!({"id":format!("feature_{stage}_{i}"),"function":{"name":"execute","arguments":c["arguments"].to_string()}})).collect();
+            if fixture["id"] == "df-04" {
+                assert!(plan.calls.iter().all(|c| matches!(
+                    c["arguments"]["command"].as_str(),
+                    Some("model.edges" | "solid.chamfer" | "document.inspect")
+                )));
+                for c in plan
+                    .calls
+                    .iter()
+                    .filter(|c| c["arguments"]["command"] == "solid.chamfer")
+                {
+                    assert_eq!(c["arguments"]["params"]["body"], "Plate");
+                    assert_eq!(
+                        c["arguments"]["params"]["edges"].as_array().unwrap().len(),
+                        2
+                    );
+                    assert!(c["arguments"]["params"]["edges"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .all(|e| e["body"] == "Plate" && e["index"].is_u64()));
+                }
+            }
+            request["messages"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({"role":"assistant","tool_calls":calls}));
+            for (i, c) in plan.calls.iter().enumerate() {
+                let result = session.execute(
+                    c["arguments"]["command"].as_str().unwrap(),
+                    c["arguments"]["params"].clone(),
+                );
+                request["messages"].as_array_mut().unwrap().push(json!({"role":"tool","tool_call_id":format!("feature_{stage}_{i}"),"content":result.to_string()}));
+            }
+            let mutation = plan.calls.iter().any(|c| {
+                let command = c["arguments"]["command"].as_str().unwrap();
+                command.starts_with("solid.") || command == "joint.create"
+            });
+            if mutation && plan.continuation.is_none() {
+                if id == "revolute_joint" {
+                    let native_angle = commands
+                        .iter()
+                        .find(|c| c["command"] == "joint.drive")
+                        .unwrap()["params"]["value"]
+                        .as_f64();
+                    assert!(
+                        plan.calls
+                            .iter()
+                            .any(|c| c["arguments"]["command"] == "joint.drive"
+                                && c["arguments"]["params"]["value"].as_f64() == native_angle),
+                        "{}: missing requested joint drive",
+                        fixture["id"]
+                    );
+                    assert_eq!(
+                        planner::completion(&request, plan.expected.as_ref().unwrap()),
+                        None
+                    );
+                }
+                built = true;
+                break;
+            }
+            previous = Some(plan);
+        }
+        assert!(built, "{}", fixture["id"]);
+        let actual = session.execute("document.inspect", json!({"measure":true}));
+        let a = actual["bodies"].as_array().unwrap();
+        if fixture["id"] == "df-04" {
+            assert_eq!(a[0]["face_types"]["cylinder"], 12);
+            assert!((a[0]["volume_mm3"].as_f64().unwrap() - 31806.143002367506).abs() < 0.01);
+        }
+        let b = want["bodies"].as_array().unwrap();
+        assert_eq!(a.len(), b.len(), "{}", fixture["id"]);
+        for (a, b) in a.iter().zip(b) {
+            let v = b["volume_mm3"].as_f64().unwrap();
+            assert!(
+                (a["volume_mm3"].as_f64().unwrap() - v).abs() < v * 0.001,
+                "{}: {actual}",
+                fixture["id"]
+            );
+            for key in ["min", "max"] {
+                for i in 0..3 {
+                    assert!(
+                        (a["bbox"][key][i].as_f64().unwrap() - b["bbox"][key][i].as_f64().unwrap())
+                            .abs()
+                            < 0.001,
+                        "{}: {actual}",
+                        fixture["id"]
+                    );
+                }
+            }
+        }
+        if id != "revolute_joint" {
+            let actual_edges = session.execute("model.edges", json!({"body":a[0]["name"]}));
+            let reference_edges = reference.execute("model.edges", json!({"body":b[0]["name"]}));
+            let samples = |v: &Value| -> Vec<[i64; 4]> {
+                let mut out: Vec<_> = v["edges"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|e| {
+                        [
+                            e["mid"][0].as_f64().unwrap(),
+                            e["mid"][1].as_f64().unwrap(),
+                            e["mid"][2].as_f64().unwrap(),
+                            e["length"].as_f64().unwrap(),
+                        ]
+                        .map(|n| (n * 1000.).round() as i64)
+                    })
+                    .collect();
+                out.sort();
+                out
+            };
+            assert_eq!(
+                samples(&actual_edges),
+                samples(&reference_edges),
+                "{}",
+                fixture["id"]
+            );
+        }
+        assert!(
+            actual["timeline"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|f| f["error"].is_null()),
+            "{actual}"
+        );
+        if id == "revolute_joint" {
+            let actual = session.execute("joint.list", json!({}));
+            let want = reference.execute("joint.list", json!({}));
+            assert_eq!(
+                actual["joints"][0]["values"][0]["value"],
+                want["joints"][0]["values"][0]["value"]
+            );
+            let actual = session.execute("component.list", json!({}));
+            let want = reference.execute("component.list", json!({}));
+            let transforms = |v: &Value| -> Vec<Value> {
+                v["components"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .flat_map(|c| c["occurrences"].as_array().into_iter().flatten())
+                    .map(|o| o["transform"].clone())
+                    .collect()
+            };
+            let actual = transforms(&actual);
+            let want = transforms(&want);
+            assert_eq!(actual.len(), want.len());
+            for (a, b) in actual.iter().zip(&want) {
+                for i in 0..4 {
+                    for j in 0..4 {
+                        assert!(
+                            (a[i][j].as_f64().unwrap() - b[i][j].as_f64().unwrap()).abs() < 1e-6
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn public_binary_wall_derived_lip_defaults() {
+    use dutchman_pilot::recipe_library::{forms, Library};
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let lib = Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    let schema = &lib
+        .recipes
+        .iter()
+        .find(|r| r.id == "enclosure")
+        .unwrap()
+        .schema;
+    for (request, defaults, width, height) in [
+        (json!({"lip":true}), 2, 1., 2.),
+        (json!({"lip_width":0.5}), 1, 0.5, 2.),
+        (json!({"lip":{"side":"outer"}}), 2, 1., 2.),
+    ] {
+        let mut args = json!({"length":40,"width":30,"height":20,"wall":2,"open":true});
+        args.as_object_mut()
+            .unwrap()
+            .extend(request.as_object().unwrap().clone());
+        let changes = forms::coerce(&mut args, &forms::flat(schema)).unwrap();
+        assert_eq!(
+            changes.iter().filter(|c| c["defaulted"] == true).count(),
+            defaults
+        );
+        let plan = lib
+            .build(
+                &json!({"recipe":"enclosure","args":args}),
+                &json!({"messages":[]}),
+                &cat,
+            )
+            .unwrap();
+        let mut s = Session::new(&path);
+        for c in &plan.calls {
+            s.execute(
+                c["arguments"]["command"].as_str().unwrap(),
+                c["arguments"]["params"].clone(),
+            );
+        }
+        let inset = if args["lip"]["side"] == "outer" {
+            0.
+        } else {
+            2. - width
+        };
+        let ring = ((40. - 2. * inset) * (30. - 2. * inset)
+            - (40. - 2. * (inset + width)) * (30. - 2. * (inset + width)))
+            * height;
+        check_shortcut_body(
+            &mut s,
+            24000. - 36. * 26. * 18. + ring,
+            [0., 0., 0.],
+            [40., 30., 20. + height],
+            false,
+        );
+    }
+}
+
+#[path = "support/dev_joint_profile.rs"]
+mod dev_joint_profile;

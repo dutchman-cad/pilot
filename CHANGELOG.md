@@ -1,9 +1,53 @@
 # Pilot changelog
 
-## Unreleased
+## 0.1.0-beta.8 (2026-10-29)
+
+- Plates: "front plane" builds on XZ, a row of holes or studs can sit along one edge, and
+  a bolt circle can be given as a radius. Corner sides, row offsets and circle radius are
+  offered on the form only when the request names them.
+- Profiles: C and T profiles can be centred on the origin; a T stem height below the cap is
+  read as the stem; angle sizes such as "40 x 30 x 5 angle" and "L50×30×4" are read in full.
+- Patterns: "12 copies" and "12 more" mean the original plus 12; "12 in total" and
+  "a row of 12" mean 12.
+- Enclosures: a cover or lid opens at the bottom unless the request says otherwise.
+- Joints: an exact match that inspects the parts but cannot build now hands the request to
+  the form instead of to native tools.
+- Fewer rejected fills: near-miss choices ("XY:+Z", "Top plane", a feature name as a pattern
+  target, "radius" for a rounded corner) are accepted, and a field the request states but the
+  model leaves out (an extrusion depth, one hole position, grid rows) is filled from it.
+- The rewrite log records a fingerprint of each upstream request, without content.
+
+### Details
 
 - Check recipes and model-face MCP tests against the configured SolidCraft binary's
   live catalogue; document paired 0.20.0 / 0.25.1 checks and public catalogue changes.
+- Restore centred plates to the sketch plane (Z = 0 through thickness on XY),
+  including holes, bosses, patterns, round bases and corner selections.
+- Restrict inspected edit rerouting to creation forms; existing-part pattern and
+  joint requests keep their forms, scores and routing bands. Adding a grid to an
+  existing plate uses the grid form even with chatty wording or unstated counts.
+- Omitted revolute angles use a single explicit request angle (including quarter
+  turns), audited as inferred; supplied model angles always win.
+- Existing-box shells accept matching inspected dimensions within 0.001 mm or
+  one part per million, discard them, and name the inspected size on disagreement.
+- Existing corner edits select inspected edges by body and index. CLI replays
+  assert that a plate's twelve holes survive, and verify bottom-open outer lips.
+  Requests to add holes as well as bevel use native tools for the complete edit,
+  avoiding a corner-only form silently skipping the requested hole creation.
+- Flat fields accept unambiguous singular/plural word variants, with conflicts
+  rejected instead of silently choosing a value.
+- Plate forms accept selected upright corners, common corner wordings and boolean
+  corner-edge fills. Centred plates centre in X/Y and sit on the sketch plane.
+- Forms accept centered/centred/center/centre and open:true means open top.
+  Enclosures support clear inside dimensions and fractional inch/centimetre fields;
+  requested lips default to wall-height and half-wall-width with an explicit audit.
+  Thicker floors overlap the shell when joined, avoiding internal seams from inch
+  conversion at touching cavity faces.
+- Existing-part bevel, round and shell requests inspect and route to edit forms.
+  Corner edits preserve the selected side through topology continuation; shells can
+  open from below. Existing recipe rankings and calibration bands are preserved.
+- Revolute forms explicitly drive their requested angle through the public joint
+  command, with CLI reference replays covering 30, 60 and 90 degree pivots.
 
 ## 0.1.0-beta.7 (2026-10-28)
 

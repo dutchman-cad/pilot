@@ -81,7 +81,36 @@ Request side:
   remains eight. Audit `form_request` records clean request bytes/characters, and
   `request_size` and profile accounting include every extraction request. Local forms never
   reach the client. Audit `fill_offered` (recipe, score), `fill_accepted`, `fill_declined`,
-  `fill_invalid`, `fill_fallback`, and `fill_defaulted` for inferred non-dimensional choices. Offer once per user turn; no continuation or SC98
+  `fill_invalid`, `fill_fallback`, and `fill_defaulted` for inferred non-dimensional choices
+  and explicitly requested lip sizes derived from the wall (height = wall, width = wall / 2).
+  Plate corner treatments may select upright corners by side or name. Enclosures may
+  use clear inside dimensions: outside X/Y add two walls, height adds one floor.
+  centred/centered/centre/center name the same placement field; centred plates centre
+  in the sketch plane and extend from that plane through their thickness. open:true
+  means the default top opening; explicit top/bottom choices remain available.
+  For omitted enclosure opening choices, an explicit opening or a cover/lid's bottom
+  opening is inferred and audited. Enclosure sizes are outside box dimensions including
+  the floor and excluding the raised lip, unless inside:true. An outer lip is flush with
+  the outer wall face. A plate's explicit front-plane request supplies an omitted XZ
+  plane; front face/edge alone does not. Supplied choices always win.
+  Existing-part edit verbs may replace creation forms with edit forms after inspection
+  confirms a body; pattern and joint forms retain their routing, and creation requests
+  retain creation forms. Matching
+  supplied shell dimensions are discarded after comparison with inspected bounds
+  (0.001 mm or one part per million); mismatches name the measured size. Flat field
+  names accept unambiguous singular/plural word variants. An omitted revolute angle
+  uses a single explicit request rotation, including a quarter turn, with an
+  inference audit; supplied angles are never overridden.
+  An omitted profile depth uses exactly one request length not already used by a
+  filled field (compared in mm), adjacent to long/length/deep/depth/extrude/extruded/pad;
+  thick qualifies only with thickness already filled. A plate's single hole or boss
+  without a layout or offsets may recover one explicit position (axis coordinates,
+  edge distances, or centre), expressed internally using the existing centre-offset
+  slots. Competing positions are rejected. Both recoveries audit `fill_defaulted`
+  with the inferred value and rule, and never overwrite supplied values.
+  A corner-only form defers requests to add holes as well as edit corners to
+  native tools, retaining the complete request instead of completing only a subset.
+  Offer once per user turn; no continuation or SC98
   fills. Forced fill and route do not require `--offer-recipe-tools`. `--no-fill` skips
   fill and route; `--no-shortcuts` disables forms and local recipe tools even with the offer flag.
   No upfront find-first fact is added.
@@ -115,6 +144,17 @@ it as a well-formed stream):
    ("your reply was empty; answer or call a tool"). Twice empty: pass it through.
 4. **Logging.** Each rewrite is recorded (`--log FILE`, JSON lines: time, model, kind, before,
    after). A response header `x-dutchman-pilot: rewrites=N` tells clients something changed.
+   Each upstream chat attempt also records content-free `upstream_request` and
+   `upstream_response` observations in `after`, without increasing the rewrite count.
+   `body_fnv1a64` fingerprints the exact sent/received body bytes (16 lowercase hex digits).
+   Requests include `messages_fnv1a64`, `tools_fnv1a64`, and `options_fnv1a64` over compact
+   JSON; options include all top-level fields except messages and tools, and missing
+   components serialize as null. They include message/tool counts, tool names, the step
+   (`fill`, `route`, `passthrough`, or `retry`), zero-based wire attempt, and retry flag.
+   Responses include `message_fnv1a64` over the first choice's compact JSON message
+   (assembled for SSE; null when unavailable) and its tool call names. Names are capped
+   at 128 entries of 128 characters. No text, descriptions, or argument values are added.
+   FNV-1a is a deterministic comparison aid, not a cryptographic integrity guarantee.
 
 Pilot does not depend on SolidCraft crates; it talks to SolidCraft only through its public
 interfaces.

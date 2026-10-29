@@ -1,0 +1,25 @@
+{
+  "references": ["SPEC.md", "SolidCraft 0.20 public MCP commands", "revolute-public-0.20.jsonl (inspection responses 9 through 14; Base renamed Bracket, Arm renamed Lever)"],
+  "setup": [
+    {"command":"component.create","params":{"name":"Bracket"}},
+    {"command":"solid.box","params":{"length":60,"width":60,"height":10,"corner":[-30,-30,0],"body_name":"Bracket"}},
+    {"command":"solid.cylinder","params":{"diameter":10,"height":12,"base":[0,0,10],"operation":"join","targets":["Bracket"]}},
+    {"command":"component.activate","params":{"component":"root"}},
+    {"command":"component.create","params":{"name":"Lever"}},
+    {"command":"solid.box","params":{"length":80,"width":16,"height":5,"corner":[-8,-8,10],"body_name":"Lever"}},
+    {"command":"solid.hole","params":{"position":[0,0,15],"diameter":10.5,"targets":["Lever"]}},
+    {"command":"component.activate","params":{"component":"root"}}
+  ],
+  "form_args":{"pin_component":"Bracket","hole_component":"Lever","angle_deg":90},
+  "reference":{"ground":"Bracket:1","moving":"Lever:1","pin_circle":[5,0,10],"hole_circle":[5.25,0,10],"flip":true,"drive":90},
+  "cases": [
+    {"text":"Pin the lever to the bracket and rotate it 90 degrees", "before":"declined: pin verb missing from candidate gate"},
+    {"text":"Hinge the lever on the bracket's pin, turned to 90°", "before":"claimed inspection then declined: turned is unknown once names are inspected"},
+    {"text":"bracket + lever revolute joint at 90 deg", "before":"declined: requires an action verb even for explicit revolute joint"},
+    {"text":"Please connect Bracket and Lever with a revolute joint and rotate Lever 90 degrees. Thanks!", "before":"same as form"},
+    {"text":"Make Lever pivot on the pin on Bracket and rotate it 90 degrees.", "before":"same as form"},
+    {"text":"Join Lever and Bracket with a hinge, rotated to 90 degrees.", "before":"claimed inspection then declined: rotated is unknown once names are inspected"},
+    {"text":"Attach the lever to the bracket with a hinge and turn it 90°.", "before":"same as form"},
+    {"text":"Okay, please pin Lever to Bracket with a revolute joint, then rotate Lever to 90 deg, thanks.", "before":"same as form"}
+  ]
+}
