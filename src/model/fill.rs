@@ -145,6 +145,8 @@ pub(super) fn offer(
     recipe: &Value,
     error: Option<&str>,
 ) -> Result<(), String> {
+    let mut schema = crate::recipe_library::forms::compact(&recipe["schema"]);
+    requested_fields(&mut schema, recipe, last_user(outgoing))?;
     *outgoing = clean(
         outgoing,
         crate::recipe_library::forms::line(recipe["id"].as_str().unwrap_or("")),
@@ -152,7 +154,6 @@ pub(super) fn offer(
         recipe["id"] == "revolute_joint" || recipe["id"] == "joint",
         recipe["id"] == "joint",
     )?;
-    let mut schema = crate::recipe_library::forms::compact(&recipe["schema"]);
     schema["properties"]["decline"] = json!({"type":"boolean"});
     // A decline is checked before the recipe fields, so it needs no invented dimensions.
     outgoing["tools"] = json!([{"type":"function","function":{"name":"pilot_fill","description":recipe["description"],"parameters":schema}}]);
@@ -160,6 +161,73 @@ pub(super) fn offer(
     outgoing["n"] = json!(1);
     if let Some(error) = error {
         retry_note(outgoing, &format!("Correct this field error: {error}"));
+    }
+    Ok(())
+}
+
+/// Gate only fields added after beta.7; full validation/build schemas stay intact.
+/// Read the request before clean() appends inspected geometry and retry notes.
+fn requested_fields(schema: &mut Value, recipe: &Value, request: &str) -> Result<(), String> {
+    if request.len() > 65_536 {
+        return Err("fill field request exceeds 65536 bytes".into());
+    }
+    let text = request.to_ascii_lowercase();
+    let has = |terms: &[&str]| {
+        text.split(|c: char| !c.is_ascii_alphanumeric())
+            .any(|word| terms.contains(&word))
+    };
+    let words = text
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|word| !word.is_empty());
+    let named_corner = words.clone().zip(words.skip(1)).any(|(count, corner)| {
+        matches!(count, "one" | "two" | "1" | "2" | "single")
+            && matches!(corner, "corner" | "corners")
+    });
+    let side = has(&[
+        "right",
+        "left",
+        "top",
+        "bottom",
+        "side",
+        "sides",
+        "front",
+        "back",
+        "upper",
+        "lower",
+        "topright",
+        "topleft",
+        "bottomright",
+        "bottomleft",
+    ]) || named_corner;
+    let Some(properties) = schema["properties"].as_object_mut() else {
+        return Ok(());
+    };
+    let mut gate = |field: &str, requested: bool| {
+        if !requested {
+            properties.remove(field);
+        }
+    };
+    match recipe["id"].as_str() {
+        Some("plate") => gate("corner_sides", side),
+        Some("chamfer" | "fillet") => {
+            gate("corner_sides", side);
+            gate(
+                "edges",
+                side || has(&["corner", "corners", "vertical", "upright"]),
+            );
+        }
+        Some("enclosure") => {
+            gate(
+                "inside",
+                has(&["inside", "inner", "clear", "internal", "interior"]),
+            );
+            gate("lip", has(&["lip", "lips"]));
+        }
+        Some("shell") => gate(
+            "open",
+            has(&["top", "bottom", "upper", "lower", "underside"]),
+        ),
+        _ => {}
     }
     Ok(())
 }
@@ -384,6 +452,126 @@ mod tests {
     fn request(text: &str) -> Value {
         json!({"messages":[{"role":"user","content":text}]})
     }
+    #[test]
+    fn new_fields_are_offered_only_for_request_words_and_beta7_fields_remain() {
+        let library = crate::recipe_library::Library::embedded().unwrap();
+        for (id, field, plain, named) in [
+            (
+                "plate",
+                "corner_sides",
+                "Make a plate with six holes on a bolt circle and rounded corners",
+                "Make a plate rounded on the right side",
+            ),
+            (
+                "chamfer",
+                "corner_sides",
+                "Bevel all edges",
+                "Bevel the two corners on the left",
+            ),
+            (
+                "fillet",
+                "corner_sides",
+                "Round all edges",
+                "Round the upper right corner",
+            ),
+            (
+                "chamfer",
+                "edges",
+                "Bevel all edges",
+                "Bevel upright corners",
+            ),
+            ("fillet", "edges", "Round all edges", "Round vertical edges"),
+            (
+                "enclosure",
+                "inside",
+                "Make an enclosure 80 by 60 by 30",
+                "Make an enclosure with clear inside dimensions 80 by 60 by 30",
+            ),
+            (
+                "enclosure",
+                "lip",
+                "Make an open enclosure",
+                "Make an enclosure with a lip",
+            ),
+            (
+                "shell",
+                "open",
+                "Shell this box with 2 mm walls",
+                "Shell this box removing the bottom face",
+            ),
+        ] {
+            let source = library.recipes.iter().find(|r| r.id == id).unwrap();
+            let recipe =
+                json!({"id":id,"schema":crate::recipe_library::forms::flat(&source.schema)});
+            let full = crate::recipe_library::forms::compact(&recipe["schema"]);
+            for (text, offered) in [(plain, false), (named, true)] {
+                let mut req = request("old request: right side inside lip bottom");
+                req["messages"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(json!({"role":"user","content":text}));
+                req["messages"].as_array_mut().unwrap().push(json!({"role":"tool","content":json!({"bodies":[{"name":"Right side inside lip bottom"}],"timeline":[]}).to_string()}));
+                offer(&mut req, &recipe, Some("right side inside lip bottom")).unwrap();
+                let properties = &req["tools"][0]["function"]["parameters"]["properties"];
+                assert_eq!(
+                    properties.get(field).is_some(),
+                    offered,
+                    "{id}.{field}: {text}"
+                );
+                let new_fields: &[&str] = match id {
+                    "plate" => &["corner_sides"],
+                    "chamfer" | "fillet" => &["corner_sides", "edges"],
+                    "enclosure" => &["inside", "lip"],
+                    "shell" => &["open"],
+                    _ => &[],
+                };
+                for (key, value) in full["properties"].as_object().unwrap() {
+                    if !new_fields.contains(&key.as_str()) {
+                        assert_eq!(&properties[key], value, "beta.7 {id}.{key}");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn plate_corner_words_are_case_insensitive_and_match_whole_words() {
+        let recipe = json!({"id":"plate"});
+        for text in [
+            "RIGHT",
+            "left-hand",
+            "top",
+            "bottom",
+            "sides",
+            "front",
+            "back",
+            "upper",
+            "lower",
+            "one corner",
+            "two corners",
+            "1 corner",
+            "single corner",
+            "top_right",
+        ] {
+            let mut schema = json!({"properties":{"corner_sides":{}}});
+            requested_fields(&mut schema, &recipe, text).unwrap();
+            assert!(schema["properties"].get("corner_sides").is_some(), "{text}");
+        }
+        for text in [
+            "rounded corners",
+            "all four corners",
+            "bolt circle",
+            "bright plate",
+            "backplate",
+            "topology",
+        ] {
+            let mut schema = json!({"properties":{"corner_sides":{}}});
+            requested_fields(&mut schema, &recipe, text).unwrap();
+            assert!(schema["properties"].get("corner_sides").is_none(), "{text}");
+        }
+        assert!(requested_fields(&mut json!({}), &recipe, &"x".repeat(65_537)).is_err());
+    }
+
     #[test]
     fn joint_forms_are_separate_and_origins_only_reach_general_joint() {
         let lib = crate::recipe_library::Library::embedded().unwrap();
