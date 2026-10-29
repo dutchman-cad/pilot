@@ -1174,8 +1174,9 @@ mod tests {
         let chars = descriptions(&tool());
         // Legacy union documents all four shapes; each forced form has its own
         // schema + system-line budget (1,200, or 2,400 for compound plates).
-        // The union now also describes round bases, rows and joined bosses.
-        assert!(chars < 1600, "{chars} description characters");
+        // The union now also describes round bases, rows and joined bosses,
+        // row offsets and profile centring.
+        assert!(chars < 1650, "{chars} description characters");
         for mut a in [
             profile("L"),
             plate(),
