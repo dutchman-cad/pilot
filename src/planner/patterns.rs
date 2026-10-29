@@ -66,7 +66,11 @@ pub(crate) fn coerce(args: &mut Value) -> Result<Vec<Value>, String> {
             let lower = text.trim().to_ascii_lowercase();
             let stripped = lower.strip_prefix("along ").unwrap_or(&lower);
             let stripped = stripped.strip_prefix("positive ").unwrap_or(stripped);
-            let stripped = stripped.strip_suffix(" axis").unwrap_or(stripped).trim();
+            let stripped = stripped
+                .strip_suffix(" axis")
+                .or_else(|| stripped.strip_suffix(" direction"))
+                .unwrap_or(stripped)
+                .trim();
             let negative = stripped.starts_with('-') || stripped.starts_with("negative ");
             let letter = stripped
                 .trim_start_matches(['+', '-'])
@@ -159,6 +163,21 @@ fn owner_names(def: &Value) -> Option<&Vec<Value>> {
         .find(|names| !names.is_empty())
 }
 
+fn feature_word(text: &str) -> bool {
+    let word = text.trim_end_matches(|c: char| c.is_ascii_digit());
+    [
+        "boss", "hole", "slot", "stud", "peg", "leg", "pin", "rib", "post", "foot", "feet", "tab",
+        "bump",
+    ]
+    .iter()
+    .any(|singular| {
+        word == *singular
+            || (!matches!(*singular, "boss" | "foot" | "feet")
+                && word.strip_suffix('s') == Some(*singular))
+            || (*singular == "boss" && word == "bosses")
+    })
+}
+
 pub(crate) fn resolve(args: &mut Value, request: &Value) -> Result<Vec<Value>, String> {
     let before = args.clone();
     crate::repair::check_value(args)?;
@@ -215,10 +234,9 @@ pub(crate) fn resolve(args: &mut Value, request: &Value) -> Result<Vec<Value>, S
     if let Some(target) = obj.get_mut("target") {
         if let Some(text) = target.as_str() {
             let canonical = match text.trim().to_ascii_lowercase().as_str() {
-                "feature" | "hole" | "the hole" | "boss" | "post" | "last_feature" => {
-                    Some("last_feature")
-                }
+                "feature" | "the hole" | "last_feature" => Some("last_feature"),
                 "body" | "part" | "copy the part" => Some("body"),
+                word if feature_word(word) => Some("last_feature"),
                 _ => None,
             };
             if let Some(canonical) = canonical {
@@ -230,23 +248,6 @@ pub(crate) fn resolve(args: &mut Value, request: &Value) -> Result<Vec<Value>, S
     let Some(data) = snapshot(request) else {
         return Ok(changes(&before, args));
     };
-    if let Some(target @ ("hole" | "the hole" | "boss" | "post")) = original_target.as_deref() {
-        let kind = data["timeline"]
-            .as_array()
-            .and_then(|t| t.last())
-            .and_then(|f| f["type"].as_str());
-        let matches = if matches!(target, "hole" | "the hole") {
-            kind == Some("HoleFeature")
-        } else {
-            matches!(
-                kind,
-                Some("CylinderFeature" | "BoxFeature" | "ExtrudeFeature")
-            )
-        };
-        if !matches {
-            return Err(format!("args.target {target:?} does not match the inspected last feature {kind:?}; use body or inspect the requested feature"));
-        }
-    }
     let bodies = data["bodies"]
         .as_array()
         .ok_or("pattern needs inspected bodies")?;
@@ -255,6 +256,49 @@ pub(crate) fn resolve(args: &mut Value, request: &Value) -> Result<Vec<Value>, S
             "args.body requires an existing solid body; create the part before patterning it"
                 .into(),
         );
+    }
+    if let Some(target) = original_target
+        .as_deref()
+        .filter(|target| !matches!(*target, "body" | "last_feature"))
+    {
+        let matches: Vec<_> = bodies
+            .iter()
+            .filter_map(|body| body["name"].as_str())
+            .filter(|name| name.eq_ignore_ascii_case(target))
+            .collect();
+        if matches.len() > 1 {
+            return Err(format!("args.target {target:?} matches multiple inspected body names; use an exact body field"));
+        }
+        if let Some(name) = matches.first() {
+            args["target"] = json!("body");
+            if args["body"].is_null() || args["body"].as_str().is_some_and(|s| s.trim().is_empty())
+            {
+                args["body"] = json!(name);
+            }
+        } else {
+            let kind = data["timeline"]
+                .as_array()
+                .and_then(|timeline| timeline.last())
+                .and_then(|feature| feature["type"].as_str());
+            // Preserve the existing check for explicit hole/boss requests. A body
+            // named Boss or Hole has already been resolved above.
+            if matches!(target, "hole" | "the hole" | "boss" | "post") {
+                let compatible = if matches!(target, "hole" | "the hole") {
+                    kind == Some("HoleFeature")
+                } else {
+                    matches!(
+                        kind,
+                        Some("CylinderFeature" | "BoxFeature" | "ExtrudeFeature")
+                    )
+                };
+                if !compatible {
+                    return Err(format!("args.target {target:?} does not match the inspected last feature {kind:?}; use body or inspect the requested feature"));
+                }
+            }
+            if kind.is_some_and(|kind| kind.eq_ignore_ascii_case(target)) {
+                args["target"] = json!("last_feature");
+            }
+        }
     }
     let mut chosen = args["body"].as_str().map(str::to_owned);
     if args["target"] == "last_feature" {
@@ -1105,6 +1149,135 @@ pub fn repetition_hint(request: &Value) -> Option<&'static str> {
 #[allow(clippy::unwrap_used)]
 mod form_tests {
     use super::*;
+    #[test]
+    fn near_miss_targets_use_inspected_bodies_before_feature_words() {
+        let request = json!({"messages":[{"role":"tool","content":json!({"bodies":[{"name":"Stud"},{"name":"Bracket"},{"name":"Hole"},{"name":"Boss"}],"timeline":[{"type":"ExtrudeFeature"}]}).to_string()}]});
+        for input in ["stud", " BRACKET ", "Hole", "Boss"] {
+            for body in [Value::Null, json!("")] {
+                let mut args = json!({"target":input,"body":body});
+                let audit = resolve(&mut args, &request).unwrap();
+                assert_eq!(args["target"], "body");
+                assert_eq!(
+                    args["body"],
+                    match input {
+                        "stud" => "Stud",
+                        " BRACKET " => "Bracket",
+                        name => name,
+                    }
+                );
+                assert_eq!(audit.len(), 2);
+                assert!(audit.iter().any(|c| c["field"] == "target"
+                    && c["before"] == input
+                    && c["after"] == "body"));
+                assert!(audit.iter().any(|c| c["field"] == "body"
+                    && c["before"] == body
+                    && c["after"] == args["body"]));
+            }
+        }
+        let mut args = json!({"target":"Stud","body":"Bracket"});
+        resolve(&mut args, &request).unwrap();
+        assert_eq!(args["body"], "Bracket");
+        let ambiguous = json!({"messages":[{"role":"tool","content":json!({"bodies":[{"name":"Stud"},{"name":"STUD"}],"timeline":[]}).to_string()}]});
+        assert!(resolve(&mut json!({"target":"stud"}), &ambiguous).is_err());
+    }
+
+    #[test]
+    fn feature_targets_accept_only_known_words_or_latest_kind() {
+        let inspected = |kind| json!({"messages":[{"role":"tool","content":json!({"bodies":[{"name":"Base"}],"timeline":[{"type":kind}]}).to_string()}]});
+        let request = inspected("ExtrudeFeature");
+        for word in [
+            "boss", "hole", "slot", "stud", "peg", "leg", "pin", "rib", "post", "foot", "feet",
+            "tab", "bump",
+        ] {
+            let request = if word == "hole" {
+                inspected("HoleFeature")
+            } else {
+                request.clone()
+            };
+            let plural = match word {
+                "boss" => "bosses".to_owned(),
+                "foot" | "feet" => "feet".to_owned(),
+                _ => format!("{word}s"),
+            };
+            for input in [
+                word.to_owned(),
+                plural.clone(),
+                format!("{word}12").to_uppercase(),
+                format!("{plural}2"),
+            ] {
+                let mut args = json!({"target":input,"body":"Base"});
+                let audit = resolve(&mut args, &request).unwrap();
+                assert_eq!(args["target"], "last_feature", "{input}");
+                assert_eq!(
+                    audit,
+                    vec![json!({"field":"target","before":input,"after":"last_feature"})]
+                );
+            }
+        }
+        let mut args = json!({"target":"extrudefeature","body":"Base"});
+        assert_eq!(resolve(&mut args, &request).unwrap().len(), 1);
+        assert_eq!(args["target"], "last_feature");
+        let schema = schema("linear_pattern").unwrap();
+        for input in [
+            "body1",
+            "Bracket",
+            "Hole1extra",
+            "rib cage",
+            "CylinderFeature",
+        ] {
+            let mut args = json!({"target":input,"count":2,"direction":"X","spacing":20});
+            resolve(&mut args, &request).unwrap();
+            assert_eq!(args["target"], input);
+            assert!(crate::recipe_library::validate_structure(&args, &schema).is_err());
+        }
+    }
+
+    #[test]
+    fn all_world_axes_accept_text_and_signed_unit_vectors() {
+        for (i, letter) in ["X", "Y", "Z"].iter().enumerate() {
+            for input in [
+                letter.to_lowercase(),
+                format!("+{letter}"),
+                format!("{letter} axis"),
+                format!("along {letter}"),
+                format!("{letter} direction"),
+            ] {
+                for key in ["direction", "axis"] {
+                    let mut args = json!({key:input});
+                    let audit = coerce(&mut args).unwrap();
+                    assert_eq!(args[key], *letter);
+                    assert_eq!(
+                        audit,
+                        vec![json!({"field":key,"before":input,"after":letter})]
+                    );
+                }
+            }
+            for sign in [-1, 1] {
+                let vector: [i32; 3] = std::array::from_fn(|j| if i == j { sign } else { 0 });
+                for input in [
+                    json!(vector),
+                    json!(format!("{}{letter}", if sign < 0 { "-" } else { "+" }).to_lowercase()),
+                ] {
+                    let mut args = json!({"direction":input});
+                    assert_eq!(coerce(&mut args).unwrap().len(), 1);
+                    assert_eq!(
+                        args["direction"],
+                        format!("{}{letter}", if sign < 0 { "-" } else { "" })
+                    );
+                }
+            }
+        }
+        for input in [
+            json!("XYZ"),
+            json!("diagonal"),
+            json!([0, 0, 0]),
+            json!([1, 1, 0]),
+            json!([0, 2, 0]),
+            json!([1, 0]),
+        ] {
+            assert!(coerce(&mut json!({"direction":input})).is_err());
+        }
+    }
     #[test]
     fn model_axes_are_canonical_and_signed_directions_survive() {
         for input in [
