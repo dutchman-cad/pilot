@@ -74,11 +74,11 @@ fn profile_request_defaults_are_bounded_and_preserve_supplied_slots() {
         "T stem offset 1000001 from left",
         "T stem offset -3 from left",
     ] {
+        // Unclear wording infers nothing; the fill keeps what the model wrote.
         let mut args = json!({"kind":"T","width":40});
-        assert!(
-            forms::request_defaults(&mut args, schema, &request(text)).is_err(),
-            "{text}"
-        );
+        let changes = forms::request_defaults(&mut args, schema, &request(text)).unwrap();
+        assert!(changes.is_empty(), "{text}: {changes:?}");
+        assert_eq!(args, json!({"kind":"T","width":40}), "{text}");
     }
     let mut supplied = json!({"kind":"T","width":40,"plane":"XZ","stem_offset":10});
     let before = supplied.clone();

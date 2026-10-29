@@ -157,9 +157,8 @@ fn profile(args: &mut Value, words: &[String], changes: &mut Vec<Value>) -> Resu
                     .iter()
                     .any(|s| matches!(s.as_str(), "not" | "without" | "or" | "either")))
         {
-            return Err("plane requires one unambiguous XY, XZ or YZ sketch plane".into());
-        }
-        if let Some(plane) = planes.first() {
+            // Ambiguous wording infers nothing; the fill keeps its own plane.
+        } else if let Some(plane) = planes.first() {
             args["plane"] = json!(plane);
             changes.push(json!({"field":"plane","before":null,"after":plane,"defaulted":true,"rule":"explicit sketch plane in request"}));
         }
@@ -175,33 +174,34 @@ fn profile(args: &mut Value, words: &[String], changes: &mut Vec<Value>) -> Resu
     let Some((i, _)) = offsets.first() else {
         return Ok(());
     };
-    let error = || "stem_offset requires one length measured from the left or centre".to_string();
+    // Only one clear "offset N from the left/centre" is inferred; anything else
+    // leaves the fill as the model wrote it.
     if offsets.len() != 1
         || words
             .iter()
             .any(|s| matches!(s.as_str(), "not" | "without" | "or" | "either"))
     {
-        return Err(error());
+        return Ok(());
     }
-    let (value, end) = length(words, i + 1).ok_or_else(error)?;
-    let mut tail = &words[end..];
-    tail = tail.strip_prefix(&["from".into()]).ok_or_else(error)?;
+    let Some((value, end)) = length(words, i + 1) else {
+        return Ok(());
+    };
+    let Some(mut tail) = words[end..].strip_prefix(&["from".into()]) else {
+        return Ok(());
+    };
     if tail.first().is_some_and(|s| s == "the") {
         tail = &tail[1..];
     }
     let offset = match tail.first().map(String::as_str) {
         Some("left") => value,
-        Some("centre" | "center") => {
-            args["width"]
-                .as_f64()
-                .ok_or("stem_offset from centre requires width in mm")?
-                / 2.
-                + value
-        }
-        _ => return Err(error()),
+        Some("centre" | "center") => match args["width"].as_f64() {
+            Some(width) => width / 2. + value,
+            None => return Ok(()),
+        },
+        _ => return Ok(()),
     };
     if !offset.is_finite() || !(0. ..=1_000_000.).contains(&offset) {
-        return Err("stem_offset from left must be between 0 and 1000000 mm".into());
+        return Ok(());
     }
     default(
         args,
