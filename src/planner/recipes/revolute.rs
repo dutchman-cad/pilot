@@ -29,6 +29,7 @@ pub(crate) fn candidate(text: &str) -> bool {
     let t = tokens(text);
     t.iter()
         .any(|s| matches!(s.as_str(), "revolute" | "pivot" | "pivots" | "hinge"))
+        || t.first().is_some_and(|s| s == "pin")
         || text.to_ascii_lowercase().contains("pin joint")
         || text.to_ascii_lowercase().contains("on the pin")
 }
@@ -36,15 +37,15 @@ pub(crate) fn candidate(text: &str) -> bool {
 // Every semantic word is accounted for: extra operations, choices and vague angles defer.
 fn angle(text: &str, names: &[&str]) -> Option<(f64, Vec<(bool, f64)>)> {
     let words = tokens(text);
-    if !words.iter().any(|s| {
+    let action = words.iter().any(|s| {
         matches!(
             s.as_str(),
             "connect" | "join" | "attach" | "make" | "create" | "add" | "use" | "put" | "rotate"
         )
-    }) && !words
+    }) || words
         .first()
-        .is_some_and(|s| matches!(s.as_str(), "hinge" | "pivot"))
-    {
+        .is_some_and(|s| matches!(s.as_str(), "hinge" | "pivot" | "pin"));
+    if !action && !words.windows(2).any(|w| w == ["revolute", "joint"]) {
         return None;
     }
     let mut text = text.to_ascii_lowercase();
@@ -180,7 +181,9 @@ fn angle(text: &str, names: &[&str]) -> Option<(f64, Vec<(bool, f64)>)> {
                 | "drive"
                 | "swing"
                 | "rotate"
+                | "rotated"
                 | "turn"
+                | "turned"
                 | "degrees"
                 | "degree"
                 | "deg"
@@ -229,10 +232,16 @@ fn angle(text: &str, names: &[&str]) -> Option<(f64, Vec<(bool, f64)>)> {
     {
         return None;
     }
-    if angles.len() > 1
+    // A bare joint name remains a search; terse instructions need a rotation.
+    if (!action && angles.is_empty())
+        || angles.len() > 1
         || (angles.is_empty()
-            && t.iter()
-                .any(|s| matches!(s.as_str(), "drive" | "swing" | "rotate" | "turn")))
+            && t.iter().any(|s| {
+                matches!(
+                    s.as_str(),
+                    "drive" | "swing" | "rotate" | "rotated" | "turn" | "turned"
+                )
+            }))
     {
         return None;
     }
@@ -584,6 +593,34 @@ pub(super) fn validate_angle(value: f64) -> Result<(), String> {
     }
     Ok(())
 }
+// Prefer exact spelling, then a unique case-insensitive whole name. Component
+// and occurrence names both identify the same measured contact occurrence.
+fn component_matches<'a>(os: &[(&'a Value, &'a Value)], name: &str) -> Vec<(&'a Value, &'a Value)> {
+    let matching = |exact: bool| {
+        os.iter()
+            .copied()
+            .filter(|(c, o)| {
+                [o["name"].as_str(), c["name"].as_str()]
+                    .into_iter()
+                    .flatten()
+                    .any(|n| {
+                        if exact {
+                            n == name
+                        } else {
+                            n.eq_ignore_ascii_case(name)
+                        }
+                    })
+            })
+            .collect::<Vec<_>>()
+    };
+    let exact = matching(true);
+    if exact.is_empty() {
+        matching(false)
+    } else {
+        exact
+    }
+}
+
 fn select_inner(
     request: &Value,
     text: &str,
@@ -646,6 +683,10 @@ fn select_inner(
         };
         parsed
     };
+    let user_text = messages[start]["content"].as_str().unwrap_or("");
+    if user_text.len() > 65_536 {
+        return Err("joint rotation request exceeds 65536 bytes".into());
+    }
     if data.is_empty() {
         if messages[start + 1..]
             .iter()
@@ -736,15 +777,7 @@ fn select_inner(
                 .zip([base, arm])
         {
             if let Some(name) = name {
-                let matches = os
-                    .iter()
-                    .filter(|(c, o)| {
-                        [o["name"].as_str(), c["name"].as_str()]
-                            .into_iter()
-                            .flatten()
-                            .any(|n| n.eq_ignore_ascii_case(name))
-                    })
-                    .collect::<Vec<_>>();
+                let matches = component_matches(&os, name);
                 if matches.len() != 1 || matches[0].1["id"] != occurrence["id"] {
                     return Err(format!(
                         "{field} {name:?} matched {} components but requires exactly 1 measured contact component; inspect and use its exact name", matches.len()
@@ -776,9 +809,9 @@ fn select_inner(
         .iter()
         .find(|(_, o)| o["id"] == arm["id"])
         .and_then(|(c, _)| c["name"].as_str());
-    let lower = text.to_ascii_lowercase();
+    let lower = user_text.to_ascii_lowercase();
     for name in [Some(base_name), base_component].into_iter().flatten() {
-        for verb in ["swing", "rotate", "turn"] {
+        for verb in ["swing", "rotate", "rotated", "turn", "turned", "drive"] {
             if [
                 format!("{verb} {}", name.to_ascii_lowercase()),
                 format!("{verb} the {}", name.to_ascii_lowercase()),
@@ -835,7 +868,7 @@ fn select_inner(
             json!({"name":JOINT,"type":"revolute","a":{"occurrence":base_name,"circle":pin.pick},"b":{"occurrence":arm_name,"circle":hole.pick},"flip":true,"angle":0}),
         )?,
     ];
-    if angle != 0. {
+    if typed.is_some() || angle != 0. {
         calls.push(call(
             catalog,
             "joint.drive",
@@ -934,5 +967,25 @@ impl JointExpected {
             )
         };
         (valid()!=Some(true)).then(|| "Revolute joint verification failed: inspect component.list and joint.list; the base must stay fixed, the arm upright, and both contact-circle pivots coincident at the requested angle. Do not repeat accepted changes.".into())
+    }
+}
+
+#[cfg(test)]
+mod component_name_tests {
+    use super::*;
+    #[test]
+    fn whole_names_win_and_ambiguity_stays_rejected() {
+        let base = json!({"name":"Base","id":1});
+        let lower = json!({"name":"base","id":2});
+        let extended = json!({"name":"Base support","id":3});
+        let os = [(&base, &base), (&extended, &extended)];
+        assert_eq!(component_matches(&os, "Base"), vec![(&base, &base)]);
+        assert_eq!(component_matches(&os, "BASE"), vec![(&base, &base)]);
+        assert!(component_matches(&os, "Bas").is_empty());
+        let os = [(&base, &base), (&lower, &lower)];
+        assert_eq!(component_matches(&os, "Base"), vec![(&base, &base)]);
+        assert_eq!(component_matches(&os, "BASE").len(), 2);
+        let os = [(&base, &base), (&base, &extended)];
+        assert_eq!(component_matches(&os, "Base").len(), 2);
     }
 }

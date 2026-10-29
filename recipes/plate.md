@@ -131,6 +131,21 @@
           "size": {
             "$ref": "#/$defs/Length",
             "description": "Fillet radius/chamfer distance; hex span for honeycomb"
+          },
+          "sides": {
+            "type": "string",
+            "enum": [
+              "all",
+              "right",
+              "left",
+              "top",
+              "bottom",
+              "top_right",
+              "bottom_right",
+              "top_left",
+              "bottom_left"
+            ],
+            "description": "Upright corners; right=+X, top=+Y"
           }
         },
         "required": [
@@ -198,6 +213,16 @@
           "count": {
             "$ref": "#/$defs/Count"
           },
+          "offset_x": {
+            "type": "number",
+            "minimum": -1000000,
+            "maximum": 1000000
+          },
+          "offset_y": {
+            "type": "number",
+            "minimum": -1000000,
+            "maximum": 1000000
+          },
           "pitch": {
             "$ref": "#/$defs/Length"
           }
@@ -239,7 +264,8 @@
           "fields": [
             "corner_edges",
             "corner_kind",
-            "corner_size"
+            "corner_size",
+            "corner_sides"
           ],
           "required": [
             "corner_size"
@@ -276,7 +302,9 @@
           "fields": [
             "row_count",
             "row_pitch",
-            "row_axis"
+            "row_axis",
+            "row_offset_x",
+            "row_offset_y"
           ],
           "required": [
             "row_count",
@@ -292,6 +320,15 @@
           "type": "number",
           "x-slot": "/bolt_circle/diameter",
           "x-unit": "mm"
+        },
+        "bolt_circle_radius": {
+          "description": "Radius of feature-centre circle; alternative to diameter",
+          "exclusiveMinimum": 0,
+          "maximum": 500000,
+          "type": "number",
+          "x-slot": "/bolt_circle/diameter",
+          "x-unit": "mm",
+          "x-scale": 2
         },
         "bolt_hole_count": {
           "description": "Feature count on circle, including bosses when boss_diameter is given",
@@ -465,6 +502,22 @@
           "x-default-when": "row_count",
           "x-slot": "/row/axis"
         },
+        "row_offset_x": {
+          "description": "Row centre offset from plate centre in sketch X",
+          "type": "number",
+          "minimum": -1000000,
+          "maximum": 1000000,
+          "x-slot": "/row/offset_x",
+          "x-unit": "mm"
+        },
+        "row_offset_y": {
+          "description": "Row centre offset from plate centre in sketch Y",
+          "type": "number",
+          "minimum": -1000000,
+          "maximum": 1000000,
+          "x-slot": "/row/offset_y",
+          "x-unit": "mm"
+        },
         "row_count": {
           "description": "Total number of holes or bosses in centred row",
           "maximum": 64,
@@ -494,6 +547,18 @@
           "type": "number",
           "x-slot": "/width",
           "x-unit": "mm"
+        },
+        "corner_sides": {
+          "type": "string",
+          "enum": [
+            "all",
+            "right",
+            "left",
+            "top",
+            "bottom"
+          ],
+          "description": "Upright corners in sketch coordinates; right is +X, top is +Y",
+          "x-slot": "/corners/sides"
         }
       },
       "required": [
@@ -513,4 +578,7 @@
 Build the base and features together as one body. Supply length and width OR diameter, plus thickness.
 Layouts apply to boss_diameter with boss_height, or hole_diameter, never both. Without a layout a boss is at the plate centre unless boss_offset_x/y are supplied (signed offsets from centre, independent of base placement). A centre bore may accompany bosses. Layouts are centred on the plate regardless of centred base placement.
 Columns run along sketch X, rows along sketch Y. For an unstated A x B orientation, put A along the longer plate side (7 x 5 on 120 x 80 means 7 columns, 5 rows); explicit axis/row/column statements win. A single pitch is used for both grid pitches. Counts include every feature. No dimension is defaulted.
+A front plane means XZ (local sketch X is world X, local Y is world -Z, extrusion is +Y). A front face or front edge alone does not select a sketch plane. Explicit plane values always win. Named top/front/right planes coerce to XY/XZ/YZ. Grid pitch is centre-to-centre: divide a first-to-last extent by count minus one, or add hole diameter to a clear edge gap. Neither is an overall plate dimension. A one-instance axis has no first-to-last span; give a positive pitch explicitly.
 A corner_size without corner_kind means fillet; without corner_edges it means vertical. Corners are supported on rectangular plates without bosses.
+
+corner_sides selects upright corners: right (+X), left, top (+Y), bottom or all. Named corners are also accepted by typed builds. centred (also centered, center or centre) centres the base in the sketch plane; the plate extends from that plane through its thickness (Z = 0 to thickness on XY).

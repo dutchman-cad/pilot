@@ -48,7 +48,8 @@ fn fields(
             field["description"] = json!("Pattern holes");
             props.insert(flat.into(), field);
             members.push(flat.into());
-            required.push(flat.into());
+            // A layout may locate bosses; hole diameter is only required for
+            // subtractive features, which typed validation checks separately.
         }
         groups.push(json!({"fields":members,"required":required}));
         // Only top-level required fields belong to the form's required list.
@@ -174,6 +175,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         recipe.schema["x-pilot-fill"] =
             json!({"properties":props,"required":required,"groups":groups});
+        if *id == "plate" {
+            recipe.schema["x-pilot-fill"]["properties"]["bolt_circle_radius"] = json!({
+                "type":"number","exclusiveMinimum":0,"maximum":500000,
+                "x-slot":"/bolt_circle/diameter","x-unit":"mm","x-scale":2
+            });
+        }
         std::fs::write(path, recipe.markdown()?)?;
     }
     Ok(())

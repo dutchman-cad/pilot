@@ -48,8 +48,8 @@ See [recipes and their limits](docs/recipes.md).
 
 **Small models:** For 3–8B models, recipe forms and exact matches are on by default with
 your upstream URL. On four blind test sets (56 tasks) with fixed model settings, gemma4 e4b
-passes 35 with exact matches on 0.1.0-beta.7, against 30 on beta.6, with no set lower; it
-connects all five public joint types it is asked for, against two or three on beta.6. Before
+passes 37.7 with exact matches on 0.1.0-beta.8 (average of three runs), against 34.7 on
+beta.7, with no set lower; model-only it passes 35.3, against 33.2. Before
 recipe forms it passed 2 at default settings ([results](https://github.com/dutchman-cad/pilot/issues/1)).
 Use `--no-direct-recipes` to send everything to the model. Exact matches bypass the model,
 and their replies are marked **"Exact match (no model):"**.

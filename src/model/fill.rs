@@ -145,6 +145,8 @@ pub(super) fn offer(
     recipe: &Value,
     error: Option<&str>,
 ) -> Result<(), String> {
+    let mut schema = crate::recipe_library::forms::compact(&recipe["schema"]);
+    requested_fields(&mut schema, recipe, last_user(outgoing))?;
     *outgoing = clean(
         outgoing,
         crate::recipe_library::forms::line(recipe["id"].as_str().unwrap_or("")),
@@ -152,7 +154,6 @@ pub(super) fn offer(
         recipe["id"] == "revolute_joint" || recipe["id"] == "joint",
         recipe["id"] == "joint",
     )?;
-    let mut schema = crate::recipe_library::forms::compact(&recipe["schema"]);
     schema["properties"]["decline"] = json!({"type":"boolean"});
     // A decline is checked before the recipe fields, so it needs no invented dimensions.
     outgoing["tools"] = json!([{"type":"function","function":{"name":"pilot_fill","description":recipe["description"],"parameters":schema}}]);
@@ -160,6 +161,91 @@ pub(super) fn offer(
     outgoing["n"] = json!(1);
     if let Some(error) = error {
         retry_note(outgoing, &format!("Correct this field error: {error}"));
+    }
+    Ok(())
+}
+
+/// Gate only fields added after beta.7; full validation/build schemas stay intact.
+/// Read the request before clean() appends inspected geometry and retry notes.
+fn requested_fields(schema: &mut Value, recipe: &Value, request: &str) -> Result<(), String> {
+    if request.len() > 65_536 {
+        return Err("fill field request exceeds 65536 bytes".into());
+    }
+    let text = request.to_ascii_lowercase();
+    let has = |terms: &[&str]| {
+        text.split(|c: char| !c.is_ascii_alphanumeric())
+            .any(|word| terms.contains(&word))
+    };
+    let words = text
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|word| !word.is_empty());
+    // A circle radius, not a corner radius: "radius" within three words of a circle.
+    let list: Vec<_> = words.clone().collect();
+    let circle_radius = list.iter().enumerate().any(|(i, w)| {
+        matches!(*w, "radius" | "radii")
+            && list[i.saturating_sub(3)..(i + 4).min(list.len())]
+                .iter()
+                .any(|n| matches!(*n, "circle" | "bolt" | "pcd" | "pitch"))
+    });
+    let named_corner = words.clone().zip(words.skip(1)).any(|(count, corner)| {
+        matches!(count, "one" | "two" | "1" | "2" | "single")
+            && matches!(corner, "corner" | "corners")
+    });
+    let side = has(&[
+        "right",
+        "left",
+        "top",
+        "bottom",
+        "side",
+        "sides",
+        "front",
+        "back",
+        "upper",
+        "lower",
+        "topright",
+        "topleft",
+        "bottomright",
+        "bottomleft",
+    ]) || named_corner;
+    let Some(properties) = schema["properties"].as_object_mut() else {
+        return Ok(());
+    };
+    let mut gate = |field: &str, requested: bool| {
+        if !requested {
+            properties.remove(field);
+        }
+    };
+    match recipe["id"].as_str() {
+        Some("profile") => gate(
+            "centred",
+            has(&["centred", "centered", "centre", "center", "origin"]),
+        ),
+        Some("plate") => {
+            gate("corner_sides", side);
+            let placed = side || has(&["edge", "edges", "offset", "offsets"]);
+            gate("row_offset_x", placed);
+            gate("row_offset_y", placed);
+            gate("bolt_circle_radius", circle_radius);
+        }
+        Some("chamfer" | "fillet") => {
+            gate("corner_sides", side);
+            gate(
+                "edges",
+                side || has(&["corner", "corners", "vertical", "upright"]),
+            );
+        }
+        Some("enclosure") => {
+            gate(
+                "inside",
+                has(&["inside", "inner", "clear", "internal", "interior"]),
+            );
+            gate("lip", has(&["lip", "lips"]));
+        }
+        Some("shell") => gate(
+            "open",
+            has(&["top", "bottom", "upper", "lower", "underside"]),
+        ),
+        _ => {}
     }
     Ok(())
 }
@@ -222,6 +308,24 @@ pub(super) enum Outcome {
     Invalid(String),
 }
 
+/// A corner-only form cannot fulfill a separate request to create holes.
+/// Leave the complete request and native tools available instead of silently
+/// completing just the bevel on the unperforated starting body.
+pub(super) fn partial_edge_edit(recipe: &Value, request: &Value) -> bool {
+    if !matches!(recipe["id"].as_str(), Some("chamfer" | "fillet")) {
+        return false;
+    }
+    let text = last_user(request).to_ascii_lowercase();
+    let words: Vec<_> = text
+        .split(|c: char| !c.is_ascii_alphabetic())
+        .filter(|w| !w.is_empty())
+        .collect();
+    words.iter().any(|w| matches!(*w, "add" | "drill"))
+        && words
+            .iter()
+            .any(|w| matches!(*w, "hole" | "holes" | "bore" | "bores"))
+}
+
 /// Coercions are returned individually so the proxy audits each supplied field.
 pub(super) fn coerced(
     response: &Value,
@@ -251,6 +355,9 @@ pub(super) fn coerced(
     let mut schema = recipe["schema"].clone();
     schema["properties"]["decline"] = json!({"type":"boolean"});
     let mut changes = crate::recipe_library::forms::coerce(&mut args, &schema)?;
+    changes.extend(crate::recipe_library::forms::request_defaults(
+        &mut args, &schema, request,
+    )?);
     if args["decline"] != true && planner::patterns::is_pattern(recipe["id"].as_str().unwrap_or(""))
     {
         changes.extend(planner::patterns::resolve(&mut args, request)?);
@@ -267,6 +374,9 @@ pub(super) fn accept(
     library: &crate::recipe_library::Library,
     catalog: &Catalog,
 ) -> Outcome {
+    if partial_edge_edit(recipe, request) {
+        return Outcome::Fallback;
+    }
     let response = match coerced(response, recipe, request) {
         Ok((r, _)) => r,
         Err(e) => return Outcome::Invalid(e),
@@ -360,6 +470,284 @@ mod tests {
     fn request(text: &str) -> Value {
         json!({"messages":[{"role":"user","content":text}]})
     }
+
+    #[test]
+    fn dev_omitted_fields_replay_through_form_validation_and_expansion() {
+        fn agrees(a: &Value, b: &Value) -> bool {
+            match (a, b) {
+                (Value::Number(a), Value::Number(b)) => {
+                    (a.as_f64().unwrap() - b.as_f64().unwrap()).abs() < 1e-8
+                }
+                (Value::Array(a), Value::Array(b)) => {
+                    a.len() == b.len() && a.iter().zip(b).all(|(a, b)| agrees(a, b))
+                }
+                (Value::Object(a), Value::Object(b)) => {
+                    a.len() == b.len()
+                        && a.iter()
+                            .all(|(k, a)| b.get(k).is_some_and(|b| agrees(a, b)))
+                }
+                _ => a == b,
+            }
+        }
+        let cases: Vec<Value> =
+            serde_json::from_str(include_str!("../../tests/fixtures/dev_omitted_fields.json"))
+                .unwrap();
+        let library = crate::recipe_library::Library::embedded().unwrap();
+        let catalog = Catalog::bundled().unwrap();
+        for id in ["profile", "plate"] {
+            assert!(cases.iter().filter(|c| c["recipe"] == id).count() >= 10);
+        }
+        for case in cases {
+            let source = library
+                .recipes
+                .iter()
+                .find(|r| r.id == case["recipe"])
+                .unwrap();
+            let recipe = json!({"id":source.id,"description":source.description,
+                "schema":crate::recipe_library::forms::flat(&source.schema)});
+            let mut args = case["reference"].clone();
+            for key in case["omit"].as_array().unwrap() {
+                args.as_object_mut().unwrap().remove(key.as_str().unwrap());
+            }
+            // Older requests must never supply evidence to a fresh form.
+            let mut req = request("extrude 999; hole at X=99");
+            req["messages"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({"role":"user","content":case["text"]}));
+            let response = json!({"choices":[{"message":{"tool_calls":[{
+                "function":{"name":"pilot_fill","arguments":args.to_string()}
+            }]}}]});
+            let coerced_result = coerced(&response, &recipe, &req);
+            if let Ok((converted, changes)) = &coerced_result {
+                let converted_args: Value = serde_json::from_str(
+                    converted["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"]
+                        .as_str()
+                        .unwrap(),
+                )
+                .unwrap();
+                let defaults: Vec<_> = changes.iter().filter(|c| c["defaulted"] == true).collect();
+                assert_eq!(
+                    defaults.len(),
+                    case["expected"].as_object().unwrap().len(),
+                    "{}",
+                    case["id"]
+                );
+                for (field, expected) in case["expected"].as_object().unwrap() {
+                    assert!(
+                        agrees(&converted_args[field], expected),
+                        "{} {field}",
+                        case["id"]
+                    );
+                    assert!(defaults.iter().any(|c| c["field"] == *field
+                        && c["rule"].as_str().is_some_and(|s| !s.is_empty())));
+                }
+                if defaults.is_empty() {
+                    assert_eq!(converted_args, args, "{}", case["id"]);
+                }
+                let (_, repeated) = coerced(converted, &recipe, &req).unwrap();
+                assert!(
+                    repeated.is_empty(),
+                    "defaults must be idempotent: {}",
+                    case["id"]
+                );
+            } else {
+                assert_eq!(
+                    case["invalid"], true,
+                    "{}: {:?}",
+                    case["id"], coerced_result
+                );
+            }
+            let outcome = accept(&response, &recipe, &req, &library, &catalog);
+            if case["invalid"] == true {
+                assert!(matches!(outcome, Outcome::Invalid(_)), "{}", case["id"]);
+            } else {
+                let plan = match outcome {
+                    Outcome::Build(_, plan) => plan,
+                    Outcome::Invalid(e) => panic!("{} rejected: {e}", case["id"]),
+                    _ => panic!("{} did not build", case["id"]),
+                };
+                let reference = library
+                    .build(
+                        &json!({"recipe":case["recipe"],"args":case["reference"]}),
+                        &req,
+                        &catalog,
+                    )
+                    .unwrap();
+                assert!(agrees(&plan.slots, &reference.slots), "{}", case["id"]);
+                assert!(
+                    agrees(&json!(plan.calls), &json!(reference.calls)),
+                    "{}",
+                    case["id"]
+                );
+            }
+        }
+    }
+    #[test]
+    fn new_fields_are_offered_only_for_request_words_and_beta7_fields_remain() {
+        let library = crate::recipe_library::Library::embedded().unwrap();
+        for (id, field, plain, named) in [
+            (
+                "plate",
+                "corner_sides",
+                "Make a plate with six holes on a bolt circle and rounded corners",
+                "Make a plate rounded on the right side",
+            ),
+            (
+                "plate",
+                "row_offset_x",
+                "Make a plate with a row of five holes 15 mm apart",
+                "Make a plate with a row of five studs along the front edge",
+            ),
+            (
+                "plate",
+                "row_offset_y",
+                "Make a plate with a row of five holes 15 mm apart",
+                "Make a plate with a row of holes offset 10 mm",
+            ),
+            (
+                "plate",
+                "bolt_circle_radius",
+                "Make a plate with six holes on a 60 mm bolt circle and 5 mm corner radius",
+                "Make a plate with six holes on a 30 mm radius circle",
+            ),
+            (
+                "chamfer",
+                "corner_sides",
+                "Bevel all edges",
+                "Bevel the two corners on the left",
+            ),
+            (
+                "fillet",
+                "corner_sides",
+                "Round all edges",
+                "Round the upper right corner",
+            ),
+            (
+                "chamfer",
+                "edges",
+                "Bevel all edges",
+                "Bevel upright corners",
+            ),
+            ("fillet", "edges", "Round all edges", "Round vertical edges"),
+            (
+                "enclosure",
+                "inside",
+                "Make an enclosure 80 by 60 by 30",
+                "Make an enclosure with clear inside dimensions 80 by 60 by 30",
+            ),
+            (
+                "enclosure",
+                "lip",
+                "Make an open enclosure",
+                "Make an enclosure with a lip",
+            ),
+            (
+                "shell",
+                "open",
+                "Shell this box with 2 mm walls",
+                "Shell this box removing the bottom face",
+            ),
+        ] {
+            let source = library.recipes.iter().find(|r| r.id == id).unwrap();
+            let recipe =
+                json!({"id":id,"schema":crate::recipe_library::forms::flat(&source.schema)});
+            let full = crate::recipe_library::forms::compact(&recipe["schema"]);
+            for (text, offered) in [(plain, false), (named, true)] {
+                let mut req = request("old request: right side inside lip bottom");
+                req["messages"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(json!({"role":"user","content":text}));
+                req["messages"].as_array_mut().unwrap().push(json!({"role":"tool","content":json!({"bodies":[{"name":"Right side inside lip bottom"}],"timeline":[]}).to_string()}));
+                offer(&mut req, &recipe, Some("right side inside lip bottom")).unwrap();
+                let properties = &req["tools"][0]["function"]["parameters"]["properties"];
+                assert_eq!(
+                    properties.get(field).is_some(),
+                    offered,
+                    "{id}.{field}: {text}"
+                );
+                let new_fields: &[&str] = match id {
+                    "plate" => &[
+                        "corner_sides",
+                        "row_offset_x",
+                        "row_offset_y",
+                        "bolt_circle_radius",
+                    ],
+                    "chamfer" | "fillet" => &["corner_sides", "edges"],
+                    "enclosure" => &["inside", "lip"],
+                    "shell" => &["open"],
+                    _ => &[],
+                };
+                for (key, value) in full["properties"].as_object().unwrap() {
+                    if !new_fields.contains(&key.as_str()) {
+                        assert_eq!(&properties[key], value, "beta.7 {id}.{key}");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn profile_centring_is_offered_only_when_named() {
+        let lib = crate::recipe_library::Library::embedded().unwrap();
+        let profile = lib.recipes.iter().find(|r| r.id == "profile").unwrap();
+        let recipe =
+            json!({"id":"profile","schema":crate::recipe_library::forms::flat(&profile.schema)});
+        for (text, offered) in [
+            ("Make a C profile", false),
+            ("A C centred on the origin", true),
+            ("Center the T section", true),
+        ] {
+            let mut req = request(text);
+            offer(&mut req, &recipe, None).unwrap();
+            assert_eq!(
+                req["tools"][0]["function"]["parameters"]["properties"]
+                    .get("centred")
+                    .is_some(),
+                offered
+            );
+        }
+    }
+
+    #[test]
+    fn plate_corner_words_are_case_insensitive_and_match_whole_words() {
+        let recipe = json!({"id":"plate"});
+        for text in [
+            "RIGHT",
+            "left-hand",
+            "top",
+            "bottom",
+            "sides",
+            "front",
+            "back",
+            "upper",
+            "lower",
+            "one corner",
+            "two corners",
+            "1 corner",
+            "single corner",
+            "top_right",
+        ] {
+            let mut schema = json!({"properties":{"corner_sides":{}}});
+            requested_fields(&mut schema, &recipe, text).unwrap();
+            assert!(schema["properties"].get("corner_sides").is_some(), "{text}");
+        }
+        for text in [
+            "rounded corners",
+            "all four corners",
+            "bolt circle",
+            "bright plate",
+            "backplate",
+            "topology",
+        ] {
+            let mut schema = json!({"properties":{"corner_sides":{}}});
+            requested_fields(&mut schema, &recipe, text).unwrap();
+            assert!(schema["properties"].get("corner_sides").is_none(), "{text}");
+        }
+        assert!(requested_fields(&mut json!({}), &recipe, &"x".repeat(65_537)).is_err());
+    }
+
     #[test]
     fn joint_forms_are_separate_and_origins_only_reach_general_joint() {
         let lib = crate::recipe_library::Library::embedded().unwrap();
@@ -449,6 +837,38 @@ mod tests {
                     }
                 );
             }
+        }
+    }
+
+    #[test]
+    fn omitted_joint_angle_uses_one_request_angle_and_audits_inference() {
+        let library = crate::recipe_library::Library::embedded().unwrap();
+        let recipe = library
+            .recipes
+            .iter()
+            .find(|r| r.id == "revolute_joint")
+            .unwrap();
+        let recipe =
+            json!({"id":recipe.id,"schema":crate::recipe_library::forms::flat(&recipe.schema)});
+        for (text, angle) in [
+            ("pivot at 90°", 90.),
+            ("pivot 90 deg", 90.),
+            ("pivot a quarter turn", 90.),
+            ("pivot at 30 degrees.", 30.),
+            ("pivot -45 degrees", -45.),
+        ] {
+            let response = json!({"choices":[{"message":{"tool_calls":[{"function":{"name":"pilot_fill","arguments":"{\"hole_component\":\"Lever\",\"pin_component\":\"Pedestal\"}"}}]}}]});
+            let (converted, changes) = coerced(&response, &recipe, &request(text)).unwrap();
+            let args: Value = serde_json::from_str(
+                converted["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"]
+                    .as_str()
+                    .unwrap(),
+            )
+            .unwrap();
+            assert_eq!(args["angle_deg"], angle);
+            assert!(changes.iter().any(|c| c["field"] == "angle_deg"
+                && c["defaulted"] == true
+                && c["after"] == angle));
         }
     }
 

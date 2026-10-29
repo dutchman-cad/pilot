@@ -139,7 +139,7 @@ fn field_type(name: &str, s: &Value) -> Value {
         "plane" => json!({"$ref":"#/$defs/Plane"}),
         "count" | "rows" | "columns" => json!({"$ref":"#/$defs/Count"}),
         "angle_deg" | "start_deg" => json!({"$ref":"#/$defs/Angle"}),
-        "boss_offset_x" | "boss_offset_y" => {
+        "boss_offset_x" | "boss_offset_y" | "offset_x" | "offset_y" => {
             json!({"type":"number","minimum":-1000000,"maximum":1000000})
         }
         "stem_offset" => json!({"type":"number","minimum":0,"maximum":1000000}),
@@ -241,7 +241,13 @@ pub fn schema(id: &str) -> Result<Value, String> {
         json!({"type":"object","properties":props,"required":fields.iter().map(|(k,_)|k).collect::<Vec<_>>(),"additionalProperties":false})
     };
     shared(&mut s);
+    if matches!(id, "fillet" | "chamfer") {
+        s["properties"]["edges"] = json!({"type":"string","enum":["all","vertical"]});
+        s["properties"]["corner_sides"] =
+            json!({"type":"string","enum":["all","right","left","top","bottom"]});
+    }
     if id == "shell" {
+        s["properties"]["open"] = json!({"type":"string","enum":["top","bottom"],"default":"top"});
         s["properties"]["body"] = json!({"type":"string","minLength":1,"maxLength":128,"description":"Exact inspected rectangular body to shell; omit to create a new box"});
         s["required"] = json!(["wall"]);
         s["anyOf"] = json!([{"required":["body"]},{"required":["length","width","height"]}]);
@@ -499,6 +505,7 @@ impl Library {
             )
         })?;
         let mut supplied = envelope["args"].clone();
+        forms::request_defaults(&mut supplied, &r.schema, request)?;
         if r.expander == "joint" {
             planner::joints::coerce(&mut supplied)?;
         }
@@ -546,6 +553,23 @@ impl Library {
         Ok(
             json!({"hit":hit,"message":if hit {"Choose a recipe and fill its schema through pilot_build."} else {"No good recipe hit. Do not improvise CAD; explain what Pilot can build or ask one question. Closest recipes follow."},"recipes":recipes}),
         )
+    }
+    /// Refine an existing-part edit after public inspection, leaving ranking calibration intact.
+    pub fn form_band_in_design(&self, request: &str, bodies: &[String]) -> Result<Value, String> {
+        let mut band = self.form_band(request)?;
+        if !bodies.is_empty() && band["band"] != "low" {
+            if let Some(id) = creation_form_edit(&band, request) {
+                let recipe = self
+                    .recipes
+                    .iter()
+                    .find(|r| r.id == id)
+                    .ok_or("edit recipe is unavailable")?;
+                let score = band["recipes"][0]["score"].clone();
+                band["band"] = json!("fill");
+                band["recipes"] = json!([{"id":id,"score":score,"description":recipe.description,"schema":forms::flat(&recipe.schema)}]);
+            }
+        }
+        Ok(band)
     }
     /// One bounded decision shared by the proxy and development calibration.
     pub fn form_band(&self, request: &str) -> Result<Value, String> {
@@ -601,6 +625,48 @@ impl Library {
             "route"
         });
         Ok(found)
+    }
+}
+/// Only creation forms may be replaced after inspection; patterns and joints retain
+/// their complete candidate list, score and band.
+pub fn creation_form_edit(band: &Value, request: &str) -> Option<&'static str> {
+    match band["recipes"][0]["id"].as_str() {
+        Some("plate" | "enclosure" | "box" | "cross_drilled_box") => existing_edit(request),
+        _ => None,
+    }
+}
+/// An edit verb plus an existing-target cue warrants inspecting the design.
+pub fn existing_edit(request: &str) -> Option<&'static str> {
+    if request.len() > 2048 {
+        return None;
+    }
+    let lower = request.to_ascii_lowercase();
+    let words: Vec<_> = lower
+        .split(|c: char| !c.is_ascii_alphabetic())
+        .filter(|w| !w.is_empty())
+        .collect();
+    let has = |w: &str| words.contains(&w);
+    if ["make", "create", "build"].iter().any(|w| has(w))
+        || !(["existing", "already", "this", "these"]
+            .iter()
+            .any(|w| has(w))
+            || words.first().is_some_and(|w| {
+                matches!(
+                    *w,
+                    "hollow" | "shell" | "bevel" | "chamfer" | "fillet" | "round"
+                )
+            }))
+    {
+        return None;
+    }
+    if ["chamfer", "bevel"].iter().any(|w| has(w)) {
+        Some("chamfer")
+    } else if ["fillet", "round"].iter().any(|w| has(w)) {
+        Some("fillet")
+    } else if ["shell", "hollow"].iter().any(|w| has(w)) {
+        Some("shell")
+    } else {
+        None
     }
 }
 pub fn find_tool() -> Value {
@@ -720,7 +786,20 @@ impl Ranker for Bm25 {
                     .chain(std::iter::once(tokens(
                         &r.schema["properties"]
                             .as_object()
-                            .map(|o| o.keys().cloned().collect::<Vec<_>>().join(" "))
+                            .map(|o| {
+                                o.keys()
+                                    // New form-only choices must not shift the calibrated BM25 corpus.
+                                    .filter(|k| {
+                                        !(r.id == "enclosure" && k.as_str() == "inside"
+                                            || r.id == "profile" && k.as_str() == "centred"
+                                            || r.id == "shell" && k.as_str() == "open"
+                                            || matches!(r.id.as_str(), "fillet" | "chamfer")
+                                                && matches!(k.as_str(), "edges" | "corner_sides"))
+                                    })
+                                    .cloned()
+                                    .collect::<Vec<_>>()
+                                    .join(" ")
+                            })
                             .unwrap_or_default(),
                     )))
                     .collect()
@@ -742,6 +821,24 @@ impl Ranker for Bm25 {
             && query
                 .split(|c: char| !c.is_alphabetic())
                 .any(|w| w.eq_ignore_ascii_case("fillet") || w.eq_ignore_ascii_case("chamfer"));
+        // "Add a grid to the plate" targets a definite existing base, even when
+        // polite wording precedes the verb. "Add a plate with a grid" creates one.
+        let lower = query.to_ascii_lowercase();
+        let phrasing: Vec<_> = lower
+            .split(|c: char| !c.is_ascii_alphabetic())
+            .filter(|w| !w.is_empty())
+            .collect();
+        let add_to_existing = has("add")
+            && phrasing.windows(3).any(|w| {
+                matches!(w[0], "to" | "on")
+                    && w[1] == "the"
+                    && matches!(w[2], "plate" | "base" | "panel" | "pegboard")
+            })
+            && !phrasing.windows(3).any(|w| {
+                w[0] == "add"
+                    && w[1] == "a"
+                    && matches!(w[2], "plate" | "base" | "panel" | "pegboard")
+            });
         // New base dimensions plus features belong to the compound plate form.
         // Pronouns and copy/repeat verbs keep edits on existing-part forms.
         let existing = [
@@ -753,7 +850,15 @@ impl Ranker for Bm25 {
             || words
                 .first()
                 .is_some_and(|w| matches!(w.as_str(), "pattern" | "array"))
-            || edge_edit;
+            || edge_edit
+            || add_to_existing;
+        // An explicit grid added to an existing base needs a pattern form even
+        // before its counts are supplied. Do not offer a new base's dimensions.
+        let existing_grid = existing
+            && has("add")
+            && has("grid")
+            && !has("chamfer")
+            && !(has("fillet") && (has("corner") || has("edge")));
         let plate_creation = !existing
             && ["plate", "base", "panel", "pegboard"]
                 .iter()
@@ -770,7 +875,9 @@ impl Ranker for Bm25 {
                 && !["pattern", "array", "repeat", "copy", "copie", "instance"]
                     .iter()
                     .any(|w| has(w)));
-        let pattern = if creation && planner::pattern_intent(query) != Some("honeycomb_pattern") {
+        let pattern = if existing_grid {
+            Some("grid_pattern")
+        } else if creation && planner::pattern_intent(query) != Some("honeycomb_pattern") {
             None
         } else {
             planner::pattern_intent(query)
@@ -804,7 +911,7 @@ impl Ranker for Bm25 {
                 if recipes[i].id == "joint" {
                     return (i, if general_joint { 100.0 } else { 0.0 });
                 }
-                if edge_edit && recipes[i].id == "plate" {
+                if (edge_edit || existing_grid) && recipes[i].id == "plate" {
                     return (i, 0.0);
                 }
                 // "Align the lid with the box" moves existing parts; it never creates one.

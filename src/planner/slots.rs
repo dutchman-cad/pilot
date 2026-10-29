@@ -251,6 +251,8 @@ pub(super) fn dimensions(t: &[String]) -> Option<Vec<Dimension>> {
                     | "rectangle"
                     | "circle"
                     | "profile"
+                    | "angle"
+                    | "l"
                     | "then"
                     | "extrude"
                     | "around"
