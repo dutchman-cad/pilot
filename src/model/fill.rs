@@ -420,7 +420,6 @@ mod route_recovery_tests {
     #[test]
     fn replay_development_pattern_routes() {
         let library = crate::recipe_library::Library::embedded().unwrap();
-        let mut replay = Vec::new();
         let mut failures = Vec::new();
         let cases = dev_pattern_route::cases()
             .into_iter()
@@ -464,17 +463,7 @@ mod route_recovery_tests {
             {
                 failures.push(format!("no recovery: {text}"));
             }
-            let scores: Vec<_> = candidates
-                .iter()
-                .map(|r| json!({"id":r["id"],"score":r["score"]}))
-                .collect();
-            replay.push(json!({"request":text,"expected":expected,"setup":setup,"band":band["band"],"candidates":scores,"route_offer":wire}));
         }
-        std::fs::write(
-            "/tmp/pilot-dev-pattern-route-replay.json",
-            serde_json::to_vec_pretty(&replay).unwrap(),
-        )
-        .unwrap();
         assert!(failures.is_empty(), "{}", failures.join("\n"));
     }
 
