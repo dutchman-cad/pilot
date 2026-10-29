@@ -518,7 +518,7 @@ fn declined_provisional_claims_fill_from_existing_inspection() {
         ),
         (
             "resolve_pattern",
-            "Please arrange six copies of the Peg in a linear pattern, spaced 12 mm along X",
+            "Please arrange the Peg in a linear pattern, six in total, spaced 12 mm along X",
             "linear_pattern",
             json!({"target":"body","body":"Peg","count":6,"spacing":12,"direction":"X"}),
         ),
