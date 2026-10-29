@@ -376,7 +376,8 @@ impl Session {
     }
     fn with_start(path: &std::ffi::OsStr, start: Option<&std::path::Path>) -> Self {
         let mut command = Command::new(path);
-        command.arg("mcp");
+        // Each test owns its design session, never a running app's document.
+        command.args(["mcp", "--headless"]);
         if let Some(start) = start {
             command.arg("--in").arg(start);
         }
@@ -406,6 +407,7 @@ impl Session {
         self.output.read_line(&mut line).unwrap();
         assert!(line.len() < 16 * 1024 * 1024);
         let response: Value = serde_json::from_str(&line).unwrap();
+        assert_eq!(response["id"], self.id, "{command} {arguments}: {response}");
         assert!(
             response.get("error").is_none(),
             "{command} {arguments}: {response}"
@@ -422,7 +424,15 @@ impl Session {
                 .iter()
                 .map(|c| c["arguments"].clone())
                 .collect();
-            self.tool("batch", json!({"commands":commands}));
+            // A batch can stop partway without an MCP error; a half-built body would
+            // then fail a later geometry check far from the command that stopped.
+            let result = self.tool("batch", json!({"commands":commands}));
+            assert_eq!(result["ok"], true, "batch did not complete: {result}");
+            assert_eq!(
+                result["completed"],
+                commands.len(),
+                "batch did not execute every command: {result}"
+            );
             self.execute("document.inspect", json!({"measure":true}));
             return;
         }
