@@ -133,36 +133,8 @@ pub(super) fn recover(
 }
 
 fn profile(args: &mut Value, words: &[String], changes: &mut Vec<Value>) -> Result<(), String> {
-    if args.get("plane").is_none() {
-        let mut planes = Vec::new();
-        for (i, word) in words.iter().enumerate() {
-            let plane = match word.as_str() {
-                "xy" => Some("XY"),
-                "xz" => Some("XZ"),
-                "yz" => Some("YZ"),
-                "top" if words.get(i + 1).is_some_and(|s| s == "plane") => Some("XY"),
-                "front" if words.get(i + 1).is_some_and(|s| s == "plane") => Some("XZ"),
-                "right" if words.get(i + 1).is_some_and(|s| s == "plane") => Some("YZ"),
-                _ => None,
-            };
-            if let Some(plane) = plane {
-                if !planes.contains(&plane) {
-                    planes.push(plane);
-                }
-            }
-        }
-        if planes.len() > 1
-            || (!planes.is_empty()
-                && words
-                    .iter()
-                    .any(|s| matches!(s.as_str(), "not" | "without" | "or" | "either")))
-        {
-            // Ambiguous wording infers nothing; the fill keeps its own plane.
-        } else if let Some(plane) = planes.first() {
-            args["plane"] = json!(plane);
-            changes.push(json!({"field":"plane","before":null,"after":plane,"defaulted":true,"rule":"explicit sketch plane in request"}));
-        }
-    }
+    // An omitted plane is left to the builder's XY default: filling it from the
+    // request lost blind XZ profiles that pass with the default.
     if args["kind"] != "T" || args.get("stem_offset").is_some() {
         return Ok(());
     }

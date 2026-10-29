@@ -145,7 +145,8 @@
       "kind": "rectangle",
       "width": 48,
       "height": 34,
-      "depth": 11
+      "depth": 11,
+      "plane": "XZ"
     },
     "commands": [
       {
@@ -282,7 +283,8 @@
       "kind": "rectangle",
       "width": 56,
       "height": 38,
-      "depth": 13
+      "depth": 13,
+      "plane": "XZ"
     },
     "commands": [
       {
@@ -558,7 +560,8 @@
       "kind": "rectangle",
       "width": "2.5 in",
       "height": "1.25 in",
-      "depth": "0.375 in"
+      "depth": "0.375 in",
+      "plane": "YZ"
     },
     "commands": [
       {
@@ -695,7 +698,8 @@
       "kind": "rectangle",
       "width": "3 in",
       "height": "1.5 in",
-      "depth": "0.5 in"
+      "depth": "0.5 in",
+      "plane": "YZ"
     },
     "commands": [
       {
@@ -1011,7 +1015,8 @@
       "height": 34,
       "depth": 11,
       "web_thickness": 3,
-      "flange_thickness": 3
+      "flange_thickness": 3,
+      "plane": "YZ"
     },
     "commands": [
       {
@@ -1185,7 +1190,8 @@
       "height": 38,
       "depth": 13,
       "web_thickness": 3,
-      "flange_thickness": 3
+      "flange_thickness": 3,
+      "plane": "YZ"
     },
     "commands": [
       {
@@ -1534,7 +1540,8 @@
       "height": 34,
       "depth": 11,
       "web_thickness": 3,
-      "flange_thickness": 3
+      "flange_thickness": 3,
+      "plane": "YZ"
     },
     "commands": [
       {
@@ -1707,7 +1714,8 @@
       "height": 38,
       "depth": 13,
       "web_thickness": 3,
-      "flange_thickness": 3
+      "flange_thickness": 3,
+      "plane": "YZ"
     },
     "commands": [
       {
@@ -2055,7 +2063,8 @@
       "height": 34,
       "depth": 11,
       "web_thickness": 3,
-      "flange_thickness": 3
+      "flange_thickness": 3,
+      "plane": "XY"
     },
     "commands": [
       {
@@ -2228,7 +2237,8 @@
       "height": 38,
       "depth": 13,
       "web_thickness": 3,
-      "flange_thickness": 3
+      "flange_thickness": 3,
+      "plane": "XY"
     },
     "commands": [
       {
@@ -2576,7 +2586,8 @@
       "height": 34,
       "depth": 11,
       "web_thickness": 3,
-      "flange_thickness": 3
+      "flange_thickness": 3,
+      "plane": "XZ"
     },
     "commands": [
       {
@@ -2749,7 +2760,8 @@
       "height": 38,
       "depth": 13,
       "web_thickness": 3,
-      "flange_thickness": 3
+      "flange_thickness": 3,
+      "plane": "XZ"
     },
     "commands": [
       {
@@ -2921,7 +2933,8 @@
       "kind": "rectangle",
       "width": 40,
       "height": 30,
-      "depth": 9
+      "depth": 9,
+      "plane": "XZ"
     },
     "commands": [
       {
@@ -2989,7 +3002,8 @@
       "kind": "rectangle",
       "width": 44,
       "height": 32,
-      "depth": 10
+      "depth": 10,
+      "plane": "XZ"
     },
     "commands": [
       {
@@ -3057,7 +3071,8 @@
       "kind": "rectangle",
       "width": "2 in",
       "height": "1 in",
-      "depth": "1/4 in"
+      "depth": "1/4 in",
+      "plane": "YZ"
     },
     "commands": [
       {
@@ -3125,7 +3140,8 @@
       "kind": "rectangle",
       "width": "2.25 in",
       "height": "1.125 in",
-      "depth": "0.3125 in"
+      "depth": "0.3125 in",
+      "plane": "YZ"
     },
     "commands": [
       {

@@ -59,9 +59,11 @@ fn profile_request_defaults_are_bounded_and_preserve_supplied_slots() {
     ] {
         let mut args = json!({"kind":"T","width":50.8});
         let changes = forms::request_defaults(&mut args, schema, &request(text)).unwrap();
-        assert_eq!(args["plane"], plane);
+        // The plane is left to the builder's default; only the stem offset is filled.
+        let _ = plane;
+        assert!(args.get("plane").is_none(), "{text}");
         assert!((args["stem_offset"].as_f64().unwrap() - offset).abs() < 1e-9);
-        assert_eq!(changes.len(), 2);
+        assert_eq!(changes.len(), 1);
         assert!(forms::request_defaults(&mut args, schema, &request(text))
             .unwrap()
             .is_empty());
