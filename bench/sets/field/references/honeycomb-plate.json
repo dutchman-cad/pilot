@@ -2,162 +2,254 @@
   "SPDX-License-Identifier": "Apache-2.0",
   "commands": [
     {
-      "command": "solid.box",
+      "command": "sketch.create",
+      "params": {
+        "name": "HoneycombProfile",
+        "plane": {
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "x_dir": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "y_dir": [
+            0.0,
+            1.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
+      "command": "sketch.line",
+      "params": {
+        "closed": true,
+        "connect": false,
+        "ids": [
+          "HoneycombBorder0",
+          "HoneycombBorder1",
+          "HoneycombBorder2",
+          "HoneycombBorder3"
+        ],
+        "points": [
+          [
+            0.0,
+            0.0
+          ],
+          [
+            300.0,
+            0.0
+          ],
+          [
+            300.0,
+            150.0
+          ],
+          [
+            0.0,
+            150.0
+          ]
+        ]
+      }
+    },
+    {
+      "command": "sketch.line",
+      "params": {
+        "closed": true,
+        "connect": false,
+        "ids": [
+          "Honeycomb0_0",
+          "Honeycomb0_1",
+          "Honeycomb0_2",
+          "Honeycomb0_3",
+          "Honeycomb0_4",
+          "Honeycomb0_5"
+        ],
+        "points": [
+          [
+            11.125,
+            10.769782552654124
+          ],
+          [
+            7.625,
+            12.790508494817814
+          ],
+          [
+            4.125,
+            10.769782552654124
+          ],
+          [
+            4.125,
+            6.728330668326745
+          ],
+          [
+            7.625,
+            4.707604726163054
+          ],
+          [
+            11.125,
+            6.728330668326745
+          ]
+        ]
+      }
+    },
+    {
+      "command": "sketch.pattern.rectangular",
+      "params": {
+        "count": 34,
+        "count2": 9,
+        "entities": [
+          "Honeycomb0_0",
+          "Honeycomb0_1",
+          "Honeycomb0_2",
+          "Honeycomb0_3",
+          "Honeycomb0_4",
+          "Honeycomb0_5"
+        ],
+        "spacing": 8.5,
+        "spacing2": 14.722431864335457
+      }
+    },
+    {
+      "command": "sketch.line",
+      "params": {
+        "closed": true,
+        "connect": false,
+        "ids": [
+          "Honeycomb1_0",
+          "Honeycomb1_1",
+          "Honeycomb1_2",
+          "Honeycomb1_3",
+          "Honeycomb1_4",
+          "Honeycomb1_5"
+        ],
+        "points": [
+          [
+            11.125,
+            143.27166933167325
+          ],
+          [
+            7.625,
+            145.29239527383695
+          ],
+          [
+            4.125,
+            143.27166933167325
+          ],
+          [
+            4.125,
+            139.23021744734586
+          ],
+          [
+            7.625,
+            137.20949150518217
+          ],
+          [
+            11.125,
+            139.23021744734586
+          ]
+        ]
+      }
+    },
+    {
+      "command": "sketch.pattern.rectangular",
+      "params": {
+        "count": 34,
+        "count2": 1,
+        "entities": [
+          "Honeycomb1_0",
+          "Honeycomb1_1",
+          "Honeycomb1_2",
+          "Honeycomb1_3",
+          "Honeycomb1_4",
+          "Honeycomb1_5"
+        ],
+        "spacing": 8.5,
+        "spacing2": 14.722431864335457
+      }
+    },
+    {
+      "command": "sketch.line",
+      "params": {
+        "closed": true,
+        "connect": false,
+        "ids": [
+          "Honeycomb2_0",
+          "Honeycomb2_1",
+          "Honeycomb2_2",
+          "Honeycomb2_3",
+          "Honeycomb2_4",
+          "Honeycomb2_5"
+        ],
+        "points": [
+          [
+            15.375,
+            18.130998484821852
+          ],
+          [
+            11.875,
+            20.151724426985542
+          ],
+          [
+            8.375,
+            18.130998484821852
+          ],
+          [
+            8.375,
+            14.089546600494472
+          ],
+          [
+            11.875,
+            12.068820658330782
+          ],
+          [
+            15.375,
+            14.089546600494472
+          ]
+        ]
+      }
+    },
+    {
+      "command": "sketch.pattern.rectangular",
+      "params": {
+        "count": 34,
+        "count2": 9,
+        "entities": [
+          "Honeycomb2_0",
+          "Honeycomb2_1",
+          "Honeycomb2_2",
+          "Honeycomb2_3",
+          "Honeycomb2_4",
+          "Honeycomb2_5"
+        ],
+        "spacing": 8.5,
+        "spacing2": 14.722431864335457
+      }
+    },
+    {
+      "command": "sketch.finish",
+      "params": {}
+    },
+    {
+      "command": "solid.extrude",
       "params": {
         "body_name": "HoneycombPlate",
-        "corner": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "height": 3.0,
-        "length": 300.0,
+        "distance": 3.0,
+        "name": "HoneycombPlateExtrude",
         "operation": "new",
-        "width": 150.0
-      }
-    },
-    {
-      "command": "sketch.create",
-      "params": {
-        "name": "HoneycombSeed0",
-        "plane": {
-          "origin": [
-            0.0,
-            0.0,
-            0.0
-          ],
-          "x_dir": [
-            1.0,
-            0.0,
-            0.0
-          ],
-          "y_dir": [
-            0.0,
-            1.0,
-            0.0
-          ]
-        }
-      }
-    },
-    {
-      "command": "sketch.polygon.inscribed",
-      "params": {
-        "angle": 30,
-        "center": [
-          7.625,
-          8.749056610490435
-        ],
-        "radius": 4.041451884327381,
-        "sides": 6
-      }
-    },
-    {
-      "command": "sketch.finish",
-      "params": {}
-    },
-    {
-      "command": "solid.extrude",
-      "params": {
-        "name": "HoneycombCut0",
-        "operation": "cut",
-        "targets": [
-          "HoneycombPlate"
-        ],
-        "through_all": true
-      }
-    },
-    {
-      "command": "solid.pattern.rectangular",
-      "params": {
-        "count1": 34,
-        "count2": 10,
-        "dir1": [
-          1.0,
-          0.0,
-          0.0
-        ],
-        "dir2": [
-          0.0,
-          1.0,
-          0.0
-        ],
-        "features": [
-          "HoneycombCut0"
-        ],
-        "spacing1": 8.5,
-        "spacing2": 14.722431864335457
-      }
-    },
-    {
-      "command": "sketch.create",
-      "params": {
-        "name": "HoneycombSeed1",
-        "plane": {
-          "origin": [
-            0.0,
-            0.0,
-            0.0
-          ],
-          "x_dir": [
-            1.0,
-            0.0,
-            0.0
-          ],
-          "y_dir": [
-            0.0,
-            1.0,
-            0.0
-          ]
-        }
-      }
-    },
-    {
-      "command": "sketch.polygon.inscribed",
-      "params": {
-        "angle": 30,
-        "center": [
-          11.875,
-          16.110272542658162
-        ],
-        "radius": 4.041451884327381,
-        "sides": 6
-      }
-    },
-    {
-      "command": "sketch.finish",
-      "params": {}
-    },
-    {
-      "command": "solid.extrude",
-      "params": {
-        "name": "HoneycombCut1",
-        "operation": "cut",
-        "targets": [
-          "HoneycombPlate"
-        ],
-        "through_all": true
-      }
-    },
-    {
-      "command": "solid.pattern.rectangular",
-      "params": {
-        "count1": 34,
-        "count2": 9,
-        "dir1": [
-          1.0,
-          0.0,
-          0.0
-        ],
-        "dir2": [
-          0.0,
-          1.0,
-          0.0
-        ],
-        "features": [
-          "HoneycombCut1"
-        ],
-        "spacing1": 8.5,
-        "spacing2": 14.722431864335457
+        "profiles": [
+          {
+            "curves": [
+              "HoneycombBorder0",
+              "HoneycombBorder1",
+              "HoneycombBorder2",
+              "HoneycombBorder3"
+            ]
+          }
+        ]
       }
     },
     {

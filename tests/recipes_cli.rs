@@ -251,7 +251,8 @@ impl Session {
     }
     fn with_start(path: &std::ffi::OsStr, start: Option<&std::path::Path>) -> Self {
         let mut command = Command::new(path);
-        command.arg("mcp");
+        // Each test owns its document, even when a SolidCraft app is running.
+        command.args(["mcp", "--headless"]);
         if let Some(start) = start {
             command.arg("--in").arg(start);
         }
@@ -281,6 +282,7 @@ impl Session {
         self.output.read_line(&mut line).unwrap();
         assert!(line.len() < 16 * 1024 * 1024);
         let response: Value = serde_json::from_str(&line).unwrap();
+        assert_eq!(response["id"], self.id, "{command} {arguments}: {response}");
         assert!(
             response.get("error").is_none(),
             "{command} {arguments}: {response}"
@@ -297,7 +299,13 @@ impl Session {
                 .iter()
                 .map(|c| c["arguments"].clone())
                 .collect();
-            self.tool("batch", json!({"commands":commands}));
+            let result = self.tool("batch", json!({"commands":commands}));
+            assert_eq!(result["ok"], true, "batch did not complete: {result}");
+            assert_eq!(
+                result["completed"],
+                commands.len(),
+                "batch did not execute every command: {result}"
+            );
             self.execute("document.inspect", json!({"measure":true}));
             return;
         }
@@ -1275,26 +1283,50 @@ fn public_binary_honeycomb_swapped_sides_are_quarter_turns() {
                         )
                         .unwrap();
                     let mut session = Session::new(&path);
+                    let empty = session.execute("document.inspect", json!({}));
+                    assert_eq!(empty["bodies"], json!([]), "fresh session: {empty}");
                     session.run(&plan);
                     let state = session.execute("document.inspect", json!({"measure":true}));
+                    let context = format!("{l}x{w} {kind} {orientation:?}, slots: {}", plan.slots);
+                    for feature in state["timeline"].as_array().unwrap() {
+                        assert!(feature["error"].is_null(), "{context}: {feature}");
+                        assert!(feature["warning"].is_null(), "{context}: {feature}");
+                    }
                     let bodies = state["bodies"].as_array().unwrap();
-                    assert_eq!(bodies.len(), 1);
+                    assert_eq!(bodies.len(), 1, "{context}: {state}");
                     let body = &bodies[0];
+                    assert_eq!(body["name"], "HoneycombPlate", "{context}: {state}");
+                    assert_eq!(body["kernel"]["shells"], 1, "{context}: {state}");
                     let volume = body["volume_mm3"].as_f64().unwrap();
                     assert!(
                         (volume - plan.expected.as_ref().unwrap().created_volume_mm3.unwrap())
                             .abs()
-                            < 0.01
+                            < 0.01,
+                        "{context}: {state}"
                     );
                     for (axis, max) in [l, w, 3.].into_iter().enumerate() {
-                        assert!(body["bbox"]["min"][axis].as_f64().unwrap().abs() < 1e-6);
-                        assert!((body["bbox"]["max"][axis].as_f64().unwrap() - max).abs() < 1e-6);
+                        assert!(
+                            body["bbox"]["min"][axis].as_f64().unwrap().abs() < 1e-6,
+                            "{context}: {state}"
+                        );
+                        assert!(
+                            (body["bbox"]["max"][axis].as_f64().unwrap() - max).abs() < 1e-6,
+                            "{context}: {state}"
+                        );
                     }
                     let radius = 7. / 3_f64.sqrt();
                     let loops = honeycomb_loops(&mut session, "XY", 0., radius);
                     let count = loops.len();
-                    assert_eq!(plan.facts.as_ref().unwrap()["hex_count"], count);
-                    assert_eq!(body["faces"].as_u64().unwrap(), 6 + 6 * count as u64);
+                    assert_eq!(
+                        plan.facts.as_ref().unwrap()["hex_count"],
+                        count,
+                        "{context}: {state}"
+                    );
+                    assert_eq!(
+                        body["faces"].as_u64().unwrap(),
+                        6 + 6 * count as u64,
+                        "{context}: {state}"
+                    );
                     let mut points: Vec<[i64; 2]> = loops
                         .into_iter()
                         .flatten()
@@ -1362,8 +1394,8 @@ fn public_binary_honeycomb_recipe() {
             .unwrap();
         let mut s = Session::new(&path);
         assert_eq!(
-            p.calls[0]["arguments"]["params"]["corner"],
-            json!([0., 0., 0.])
+            p.calls[1]["arguments"]["params"]["points"][0],
+            json!([0., 0.])
         );
         assert_eq!(
             p.facts.as_ref().unwrap()["hex_count"],
@@ -1422,8 +1454,8 @@ fn public_binary_honeycomb_given_corner() {
                 )
                 .unwrap();
             assert_eq!(
-                p.calls[0]["arguments"]["params"]["corner"],
-                json!([0., 0., 0.])
+                p.calls[1]["arguments"]["params"]["points"][0],
+                json!([0., 0.])
             );
             assert_eq!(
                 p.calls
@@ -1470,6 +1502,7 @@ fn public_binary_honeycomb_single_axes_and_fill_clipping() {
         (4, 1, 60., 50., 4),
         (0, 0, 33., 50., 13),
         (0, 0, 15., 50., 3),
+        (2, 333, 3000., 30., 666),
     ] {
         let mut a = json!({"length":length,"width":width,"thickness":3,"size":14./3_f64.sqrt(),"size_kind":"across_corners","web":1.5,"border":4,"orientation":"pointy_top"});
         if rows > 0 {

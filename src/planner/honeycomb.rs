@@ -1,4 +1,4 @@
-//! Staggered hexagonal through cuts built from two bounded feature arrays.
+//! Staggered hexagonal holes in one explicitly selected extrusion profile.
 use super::*;
 
 pub fn schema() -> Value {
@@ -36,6 +36,33 @@ impl Field {
     fn count(&self) -> usize {
         self.rows.div_ceil(2) * self.columns[0] + self.rows / 2 * self.columns[1]
     }
+}
+// Six vertices have twelve coordinate unknowns per copy. Stay below the public
+// CLI's 4000-unknown connected sketch-group limit and 500-instance pattern cap.
+const PROFILE_TILE: usize = 333;
+
+fn profile_tiles(f: &Field) -> Vec<[usize; 5]> {
+    let mut tiles = Vec::new();
+    for parity in 0..2 {
+        let rows = (f.rows + 1 - parity) / 2;
+        let columns = f.columns[parity];
+        if columns == 0 || rows == 0 {
+            continue;
+        }
+        let groups = columns.div_ceil(PROFILE_TILE);
+        let mut column = 0;
+        for group in 0..groups {
+            // Balance column groups so a short remainder does not need a
+            // separate pattern for every row.
+            let cols = columns / groups + usize::from(group < columns % groups);
+            let row_step = PROFILE_TILE / cols;
+            for row in (0..rows).step_by(row_step) {
+                tiles.push([parity, column, row, cols, row_step.min(rows - row)]);
+            }
+            column += cols;
+        }
+    }
+    tiles
 }
 fn num(a: &Value, key: &str) -> Result<f64, String> {
     a[key]
@@ -176,54 +203,64 @@ pub(super) fn build(a: &Value, request: &Value, catalog: &Catalog) -> Result<Pla
     if (0..3).any(|i| corner[i].abs() > 1_000_000. || (corner[i] + dims[i]).abs() > 1_000_000.) {
         return Err("corner plus plate size must stay within -1000000..1000000 mm".into());
     }
-    // Build Y-row fields as X-row fields, then turn the completed part. The
-    // public 0.20 CLI exceeds its planar comparison budget for large Y arrays.
+    // Keep patterns along sketch X, then turn the completed part for flat_top.
+    // The final rigid move also preserves the corner convention on every plane.
     let build_origin = if plane == "XZ" {
         [0., thickness, 0.]
     } else {
         [0.; 3]
     };
-    let build_dims = if f.flat {
-        match plane {
-            "XZ" => [width, thickness, length],
-            "YZ" => [thickness, width, length],
-            _ => [width, length, thickness],
-        }
+    let [along, across] = if f.flat {
+        [width, length]
     } else {
-        dims
+        [length, width]
     };
     let build_corner = [0.; 3];
-    let mut calls = vec![call(
-        catalog,
-        "solid.box",
-        json!({"length":build_dims[0],"width":build_dims[1],"height":build_dims[2],"corner":build_corner,"operation":"new","body_name":"HoneycombPlate"}),
-    )?];
-    for parity in 0..2 {
-        let row_count = (f.rows + 1 - parity) / 2;
-        let col_count = f.columns[parity];
-        if row_count == 0 || col_count == 0 {
-            continue;
-        }
-        let along = f.start[0] + parity as f64 * f.pitch / 2.;
-        let across = f.start[1] + parity as f64 * f.row_pitch;
-        let center = [along, across];
-        let name = format!("HoneycombCut{parity}");
-        calls.push(call(catalog,"sketch.create",json!({"plane":{"origin":build_origin,"x_dir":u,"y_dir":v},"name":format!("HoneycombSeed{parity}")}))?);
+    let border_ids = [
+        "HoneycombBorder0",
+        "HoneycombBorder1",
+        "HoneycombBorder2",
+        "HoneycombBorder3",
+    ];
+    let mut calls = vec![
+        call(
+            catalog,
+            "sketch.create",
+            json!({"plane":{"origin":build_origin,"x_dir":u,"y_dir":v},"name":"HoneycombProfile"}),
+        )?,
+        call(
+            catalog,
+            "sketch.line",
+            json!({"points":[[0.,0.],[along,0.],[along,across],[0.,across]],"closed":true,"ids":border_ids,"connect":false}),
+        )?,
+    ];
+    for (index, [parity, column, row, cols, rows]) in profile_tiles(&f).into_iter().enumerate() {
+        let x = f.start[0] + column as f64 * f.pitch + parity as f64 * f.pitch / 2.;
+        let y = f.start[1] + (2 * row + parity) as f64 * f.row_pitch;
+        let ids: Vec<_> = (0..6)
+            .map(|side| format!("Honeycomb{index}_{side}"))
+            .collect();
+        let points = [
+            [x + f.af / 2., y + f.radius / 2.],
+            [x, y + f.radius],
+            [x - f.af / 2., y + f.radius / 2.],
+            [x - f.af / 2., y - f.radius / 2.],
+            [x, y - f.radius],
+            [x + f.af / 2., y - f.radius / 2.],
+        ];
         calls.push(call(
             catalog,
-            "sketch.polygon.inscribed",
-            json!({"center":center,"radius":f.radius,"sides":6,"angle":30}),
+            "sketch.line",
+            json!({"points":points,"closed":true,"ids":ids,"connect":false}),
         )?);
-        calls.push(call(catalog, "sketch.finish", json!({}))?);
-        calls.push(call(
-            catalog,
-            "solid.extrude",
-            json!({"through_all":true,"operation":"cut","targets":["HoneycombPlate"],"name":name}),
-        )?);
-        if col_count * row_count > 1 {
-            calls.push(call(catalog,"solid.pattern.rectangular",json!({"features":[name],"dir1":u,"count1":col_count,"spacing1":f.pitch,"dir2":v,"count2":row_count,"spacing2":2.*f.row_pitch}))?);
+        if cols * rows > 1 {
+            calls.push(call(catalog,"sketch.pattern.rectangular",json!({"entities":ids,"count":cols,"spacing":f.pitch,"count2":rows,"spacing2":2.*f.row_pitch}))?);
         }
     }
+    calls.push(call(catalog, "sketch.finish", json!({}))?);
+    // Select the outside loop explicitly. On 0.20 `profiles: all` also fills
+    // the islands; a curve-bound profile retains them as holes on both CLIs.
+    calls.push(call(catalog,"solid.extrude",json!({"distance":thickness,"operation":"new","profiles":[{"curves":border_ids}],"name":"HoneycombPlateExtrude","body_name":"HoneycombPlate"}))?);
     if f.flat {
         let axis = match plane {
             "XZ" => [0., -1., 0.],
@@ -241,6 +278,11 @@ pub(super) fn build(a: &Value, request: &Value, catalog: &Catalog) -> Result<Pla
         )?);
     }
     calls.push(call(catalog, "document.inspect", json!({"measure":true}))?);
+    if calls.len() > 64 {
+        return Err(
+            "honeycomb profile exceeds the 64-command plan limit; reduce rows or columns".into(),
+        );
+    }
     let cut_volume = f.count() as f64 * 3_f64.sqrt() / 2. * f.af * f.af * thickness;
     let new_volume = length * width * thickness - cut_volume;
     let baseline = state(
@@ -477,6 +519,66 @@ mod tests {
         json!({"messages":[{"role":"user","content":text}],"tools":[{"function":{"name":"execute"}}]})
     }
     #[test]
+    fn profile_tiles_cover_every_bounded_field_within_command_and_solver_caps() {
+        let mut f = field(&args()).unwrap();
+        for rows in 1..=5000 {
+            for columns in 1..=5000 / rows {
+                for odd_columns in [columns, columns - 1] {
+                    f.rows = rows;
+                    f.columns = [columns, odd_columns];
+                    let tiles = profile_tiles(&f);
+                    assert_eq!(tiles.iter().map(|t| t[3] * t[4]).sum::<usize>(), f.count());
+                    // Sketch, outside loop, finish, extrude, move, inspection.
+                    assert!(2 * tiles.len() + 6 <= 64, "{rows} {columns} {odd_columns}");
+                    for [parity, column, row, cols, tile_rows] in tiles {
+                        assert!((1..=PROFILE_TILE).contains(&(cols * tile_rows)));
+                        assert!(column + cols <= f.columns[parity]);
+                        assert!(row + tile_rows <= (f.rows + 1 - parity) / 2);
+                    }
+                }
+            }
+        }
+    }
+    #[test]
+    fn honeycomb_command_bytes_are_repeatable() {
+        let catalog = Catalog::bundled().unwrap();
+        for (length, width) in [(150., 300.), (45., 67.), (80., 51.)] {
+            for kind in ["across_flats", "across_corners"] {
+                for orientation in [None, Some("pointy_top"), Some("flat_top")] {
+                    for swapped in [false, true] {
+                        let mut a = args();
+                        a["length"] = json!(if swapped { width } else { length });
+                        a["width"] = json!(if swapped { length } else { width });
+                        a["size_kind"] = json!(kind);
+                        a["size"] = json!(if kind == "across_flats" {
+                            7.
+                        } else {
+                            14. / 3_f64.sqrt()
+                        });
+                        if let Some(o) = orientation {
+                            a["orientation"] = json!(if swapped {
+                                if o == "flat_top" {
+                                    "pointy_top"
+                                } else {
+                                    "flat_top"
+                                }
+                            } else {
+                                o
+                            });
+                        }
+                        let first =
+                            serde_json::to_vec(&build(&a, &req(""), &catalog).unwrap().calls)
+                                .unwrap();
+                        for _ in 0..8 {
+                            let again = build(&a, &req(""), &catalog).unwrap();
+                            assert_eq!(first, serde_json::to_vec(&again.calls).unwrap());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    #[test]
     fn geometry_counts_pitches_and_vertices() {
         for flat in [false, true] {
             let mut a = args();
@@ -627,7 +729,7 @@ mod tests {
                     )
                     .unwrap();
                 assert_eq!(p.calls, typed.calls);
-                assert!(p.calls.len() <= 13);
+                assert_eq!(p.calls.len(), 12);
                 assert_eq!(
                     lib.find(&text, &crate::recipe_library::Bm25).unwrap()["recipes"][0]["id"],
                     "honeycomb_pattern"

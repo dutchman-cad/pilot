@@ -518,8 +518,12 @@ odd rows. Pointy-top columns run along local X; flat-top rotates the lattice.
 Only complete hexes within the minimum border survive, and the whole field is
 centred within the plate footprint. Across-corners converts to AF by sqrt(3)/2.
 The footprint corner starts at the origin unless centred; thickness extends
-along +Z (XY), -Y (XZ), or +X (YZ). At most two seed cuts and two feature patterns
-produce one body, with no per-hex tool calls. Completion checks measured volume
+along +Z (XY), -Y (XZ), or +X (YZ). Bounded sketch patterns form the holes in one
+explicitly selected outer profile, extruded once. Each independent pattern has
+at most 333 hexagons (below the public solver's 4000-coordinate group limit),
+and the complete plan has at most 64 commands. This avoids repeating boolean
+cuts against an increasingly complex plate and produces one body without
+per-hex tool calls. Completion checks measured volume
 and bounds. The CLI integration test independently reconstructs finished hex
 loops to verify count, minimum web and border.
 
