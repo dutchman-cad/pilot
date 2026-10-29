@@ -87,10 +87,7 @@ pub(crate) fn describe(s: &mut Value) {
                 "web" => ("Minimum material between hex holes", None),
                 "border" => ("Minimum uncut margin", None),
                 "rows" | "columns" => ("Instance count; honeycomb requires exact mode", None),
-                "target" => (
-                    "body: whole part + base; last_feature: latest boss/hole/slot only",
-                    None,
-                ),
+                "target" => ("body: whole solid; last_feature: latest feature", None),
                 "body" => ("Exact inspected body name; omit only if unambiguous", None),
                 "join" => (
                     "Allow overlap of joined last features only",
@@ -190,7 +187,7 @@ pub fn compact(s: &Value) -> Value {
             "inside" => "True: clear inside dimensions; outside adds 2 walls and one floor",
             "lip" => "Request ring; omit sizes: height=wall, width=wall/2",
             "corner_sides" => "right=+X; top=+Y",
-            "target" => "body: whole part; last_feature: boss/hole/slot only",
+            "target" => "body: solid; last_feature: latest feature",
             "open" => "Removed face",
             "axis" if root["x-pilot-expander"] == "joint" => {
                 "Aligned world axis; omit: Z; named origins keep their frames"
@@ -220,7 +217,7 @@ pub fn compact(s: &Value) -> Value {
             }
             "thickness" if root["x-pilot-expander"] == "profile" => "L A x B x t: wall thickness t",
             "depth" => "Extrusion length",
-            "plane" => "XY:+Z; XZ:+Y, sketch Y=-Z; YZ:+X",
+            "plane" => "Axes of plane",
             k if root["x-pilot-expander"] == "joint"
                 && (k.starts_with("limit")
                     || k.starts_with("component_")

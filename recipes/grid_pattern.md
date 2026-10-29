@@ -97,7 +97,7 @@
         "description": "Centre spacing between instances"
       },
       "target": {
-        "description": "body: whole part + base; last_feature: latest boss/hole/slot only",
+        "description": "body: whole solid; last_feature: latest feature",
         "enum": [
           "body",
           "last_feature"
