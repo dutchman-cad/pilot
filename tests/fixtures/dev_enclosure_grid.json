@@ -1,0 +1,1816 @@
+[
+  {
+    "id": "cover-1",
+    "category": "outer-lip cover",
+    "prompt": "Cover 7 x 5 x 1.8 cm outside; wall .2 cm. Open underside, outer-face lip .1 cm wide and .3 cm tall. Corner origin.",
+    "recipe": "enclosure",
+    "args": {
+      "length": "7 cm",
+      "width": "5 cm",
+      "height": "1.8 cm",
+      "wall": 2,
+      "lip_width": 1,
+      "lip_height": 3,
+      "lip_side": "outer"
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 70,
+          "width": 50,
+          "height": 18,
+          "corner": [
+            0,
+            0,
+            0
+          ],
+          "operation": "new"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 66,
+          "width": 46,
+          "height": 16,
+          "corner": [
+            2,
+            2,
+            0
+          ],
+          "operation": "cut"
+        }
+      },
+      {
+        "command": "plastic.lip",
+        "params": {
+          "face": [
+            1,
+            25,
+            0
+          ],
+          "width": 1,
+          "height": 3,
+          "side": "outside",
+          "type": "lip"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          -3
+        ],
+        "max": [
+          70,
+          50,
+          18
+        ]
+      },
+      "volume": 15132
+    },
+    "literal_args": {
+      "length": "7 cm",
+      "width": "5 cm",
+      "height": "1.8 cm",
+      "wall": 2,
+      "lip_width": 1,
+      "lip_height": 3,
+      "lip_side": "outer",
+      "open": "bottom"
+    }
+  },
+  {
+    "id": "cover-2",
+    "category": "outer-lip cover",
+    "prompt": "9 x 6 x 2 cm cover, .3 cm wall. Open bottom, outer lip .1 cm wide x .2 cm tall flush with outside wall.",
+    "recipe": "enclosure",
+    "args": {
+      "length": 90,
+      "width": 60,
+      "height": 20,
+      "wall": 3,
+      "open": "bottom",
+      "lip_width": 1,
+      "lip_height": 2,
+      "lip_side": "outer"
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 90,
+          "width": 60,
+          "height": 20,
+          "corner": [
+            0,
+            0,
+            0
+          ],
+          "operation": "new"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 84,
+          "width": 54,
+          "height": 17,
+          "corner": [
+            3,
+            3,
+            0
+          ],
+          "operation": "cut"
+        }
+      },
+      {
+        "command": "plastic.lip",
+        "params": {
+          "face": [
+            1.5,
+            30,
+            0
+          ],
+          "width": 1,
+          "height": 2,
+          "side": "outside",
+          "type": "lip"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          -2
+        ],
+        "max": [
+          90,
+          60,
+          20
+        ]
+      },
+      "volume": 31480
+    },
+    "literal_args": {
+      "length": 90,
+      "width": 60,
+      "height": 20,
+      "wall": 3,
+      "open": "bottom",
+      "lip_width": 1,
+      "lip_height": 2,
+      "lip_side": "outer"
+    }
+  },
+  {
+    "id": "cover-3",
+    "category": "outer-lip cover",
+    "prompt": "Please make a lid, outside 80 by 54 by 16 mm, 2 mm walls. Centre the whole box at origin. Raised outer-wall lip 1 mm wide and 2 mm high at its bottom opening.",
+    "recipe": "enclosure",
+    "args": {
+      "length": 80,
+      "width": 54,
+      "height": 16,
+      "wall": 2,
+      "centred": true,
+      "lip_width": 1,
+      "lip_height": 2,
+      "lip_side": "outer"
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 80,
+          "width": 54,
+          "height": 16,
+          "corner": [
+            -40,
+            -27,
+            -8
+          ],
+          "operation": "new"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 76,
+          "width": 50,
+          "height": 14,
+          "corner": [
+            -38,
+            -25,
+            -8
+          ],
+          "operation": "cut"
+        }
+      },
+      {
+        "command": "plastic.lip",
+        "params": {
+          "face": [
+            -39,
+            0,
+            -8
+          ],
+          "width": 1,
+          "height": 2,
+          "side": "outside",
+          "type": "lip"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          -40,
+          -27,
+          -10
+        ],
+        "max": [
+          40,
+          27,
+          8
+        ]
+      },
+      "volume": 16448
+    },
+    "literal_args": {
+      "length": 80,
+      "width": 54,
+      "height": 16,
+      "wall": 2,
+      "centred": true,
+      "lip_width": 1,
+      "lip_height": 2,
+      "lip_side": "outer",
+      "open": "bottom"
+    }
+  },
+  {
+    "id": "cover-4",
+    "category": "outer-lip cover",
+    "prompt": "Open-bottom cover, outside 3 x 2 x .75 inches, 1/8 inch walls, outer-face lip 1/16 inch wide, 1/8 inch tall. Corner origin.",
+    "recipe": "enclosure",
+    "args": {
+      "length": "3 in",
+      "width": "2 in",
+      "height": ".75 in",
+      "wall": "1/8 in",
+      "open": "bottom",
+      "lip_width": "1/16 in",
+      "lip_height": "1/8 in",
+      "lip_side": "outer"
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 76.2,
+          "width": 50.8,
+          "height": 19.05,
+          "corner": [
+            0,
+            0,
+            0
+          ],
+          "operation": "new"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 69.85000000000001,
+          "width": 44.449999999999996,
+          "height": 15.875,
+          "corner": [
+            3.175,
+            3.175,
+            0
+          ],
+          "operation": "cut"
+        }
+      },
+      {
+        "command": "plastic.lip",
+        "params": {
+          "face": [
+            1.5875,
+            25.4,
+            0
+          ],
+          "width": 1.5875,
+          "height": 3.175,
+          "side": "outside",
+          "type": "lip"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          -3.175
+        ],
+        "max": [
+          76.2,
+          50.8,
+          19.05
+        ]
+      },
+      "volume": 25700.805453125
+    },
+    "literal_args": {
+      "length": "3 in",
+      "width": "2 in",
+      "height": ".75 in",
+      "wall": "1/8 in",
+      "open": "bottom",
+      "lip_width": "1/16 in",
+      "lip_height": "1/8 in",
+      "lip_side": "outer"
+    }
+  },
+  {
+    "id": "cover-5",
+    "category": "outer-lip cover",
+    "prompt": "Cover, clear inside 6 x 4 x 1 cm, wall .2 cm, roof .4 cm. Open bottom; outer-face lip .1 cm wide, .2 cm below opening.",
+    "recipe": "enclosure",
+    "args": {
+      "length": 60,
+      "width": 40,
+      "height": 10,
+      "wall": 2,
+      "floor": 4,
+      "inside": true,
+      "open": "bottom",
+      "lip_width": 1,
+      "lip_height": 2,
+      "lip_side": "outer"
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 64,
+          "width": 44,
+          "height": 14,
+          "corner": [
+            0,
+            0,
+            0
+          ],
+          "operation": "new"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 60,
+          "width": 40,
+          "height": 10,
+          "corner": [
+            2,
+            2,
+            0
+          ],
+          "operation": "cut"
+        }
+      },
+      {
+        "command": "plastic.lip",
+        "params": {
+          "face": [
+            1,
+            22,
+            0
+          ],
+          "width": 1,
+          "height": 2,
+          "side": "outside",
+          "type": "lip"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          -2
+        ],
+        "max": [
+          64,
+          44,
+          14
+        ]
+      },
+      "volume": 15848
+    },
+    "literal_args": {
+      "length": 60,
+      "width": 40,
+      "height": 10,
+      "wall": 2,
+      "floor": 4,
+      "inside": true,
+      "open": "bottom",
+      "lip_width": 1,
+      "lip_height": 2,
+      "lip_side": "outer"
+    }
+  },
+  {
+    "id": "open-1",
+    "category": "terse open top",
+    "prompt": "open top enclosure 64x42x25 mm outside, 2 mm wall, corner origin",
+    "recipe": "enclosure",
+    "args": {
+      "length": 64,
+      "width": 42,
+      "height": 25,
+      "wall": 2
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 64,
+          "width": 42,
+          "height": 25,
+          "corner": [
+            0,
+            0,
+            0
+          ],
+          "operation": "new"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 60,
+          "width": 38,
+          "height": 23,
+          "corner": [
+            2,
+            2,
+            2
+          ],
+          "operation": "cut"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          64,
+          42,
+          25
+        ]
+      },
+      "volume": 14760
+    },
+    "literal_args": {
+      "length": 64,
+      "width": 42,
+      "height": 25,
+      "wall": 2
+    }
+  },
+  {
+    "id": "open-2",
+    "category": "terse open top",
+    "prompt": "8 x 5 x 3 cm outside. Enclosure, open top, wall .25 cm.",
+    "recipe": "enclosure",
+    "args": {
+      "length": "8 cm",
+      "width": "5 cm",
+      "height": "3 cm",
+      "wall": 2.5,
+      "open": true
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 80,
+          "width": 50,
+          "height": 30,
+          "corner": [
+            0,
+            0,
+            0
+          ],
+          "operation": "new"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 75,
+          "width": 45,
+          "height": 27.5,
+          "corner": [
+            2.5,
+            2.5,
+            2.5
+          ],
+          "operation": "cut"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          80,
+          50,
+          30
+        ]
+      },
+      "volume": 27187.5
+    },
+    "literal_args": {
+      "length": "8 cm",
+      "width": "5 cm",
+      "height": "3 cm",
+      "wall": 2.5,
+      "open": true
+    }
+  },
+  {
+    "id": "open-3",
+    "category": "terse open top",
+    "prompt": "Could I have an open-top box? Outside 72 by 48 by 22 mm, wall 3 mm. Centre the whole box at origin; no lip.",
+    "recipe": "enclosure",
+    "args": {
+      "length": 72,
+      "width": 48,
+      "height": 22,
+      "wall": 3,
+      "centred": true
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 72,
+          "width": 48,
+          "height": 22,
+          "corner": [
+            -36,
+            -24,
+            -11
+          ],
+          "operation": "new"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 66,
+          "width": 42,
+          "height": 19,
+          "corner": [
+            -33,
+            -21,
+            -8
+          ],
+          "operation": "cut"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          -36,
+          -24,
+          -11
+        ],
+        "max": [
+          36,
+          24,
+          11
+        ]
+      },
+      "volume": 23364
+    },
+    "literal_args": {
+      "length": 72,
+      "width": 48,
+      "height": 22,
+      "wall": 3,
+      "centred": true
+    }
+  },
+  {
+    "id": "open-4",
+    "category": "terse open top",
+    "prompt": "open top enclosure 2.5 x 1.75 x 1 in outside, wall 1/8 in",
+    "recipe": "enclosure",
+    "args": {
+      "length": "2.5 in",
+      "width": "1.75 in",
+      "height": "1 in",
+      "wall": "1/8 in"
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 63.5,
+          "width": 44.45,
+          "height": 25.4,
+          "corner": [
+            0,
+            0,
+            0
+          ],
+          "operation": "new"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 57.15,
+          "width": 38.1,
+          "height": 22.224999999999998,
+          "corner": [
+            3.175,
+            3.175,
+            3.175
+          ],
+          "operation": "cut"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          63.5,
+          44.45,
+          25.4
+        ]
+      },
+      "volume": 23300.356625000008
+    },
+    "literal_args": {
+      "length": "2.5 in",
+      "width": "1.75 in",
+      "height": "1 in",
+      "wall": "1/8 in"
+    }
+  },
+  {
+    "id": "open-5",
+    "category": "terse open top",
+    "prompt": "open top box, clear inside 50 x 32 x 18 mm, 2 mm walls and base",
+    "recipe": "enclosure",
+    "args": {
+      "length": 50,
+      "width": 32,
+      "height": 18,
+      "wall": 2,
+      "inside": true
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 54,
+          "width": 36,
+          "height": 20,
+          "corner": [
+            0,
+            0,
+            0
+          ],
+          "operation": "new"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 50,
+          "width": 32,
+          "height": 18,
+          "corner": [
+            2,
+            2,
+            2
+          ],
+          "operation": "cut"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          54,
+          36,
+          20
+        ]
+      },
+      "volume": 10080
+    },
+    "literal_args": {
+      "length": 50,
+      "width": 32,
+      "height": 18,
+      "wall": 2,
+      "inside": true
+    }
+  },
+  {
+    "id": "floor-1",
+    "category": "thick floor",
+    "prompt": "Enclosure 8 x 6 x 3 cm outside, .2 cm wall, .6 cm floor, open top.",
+    "recipe": "enclosure",
+    "args": {
+      "length": "8 cm",
+      "width": "6 cm",
+      "height": "3 cm",
+      "wall": 2,
+      "floor": "0.6 cm"
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 80,
+          "width": 60,
+          "height": 30,
+          "corner": [
+            0,
+            0,
+            0
+          ],
+          "operation": "new"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 76,
+          "width": 56,
+          "height": 24,
+          "corner": [
+            2,
+            2,
+            6
+          ],
+          "operation": "cut"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          80,
+          60,
+          30
+        ]
+      },
+      "volume": 41856
+    },
+    "literal_args": {
+      "length": "8 cm",
+      "width": "6 cm",
+      "height": "3 cm",
+      "wall": 2,
+      "floor": "0.6 cm"
+    }
+  },
+  {
+    "id": "floor-2",
+    "category": "thick floor",
+    "prompt": "9x5x2.8 cm outside; floor .7 cm, wall .25 cm; open-top enclosure.",
+    "recipe": "enclosure",
+    "args": {
+      "length": 90,
+      "width": 50,
+      "height": 28,
+      "wall": 2.5,
+      "floor": 7
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 90,
+          "width": 50,
+          "height": 28,
+          "corner": [
+            0,
+            0,
+            0
+          ],
+          "operation": "new"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 85,
+          "width": 45,
+          "height": 21,
+          "corner": [
+            2.5,
+            2.5,
+            7
+          ],
+          "operation": "cut"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          90,
+          50,
+          28
+        ]
+      },
+      "volume": 45675
+    },
+    "literal_args": {
+      "length": 90,
+      "width": 50,
+      "height": 28,
+      "wall": 2.5,
+      "floor": 7
+    }
+  },
+  {
+    "id": "floor-3",
+    "category": "thick floor",
+    "prompt": "Please make an open-top enclosure, clear internal space 6 x 4 x 2 cm. Walls .3 cm, heavy .8 cm base. Centre outside box at origin.",
+    "recipe": "enclosure",
+    "args": {
+      "length": "6 cm",
+      "width": "4 cm",
+      "height": "2 cm",
+      "wall": 3,
+      "floor": 8,
+      "inside": true,
+      "centred": true
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 66,
+          "width": 46,
+          "height": 28,
+          "corner": [
+            -33,
+            -23,
+            -14
+          ],
+          "operation": "new"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 60,
+          "width": 40,
+          "height": 20,
+          "corner": [
+            -30,
+            -20,
+            -6
+          ],
+          "operation": "cut"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          -33,
+          -23,
+          -14
+        ],
+        "max": [
+          33,
+          23,
+          14
+        ]
+      },
+      "volume": 37008
+    },
+    "literal_args": {
+      "length": "6 cm",
+      "width": "4 cm",
+      "height": "2 cm",
+      "wall": 3,
+      "floor": 8,
+      "inside": true,
+      "centred": true
+    }
+  },
+  {
+    "id": "floor-4",
+    "category": "thick floor",
+    "prompt": "Open-top case: 3 by 2 by 1 inches overall, 1/8 inch wall, 1/4 inch floor.",
+    "recipe": "enclosure",
+    "args": {
+      "length": "3 in",
+      "width": "2 in",
+      "height": "1 in",
+      "wall": "1/8 in",
+      "floor": "1/4 in"
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 76.2,
+          "width": 50.8,
+          "height": 25.4,
+          "corner": [
+            0,
+            0,
+            0
+          ],
+          "operation": "new"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 69.85000000000001,
+          "width": 44.449999999999996,
+          "height": 19.049999999999997,
+          "corner": [
+            3.175,
+            3.175,
+            6.35
+          ],
+          "operation": "cut"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          76.2,
+          50.8,
+          25.4
+        ]
+      },
+      "volume": 39175.324875
+    },
+    "literal_args": {
+      "length": "3 in",
+      "width": "2 in",
+      "height": "1 in",
+      "wall": "1/8 in",
+      "floor": "1/4 in"
+    }
+  },
+  {
+    "id": "floor-5",
+    "category": "thick floor",
+    "prompt": "Box 7 x 4.5 x 2.4 cm outside; open top, wall .2 cm, floor .5 cm, inner lip .1 cm wide, .2 cm above opening.",
+    "recipe": "enclosure",
+    "args": {
+      "length": 70,
+      "width": 45,
+      "height": 24,
+      "wall": 2,
+      "floor": 5,
+      "lip_width": 1,
+      "lip_height": 2,
+      "lip_side": "inner"
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 70,
+          "width": 45,
+          "height": 24,
+          "corner": [
+            0,
+            0,
+            0
+          ],
+          "operation": "new"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 66,
+          "width": 41,
+          "height": 19,
+          "corner": [
+            2,
+            2,
+            5
+          ],
+          "operation": "cut"
+        }
+      },
+      {
+        "command": "plastic.lip",
+        "params": {
+          "face": [
+            1,
+            22.5,
+            24
+          ],
+          "width": 1,
+          "height": 2,
+          "side": "inside",
+          "type": "lip"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          70,
+          45,
+          26
+        ]
+      },
+      "volume": 24622
+    },
+    "literal_args": {
+      "length": 70,
+      "width": 45,
+      "height": 24,
+      "wall": 2,
+      "floor": 5,
+      "lip_width": 1,
+      "lip_height": 2,
+      "lip_side": "inner"
+    }
+  },
+  {
+    "id": "grid-1",
+    "category": "front plate grid",
+    "prompt": "100 x 60 x 4 mm plate on the front plane. Centred grid: 4 columns X, 3 rows sketch Y, pitch 20 x 15 mm centre to centre, 5 mm through holes.",
+    "recipe": "plate",
+    "args": {
+      "length": 100,
+      "width": 60,
+      "thickness": 4,
+      "grid_columns": 4,
+      "grid_rows": 3,
+      "grid_pitch_x": 20,
+      "grid_pitch_y": 15,
+      "grid_hole_diameter": 5
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 100,
+          "width": 4,
+          "height": 60,
+          "corner": [
+            0,
+            0,
+            -60
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            4,
+            -15
+          ],
+          "diameter": 5
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            40,
+            4,
+            -15
+          ],
+          "diameter": 5
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            60,
+            4,
+            -15
+          ],
+          "diameter": 5
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            80,
+            4,
+            -15
+          ],
+          "diameter": 5
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            4,
+            -30
+          ],
+          "diameter": 5
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            40,
+            4,
+            -30
+          ],
+          "diameter": 5
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            60,
+            4,
+            -30
+          ],
+          "diameter": 5
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            80,
+            4,
+            -30
+          ],
+          "diameter": 5
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            4,
+            -45
+          ],
+          "diameter": 5
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            40,
+            4,
+            -45
+          ],
+          "diameter": 5
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            60,
+            4,
+            -45
+          ],
+          "diameter": 5
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            80,
+            4,
+            -45
+          ],
+          "diameter": 5
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          -60
+        ],
+        "max": [
+          100,
+          4,
+          0
+        ]
+      },
+      "volume": 23057.678752958993,
+      "analytic_volume": 23057.52220392306
+    },
+    "literal_args": {
+      "length": 100,
+      "width": 60,
+      "thickness": 4,
+      "grid_columns": 4,
+      "grid_rows": 3,
+      "grid_pitch_x": 20,
+      "grid_pitch_y": 15,
+      "grid_hole_diameter": 5,
+      "plane": "XZ"
+    }
+  },
+  {
+    "id": "grid-2",
+    "category": "front plate grid",
+    "prompt": "9 x 6 x .3 cm front-plane plate, centred in sketch plane. 3 columns, 2 rows; .4 cm holes; pitch 2 cm X, 3 cm sketch Y.",
+    "recipe": "plate",
+    "args": {
+      "length": "9 cm",
+      "width": "6 cm",
+      "thickness": "0.3 cm",
+      "plane": "front",
+      "centred": true,
+      "grid_columns": 3,
+      "grid_rows": 2,
+      "grid_pitch_x": 20,
+      "grid_pitch_y": 30,
+      "grid_hole_diameter": 4
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 90,
+          "width": 3,
+          "height": 60,
+          "corner": [
+            -45,
+            0,
+            -30
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            -20,
+            3,
+            15
+          ],
+          "diameter": 4
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            0,
+            3,
+            15
+          ],
+          "diameter": 4
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            3,
+            15
+          ],
+          "diameter": 4
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            -20,
+            3,
+            -15
+          ],
+          "diameter": 4
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            0,
+            3,
+            -15
+          ],
+          "diameter": 4
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            3,
+            -15
+          ],
+          "diameter": 4
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          -45,
+          0,
+          -30
+        ],
+        "max": [
+          45,
+          3,
+          30
+        ]
+      },
+      "volume": 15973.84290071013,
+      "analytic_volume": 15973.805328941535
+    },
+    "literal_args": {
+      "length": "9 cm",
+      "width": "6 cm",
+      "thickness": "0.3 cm",
+      "plane": "XZ",
+      "centred": true,
+      "grid_columns": 3,
+      "grid_rows": 2,
+      "grid_pitch_x": 20,
+      "grid_pitch_y": 30,
+      "grid_hole_diameter": 4
+    }
+  },
+  {
+    "id": "grid-3",
+    "category": "front plate grid",
+    "prompt": "Please make a front panel on XZ, 4 x 3 x 1/8 inches. Centred grid, 2 rows, 3 columns, 1/4 inch holes on 1 inch centres both ways. Corner at sketch origin.",
+    "recipe": "plate",
+    "args": {
+      "length": "4 in",
+      "width": "3 in",
+      "thickness": "1/8 in",
+      "plane": "XZ",
+      "grid_columns": 3,
+      "grid_rows": 2,
+      "grid_pitch_x": "1 in",
+      "grid_pitch_y": "1 in",
+      "grid_hole_diameter": "1/4 in"
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 101.6,
+          "width": 3.175,
+          "height": 76.2,
+          "corner": [
+            0,
+            0,
+            -76.2
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            25.4,
+            3.175,
+            -25.400000000000002
+          ],
+          "diameter": 6.35
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            50.8,
+            3.175,
+            -25.400000000000002
+          ],
+          "diameter": 6.35
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            76.19999999999999,
+            3.175,
+            -25.400000000000002
+          ],
+          "diameter": 6.35
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            25.4,
+            3.175,
+            -50.8
+          ],
+          "diameter": 6.35
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            50.8,
+            3.175,
+            -50.8
+          ],
+          "diameter": 6.35
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            76.19999999999999,
+            3.175,
+            -50.8
+          ],
+          "diameter": 6.35
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          -76.2
+        ],
+        "max": [
+          101.6,
+          3.175,
+          0
+        ]
+      },
+      "volume": 23977.397617819097,
+      "analytic_volume": 23977.297407699538
+    },
+    "literal_args": {
+      "length": "4 in",
+      "width": "3 in",
+      "thickness": "1/8 in",
+      "plane": "XZ",
+      "grid_columns": 3,
+      "grid_rows": 2,
+      "grid_pitch_x": "1 in",
+      "grid_pitch_y": "1 in",
+      "grid_hole_diameter": "1/4 in"
+    }
+  },
+  {
+    "id": "grid-4",
+    "category": "front plate grid",
+    "prompt": "60 x 100 x 5 mm plate on front plane. Grid 2 columns X, 4 rows sketch Y. First-to-last centres span 24 mm X, 60 mm Y; 6 mm through holes.",
+    "recipe": "plate",
+    "args": {
+      "length": 60,
+      "width": 100,
+      "thickness": 5,
+      "grid_columns": 2,
+      "grid_rows": 4,
+      "grid_pitch_x": 24,
+      "grid_pitch_y": 20,
+      "grid_hole_diameter": 6
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 60,
+          "width": 5,
+          "height": 100,
+          "corner": [
+            0,
+            0,
+            -100
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            18,
+            5,
+            -20
+          ],
+          "diameter": 6
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            42,
+            5,
+            -20
+          ],
+          "diameter": 6
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            18,
+            5,
+            -40
+          ],
+          "diameter": 6
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            42,
+            5,
+            -40
+          ],
+          "diameter": 6
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            18,
+            5,
+            -60
+          ],
+          "diameter": 6
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            42,
+            5,
+            -60
+          ],
+          "diameter": 6
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            18,
+            5,
+            -80
+          ],
+          "diameter": 6
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            42,
+            5,
+            -80
+          ],
+          "diameter": 6
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          -100
+        ],
+        "max": [
+          60,
+          5,
+          0
+        ]
+      },
+      "volume": 28869.214503550786,
+      "analytic_volume": 28869.026644707676
+    },
+    "literal_args": {
+      "length": 60,
+      "width": 100,
+      "thickness": 5,
+      "grid_columns": 2,
+      "grid_rows": 4,
+      "grid_pitch_x": 24,
+      "grid_pitch_y": 20,
+      "grid_hole_diameter": 6,
+      "plane": "XZ"
+    }
+  },
+  {
+    "id": "grid-5",
+    "category": "front plate grid",
+    "prompt": "120 x 80 x 3 mm plate on XY, centred in sketch plane. On its front face drill centred grid, 3 columns, 2 rows, holes 4 mm; clear edge gaps 16 mm X, 26 mm Y.",
+    "recipe": "plate",
+    "args": {
+      "length": 120,
+      "width": 80,
+      "thickness": 3,
+      "plane": "XY",
+      "centred": true,
+      "grid_columns": 3,
+      "grid_rows": 2,
+      "grid_pitch_x": 20,
+      "grid_pitch_y": 30,
+      "grid_hole_diameter": 4
+    },
+    "commands": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 120,
+          "width": 80,
+          "height": 3,
+          "corner": [
+            -60,
+            -40,
+            0
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            -20,
+            -15,
+            3
+          ],
+          "diameter": 4
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            0,
+            -15,
+            3
+          ],
+          "diameter": 4
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            -15,
+            3
+          ],
+          "diameter": 4
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            -20,
+            15,
+            3
+          ],
+          "diameter": 4
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            0,
+            15,
+            3
+          ],
+          "diameter": 4
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            15,
+            3
+          ],
+          "diameter": 4
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          -60,
+          -40,
+          0
+        ],
+        "max": [
+          60,
+          40,
+          3
+        ]
+      },
+      "volume": 28573.852958989435,
+      "analytic_volume": 28573.805328941537
+    },
+    "literal_args": {
+      "length": 120,
+      "width": 80,
+      "thickness": 3,
+      "plane": "XY",
+      "centred": true,
+      "grid_columns": 3,
+      "grid_rows": 2,
+      "grid_pitch_x": 20,
+      "grid_pitch_y": 30,
+      "grid_hole_diameter": 4
+    }
+  }
+]

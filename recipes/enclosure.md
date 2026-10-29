@@ -152,6 +152,7 @@
           "x-unit": "mm"
         },
         "height": {
+          "description": "Outside box height including floor, excluding any raised lip",
           "exclusiveMinimum": 0,
           "maximum": 1000000,
           "type": "number",
@@ -159,6 +160,7 @@
           "x-unit": "mm"
         },
         "length": {
+          "description": "Outside X size; inside:true only for explicitly clear inside sizes",
           "exclusiveMinimum": 0,
           "maximum": 1000000,
           "type": "number",
@@ -173,7 +175,7 @@
           "x-unit": "mm"
         },
         "lip_side": {
-          "description": "inner/outer wall face",
+          "description": "Raised ring flush with inner/outer wall face; no X/Y growth",
           "enum": [
             "inner",
             "outer"
@@ -205,6 +207,7 @@
           "x-unit": "mm"
         },
         "width": {
+          "description": "Outside Y size",
           "exclusiveMinimum": 0,
           "maximum": 1000000,
           "type": "number",
@@ -237,3 +240,5 @@
 Open enclosure with floor, walls and optional inner or outer lip. Built by the `enclosure` expander.
 
 Set inside:true when length, width and height describe the clear cavity. The outside adds two walls in X/Y and one floor in height. All lengths are millimetres after unit coercion. For lip:true or a partially sized lip, omitted height defaults to wall and omitted width to wall/2; each such choice is audited. open:true means top.
+
+Otherwise dimensions are the outside box, including the floor but excluding the lip. A thicker floor reduces cavity depth; it does not increase outside height. With open:bottom the floor is the roof. A cover/lid opens below unless the request specifies otherwise. Explicit open values always win. Top and bottom mean world +Z and -Z. An uncentred box starts at [0,0,0]; centred centres the box in all three axes. A lip projects beyond the opening in Z. Inner and outer choose the wall face the ring is flush with; neither grows the outside X/Y dimensions.
