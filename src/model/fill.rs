@@ -452,6 +452,119 @@ mod tests {
     fn request(text: &str) -> Value {
         json!({"messages":[{"role":"user","content":text}]})
     }
+
+    #[test]
+    fn dev_omitted_fields_replay_through_form_validation_and_expansion() {
+        fn agrees(a: &Value, b: &Value) -> bool {
+            match (a, b) {
+                (Value::Number(a), Value::Number(b)) => {
+                    (a.as_f64().unwrap() - b.as_f64().unwrap()).abs() < 1e-8
+                }
+                (Value::Array(a), Value::Array(b)) => {
+                    a.len() == b.len() && a.iter().zip(b).all(|(a, b)| agrees(a, b))
+                }
+                (Value::Object(a), Value::Object(b)) => {
+                    a.len() == b.len()
+                        && a.iter()
+                            .all(|(k, a)| b.get(k).is_some_and(|b| agrees(a, b)))
+                }
+                _ => a == b,
+            }
+        }
+        let cases: Vec<Value> =
+            serde_json::from_str(include_str!("../../tests/fixtures/dev_omitted_fields.json"))
+                .unwrap();
+        let library = crate::recipe_library::Library::embedded().unwrap();
+        let catalog = Catalog::bundled().unwrap();
+        for id in ["profile", "plate"] {
+            assert!(cases.iter().filter(|c| c["recipe"] == id).count() >= 10);
+        }
+        for case in cases {
+            let source = library
+                .recipes
+                .iter()
+                .find(|r| r.id == case["recipe"])
+                .unwrap();
+            let recipe = json!({"id":source.id,"description":source.description,
+                "schema":crate::recipe_library::forms::flat(&source.schema)});
+            let mut args = case["reference"].clone();
+            for key in case["omit"].as_array().unwrap() {
+                args.as_object_mut().unwrap().remove(key.as_str().unwrap());
+            }
+            // Older requests must never supply evidence to a fresh form.
+            let mut req = request("extrude 999; hole at X=99");
+            req["messages"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({"role":"user","content":case["text"]}));
+            let response = json!({"choices":[{"message":{"tool_calls":[{
+                "function":{"name":"pilot_fill","arguments":args.to_string()}
+            }]}}]});
+            let coerced_result = coerced(&response, &recipe, &req);
+            if let Ok((converted, changes)) = &coerced_result {
+                let converted_args: Value = serde_json::from_str(
+                    converted["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"]
+                        .as_str()
+                        .unwrap(),
+                )
+                .unwrap();
+                let defaults: Vec<_> = changes.iter().filter(|c| c["defaulted"] == true).collect();
+                assert_eq!(
+                    defaults.len(),
+                    case["expected"].as_object().unwrap().len(),
+                    "{}",
+                    case["id"]
+                );
+                for (field, expected) in case["expected"].as_object().unwrap() {
+                    assert!(
+                        agrees(&converted_args[field], expected),
+                        "{} {field}",
+                        case["id"]
+                    );
+                    assert!(defaults.iter().any(|c| c["field"] == *field
+                        && c["rule"].as_str().is_some_and(|s| !s.is_empty())));
+                }
+                if defaults.is_empty() {
+                    assert_eq!(converted_args, args, "{}", case["id"]);
+                }
+                let (_, repeated) = coerced(converted, &recipe, &req).unwrap();
+                assert!(
+                    repeated.is_empty(),
+                    "defaults must be idempotent: {}",
+                    case["id"]
+                );
+            } else {
+                assert_eq!(
+                    case["invalid"], true,
+                    "{}: {:?}",
+                    case["id"], coerced_result
+                );
+            }
+            let outcome = accept(&response, &recipe, &req, &library, &catalog);
+            if case["invalid"] == true {
+                assert!(matches!(outcome, Outcome::Invalid(_)), "{}", case["id"]);
+            } else {
+                let plan = match outcome {
+                    Outcome::Build(_, plan) => plan,
+                    Outcome::Invalid(e) => panic!("{} rejected: {e}", case["id"]),
+                    _ => panic!("{} did not build", case["id"]),
+                };
+                let reference = library
+                    .build(
+                        &json!({"recipe":case["recipe"],"args":case["reference"]}),
+                        &req,
+                        &catalog,
+                    )
+                    .unwrap();
+                assert!(agrees(&plan.slots, &reference.slots), "{}", case["id"]);
+                assert!(
+                    agrees(&json!(plan.calls), &json!(reference.calls)),
+                    "{}",
+                    case["id"]
+                );
+            }
+        }
+    }
     #[test]
     fn new_fields_are_offered_only_for_request_words_and_beta7_fields_remain() {
         let library = crate::recipe_library::Library::embedded().unwrap();

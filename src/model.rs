@@ -7518,6 +7518,55 @@ mod tests {
         assert!(!events.iter().any(|e| e["kind"] == "fill_invalid"));
     }
     #[test]
+    fn recovered_profile_depth_and_single_hole_position_are_audited() {
+        for (text, args, id, fields) in [
+            (
+                "Extrude an L profile on XZ 47 wide 33 tall legs 5 thick depth 22",
+                json!({"kind":"L","plane":"XZ","width":47,"height":33,"thickness":5}),
+                "profile",
+                vec!["depth"],
+            ),
+            (
+                "Make a rectangular plate 100 by 80 by 6 with one hole diameter 8 at X=40",
+                json!({"length":100,"width":80,"thickness":6,"hole_diameter":8}),
+                "plate",
+                vec!["boss_offset_x", "boss_offset_y"],
+            ),
+        ] {
+            let library = crate::recipe_library::Library::embedded().unwrap();
+            let band = library.form_band(text).unwrap();
+            let mut replies = Vec::new();
+            if band["band"] == "route" {
+                replies.push(call("pilot_route", json!({"recipe":id})));
+            }
+            replies.push(call("pilot_fill", args));
+            let mut f = fill_fixture(replies);
+            let mut req = fill_request();
+            req["messages"][0]["content"] = json!(text);
+            let out = f.chat(req);
+            assert_eq!(out.status, 200);
+            let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+            let events: Vec<Value> = log
+                .lines()
+                .map(|l| serde_json::from_str(l).unwrap())
+                .collect();
+            let defaults: Vec<_> = events
+                .iter()
+                .filter(|e| e["kind"] == "fill_defaulted")
+                .collect();
+            assert_eq!(defaults.len(), fields.len(), "{log}");
+            for field in fields {
+                assert!(
+                    defaults.iter().any(|e| e["after"]["field"] == field
+                        && e["after"]["rule"].as_str().is_some_and(|s| !s.is_empty())),
+                    "{log}"
+                );
+            }
+            assert!(events.iter().any(|e| e["kind"] == "fill_accepted"), "{log}");
+            assert!(!events.iter().any(|e| e["kind"] == "fill_invalid"), "{log}");
+        }
+    }
+    #[test]
     fn fill_corner_defaults_are_audited_and_plate_can_recover_on_third_attempt() {
         let cases: Vec<Value> =
             serde_json::from_str(include_str!("../tests/fixtures/fill-audit4.json")).unwrap();

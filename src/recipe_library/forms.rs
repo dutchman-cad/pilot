@@ -1,5 +1,6 @@
 //! Short field guidance shared by file recipes, legacy shapes and fill forms.
 use serde_json::{json, Value};
+mod omitted;
 
 pub(crate) fn describe(s: &mut Value) {
     let mirror = s["x-pilot-expander"] == "mirror";
@@ -474,13 +475,22 @@ pub(crate) fn aliases(args: &mut Value, schema: &Value) -> Result<Vec<Value>, St
     Ok(changes)
 }
 
-/// Only one explicit rotation in the latest request fills an omitted joint angle.
+/// Recover only unambiguous omissions from the latest user request.
 pub fn request_defaults(
     args: &mut Value,
     schema: &Value,
     request: &Value,
 ) -> Result<Vec<Value>, String> {
     crate::repair::check_value(args)?;
+    if args["decline"] == true {
+        return Ok(Vec::new());
+    }
+    if matches!(
+        schema["x-pilot-expander"].as_str(),
+        Some("profile" | "plate")
+    ) {
+        return omitted::recover(args, schema, request);
+    }
     if schema["x-pilot-expander"] != "revolute_joint"
         || args.get("angle_deg").is_some()
         || args["decline"] == true
@@ -990,6 +1000,17 @@ pub fn to_slots(args: &Value, schema: &Value) -> Result<Value, String> {
             let members = group["fields"]
                 .as_array()
                 .ok_or("fill group fields missing")?;
+            // Offset slots also represent a single recovered hole; they do not
+            // activate the boss dimensions in that case. The expander still
+            // rejects offsets combined with layouts or incomplete bosses.
+            if schema["x-pilot-expander"] == "plate"
+                && object.contains_key("hole_diameter")
+                && !object.contains_key("boss_diameter")
+                && !object.contains_key("boss_height")
+                && members.iter().any(|k| k == "boss_diameter")
+            {
+                continue;
+            }
             if members
                 .iter()
                 .filter_map(Value::as_str)
