@@ -368,7 +368,8 @@ pub fn flat(schema: &Value) -> Value {
     };
     let mut out = json!({"type":"object","additionalProperties":false,"properties":fill["properties"],"required":fill["required"],"x-pilot-expander":schema["x-pilot-expander"]});
     if schema["x-pilot-expander"] == "plate" {
-        out["description"] = json!("Centred holes OR bosses; no layout: single boss.");
+        out["description"] =
+            json!("Base with holes OR bosses; centred layouts; no layout: single boss.");
     }
     if schema["x-pilot-expander"] == "cross_drilled_box" {
         out["description"] =
