@@ -568,28 +568,28 @@ pub fn request_defaults(
                 || has_pair("bottom", "open")
                 || has_pair("underside", "open")
                 || has_pair("bottom", "opening");
-            // A lip "for a lid" does not turn an enclosure into a cover.
-            let cover = words
-                .iter()
-                .position(|w| {
-                    matches!(
-                        *w,
-                        "cover"
-                            | "lid"
-                            | "enclosure"
-                            | "housing"
-                            | "box"
-                            | "case"
-                            | "container"
-                            | "tray"
-                    )
-                })
-                .is_some_and(|n| {
-                    matches!(words[n], "cover" | "lid")
-                        && !words[..n]
-                            .iter()
-                            .any(|w| matches!(*w, "no" | "not" | "without"))
-                });
+            // The part is the last noun of the first enclosure phrase: an "enclosure
+            // cover" is a cover, while a lip "for a lid" does not make one.
+            let part = |w: &str| {
+                matches!(
+                    w,
+                    "cover"
+                        | "lid"
+                        | "enclosure"
+                        | "housing"
+                        | "box"
+                        | "case"
+                        | "container"
+                        | "tray"
+                )
+            };
+            let cover = words.iter().position(|w| part(w)).is_some_and(|first| {
+                let head = first + words[first..].iter().take_while(|w| part(w)).count() - 1;
+                matches!(words[head], "cover" | "lid")
+                    && !words[..first]
+                        .iter()
+                        .any(|w| matches!(*w, "no" | "not" | "without"))
+            });
             match (top, bottom) {
                 (true, false) => Some(("open", "top", "explicit opening in request")),
                 (false, true) => Some(("open", "bottom", "explicit opening in request")),
