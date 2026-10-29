@@ -1,5 +1,6 @@
 //! Short field guidance shared by file recipes, legacy shapes and fill forms.
 use serde_json::{json, Value};
+mod omitted;
 
 pub(crate) fn describe(s: &mut Value) {
     let mirror = s["x-pilot-expander"] == "mirror";
@@ -525,7 +526,8 @@ pub(crate) fn aliases(args: &mut Value, schema: &Value) -> Result<Vec<Value>, St
     Ok(changes)
 }
 
-/// Infer bounded, non-dimensional choices from the latest request, never override slots.
+/// Infer bounded choices and unambiguous omissions from the latest request; never
+/// override supplied slots.
 pub fn request_defaults(
     args: &mut Value,
     schema: &Value,
@@ -533,11 +535,18 @@ pub fn request_defaults(
 ) -> Result<Vec<Value>, String> {
     crate::repair::check_value(args)?;
     let id = schema["x-pilot-expander"].as_str().unwrap_or("");
+    if args["decline"] == true {
+        return Ok(Vec::new());
+    }
+    let mut recovered = if matches!(id, "profile" | "plate") {
+        omitted::recover(args, schema, request)?
+    } else {
+        Vec::new()
+    };
     if !matches!(id, "revolute_joint" | "enclosure" | "plate")
-        || args["decline"] == true
         || (id == "revolute_joint" && args.get("angle_deg").is_some())
     {
-        return Ok(Vec::new());
+        return Ok(recovered);
     }
     let text = request["messages"]
         .as_array()
@@ -615,11 +624,11 @@ pub fn request_defaults(
             args.as_object_mut()
                 .ok_or("args requires one object")?
                 .insert(field.into(), json!(value));
-            return Ok(vec![
+            recovered.push(
                 json!({"field":field,"before":null,"after":value,"defaulted":true,"rule":rule}),
-            ]);
+            );
         }
-        return Ok(Vec::new());
+        return Ok(recovered);
     }
     if words
         .iter()
@@ -1151,6 +1160,17 @@ pub fn to_slots(args: &Value, schema: &Value) -> Result<Value, String> {
             let members = group["fields"]
                 .as_array()
                 .ok_or("fill group fields missing")?;
+            // Offset slots also represent a single recovered hole; they do not
+            // activate the boss dimensions in that case. The expander still
+            // rejects offsets combined with layouts or incomplete bosses.
+            if schema["x-pilot-expander"] == "plate"
+                && object.contains_key("hole_diameter")
+                && !object.contains_key("boss_diameter")
+                && !object.contains_key("boss_height")
+                && members.iter().any(|k| k == "boss_diameter")
+            {
+                continue;
+            }
             if members
                 .iter()
                 .filter_map(Value::as_str)

@@ -101,6 +101,13 @@ Request side:
   names accept unambiguous singular/plural word variants. An omitted revolute angle
   uses a single explicit request rotation, including a quarter turn, with an
   inference audit; supplied angles are never overridden.
+  An omitted profile depth uses exactly one request length not already used by a
+  filled field (compared in mm), adjacent to long/length/deep/depth/extrude/extruded/pad;
+  thick qualifies only with thickness already filled. A plate's single hole or boss
+  without a layout or offsets may recover one explicit position (axis coordinates,
+  edge distances, or centre), expressed internally using the existing centre-offset
+  slots. Competing positions are rejected. Both recoveries audit `fill_defaulted`
+  with the inferred value and rule, and never overwrite supplied values.
   A corner-only form defers requests to add holes as well as edit corners to
   native tools, retaining the complete request instead of completing only a subset.
   Offer once per user turn; no continuation or SC98

@@ -311,12 +311,16 @@ pub(crate) fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<
                         bosses.push(([p[0] + offset[0], p[1] + offset[1]], d / 2.0, h));
                     }
                 }
-                (None, None) if boss_offset_x.is_none() && boss_offset_y.is_none() => {},
+                // Existing offset slots also carry a recovered single-hole position.
+                (None, None) if (boss_offset_x.is_none() && boss_offset_y.is_none())
+                    || (hole_diameter.is_some() && layouts == 0) => {},
                 _ => return Err("boss_diameter and boss_height are both required for a boss; offsets are measured from the plate centre".into()),
             }
             if let Some(d) = hole_diameter {
                 positive_mm("hole_diameter", d)?;
-                if layouts == 0 {
+                if layouts == 0 && (boss_offset_x.is_some() || boss_offset_y.is_some()) {
+                    positions.push([boss_offset_x.unwrap_or(0.0), boss_offset_y.unwrap_or(0.0)]);
+                } else if layouts == 0 {
                     return Err("hole_diameter requires 1 pattern; add bolt_circle, grid or row, or use bore_diameter for a centre hole".into());
                 }
                 if !bosses.is_empty() {
