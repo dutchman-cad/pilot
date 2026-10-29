@@ -2828,3 +2828,6 @@ fn public_binary_wall_derived_lip_defaults() {
 
 #[path = "support/dev_joint_profile.rs"]
 mod dev_joint_profile;
+
+#[path = "support/dev_boss_copies.rs"]
+mod dev_boss_copies;

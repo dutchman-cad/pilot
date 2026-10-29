@@ -511,7 +511,7 @@ impl Library {
         }
         if planner::patterns::is_pattern(&r.expander) {
             planner::patterns::coerce(&mut supplied)?;
-            planner::patterns::resolve(&mut supplied, request)?;
+            planner::patterns::resolve(&r.expander, &mut supplied, request)?;
         }
         let args = forms::to_slots(&supplied, &r.schema)?;
         let typed_schema = schema(&r.expander).unwrap_or_else(|_| r.schema.clone());

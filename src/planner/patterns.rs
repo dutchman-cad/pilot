@@ -163,6 +163,37 @@ fn owner_names(def: &Value) -> Option<&Vec<Value>> {
         .find(|names| !names.is_empty())
 }
 
+// An unnamed public cylinder definition has no owner names. Its measured
+// body's axis midpoint and axial extent still identify it without guessing a
+// generated name or using the host plate's dimensions as the boss dimensions.
+fn cylinder_body(detail: &Value, body: &Value) -> bool {
+    let def = &detail["definition"];
+    let (Some(base), Some(axis), Ok(height), Some(min), Some(max)) = (
+        vector(&def["base"]),
+        vector(&def["axis"]),
+        expression(def, "height"),
+        vector(&body["bbox"]["min"]),
+        vector(&body["bbox"]["max"]),
+    ) else {
+        return false;
+    };
+    detail["type"] == "CylinderFeature"
+        && (0..3).any(|i| {
+            (axis[i].abs() - 1.).abs() < 1e-9
+                && (0..3).all(|k| {
+                    let tolerance = 0.001_f64.max((max[k] - min[k]).abs() * 1e-6);
+                    if k == i {
+                        let end = base[k] + height * axis[k];
+                        (min[k] - base[k].min(end)).abs() <= tolerance
+                            && (max[k] - base[k].max(end)).abs() <= tolerance
+                    } else {
+                        axis[k].abs() < 1e-9
+                            && ((min[k] + max[k]) / 2. - base[k]).abs() <= tolerance
+                    }
+                })
+        })
+}
+
 fn feature_word(text: &str) -> bool {
     let word = text.trim_end_matches(|c: char| c.is_ascii_digit());
     [
@@ -178,7 +209,7 @@ fn feature_word(text: &str) -> bool {
     })
 }
 
-pub(crate) fn resolve(args: &mut Value, request: &Value) -> Result<Vec<Value>, String> {
+pub(crate) fn resolve(id: &str, args: &mut Value, request: &Value) -> Result<Vec<Value>, String> {
     let before = args.clone();
     crate::repair::check_value(args)?;
     // Models sometimes supply the step of a full circle as the total arc.
@@ -200,6 +231,35 @@ pub(crate) fn resolve(args: &mut Value, request: &Value) -> Result<Vec<Value>, S
         .filter(|w| !w.is_empty())
         .take(4096)
         .collect();
+    if words.iter().any(|w| matches!(*w, "boss" | "bosses"))
+        && id == "linear_pattern"
+        && args.get("direction").is_none()
+        && args.get("edge").is_none()
+        && !words.contains(&"edge")
+    {
+        let axes: Vec<_> = words
+            .iter()
+            .enumerate()
+            .filter(|(_, w)| matches!(**w, "x" | "y" | "z"))
+            .map(|(i, w)| {
+                let negative = i.checked_sub(1).is_some_and(|j| words[j] == "negative")
+                    || text.contains(&format!("-{w}"));
+                format!(
+                    "{}{}",
+                    if negative { "-" } else { "" },
+                    w.to_ascii_uppercase()
+                )
+            })
+            .collect::<std::collections::BTreeSet<_>>()
+            .into_iter()
+            .collect();
+        if axes.len() > 1 {
+            return Err("args.direction: multiple request axes; choose one direction or inspected straight edge".into());
+        }
+        // A world-axis choice is non-dimensional. Missing spacing still needs
+        // an explicit length; it is never guessed from the host plate's size.
+        args["direction"] = json!(axes.first().map(String::as_str).unwrap_or("X"));
+    }
     let excludes_original = text.contains("not including")
         || text.contains("excluding")
         || text.contains("without the original");
@@ -211,7 +271,7 @@ pub(crate) fn resolve(args: &mut Value, request: &Value) -> Result<Vec<Value>, S
             || text.contains("row of"));
     let supplied_count = args["count"].as_u64();
     if !totals {
-        let additional: Vec<_> = words
+        let mut additional: Vec<_> = words
             .windows(2)
             .filter_map(|w| {
                 matches!(w[1], "copies" | "more" | "additional")
@@ -219,6 +279,14 @@ pub(crate) fn resolve(args: &mut Value, request: &Value) -> Result<Vec<Value>, S
                     .flatten()
             })
             .collect();
+        // "Copy the boss 12 times" asks for additional instances too.
+        if additional.is_empty() && words.contains(&"copy") {
+            additional.extend(
+                words
+                    .windows(2)
+                    .filter_map(|w| (w[1] == "times").then(|| copy_number(w[0])).flatten()),
+            );
+        }
         if let [n] = additional.as_slice() {
             if args["count"].as_u64() == Some(*n) {
                 if !(1..500).contains(n) {
@@ -294,6 +362,126 @@ pub(crate) fn resolve(args: &mut Value, request: &Value) -> Result<Vec<Value>, S
             "args.body requires an existing solid body; create the part before patterning it"
                 .into(),
         );
+    }
+    // A boss is often part of the base, not a body. Resolve the requested
+    // object from inspection before honoring the model's body/feature guess.
+    // A separately named boss wins; otherwise resolve the current additive
+    // feature and its owner. Never silently duplicate its entire host plate.
+    let boss = words.iter().any(|w| matches!(*w, "boss" | "bosses"));
+    let whole = words.iter().any(|w| matches!(*w, "whole" | "entire"));
+    if boss && !whole && intent(&text).is_some() {
+        let named: Vec<_> = bodies
+            .iter()
+            .filter_map(|b| b["name"].as_str())
+            .filter(|name| name.eq_ignore_ascii_case("boss") || name.eq_ignore_ascii_case("bosses"))
+            .collect();
+        if named.len() > 1 {
+            return Err("args.body: multiple inspected bosses; select one exact boss body".into());
+        }
+        if let Some(name) = named.first() {
+            args["target"] = json!("body");
+            args["body"] = json!(name);
+        } else {
+            let last = data["timeline"].as_array().and_then(|t| t.last());
+            let detail = request["messages"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .rev()
+                .take(4096)
+                .filter(|m| m["role"] == "tool")
+                .filter_map(tool_payload)
+                .take_while(|v| !v["timeline"].is_array())
+                .find(|v| {
+                    last.is_some_and(|f| v["id"] == f["id"] && v["name"] == f["name"])
+                        && v["definition"].is_object()
+                });
+            if let Some(detail) = detail {
+                if detail["definition"]["operation"] == "join"
+                    && matches!(
+                        detail["type"].as_str(),
+                        Some("CylinderFeature" | "BoxFeature" | "ExtrudeFeature")
+                    )
+                    && detail["error"].is_null()
+                    && detail["suppressed"] != true
+                    && detail["rolled_back"] != true
+                {
+                    args["target"] = json!("last_feature");
+                    // Its owner is resolved below, including an incorrect form body.
+                } else if detail["definition"]["operation"] == "new_body"
+                    && bodies.len() > 1
+                    && matches!(
+                        detail["type"].as_str(),
+                        Some("CylinderFeature" | "BoxFeature" | "ExtrudeFeature")
+                    )
+                    && detail["error"].is_null()
+                    && detail["suppressed"] != true
+                    && detail["rolled_back"] != true
+                {
+                    // Unnamed primitives omit body_names in the public
+                    // definition. Other inspected creation features can account
+                    // for the remaining bodies without inventing an owner name.
+                    let owners = owner_names(&detail["definition"])
+                        .map(|names| names.iter().take(2).cloned().collect::<Vec<_>>())
+                        .unwrap_or_else(|| {
+                            let accounted: Vec<Value> = request["messages"]
+                                .as_array()
+                                .into_iter()
+                                .flatten()
+                                .rev()
+                                .take(4096)
+                                .filter(|m| m["role"] == "tool")
+                                .filter_map(tool_payload)
+                                .take_while(|v| !v["timeline"].is_array())
+                                .filter(|v| {
+                                    v["id"] != detail["id"]
+                                        && data["timeline"].as_array().is_some_and(|timeline| {
+                                            timeline.iter().any(|f| {
+                                                f["id"] == v["id"] && f["name"] == v["name"]
+                                            })
+                                        })
+                                        && v["definition"]["operation"] == "new_body"
+                                        && v["error"].is_null()
+                                        && v["suppressed"] != true
+                                        && v["rolled_back"] != true
+                                })
+                                .filter_map(|v| {
+                                    owner_names(&v["definition"])
+                                        .filter(|names| names.len() <= MAX_BODIES)
+                                        .cloned()
+                                })
+                                .flatten()
+                                .take(MAX_BODIES + 1)
+                                .collect();
+                            if accounted.len() > MAX_BODIES {
+                                return Vec::new();
+                            }
+                            let remaining: Vec<_> = bodies
+                                .iter()
+                                .filter(|b| !accounted.contains(&b["name"]))
+                                .collect();
+                            remaining
+                                .iter()
+                                .filter(|b| remaining.len() == 1 || cylinder_body(&detail, b))
+                                .map(|b| b["name"].clone())
+                                .collect()
+                        });
+                    if owners.len() != 1 {
+                        return Err("args.body: latest boss feature needs exactly one inspected owner body; inspect the other creation features or select a named boss".into());
+                    }
+                    args["target"] = json!("body");
+                    args["body"] = owners[0].clone();
+                } else {
+                    return Err("args.target: requested boss is neither a named body nor the inspected latest joined additive feature; inspect or select the boss".into());
+                }
+            } else {
+                // Read the definition before deciding whether a whole body is safe.
+                args["target"] = json!("last_feature");
+                args.as_object_mut()
+                    .ok_or("pattern args requires one object")?
+                    .remove("body");
+            }
+        }
     }
     if let Some(target) = original_target
         .as_deref()
@@ -1265,6 +1453,120 @@ pub fn repetition_hint(request: &Value) -> Option<&'static str> {
 #[allow(clippy::unwrap_used)]
 mod form_tests {
     use super::*;
+    fn resolve(args: &mut Value, request: &Value) -> Result<Vec<Value>, String> {
+        super::resolve("linear_pattern", args, request)
+    }
+    #[test]
+    fn boss_copies_resolve_joined_and_separate_targets_without_copying_the_base() {
+        let doc = json!({"bodies":[{"name":"Base"}],"timeline":[{"id":2,"name":"Cylinder1","type":"CylinderFeature"}]});
+        let detail = json!({"id":2,"name":"Cylinder1","type":"CylinderFeature","definition":{"operation":"join","participants":["Base"]}});
+        let mut request = json!({"messages":[{"role":"user","content":"copy the boss 12 times, 15mm apart"},{"role":"tool","content":doc.to_string()},{"role":"tool","content":detail.to_string()}]});
+        let mut args = json!({"target":"body","body":"Base","count":12,"spacing":15});
+        let changes = resolve(&mut args, &request).unwrap();
+        assert_eq!(
+            args,
+            json!({"target":"last_feature","body":"Base","count":13,"direction":"X","spacing":15})
+        );
+        assert_eq!(changes.len(), 3);
+        assert!(resolve(&mut args, &request).unwrap().is_empty());
+
+        let mut separate = doc.clone();
+        separate["bodies"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"name":"Boss"}));
+        request["messages"][1]["content"] = json!(separate.to_string());
+        let mut args =
+            json!({"target":"last_feature","body":"Base","count":13,"direction":"-Y","spacing":15});
+        resolve(&mut args, &request).unwrap();
+        assert_eq!(args["target"], "body");
+        assert_eq!(args["body"], "Boss");
+        assert_eq!(args["direction"], "-Y");
+
+        separate["bodies"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"name":"BOSS"}));
+        request["messages"][1]["content"] = json!(separate.to_string());
+        assert!(resolve(&mut args, &request)
+            .unwrap_err()
+            .contains("multiple inspected bosses"));
+        request["messages"][1]["content"] = json!(doc.to_string());
+        request["messages"][2]["content"] = json!(json!({"id":2,"name":"Cylinder1","type":"HoleFeature","definition":{"operation":"cut","targets":["Base"]}}).to_string());
+        assert!(resolve(&mut args, &request)
+            .unwrap_err()
+            .contains("requested boss"));
+        request["messages"][0]["content"] =
+            json!("copy the whole plate with its boss 12 times, 15mm apart");
+        let mut whole =
+            json!({"target":"body","body":"Base","count":12,"direction":"X","spacing":15});
+        resolve(&mut whole, &request).unwrap();
+        assert_eq!(whole["target"], "body");
+        assert_eq!(whole["body"], "Base");
+    }
+
+    #[test]
+    fn unnamed_boss_owner_requires_current_inspected_creation_features() {
+        let doc = json!({"bodies":[{"name":"Base"},{"name":"Body1"}],"timeline":[{"id":1,"name":"Box1"},{"id":2,"name":"Cylinder1","type":"CylinderFeature"}]});
+        let base = json!({"id":1,"name":"Box1","definition":{"operation":"new_body","body_names":["Base"]}});
+        let boss = json!({"id":2,"name":"Cylinder1","type":"CylinderFeature","definition":{"operation":"new_body"}});
+        let mut request = json!({"messages":[{"role":"user","content":"repeat the boss 12 times along X, 15mm apart"},{"role":"tool","content":doc.to_string()},{"role":"tool","content":base.to_string()},{"role":"tool","content":boss.to_string()}]});
+        let slots = json!({"target":"last_feature","body":"Base","count":12,"spacing":15});
+        let mut args = slots.clone();
+        resolve(&mut args, &request).unwrap();
+        assert_eq!(args["target"], "body");
+        assert_eq!(args["body"], "Body1");
+        let mut stale = base;
+        stale["id"] = json!(999);
+        request["messages"][2]["content"] = json!(stale.to_string());
+        assert!(resolve(&mut slots.clone(), &request)
+            .unwrap_err()
+            .contains("exactly one inspected owner"));
+        request["messages"].as_array_mut().unwrap().remove(2);
+        assert!(resolve(&mut slots.clone(), &request).is_err());
+    }
+
+    #[test]
+    fn unnamed_cylinder_owner_uses_measured_axis_and_rejects_ambiguity() {
+        let base = json!({"name":"Body1","bbox":{"min":[0,0,0],"max":[220,30,6]}});
+        let boss = json!({"name":"Body2","bbox":{"min":[10,10,6],"max":[20,20,12]}});
+        let mut doc = json!({"bodies":[base,boss],"timeline":[{"id":2,"name":"Cylinder1","type":"CylinderFeature"}]});
+        let detail = json!({"id":2,"name":"Cylinder1","type":"CylinderFeature","definition":{"operation":"new_body","axis":[0,0,1],"base":[15,15,6],"height":"6","radius":"(10 mm) / 2"}});
+        let mut req = json!({"messages":[{"role":"user","content":"repeat the boss 12 times along Y, 15mm apart"},{"role":"tool","content":doc.to_string()},{"role":"tool","content":detail.to_string()}]});
+        let mut args = json!({"target":"body","body":"Body1","count":12,"spacing":15});
+        resolve(&mut args, &req).unwrap();
+        assert_eq!(args["body"], "Body2");
+        assert_eq!(args["target"], "body");
+        let mut duplicate = doc["bodies"][1].clone();
+        duplicate["name"] = json!("Body3");
+        doc["bodies"].as_array_mut().unwrap().push(duplicate);
+        req["messages"][1]["content"] = json!(doc.to_string());
+        assert!(resolve(&mut args, &req)
+            .unwrap_err()
+            .contains("exactly one inspected owner"));
+    }
+
+    #[test]
+    fn omitted_boss_direction_uses_request_axes_and_never_invents_spacing() {
+        for (text, direction) in [
+            ("repeat the boss 12 times", "X"),
+            ("repeat the boss 12 times along Y", "Y"),
+            ("repeat the boss 12 times along negative Z", "-Z"),
+            ("repeat the boss 12 times along -X", "-X"),
+        ] {
+            let request = json!({"messages":[{"role":"user","content":text}]});
+            let mut args = json!({"target":"body","count":12});
+            resolve(&mut args, &request).unwrap();
+            assert_eq!(args["direction"], direction);
+            assert!(args.get("spacing").is_none());
+        }
+        let request =
+            json!({"messages":[{"role":"user","content":"repeat the boss 12 times along X or Y"}]});
+        assert!(resolve(&mut json!({"target":"body","count":12}), &request)
+            .unwrap_err()
+            .contains("multiple request axes"));
+    }
+
     #[test]
     fn unnecessary_join_removal_is_audited_only_after_inspection() {
         let snapshot = json!({"bodies":[{"name":"Post"}],"timeline":[{"id":1,"name":"Box1"}]});

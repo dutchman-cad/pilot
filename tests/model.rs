@@ -1205,3 +1205,6 @@ fn solidcraft98_dialect_has_only_screen_tools_and_no_catalogue_plans() {
     assert!(!log.contains("\"kind\":\"plan\""));
     h.finish();
 }
+
+#[path = "support/dev_boss_model.rs"]
+mod dev_boss_model;
