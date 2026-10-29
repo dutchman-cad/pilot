@@ -160,6 +160,7 @@ pub(super) fn vocabulary(i: &Input<'_>) -> bool {
 enum Role {
     Width,
     Height,
+    StemHeight,
     Web,
     Flange,
     Thickness,
@@ -179,7 +180,11 @@ fn role(words: &[String], shape: &str) -> Option<Role> {
         });
     }
     if has(&["height", "high", "tall"]) {
-        return Some(Role::Height);
+        return Some(if shape == "T" && has(&["stem"]) && !has(&["overall"]) {
+            Role::StemHeight
+        } else {
+            Role::Height
+        });
     }
     if has(&[
         "depth", "deep", "long", "length", "distance", "extrude", "pad",
@@ -495,7 +500,11 @@ pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
         }
     }
     let width = get(Role::Width)?;
-    let height = get(Role::Height)?;
+    let height = match (get(Role::Height), get(Role::StemHeight)) {
+        (Some(h), None) => h,
+        (None, Some(h)) => h + get(Role::Flange)?,
+        _ => return None,
+    };
     let distance = get(Role::Depth)?;
     let common = get(Role::Thickness);
     let (web, flange) = if shape == "R" {
@@ -591,6 +600,9 @@ impl Profile {
             }
         }
         if self.shape == "L" {
+            if self.centred {
+                return Err("centred L profiles are not supported by this form; use native sketch placement".into());
+            }
             return Ok(Slots::LProfile {
                 plane: self.plane,
                 width: self.width,

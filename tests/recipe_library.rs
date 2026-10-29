@@ -2009,3 +2009,30 @@ fn flat_plural_variants_use_listed_fields_and_refuse_conflicts() {
         .unwrap_err()
         .contains("unknown"));
 }
+
+#[test]
+fn joint_limit_is_not_inferred_as_current_rotation() {
+    let lib = Library::embedded().unwrap();
+    let schema = &lib
+        .recipes
+        .iter()
+        .find(|r| r.id == "revolute_joint")
+        .unwrap()
+        .schema;
+    let mut args = json!({});
+    let changes = forms::request_defaults(
+        &mut args,
+        schema,
+        &json!({"messages":[{"role":"user","content":"Add a hinge with a limit of 90 degrees"}]}),
+    )
+    .unwrap();
+    assert!(changes.is_empty());
+    assert!(args.get("angle_deg").is_none());
+}
+
+#[test]
+fn profile_centring_cannot_be_discarded_by_the_l_builder() {
+    let lib = Library::embedded().unwrap();
+    let error = lib.build(&json!({"recipe":"profile","args":{"kind":"L","width":30,"height":20,"thickness":3,"depth":10,"centred":true}}), &json!({"messages":[]}), &Catalog::bundled().unwrap()).unwrap_err();
+    assert!(error.contains("centred L profiles"), "{error}");
+}

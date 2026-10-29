@@ -646,6 +646,10 @@ fn select_inner(
         };
         parsed
     };
+    let user_text = messages[start]["content"].as_str().unwrap_or("");
+    if user_text.len() > 65_536 {
+        return Err("joint rotation request exceeds 65536 bytes".into());
+    }
     if data.is_empty() {
         if messages[start + 1..]
             .iter()
@@ -776,9 +780,9 @@ fn select_inner(
         .iter()
         .find(|(_, o)| o["id"] == arm["id"])
         .and_then(|(c, _)| c["name"].as_str());
-    let lower = text.to_ascii_lowercase();
+    let lower = user_text.to_ascii_lowercase();
     for name in [Some(base_name), base_component].into_iter().flatten() {
-        for verb in ["swing", "rotate", "turn"] {
+        for verb in ["swing", "rotate", "turn", "drive"] {
             if [
                 format!("{verb} {}", name.to_ascii_lowercase()),
                 format!("{verb} the {}", name.to_ascii_lowercase()),
