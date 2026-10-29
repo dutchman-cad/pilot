@@ -29,6 +29,7 @@ pub(crate) fn candidate(text: &str) -> bool {
     let t = tokens(text);
     t.iter()
         .any(|s| matches!(s.as_str(), "revolute" | "pivot" | "pivots" | "hinge"))
+        || t.first().is_some_and(|s| s == "pin")
         || text.to_ascii_lowercase().contains("pin joint")
         || text.to_ascii_lowercase().contains("on the pin")
 }
@@ -36,15 +37,15 @@ pub(crate) fn candidate(text: &str) -> bool {
 // Every semantic word is accounted for: extra operations, choices and vague angles defer.
 fn angle(text: &str, names: &[&str]) -> Option<(f64, Vec<(bool, f64)>)> {
     let words = tokens(text);
-    if !words.iter().any(|s| {
+    let action = words.iter().any(|s| {
         matches!(
             s.as_str(),
             "connect" | "join" | "attach" | "make" | "create" | "add" | "use" | "put" | "rotate"
         )
-    }) && !words
+    }) || words
         .first()
-        .is_some_and(|s| matches!(s.as_str(), "hinge" | "pivot"))
-    {
+        .is_some_and(|s| matches!(s.as_str(), "hinge" | "pivot" | "pin"));
+    if !action && !words.windows(2).any(|w| w == ["revolute", "joint"]) {
         return None;
     }
     let mut text = text.to_ascii_lowercase();
@@ -180,7 +181,9 @@ fn angle(text: &str, names: &[&str]) -> Option<(f64, Vec<(bool, f64)>)> {
                 | "drive"
                 | "swing"
                 | "rotate"
+                | "rotated"
                 | "turn"
+                | "turned"
                 | "degrees"
                 | "degree"
                 | "deg"
@@ -229,10 +232,16 @@ fn angle(text: &str, names: &[&str]) -> Option<(f64, Vec<(bool, f64)>)> {
     {
         return None;
     }
-    if angles.len() > 1
+    // A bare joint name remains a search; terse instructions need a rotation.
+    if (!action && angles.is_empty())
+        || angles.len() > 1
         || (angles.is_empty()
-            && t.iter()
-                .any(|s| matches!(s.as_str(), "drive" | "swing" | "rotate" | "turn")))
+            && t.iter().any(|s| {
+                matches!(
+                    s.as_str(),
+                    "drive" | "swing" | "rotate" | "rotated" | "turn" | "turned"
+                )
+            }))
     {
         return None;
     }
@@ -778,7 +787,7 @@ fn select_inner(
         .and_then(|(c, _)| c["name"].as_str());
     let lower = text.to_ascii_lowercase();
     for name in [Some(base_name), base_component].into_iter().flatten() {
-        for verb in ["swing", "rotate", "turn"] {
+        for verb in ["swing", "rotate", "rotated", "turn", "turned"] {
             if [
                 format!("{verb} {}", name.to_ascii_lowercase()),
                 format!("{verb} the {}", name.to_ascii_lowercase()),

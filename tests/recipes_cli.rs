@@ -300,6 +300,76 @@ impl Session {
 }
 
 #[test]
+fn public_binary_dev_joint_exact_matches_forms_at_ninety_degrees() {
+    let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let fixture: Value =
+        serde_json::from_str(include_str!("fixtures/dev_joint_exact.json")).unwrap();
+    let catalog = Catalog::bundled().unwrap();
+    let library = dutchman_pilot::recipe_library::Library::embedded().unwrap();
+    for case in fixture["cases"].as_array().unwrap() {
+        let text = case["text"].as_str().unwrap();
+        let mut measured = Vec::new();
+        for form_path in [false, true] {
+            let mut session = Session::new(&path);
+            for command in fixture["setup"].as_array().unwrap() {
+                session.execute(
+                    command["command"].as_str().unwrap(),
+                    command["params"].clone(),
+                );
+            }
+            let mut request = json!({"messages":[{"role":"user","content":text}],"tools":[{"function":{"name":"execute"}}]});
+            let mut completed = false;
+            for stage in 0..3 {
+                let mut plan = planner::plan_direct(&request, &catalog)
+                    .unwrap()
+                    .unwrap_or_else(|| panic!("{text}: stage {stage}"));
+                if plan.rule == "revolute_joint" && form_path {
+                    let form = library
+                        .build(
+                            &json!({"recipe":"revolute_joint","args":fixture["form_args"]}),
+                            &request,
+                            &catalog,
+                        )
+                        .unwrap();
+                    assert_eq!(plan.calls, form.calls, "{text}");
+                    plan = form;
+                }
+                let calls: Vec<_> = plan.calls.iter().enumerate().map(|(n,c)| json!({"id":format!("dev_{stage}_{n}"),"function":{"name":"execute","arguments":c["arguments"].to_string()}})).collect();
+                request["messages"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(json!({"role":"assistant","tool_calls":calls}));
+                for (n, call) in plan.calls.iter().enumerate() {
+                    let result = session.execute(
+                        call["arguments"]["command"].as_str().unwrap(),
+                        call["arguments"]["params"].clone(),
+                    );
+                    request["messages"].as_array_mut().unwrap().push(json!({"role":"tool","tool_call_id":format!("dev_{stage}_{n}"),"content":result.to_string()}));
+                }
+                if plan.rule == "revolute_joint" {
+                    assert_eq!(
+                        planner::completion(&request, plan.expected.as_ref().unwrap()),
+                        None,
+                        "{text}: form={form_path}"
+                    );
+                    completed = true;
+                    break;
+                }
+                assert_eq!(plan.rule, "resolve_joint");
+            }
+            assert!(completed, "{text}: form={form_path}");
+            measured.push((
+                session.execute("component.list", json!({})),
+                session.execute("joint.list", json!({})),
+            ));
+        }
+        assert_eq!(measured[0], measured[1], "{text}");
+    }
+}
+
+#[test]
 fn public_binary_contact_circle_revolute_joints() {
     let Some(path) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
         return;
