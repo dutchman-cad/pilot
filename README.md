@@ -36,6 +36,30 @@ Stuck? See [First-run help](docs/first-run.md). More options are in the
 
 ## What it can build today
 
+Each of these was built by Pilot in SolidCraft 0.27.1 from the request under it.
+
+<table>
+  <tr>
+    <td align="center" width="25%"><img src="docs/images/tiles/enclosure.png" width="240" alt="an 80 x 60 x 30 mm enclosure with 2 mm walls and a lip for the lid"><br><sub>“an 80 x 60 x 30 mm enclosure with 2 mm walls and a lip for the lid”</sub></td>
+    <td align="center" width="25%"><img src="docs/images/tiles/boltcircle.png" width="240" alt="a 100 x 60 x 6 mm plate with four 5 mm holes on a 40 mm bolt circle"><br><sub>“a 100 x 60 x 6 mm plate with four 5 mm holes on a 40 mm bolt circle”</sub></td>
+    <td align="center" width="25%"><img src="docs/images/tiles/lprofile.png" width="240" alt="an L profile 50 x 30 x 4 mm, 200 mm long"><br><sub>“an L profile 50 x 30 x 4 mm, 200 mm long”</sub></td>
+    <td align="center" width="25%"><img src="docs/images/tiles/cchannel.png" width="240" alt="a C channel 60 mm wide with 30 mm flanges, 4 mm thick and 150 mm long"><br><sub>“a C channel 60 mm wide with 30 mm flanges, 4 mm thick and 150 mm long”</sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="25%"><img src="docs/images/tiles/crossdrilled.png" width="240" alt="a 40 mm cube with 8 mm holes through all six faces"><br><sub>“a 40 mm cube with 8 mm holes through all six faces”</sub></td>
+    <td align="center" width="25%"><img src="docs/images/tiles/tube.png" width="240" alt="a tube 40 mm outside diameter, 32 mm inside diameter, 100 mm long"><br><sub>“a tube 40 mm outside diameter, 32 mm inside diameter, 100 mm long”</sub></td>
+    <td align="center" width="25%"><img src="docs/images/tiles/cubehole.png" width="240" alt="a 42 mm cube with a 5 mm hole through the middle"><br><sub>“a 42 mm cube with a 5 mm hole through the middle”</sub></td>
+    <td align="center" width="25%"><img src="docs/images/tiles/gridplate.png" width="240" alt="a 100 x 80 x 5 mm plate with 8 mm rounded corners and a 3 by 4 grid of 6 mm holes 20 mm apart"><br><sub>“a 100 x 80 x 5 mm plate with 8 mm rounded corners and a 3 by 4 grid of 6 mm holes 20 mm apart”</sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="25%"><img src="docs/images/tiles/tsection.png" width="240" alt="a T section 60 mm wide, 40 mm tall, 5 mm thick, 120 mm long"><br><sub>“a T section 60 mm wide, 40 mm tall, 5 mm thick, 120 mm long”</sub></td>
+    <td align="center" width="25%"><img src="docs/images/tiles/copies.png" width="240" alt="a cylinder 10 mm across and 10 mm tall then make 12 copies of it in a row, 15 mm apart"><br><sub>“a cylinder 10 mm across and 10 mm tall” then “make 12 copies of it in a row, 15 mm apart”</sub></td>
+    <td align="center" width="25%"><img src="docs/images/tiles/fillet.png" width="240" alt="a 60 x 40 x 20 mm box then round all edges 3 mm"><br><sub>“a 60 x 40 x 20 mm box” then “round all edges 3 mm”</sub></td>
+  </tr>
+</table>
+
+The full list:
+
 - Boxes, cylinders, tubes, and spheres, with holes through them
 - Holes, bolt circles, hole grids, honeycomb cuts, and cross-drilled blocks
 - Plates with holes, bores, and rounded corners
