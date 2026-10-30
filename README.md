@@ -1,11 +1,11 @@
 # Pilot
 
-[![Pilot: helps small local models drive SolidCraft](docs/social-preview.png)](https://github.com/dutchman-cad/pilot/releases/latest)
+[![Pilot: helps small local models drive SolidCraft](docs/social-preview.png)](https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/social-preview.png&alt=Pilot%3A%20helps%20small%20local%20models%20drive%20SolidCraft)
 
 Pilot lets a small AI model running on your own computer build parts in SolidCraft:
 ask for "a 42 mm cube with a 5 mm hole through the middle" and it builds it, checked.
 
-<a href="https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/assistant-plate.gif"><img src="docs/images/assistant-plate.gif" width="100%" alt="SolidCraft's Assistant: gemma4 e4b fills Pilot's plate form and SolidCraft builds a plate with four holes on a bolt circle"></a>
+<a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/assistant-plate.gif&alt=SolidCraft%27s%20Assistant%3A%20gemma4%20e4b%20fills%20Pilot%27s%20plate%20form%20and%20SolidCraft%20builds%20a%20plate%20with%20four%20holes%20on%20a%20bolt%20circle"><img src="docs/images/assistant-plate.gif" width="100%" alt="SolidCraft's Assistant: gemma4 e4b fills Pilot's plate form and SolidCraft builds a plate with four holes on a bolt circle"></a>
 
 <sub>gemma4 e4b filling Pilot's plate form in SolidCraft 0.27.1. The wait for the model is shortened.</sub>
 
@@ -41,21 +41,21 @@ Each of these was built by Pilot in SolidCraft 0.27.1 from the request under it.
 
 <table>
   <tr>
-    <td align="center" width="25%"><img src="docs/images/tiles/enclosure.png" width="240" alt="an 80 x 60 x 30 mm enclosure with 2 mm walls and a lip for the lid"><br><sub>“an 80 x 60 x 30 mm enclosure with 2 mm walls and a lip for the lid”</sub></td>
-    <td align="center" width="25%"><img src="docs/images/tiles/boltcircle.png" width="240" alt="a 100 x 60 x 6 mm plate with four 5 mm holes on a 40 mm bolt circle"><br><sub>“a 100 x 60 x 6 mm plate with four 5 mm holes on a 40 mm bolt circle”</sub></td>
-    <td align="center" width="25%"><img src="docs/images/tiles/lprofile.png" width="240" alt="an L profile 50 x 30 x 4 mm, 200 mm long"><br><sub>“an L profile 50 x 30 x 4 mm, 200 mm long”</sub></td>
-    <td align="center" width="25%"><img src="docs/images/tiles/cchannel.png" width="240" alt="a C channel 60 mm wide with 30 mm flanges, 4 mm thick and 150 mm long"><br><sub>“a C channel 60 mm wide with 30 mm flanges, 4 mm thick and 150 mm long”</sub></td>
+    <td align="center" width="25%"><a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/tiles/enclosure.png&alt=an%2080%20x%2060%20x%2030%20mm%20enclosure%20with%202%20mm%20walls%20and%20a%20lip%20for%20the%20lid"><img src="docs/images/tiles/enclosure.png" width="240" alt="an 80 x 60 x 30 mm enclosure with 2 mm walls and a lip for the lid"></a><br><sub>“an 80 x 60 x 30 mm enclosure with 2 mm walls and a lip for the lid”</sub></td>
+    <td align="center" width="25%"><a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/tiles/boltcircle.png&alt=a%20100%20x%2060%20x%206%20mm%20plate%20with%20four%205%20mm%20holes%20on%20a%2040%20mm%20bolt%20circle"><img src="docs/images/tiles/boltcircle.png" width="240" alt="a 100 x 60 x 6 mm plate with four 5 mm holes on a 40 mm bolt circle"></a><br><sub>“a 100 x 60 x 6 mm plate with four 5 mm holes on a 40 mm bolt circle”</sub></td>
+    <td align="center" width="25%"><a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/tiles/lprofile.png&alt=an%20L%20profile%2050%20x%2030%20x%204%20mm%2C%20200%20mm%20long"><img src="docs/images/tiles/lprofile.png" width="240" alt="an L profile 50 x 30 x 4 mm, 200 mm long"></a><br><sub>“an L profile 50 x 30 x 4 mm, 200 mm long”</sub></td>
+    <td align="center" width="25%"><a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/tiles/cchannel.png&alt=a%20C%20channel%2060%20mm%20wide%20with%2030%20mm%20flanges%2C%204%20mm%20thick%20and%20150%20mm%20long"><img src="docs/images/tiles/cchannel.png" width="240" alt="a C channel 60 mm wide with 30 mm flanges, 4 mm thick and 150 mm long"></a><br><sub>“a C channel 60 mm wide with 30 mm flanges, 4 mm thick and 150 mm long”</sub></td>
   </tr>
   <tr>
-    <td align="center" width="25%"><img src="docs/images/tiles/crossdrilled.png" width="240" alt="a 40 mm cube with 8 mm holes through all six faces"><br><sub>“a 40 mm cube with 8 mm holes through all six faces”</sub></td>
-    <td align="center" width="25%"><img src="docs/images/tiles/tube.png" width="240" alt="a tube 40 mm outside diameter, 32 mm inside diameter, 100 mm long"><br><sub>“a tube 40 mm outside diameter, 32 mm inside diameter, 100 mm long”</sub></td>
-    <td align="center" width="25%"><img src="docs/images/tiles/cubehole.png" width="240" alt="a 42 mm cube with a 5 mm hole through the middle"><br><sub>“a 42 mm cube with a 5 mm hole through the middle”</sub></td>
-    <td align="center" width="25%"><img src="docs/images/tiles/gridplate.png" width="240" alt="a 100 x 80 x 5 mm plate with 8 mm rounded corners and a 3 by 4 grid of 6 mm holes 20 mm apart"><br><sub>“a 100 x 80 x 5 mm plate with 8 mm rounded corners and a 3 by 4 grid of 6 mm holes 20 mm apart”</sub></td>
+    <td align="center" width="25%"><a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/tiles/crossdrilled.png&alt=a%2040%20mm%20cube%20with%208%20mm%20holes%20through%20all%20six%20faces"><img src="docs/images/tiles/crossdrilled.png" width="240" alt="a 40 mm cube with 8 mm holes through all six faces"></a><br><sub>“a 40 mm cube with 8 mm holes through all six faces”</sub></td>
+    <td align="center" width="25%"><a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/tiles/tube.png&alt=a%20tube%2040%20mm%20outside%20diameter%2C%2032%20mm%20inside%20diameter%2C%20100%20mm%20long"><img src="docs/images/tiles/tube.png" width="240" alt="a tube 40 mm outside diameter, 32 mm inside diameter, 100 mm long"></a><br><sub>“a tube 40 mm outside diameter, 32 mm inside diameter, 100 mm long”</sub></td>
+    <td align="center" width="25%"><a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/tiles/cubehole.png&alt=a%2042%20mm%20cube%20with%20a%205%20mm%20hole%20through%20the%20middle"><img src="docs/images/tiles/cubehole.png" width="240" alt="a 42 mm cube with a 5 mm hole through the middle"></a><br><sub>“a 42 mm cube with a 5 mm hole through the middle”</sub></td>
+    <td align="center" width="25%"><a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/tiles/gridplate.png&alt=a%20100%20x%2080%20x%205%20mm%20plate%20with%208%20mm%20rounded%20corners%20and%20a%203%20by%204%20grid%20of%206%20mm%20holes%2020%20mm%20apart"><img src="docs/images/tiles/gridplate.png" width="240" alt="a 100 x 80 x 5 mm plate with 8 mm rounded corners and a 3 by 4 grid of 6 mm holes 20 mm apart"></a><br><sub>“a 100 x 80 x 5 mm plate with 8 mm rounded corners and a 3 by 4 grid of 6 mm holes 20 mm apart”</sub></td>
   </tr>
   <tr>
-    <td align="center" width="25%"><img src="docs/images/tiles/tsection.png" width="240" alt="a T section 60 mm wide, 40 mm tall, 5 mm thick, 120 mm long"><br><sub>“a T section 60 mm wide, 40 mm tall, 5 mm thick, 120 mm long”</sub></td>
-    <td align="center" width="25%"><img src="docs/images/tiles/copies.png" width="240" alt="a cylinder 10 mm across and 10 mm tall then make 12 copies of it in a row, 15 mm apart"><br><sub>“a cylinder 10 mm across and 10 mm tall” then “make 12 copies of it in a row, 15 mm apart”</sub></td>
-    <td align="center" width="25%"><img src="docs/images/tiles/fillet.png" width="240" alt="a 60 x 40 x 20 mm box then round all edges 3 mm"><br><sub>“a 60 x 40 x 20 mm box” then “round all edges 3 mm”</sub></td>
+    <td align="center" width="25%"><a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/tiles/tsection.png&alt=a%20T%20section%2060%20mm%20wide%2C%2040%20mm%20tall%2C%205%20mm%20thick%2C%20120%20mm%20long"><img src="docs/images/tiles/tsection.png" width="240" alt="a T section 60 mm wide, 40 mm tall, 5 mm thick, 120 mm long"></a><br><sub>“a T section 60 mm wide, 40 mm tall, 5 mm thick, 120 mm long”</sub></td>
+    <td align="center" width="25%"><a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/tiles/copies.png&alt=a%20cylinder%2010%20mm%20across%20and%2010%20mm%20tall%20then%20make%2012%20copies%20of%20it%20in%20a%20row%2C%2015%20mm%20apart"><img src="docs/images/tiles/copies.png" width="240" alt="a cylinder 10 mm across and 10 mm tall then make 12 copies of it in a row, 15 mm apart"></a><br><sub>“a cylinder 10 mm across and 10 mm tall” then “make 12 copies of it in a row, 15 mm apart”</sub></td>
+    <td align="center" width="25%"><a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/tiles/fillet.png&alt=a%2060%20x%2040%20x%2020%20mm%20box%20then%20round%20all%20edges%203%20mm"><img src="docs/images/tiles/fillet.png" width="240" alt="a 60 x 40 x 20 mm box then round all edges 3 mm"></a><br><sub>“a 60 x 40 x 20 mm box” then “round all edges 3 mm”</sub></td>
   </tr>
 </table>
 
@@ -160,7 +160,7 @@ but not reliably yet. In an 11-task test with two runs each, gemma4 e4b built 2 
 through Pilot (a cylinder, twice) and 6 of 22 on its own; qwen2.5 7B, granite4 3B, and Muse
 Glimmer 30B built none either way.
 
-<img src="docs/images/solidcraft98-chat.png" width="100%" alt="SolidCraft 98 with a 40 mm box, next to its chat window where qwen2.5 7B is asked to round the box's edges">
+<a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/solidcraft98-chat.png&alt=SolidCraft%2098%20with%20a%2040%20mm%20box%2C%20next%20to%20its%20chat%20window%20where%20qwen2.5%207B%20is%20asked%20to%20round%20the%20box%27s%20edges"><img src="docs/images/solidcraft98-chat.png" width="100%" alt="SolidCraft 98 with a 40 mm box, next to its chat window where qwen2.5 7B is asked to round the box's edges"></a>
 
 <sub>SolidCraft 98's own chat window with qwen2.5 7B, without Pilot, asked to round the edges of a
 box that was set up beforehand. It did not finish.</sub>
