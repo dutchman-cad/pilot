@@ -544,47 +544,65 @@ pub fn run_in_session(
         }
     };
     if !cfg.plain {
-        if let Some(note) = corner_note(&cfg.task, &final_screen) {
-            done = if done.is_empty() {
-                note
-            } else {
-                format!("{done} {note}")
-            };
+        if let Some(radius) = corner_radius(&cfg.task, &final_screen) {
+            done = with_corner_note(&done, radius);
         }
     }
     let summary = json!({"task":cfg.task,"model":cfg.model,"plain":cfg.plain,"dialog_cancelled":dialog_cancelled,"steps":steps,"actions":actions,"errors":errors,"rewrites":session.rewrite_count(),"tokens":tokens,"latency":started.elapsed().as_secs_f64(),"stop_reason":stop,"done_message":done,"final_screen_text":final_screen,"error":final_error,"native":native,"text":text_calls,"retries":retries,"hand_backs":hand_backs,"repairs":session.repair_count()});
     session.record("summary", &Value::Null, &summary)?;
     Ok(summary)
 }
-/// The reader-facing note when a rounding request was met with a rectangle sketch's corner
-/// radius, read from the final timeline ("40 x 40 mm at (0, 0), R3 corners"). Never sent to
-/// the model.
-fn corner_note(task: &str, screen: &str) -> Option<String> {
+/// Reader-facing only, never sent to the model.
+const SOLIDCRAFT_2000: &str = "Rounding the top and bottom edges requires SolidCraft 2000.";
+/// The corner radius when a rounding request was met with a rectangle sketch's corner radius,
+/// read from the final timeline ("40 x 40 mm at (0, 0), R3 corners").
+fn corner_radius<'a>(task: &str, screen: &'a str) -> Option<&'a str> {
     let task = task.to_lowercase();
     if !["round", "fillet"].iter().any(|w| task.contains(w)) {
         return None;
     }
-    let radius = screen
+    screen
         .lines()
         .filter(|l| l.contains("| Sketch (Rectangle) |"))
-        .find_map(|l| l.split(", R").nth(1)?.strip_suffix(" corners | OK"))?;
-    Some(format!(
-        "Rounded the four upright edges ({radius} mm). Rounding the top and bottom edges requires SolidCraft 2000."
-    ))
+        .find_map(|l| l.split(", R").nth(1)?.strip_suffix(" corners | OK"))
+}
+/// The done message with what was rounded and what was not; when the model already said what
+/// it rounded, only what it could not is added.
+fn with_corner_note(done: &str, radius: &str) -> String {
+    let rounded = format!("Rounded the four upright edges ({radius} mm).");
+    match (done.is_empty(), done.to_lowercase().contains("round")) {
+        (true, _) => format!("{rounded} {SOLIDCRAFT_2000}"),
+        (false, true) => format!("{done} {SOLIDCRAFT_2000}"),
+        (false, false) => format!("{done} {rounded} {SOLIDCRAFT_2000}"),
+    }
 }
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
 mod tests {
-    use super::corner_note;
+    use super::{corner_radius, with_corner_note};
     #[test]
-    fn corner_note_reads_the_final_timeline() {
-        let screen = "    1 | Sketch1 | Sketch (Rectangle) | 40 x 40 mm at (0, 0), R3 corners | OK\n    2 | Extrude1 | Extrude | Sketch1, 40 mm | OK";
+    fn corner_note_adds_only_what_the_model_did_not_say() {
         assert_eq!(
-            corner_note("Round the four upright edges with a 3 mm radius.", screen).unwrap(),
+            with_corner_note("", "3"),
             "Rounded the four upright edges (3 mm). Rounding the top and bottom edges requires SolidCraft 2000."
         );
-        assert!(corner_note("Make a 40 mm cube", screen).is_none());
-        assert!(corner_note(
+        assert_eq!(
+            with_corner_note("Rounded the four upright edges with a 3 mm radius.", "3"),
+            "Rounded the four upright edges with a 3 mm radius. Rounding the top and bottom edges requires SolidCraft 2000."
+        );
+        assert_eq!(
+            with_corner_note("Done.", "3"),
+            "Done. Rounded the four upright edges (3 mm). Rounding the top and bottom edges requires SolidCraft 2000."
+        );
+    }
+    #[test]
+    fn corner_radius_reads_the_final_timeline() {
+        let screen = "    1 | Sketch1 | Sketch (Rectangle) | 40 x 40 mm at (0, 0), R3 corners | OK\n    2 | Extrude1 | Extrude | Sketch1, 40 mm | OK";
+        assert_eq!(
+            corner_radius("Round the four upright edges with a 3 mm radius.", screen),
+            Some("3")
+        );
+        assert!(corner_radius("Make a 40 mm cube", screen).is_none());
+        assert!(corner_radius(
             "Round the edges",
             "    1 | Sketch1 | Sketch (Rectangle) | 40 x 40 mm at (0, 0) | OK"
         )
