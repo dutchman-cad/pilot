@@ -437,6 +437,13 @@ fn cli_offline_help_and_driver_bounds() {
     assert!(out.status.success());
     let v: Value = serde_json::from_slice(&out.stdout).unwrap();
     assert_eq!(v["examples"][0]["name"], "doubleclick");
+    let out = Command::new(binary)
+        .args(["how98", "round the four upright edges with a 3 mm radius"])
+        .output()
+        .unwrap();
+    let v: Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(v["examples"][0]["arguments"]["name"], "Sketch1");
+    assert!(v["limitation"].as_str().unwrap().contains("Corner radius"));
     for args in [
         vec![
             "drive98",
