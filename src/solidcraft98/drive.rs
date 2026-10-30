@@ -109,6 +109,14 @@ pub fn parse_text(text: &str, plain: bool) -> Result<Call, String> {
         } else if line.starts_with("THOUGHT:") && command.is_none() && !thought {
             thought = true;
         } else {
+            // A reply that is exactly one command without its prefix still never acts, but the
+            // error names the line to send.
+            let bare = text.trim();
+            if !plain && !bare.contains('\n') && wire(bare, plain).is_ok() {
+                return Err(format!(
+                    "a command needs its prefix and did not run; reply exactly: COMMAND: {bare}"
+                ));
+            }
             return Err(
                 "expected one COMMAND: line or one tool JSON object; prose is not a call".into(),
             );

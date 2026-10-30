@@ -165,6 +165,16 @@ fn strict_text_and_explicit_objects_only() {
     );
     assert!(drive::parse_text(gemma, true).is_err());
     assert!(drive::parse_text("I will click{name:x}", false).is_err());
+    assert_eq!(
+        drive::parse_text("doubleclick Sketch1", false).unwrap_err(),
+        "a command needs its prefix and did not run; reply exactly: COMMAND: doubleclick Sketch1"
+    );
+    assert!(drive::parse_text("doubleclick Sketch1", true)
+        .unwrap_err()
+        .starts_with("expected one COMMAND: line"));
+    assert!(drive::parse_text("I'll click New Part", false)
+        .unwrap_err()
+        .starts_with("expected one COMMAND: line"));
     assert!(drive::parse_text("```json\n{tool:'look',args:{},}\n```", false).is_ok());
     assert!(drive::parse_text("```json\n{tool:'look',args:{},}\n```", true).is_err());
     assert_eq!(
