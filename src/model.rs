@@ -5856,7 +5856,9 @@ mod tests {
             };
             let text = value["choices"][0]["message"]["content"].as_str().unwrap();
             assert!(text.starts_with("Exact match (no model):"));
-            assert!(text.contains("1256.047875 mm³") && text.contains("6.35 × 6.35 × 6.35 mm"));
+            assert!(
+                text.contains("Total volume 1256 mm³") && text.contains("6.35 × 6.35 × 6.35 mm")
+            );
             assert!(f
                 .proxy
                 .scripted
