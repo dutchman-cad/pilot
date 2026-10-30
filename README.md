@@ -138,10 +138,14 @@ submit the issue it prepares. Ideas and questions are welcome on the
 
 ## SolidCraft 98
 
-A side extra: Pilot can also drive [SolidCraft 98](docs/solidcraft98.md) through its screen.
+A side extra: Pilot can also drive [SolidCraft 98](docs/solidcraft98.md) through its screen,
+but not reliably yet. In an 11-task test with two runs each, gemma4 e4b built 2 of 22 parts
+through Pilot (a cylinder, twice) and 6 of 22 on its own; qwen2.5 7B, granite4 3B, and Muse
+Glimmer 30B built none either way.
 
-<img src="https://raw.githubusercontent.com/raykholo/solidcraft98/HEAD/docs/manual/img/05-part.png" width="400" alt="SolidCraft 98 showing a plate with holes">
+<img src="docs/images/solidcraft98-chat.png" width="100%" alt="SolidCraft 98 with a 40 mm box, next to its chat window where qwen2.5 7B is asked to round the box's edges">
 
-<sub>SolidCraft 98, from its manual.</sub>
+<sub>SolidCraft 98's own chat window with qwen2.5 7B, without Pilot, asked to round the edges of a
+box that was set up beforehand. It did not finish.</sub>
 
 Licensed under [Apache-2.0](LICENSE). See [NOTICE](NOTICE).
