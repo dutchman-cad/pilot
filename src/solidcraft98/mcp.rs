@@ -121,6 +121,14 @@ pub struct Server {
     transport: &'static str,
     audit_failed: bool,
 }
+/// The program's own verb: the Windows build knows only dblclick and rclick, the Linux one both forms.
+fn wire_verb(name: &str) -> &str {
+    match name {
+        "doubleclick" => "dblclick",
+        "rightclick" => "rclick",
+        _ => name,
+    }
+}
 impl Server {
     pub fn new(cfg: Config) -> Result<Self, String> {
         let path = match cfg.log {
@@ -322,7 +330,7 @@ impl Server {
                 } else {
                     self.point(&args["point"])?
                 };
-                Ok(format!("{name} {target}"))
+                Ok(format!("{} {target}", wire_verb(name)))
             }
             "drag" => Ok(format!(
                 "drag {} {}{}",

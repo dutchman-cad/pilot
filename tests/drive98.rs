@@ -168,6 +168,18 @@ fn strict_text_and_explicit_objects_only() {
     assert!(drive::parse_message(&multi, false).is_err());
 }
 #[test]
+fn double_and_right_clicks_use_the_verbs_both_builds_know() {
+    let u = Upstream::new(vec![
+        native("doubleclick", r#"{"point":{"x":200,"y":300}}"#),
+        native("rightclick", r#"{"point":{"x":200,"y":300}}"#),
+        text("COMMAND: done finished"),
+    ]);
+    let result = drive::run(u.cfg(false)).unwrap();
+    assert_eq!(result["stop_reason"], "done");
+    assert_eq!(result["actions"], 2);
+    assert_eq!(result["errors"], 0, "{result}");
+}
+#[test]
 fn loop_format_errors_native_done_and_transcript() {
     let u = Upstream::new(vec![
         text("I will click New Part."),
