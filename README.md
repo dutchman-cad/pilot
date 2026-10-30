@@ -72,23 +72,40 @@ The full list:
 
 Each kind and its limits are in [recipes](docs/recipes.md).
 
-## How it works
+## What Pilot actually does
 
-1. You ask SolidCraft's Assistant for a part in plain words.
-2. Pilot finds the recipe that fits, such as a plate, a profile, or an enclosure.
-3. The model fills in that recipe's short typed form: sizes, counts, and positions. When
-   Pilot can read every value from the request itself, it skips the model.
-4. Pilot turns the form into SolidCraft commands, you approve them, and SolidCraft builds
-   the part. Pilot measures the result and reports it.
+Pilot is mostly a recipe engine, with a safety net for everything else.
 
-A small model is much better at filling in a short form than at writing CAD commands from
-scratch, and SolidCraft checks every command before it runs.
+1. **Recipes (almost all of the gain).** For a request that fits a known part (plates,
+   profiles, holes and hole patterns, enclosures, patterns of parts), Pilot picks the
+   recipe and asks the model only to fill in its short typed form: sizes, counts, and
+   positions. Pilot then builds the part with checked SolidCraft commands and measures it.
+   When the request states every value, Pilot skips the model altogether.
+2. **Free-form help (small gain).** When no recipe fits, the model drives SolidCraft's
+   tools itself. Pilot repairs broken tool calls, finds the right command, adds short hints,
+   retries, and trims old results so the context stays small. That helps a little, but a
+   small model still rarely finishes anything with several steps on its own.
+3. **Extras:** `/report` bug reports, an opt-in `--planner`, and the SolidCraft 98 driver.
+
+Every set of commands waits for your approval in SolidCraft, and SolidCraft checks every
+command before it runs.
 
 ## How well it works
 
-Pilot is an early beta. On four blind test sets (56 requests never used during development),
-gemma4 e4b builds about 38 of the 56 requests (67%) correctly through Pilot on 0.1.0-beta.8
-(fixed model settings, average of three runs). Full numbers, and results with other models, are in
+Pilot is an early beta. On four blind test sets (56 requests never used during development,
+three runs each), gemma4 e4b on 0.1.0-beta.8:
+
+| How the part was built | Attempts | Built correctly |
+| --- | ---: | ---: |
+| The model filled in a recipe's form | 150 | 100 (67%) |
+| Pilot read every value from the request, no model | 4 | 3 |
+| The model drove SolidCraft itself, with Pilot's repairs | 14 | 3 (21%) |
+| **All** | **168** | **106 (63%)** |
+
+The same model without Pilot built 4 of the 56 (7%). So the recipes are what make a small
+model useful today; outside them, expect little. 54 of the 56 test requests have a recipe,
+so these numbers say more about recipe parts than about everything people ask for. Full
+numbers, and results with other models, are in
 [the results issue](https://github.com/dutchman-cad/pilot/issues/1).
 
 ## Models that work
