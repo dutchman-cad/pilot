@@ -20,7 +20,8 @@ MCP server, `solidcraft-cli mcp`, documented in SolidCraft's docs/mcp.md).
    recipes require `--planner`; `--no-plan` is an accepted no-op alias for the default.
    Independent direct answering returns exact calls and measured answers by default
    through the same client approval and SolidCraft validation checks, with replies marked
-   "Exact match (no model):". `--no-direct-recipes` sends everything to the model;
+   "Exact match (no model):"; a build from a form the model filled in is marked
+   "Built from the model's form:". `--no-direct-recipes` sends everything to the model;
    `--direct-recipes` remains a no-op alias for the default and conflicts with the opt-out.
    `--upstream none` works by default and rejects `--no-direct-recipes`. Direct answering
    stays disabled for `--dialect solidcraft98`, including with `--direct-recipes`.

@@ -91,6 +91,8 @@ arguments available for review. Pilot does not execute them or bypass approval;
 approve them in SolidCraft to run the tools and return results. A declined or
 failed tool cannot produce a success claim. The measured final answer starts
 `Exact match (no model):` and the response identifies its source as `pilot-recipes`.
+When the model filled in the recipe's form, the measured answer starts
+`Built from the model's form:` instead.
 Missing results, tool errors, and measurement mismatches go to the configured
 model for recovery, or produce a plain failure message when none is configured.
 Other no-model requests receive a fixed description of supported recipe kinds.

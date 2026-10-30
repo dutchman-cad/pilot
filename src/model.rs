@@ -6132,10 +6132,16 @@ mod tests {
                 }
             }
             let response: Value = serde_json::from_slice(&f.chat(req).body).unwrap();
+            // Only a plan Pilot read without the model is an exact match.
+            let label = if shortcut {
+                "Built from the model's form:"
+            } else {
+                "Exact match (no model):"
+            };
             assert!(response["choices"][0]["message"]["content"]
                 .as_str()
                 .unwrap()
-                .starts_with("Exact match (no model):"));
+                .starts_with(label));
             assert!(!response.to_string().contains("failed"), "{response}");
             assert_eq!(
                 f.proxy.scripted.as_ref().unwrap().borrow().requests.len(),
@@ -6176,7 +6182,7 @@ mod tests {
                         message["content"]
                             .as_str()
                             .unwrap()
-                            .contains("Exact match (no model):"),
+                            .contains("Built from the model's form:"),
                         "{message}"
                     );
                     assert_eq!(patterns, 1);
@@ -6869,7 +6875,7 @@ mod tests {
             assert!(result["choices"][0]["message"]["content"]
                 .as_str()
                 .unwrap()
-                .contains("Exact match"));
+                .starts_with("Built from the model's form:"));
             let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
             assert!(log.contains("\"shortcut\"") && log.contains("l_profile"));
         }
