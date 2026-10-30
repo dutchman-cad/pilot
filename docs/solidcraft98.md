@@ -96,8 +96,10 @@ The commands also work under `dutchman pilot`.
 
 Rectangle and circle sketches, extrusions, through holes, source-sketch position
 edits, and feature parameter edits are supported through application dialogs.
-Solid-edge fillets and body renaming are unavailable. Sketch corner rounding is a
-limited alternative that must be described as such. A volume computed from
+Fillets on the top and bottom edges of a solid and body renaming are unavailable.
+A rectangle sketch's corner radius rounds the four upright edges of the block grown
+from it; when other edges were asked for, the reply must say only those four were
+rounded. A volume computed from
 sketch and extrusion dimensions is a calculation, not an application measurement.
 The [benchmark set](../bench/sets/sc98/README.md) checks these distinctions.
 
