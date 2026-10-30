@@ -30,7 +30,7 @@ pub(super) fn candidate(i: &Input<'_>) -> bool {
 }
 
 pub(super) fn vocabulary(i: &Input<'_>) -> bool {
-    i.t.iter().all(|s| {
+    slots::angle_tokens(&i.t).iter().all(|s| {
         s.parse::<f64>().is_ok()
             || s.split_once('/')
                 .is_some_and(|(a, b)| a.parse::<f64>().is_ok() && b.parse::<f64>().is_ok())
@@ -132,6 +132,7 @@ pub(super) fn vocabulary(i: &Input<'_>) -> bool {
                     | "wall"
                     | "walls"
                     | "equal"
+                    | "unequal"
                     | "uniform"
                     | "centred"
                     | "centered"
@@ -258,6 +259,13 @@ pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
     if !candidate(i) || !vocabulary(i) {
         return None;
     }
+    let normalized = Input {
+        text: i.text,
+        t: slots::angle_tokens(&i.t),
+        data: i.data,
+        messages: i.messages,
+    };
+    let i = &normalized;
     let mut shapes = Vec::new();
     for (name, words) in [
         ("L", &["l", "angle", "bracket"][..]),
@@ -396,7 +404,17 @@ pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
             _ => return None,
         }
     }
-    let d = dimensions(&i.t)?;
+    let mut dimension_words = i.t.clone();
+    if shape == "L" {
+        for word in &mut dimension_words {
+            if word == "unequal" {
+                // A size may end directly before the drafting qualifier.
+                // Keep indices intact for label assignment below.
+                *word = "with".into();
+            }
+        }
+    }
+    let d = dimensions(&dimension_words)?;
     if d.len() < 3 || d.len() > 7 {
         return None;
     }
@@ -523,6 +541,16 @@ pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
         (None, Some(h)) => h + get(Role::Flange)?,
         _ => return None,
     };
+    // Unequal legs describe the outside spans, never separate wall sizes.
+    // Unknown or contradictory wording belongs to the model's form fill.
+    if i.has("unequal")
+        && (shape != "L"
+            || width == height
+            || i.t.iter().filter(|w| *w == "unequal").count() != 1
+            || !i.t.windows(2).any(|w| w[0] == "unequal" && w[1] == "legs"))
+    {
+        return None;
+    }
     let distance = get(Role::Depth)?;
     let common = get(Role::Thickness);
     let (web, flange) = if shape == "R" {
