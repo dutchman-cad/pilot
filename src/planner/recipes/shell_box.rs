@@ -19,6 +19,7 @@ pub(super) fn candidate(i: &Input<'_>) -> bool {
         && (i.any(&[
             "shell", "shelled", "hollow", "hollowed", "open", "opening", "remove",
         ]) || i.t.iter().any(|s| lip_word(s)))
+        || parse_explicit(i).is_some()
 }
 pub(super) fn vocabulary(i: &Input<'_>) -> bool {
     i.t.iter().enumerate().all(|(n, s)| {
@@ -93,6 +94,7 @@ pub(super) fn vocabulary(i: &Input<'_>) -> bool {
                     | "ridge"
                     | "locating"
                     | "lid"
+                    | "cover"
                     | "around"
                     | "on"
                     | "for"
@@ -161,7 +163,13 @@ fn role(words: &[String], in_lip: bool) -> Result<Option<Role>, ()> {
     }
 }
 pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
-    if !vocabulary(i)
+    parse_original(i).or_else(|| parse_explicit(i))
+}
+
+fn parse_original(i: &Input<'_>) -> Option<Slots> {
+    // `cover` belongs to the new grammar; it was outside this vocabulary before.
+    if i.has("cover")
+        || !vocabulary(i)
         || !i.any(&["box", "enclosure", "container"])
         || !i.any(&[
             "shell", "shelled", "hollow", "hollowed", "open", "remove", "opening",
@@ -285,6 +293,232 @@ pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
         bottom,
         centred,
         lip,
+        outer,
+    }
+    .into_slots()
+    .ok()
+}
+
+/// A small clause grammar for additional explicit requests. The original recognizer
+/// wins first, so its slots and command selection remain unchanged.
+fn parse_explicit(i: &Input<'_>) -> Option<Slots> {
+    if !vocabulary(i) || i.t.len() > 128 {
+        return None;
+    }
+    let d = dimensions(&i.t)?;
+    if !(4..=7).contains(&d.len()) || !positive(&d) {
+        return None;
+    }
+    let part = |s: &str| matches!(s, "box" | "enclosure" | "container" | "cover" | "lid");
+    let parts: Vec<_> =
+        i.t.iter()
+            .enumerate()
+            .filter(|(_, s)| part(s))
+            .map(|(n, _)| n)
+            .collect();
+    if parts.windows(2).any(|p| {
+        i.t[p[0] + 1..p[1]]
+            .iter()
+            .any(|s| matches!(s.as_str(), "and" | "a" | "an"))
+    }) {
+        return None;
+    }
+    // Only a contiguous three-size tuple is accepted by this grammar.
+    for pair in d[..3].windows(2) {
+        let mut between = &i.t[pair[0].index + 1..pair[1].index];
+        if between.first().is_some_and(|s| slots::scale(s).is_some()) {
+            between = &between[1..];
+        }
+        if !matches!(between, [s] if s == "x" || s == "by") {
+            return None;
+        }
+    }
+    let units: Vec<_> = d[..3]
+        .iter()
+        .map(|v| i.t.get(v.index + 1).and_then(|s| slots::scale(s)))
+        .collect();
+    if units
+        .iter()
+        .flatten()
+        .any(|u| units.iter().flatten().any(|v| u != v))
+        && units.iter().any(Option::is_none)
+    {
+        return None;
+    }
+    let mut words = i.t.clone();
+    // Replace lengths with their already bounded mm values, removing unit tokens.
+    for v in d.iter().rev() {
+        if words
+            .get(v.index + 1)
+            .is_some_and(|s| slots::scale(s).is_some())
+        {
+            words.remove(v.index + 1);
+        }
+        words[v.index] = v.value.to_string();
+    }
+    words.retain(|s| {
+        !matches!(
+            s.as_str(),
+            "and" | "with" | "a" | "an" | "the" | "of" | "is" | "thick" | "thickness" | "around"
+        )
+    });
+    // Consume the part phrase before the size tuple (or immediately after it).
+    if words
+        .first()
+        .is_some_and(|s| matches!(s.as_str(), "make" | "build" | "create"))
+    {
+        words.remove(0);
+    }
+    let mut bottom = None;
+    let mut n = 0;
+    while n < words.len() {
+        let pair = words.get(n + 1).map(String::as_str);
+        let opening = match (words[n].as_str(), pair) {
+            ("open", Some("top")) | ("top", Some("open")) => Some(false),
+            ("open", Some("bottom")) | ("bottom", Some("open")) => Some(true),
+            ("open", Some("-"))
+                if words
+                    .get(n + 2)
+                    .is_some_and(|s| s == "top" || s == "bottom") =>
+            {
+                words.remove(n + 1);
+                Some(words[n + 1] == "bottom")
+            }
+            _ => None,
+        };
+        if let Some(value) = opening {
+            if bottom.replace(value).is_some() {
+                return None;
+            }
+            words.drain(n..n + 2);
+        } else {
+            n += 1;
+        }
+    }
+    let mut nouns = Vec::new();
+    while words.first().is_some_and(|s| part(s)) {
+        nouns.push(words.remove(0));
+    }
+    if words.len() < 5 {
+        return None;
+    }
+    let size = [
+        words[0].parse().ok()?,
+        words[2].parse().ok()?,
+        words[4].parse().ok()?,
+    ];
+    if !matches!(words[1].as_str(), "x" | "by") || !matches!(words[3].as_str(), "x" | "by") {
+        return None;
+    }
+    words.drain(..5);
+    while words.first().is_some_and(|s| part(s)) {
+        nouns.push(words.remove(0));
+    }
+    if nouns.is_empty()
+        || nouns.len() > 2
+        || (nouns.len() == 2
+            && (matches!(nouns[0].as_str(), "cover" | "lid")
+                || !matches!(nouns[1].as_str(), "cover" | "lid")))
+    {
+        return None;
+    }
+    let cover = nouns
+        .last()
+        .is_some_and(|s| matches!(s.as_str(), "cover" | "lid"));
+    let bottom = bottom.unwrap_or(cover);
+    // Bare boxes need an explicit opening; enclosure itself names the open form.
+    if !cover && !i.any(&["open", "enclosure"]) {
+        return None;
+    }
+    let mut wall = None;
+    let mut floor = None;
+    let mut lip = None;
+    let outer = words
+        .iter()
+        .any(|s| matches!(s.as_str(), "outer" | "outside"));
+    // Side words describe the lip only, never the dimensions of the cavity.
+    let sides: Vec<_> = words
+        .iter()
+        .enumerate()
+        .filter(|(_, s)| matches!(s.as_str(), "outer" | "outside" | "inner" | "inside"))
+        .collect();
+    if sides.len() > 1
+        || sides.iter().any(|(n, _)| {
+            !words[n.saturating_sub(1)..(*n + 2).min(words.len())]
+                .iter()
+                .any(|s| lip_word(s))
+                && !(*n == words.len() - 1 && words.iter().any(|s| lip_word(s)))
+        })
+    {
+        return None;
+    }
+    if outer
+        && words
+            .iter()
+            .any(|s| matches!(s.as_str(), "inner" | "inside"))
+    {
+        return None;
+    }
+    words.retain(|s| {
+        !matches!(
+            s.as_str(),
+            "outer" | "outside" | "inner" | "inside" | "locating"
+        )
+    });
+    while !words.is_empty() {
+        let (name, value, used) = if let Some(v) = words.first().and_then(|s| s.parse::<f64>().ok())
+        {
+            (words.get(1)?.clone(), v, 2)
+        } else {
+            (words[0].clone(), words.get(1)?.parse::<f64>().ok()?, 2)
+        };
+        words.drain(..used);
+        match name.as_str() {
+            "wall" | "walls" if wall.is_none() => wall = Some(value),
+            "floor" | "base" if floor.is_none() => floor = Some(value),
+            "lip" | "rim" | "ridge" if lip.is_none() => {
+                let mut width = None;
+                let height;
+                if words
+                    .first()
+                    .is_some_and(|s| matches!(s.as_str(), "wide" | "width"))
+                {
+                    words.remove(0);
+                    width = Some(value);
+                    height = words.first()?.parse::<f64>().ok()?;
+                    words.remove(0);
+                    if !words
+                        .first()
+                        .is_some_and(|s| matches!(s.as_str(), "high" | "height" | "tall"))
+                    {
+                        return None;
+                    }
+                    words.remove(0);
+                } else {
+                    height = value;
+                    if words
+                        .first()
+                        .is_some_and(|s| matches!(s.as_str(), "high" | "height" | "tall"))
+                    {
+                        words.remove(0);
+                    }
+                }
+                lip = Some((width, height));
+            }
+            _ => return None,
+        }
+    }
+    let wall = wall?;
+    if outer && lip.is_none() {
+        return None;
+    }
+    ShellBox {
+        size,
+        wall,
+        floor: floor.unwrap_or(wall),
+        bottom,
+        centred: false,
+        lip: lip.map(|(w, h)| [w.unwrap_or(wall / 2.0), h]),
         outer,
     }
     .into_slots()
