@@ -508,8 +508,10 @@ fn replay_peer(
     let endpoint = Endpoint::Tcp(listener.local_addr().unwrap());
     let handle = thread::spawn(move || {
         let (mut stream, _) = listener.accept().unwrap();
+        // Only a guard against a hung test: a loaded CI runner can take over ten seconds
+        // between commands.
         stream
-            .set_read_timeout(Some(Duration::from_secs(10)))
+            .set_read_timeout(Some(Duration::from_secs(60)))
             .unwrap();
         let mut reader = BufReader::new(stream.try_clone().unwrap());
         let mut screen = initial;
