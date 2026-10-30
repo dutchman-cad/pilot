@@ -5,7 +5,7 @@
 Pilot lets a small AI model running on your own computer build parts in SolidCraft:
 ask for "a 42 mm cube with a 5 mm hole through the middle" and it builds it, checked.
 
-![SolidCraft's Assistant: gemma4 e4b fills Pilot's plate form and SolidCraft builds a plate with four holes on a bolt circle](docs/images/assistant-plate.gif)
+<a href="https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/assistant-plate.gif"><img src="docs/images/assistant-plate.gif" width="100%" alt="SolidCraft's Assistant: gemma4 e4b fills Pilot's plate form and SolidCraft builds a plate with four holes on a bolt circle"></a>
 
 <sub>gemma4 e4b filling Pilot's plate form in SolidCraft 0.27.1. The wait for the model is shortened.</sub>
 
