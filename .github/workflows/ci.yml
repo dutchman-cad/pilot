@@ -1,7 +1,29 @@
 name: Checks
 'on':
   push:
+    # Prose and images alone skip the builds; Docs checks them in a minute. Recipe files, test
+    # fixtures, and the flags reference are read by the code, so they still run everything.
+    paths:
+      - '**'
+      - '!**.md'
+      - '!docs/**'
+      - '!LICENSE'
+      - '!NOTICE'
+      - 'recipes/**'
+      - 'tests/**'
+      - 'docs/flags.md'
   pull_request:
+    # Prose and images alone skip the builds; Docs checks them in a minute. Recipe files, test
+    # fixtures, and the flags reference are read by the code, so they still run everything.
+    paths:
+      - '**'
+      - '!**.md'
+      - '!docs/**'
+      - '!LICENSE'
+      - '!NOTICE'
+      - 'recipes/**'
+      - 'tests/**'
+      - 'docs/flags.md'
 permissions:
   contents: read
 jobs:
