@@ -5,8 +5,9 @@
 Pilot lets a small AI model running on your own computer build parts in SolidCraft:
 ask for "a 42 mm cube with a 5 mm hole through the middle" and it builds it, checked.
 
-![SolidCraft's Assistant building an enclosure with a lip through Pilot](docs/images/assistant-enclosure-day.png#gh-light-mode-only)
-![SolidCraft's Assistant building an enclosure with a lip through Pilot](docs/images/assistant-enclosure-night.png#gh-dark-mode-only)
+![SolidCraft's Assistant: gemma4 e4b fills Pilot's plate form and SolidCraft builds a plate with four holes on a bolt circle](docs/images/assistant-plate.gif)
+
+<sub>gemma4 e4b filling Pilot's plate form in SolidCraft 0.27.1. The wait for the model is shortened.</sub>
 
 [![Discord](https://img.shields.io/badge/Discord-Dutchman%20CAD-5865F2?logo=discord&logoColor=white)](https://discord.gg/yTcseBEdeu)
 
@@ -139,6 +140,8 @@ submit the issue it prepares. Ideas and questions are welcome on the
 
 A side extra: Pilot can also drive [SolidCraft 98](docs/solidcraft98.md) through its screen.
 
-<!-- sc98 screenshot -->
+<img src="https://raw.githubusercontent.com/raykholo/solidcraft98/HEAD/docs/manual/img/05-part.png" width="400" alt="SolidCraft 98 showing a plate with holes">
+
+<sub>SolidCraft 98, from its manual.</sub>
 
 Licensed under [Apache-2.0](LICENSE). See [NOTICE](NOTICE).
