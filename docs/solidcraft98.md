@@ -99,7 +99,9 @@ edits, and feature parameter edits are supported through application dialogs.
 Fillets on the top and bottom edges of a solid and body renaming are unavailable.
 A rectangle sketch's corner radius rounds the four upright edges of the block grown
 from it; when other edges were asked for, the reply must say only those four were
-rounded. A volume computed from
+rounded. When a rounding request ends with rounded sketch corners, `drive98` adds
+that to its done message: "Rounded the four upright edges (3 mm). Rounding the top
+and bottom edges requires SolidCraft 2000." The model never sees that line. A volume computed from
 sketch and extrusion dimensions is a calculation, not an application measurement.
 The [benchmark set](../bench/sets/sc98/README.md) checks these distinctions.
 

@@ -543,7 +543,51 @@ pub fn run_in_session(
             String::new()
         }
     };
+    if !cfg.plain {
+        if let Some(note) = corner_note(&cfg.task, &final_screen) {
+            done = if done.is_empty() {
+                note
+            } else {
+                format!("{done} {note}")
+            };
+        }
+    }
     let summary = json!({"task":cfg.task,"model":cfg.model,"plain":cfg.plain,"dialog_cancelled":dialog_cancelled,"steps":steps,"actions":actions,"errors":errors,"rewrites":session.rewrite_count(),"tokens":tokens,"latency":started.elapsed().as_secs_f64(),"stop_reason":stop,"done_message":done,"final_screen_text":final_screen,"error":final_error,"native":native,"text":text_calls,"retries":retries,"hand_backs":hand_backs,"repairs":session.repair_count()});
     session.record("summary", &Value::Null, &summary)?;
     Ok(summary)
+}
+/// The reader-facing note when a rounding request was met with a rectangle sketch's corner
+/// radius, read from the final timeline ("40 x 40 mm at (0, 0), R3 corners"). Never sent to
+/// the model.
+fn corner_note(task: &str, screen: &str) -> Option<String> {
+    let task = task.to_lowercase();
+    if !["round", "fillet"].iter().any(|w| task.contains(w)) {
+        return None;
+    }
+    let radius = screen
+        .lines()
+        .filter(|l| l.contains("| Sketch (Rectangle) |"))
+        .find_map(|l| l.split(", R").nth(1)?.strip_suffix(" corners | OK"))?;
+    Some(format!(
+        "Rounded the four upright edges ({radius} mm). Rounding the top and bottom edges requires SolidCraft 2000."
+    ))
+}
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::corner_note;
+    #[test]
+    fn corner_note_reads_the_final_timeline() {
+        let screen = "    1 | Sketch1 | Sketch (Rectangle) | 40 x 40 mm at (0, 0), R3 corners | OK\n    2 | Extrude1 | Extrude | Sketch1, 40 mm | OK";
+        assert_eq!(
+            corner_note("Round the four upright edges with a 3 mm radius.", screen).unwrap(),
+            "Rounded the four upright edges (3 mm). Rounding the top and bottom edges requires SolidCraft 2000."
+        );
+        assert!(corner_note("Make a 40 mm cube", screen).is_none());
+        assert!(corner_note(
+            "Round the edges",
+            "    1 | Sketch1 | Sketch (Rectangle) | 40 x 40 mm at (0, 0) | OK"
+        )
+        .is_none());
+    }
 }
