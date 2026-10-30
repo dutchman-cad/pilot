@@ -155,6 +155,16 @@ fn strict_text_and_explicit_objects_only() {
             assert!(drive::parse_text(s, plain).is_ok(), "{s}");
         }
     }
+    let gemma = r#"fill_dialog{fields:[{name:<|"|>Corner radius (mm)<|"|>,value:<|"|>3<|"|>}]}"#;
+    assert_eq!(
+        drive::parse_text(gemma, false).unwrap(),
+        Call::Tool {
+            name: "fill_dialog".into(),
+            args: json!({"fields":[{"name":"Corner radius (mm)","value":"3"}]})
+        }
+    );
+    assert!(drive::parse_text(gemma, true).is_err());
+    assert!(drive::parse_text("I will click{name:x}", false).is_err());
     assert!(drive::parse_text("```json\n{tool:'look',args:{},}\n```", false).is_ok());
     assert!(drive::parse_text("```json\n{tool:'look',args:{},}\n```", true).is_err());
     assert_eq!(

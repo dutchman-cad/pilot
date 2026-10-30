@@ -75,6 +75,8 @@ dutchman-pilot how98 'drill a hole'
 The driver accepts one native tool call, one explicit tool JSON object, or one
 `COMMAND:` line per reply. Optional `THOUGHT:` text is commentary. `COMMAND: done
 <answer>` finishes locally and reads the final screen. Prose alone never acts.
+Outside `--plain`, a whole reply in Gemma's own call syntax
+(`fill_dialog{fields:[...]}` with `<|"|>` quotes) counts as one tool object.
 `--plain` disables Pilot's help, repairs, target matching, and hints for comparisons;
 framing, schema validation, and budgets still apply.
 

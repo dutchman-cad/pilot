@@ -48,6 +48,8 @@ pub fn parse_text(text: &str, plain: bool) -> Result<Call, String> {
     } else {
         text.trim()
     };
+    let native = if plain { None } else { gemma_call(object_text) };
+    let object_text = native.as_deref().unwrap_or(object_text);
     if object_text.starts_with('{') {
         let v: Value = if plain {
             serde_json::from_str(object_text).map_err(|e| e.to_string())?
@@ -113,6 +115,19 @@ pub fn parse_text(text: &str, plain: bool) -> Result<Call, String> {
         }
     }
     wire(command.ok_or("missing COMMAND: line")?, plain)
+}
+/// Gemma's own call syntax written as the whole reply, `name{key:<|"|>text<|"|>}`, as the
+/// one-tool object `{"name":{...}}`. Anything else, prose included, is left alone.
+fn gemma_call(text: &str) -> Option<String> {
+    let text = text.strip_prefix("call:").unwrap_or(text);
+    let (name, args) = text.split_at(text.find('{')?);
+    if name.is_empty()
+        || !name.bytes().all(|b| b.is_ascii_lowercase() || b == b'_')
+        || !args.ends_with('}')
+    {
+        return None;
+    }
+    Some(format!("{{\"{name}\":{}}}", args.replace("<|\"|>", "\"")))
 }
 fn checked(name: String, args: Value, plain: bool) -> Result<Call, String> {
     let canonical = canonical(&name, plain);
