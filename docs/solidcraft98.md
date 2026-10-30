@@ -105,6 +105,10 @@ and bottom edges requires SolidCraft 2000." The model never sees that line. A vo
 sketch and extrusion dimensions is a calculation, not an application measurement.
 The [benchmark set](../bench/sets/sc98/README.md) checks these distinctions.
 
+Outside `--plain`, `fill_dialog` types a value that carries its field's own unit,
+such as `3 mm` in `Corner radius (mm)`, as the number alone, since the fields take
+numbers only.
+
 Commands use Windows-1252. Unrepresentable text, embedded newlines, NUL, oversized
 frames, and invalid schemas return errors. Limits include 4 KiB per command,
 8 KiB per answer line, 256 KiB per answer, 4,096 answer lines, 512 targets, and

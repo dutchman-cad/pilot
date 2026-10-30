@@ -129,6 +129,31 @@ fn wire_verb(name: &str) -> &str {
         _ => name,
     }
 }
+/// SolidCraft 98 fields take numbers only; a value carrying the field's own unit, "3 mm" in
+/// "Corner radius (mm)", is typed as its number. Anything else is typed as given.
+fn field_number<'a>(field: &str, value: &'a str) -> &'a str {
+    let Some(unit) = field
+        .strip_suffix(')')
+        .and_then(|f| f.rsplit_once('('))
+        .map(|(_, unit)| unit)
+    else {
+        return value;
+    };
+    match value.trim().strip_suffix(unit).map(str::trim_end) {
+        Some(number) if number.parse::<f64>().is_ok() => number,
+        _ => value,
+    }
+}
+#[cfg(test)]
+#[test]
+fn field_number_drops_only_the_fields_own_unit() {
+    assert_eq!(field_number("Corner radius (mm)", "3 mm"), "3");
+    assert_eq!(field_number("Corner radius (mm)", "3mm"), "3");
+    assert_eq!(field_number("Corner radius (mm)", "3"), "3");
+    assert_eq!(field_number("Corner radius (mm)", "3 in"), "3 in");
+    assert_eq!(field_number("Angle (deg)", "45 mm"), "45 mm");
+    assert_eq!(field_number("Name", "3 mm"), "3 mm");
+}
 impl Server {
     pub fn new(cfg: Config) -> Result<Self, String> {
         let path = match cfg.log {
@@ -539,6 +564,7 @@ impl Server {
         let fields = args["fields"].as_array().ok_or("fields must be an array")?;
         let mut commands = Vec::new();
         let mut seen = std::collections::BTreeSet::new();
+        let mut units = Vec::new();
         // Validate every target and encoded command before sending the first edit.
         for field in fields {
             let requested = field["name"].as_str().ok_or("missing field name")?;
@@ -557,7 +583,15 @@ impl Server {
             if !seen.insert(name.clone()) {
                 return Err(format!("duplicate field {name}"));
             }
-            let value = field["value"].as_str().ok_or("missing field value")?;
+            let requested_value = field["value"].as_str().ok_or("missing field value")?;
+            let value = if self.plain {
+                requested_value
+            } else {
+                field_number(&name, requested_value)
+            };
+            if value != requested_value {
+                units.push((requested_value.to_owned(), value.to_owned()));
+            }
             commands.push(format!("click {name}"));
             // Moving away and back selects all, including a previously edited field.
             commands.push("key tab shift+tab".into());
@@ -566,6 +600,9 @@ impl Server {
         commands.push(format!("click {}", screen.resolve("OK")?));
         for command in &commands {
             protocol::encode(command)?;
+        }
+        for (requested, typed) in units {
+            self.record("field_unit", &json!(requested), &json!(typed))?;
         }
         self.record("dialog_fill", args, &json!(commands))?;
         for command in commands {
