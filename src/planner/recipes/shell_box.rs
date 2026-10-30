@@ -444,10 +444,12 @@ fn parse_explicit(i: &Input<'_>) -> Option<Slots> {
         .collect();
     if sides.len() > 1
         || sides.iter().any(|(n, _)| {
-            !words[n.saturating_sub(1)..(*n + 2).min(words.len())]
+            // A side word must sit next to a lip word, or end a request that names a lip.
+            let near_lip = words[n.saturating_sub(1)..(*n + 2).min(words.len())]
                 .iter()
-                .any(|s| lip_word(s))
-                && !(*n == words.len() - 1 && words.iter().any(|s| lip_word(s)))
+                .any(|s| lip_word(s));
+            let trailing = *n == words.len() - 1 && words.iter().any(|s| lip_word(s));
+            !(near_lip || trailing)
         })
     {
         return None;
