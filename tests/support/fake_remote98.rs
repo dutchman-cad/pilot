@@ -17,6 +17,8 @@ fn main() {
         let answer=if line=="look" { screen.as_str() }
         else if line.starts_with("menu") { "error: missing item. Did you mean New? Say \"yes\" to do: menu File > New\r\n.\r\n" }
         else if line.starts_with("how") { "Help from application.\n..dot\n.\n" }
+        // The Windows build knows only the short verbs.
+        else if line.starts_with("doubleclick ") || line.starts_with("rightclick ") { "error: not a command\r\n.\r\n" }
         else { "ok\n.\n" };
         for byte in answer.bytes() {io::stdout().write_all(&[byte]).unwrap();}
         io::stdout().flush().unwrap();
