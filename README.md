@@ -155,14 +155,23 @@ submit the issue it prepares. Ideas and questions are welcome on the
 
 ## SolidCraft 98
 
-A side extra: Pilot can also drive [SolidCraft 98](docs/solidcraft98.md) through its screen,
-but not reliably yet. In an 11-task test with two runs each, gemma4 e4b built 2 of 22 parts
-through Pilot (a cylinder, twice) and 6 of 22 on its own; qwen2.5 7B, granite4 3B, and Muse
-Glimmer 30B built none either way.
+A side extra: Pilot can also drive [SolidCraft 98](docs/solidcraft98.md) through its screen.
+Same model (gemma4 e4b), same request ("Round the four upright edges of the box with a 3 mm
+radius."), same 40 mm box:
 
-<a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/solidcraft98-chat.png&alt=SolidCraft%2098%20with%20a%2040%20mm%20box%2C%20next%20to%20its%20chat%20window%20where%20qwen2.5%207B%20is%20asked%20to%20round%20the%20box%27s%20edges"><img src="docs/images/solidcraft98-chat.png" width="100%" alt="SolidCraft 98 with a 40 mm box, next to its chat window where qwen2.5 7B is asked to round the box's edges"></a>
+<a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/solidcraft98-before.png&alt=SolidCraft%2098%20with%20a%2040%20mm%20box%2C%20next%20to%20its%20chat%20window%3A%20gemma4%20e4b%20without%20Pilot%20looks%20for%20a%20fillet%20command%20and%20gives%20up"><img src="docs/images/solidcraft98-before.png" width="100%" alt="SolidCraft 98 with a 40 mm box, next to its chat window: gemma4 e4b without Pilot looks for a fillet command and gives up"></a>
 
-<sub>SolidCraft 98's own chat window with qwen2.5 7B, without Pilot, asked to round the edges of a
-box that was set up beforehand. It did not finish.</sub>
+<sub>Without Pilot: the model searches the menus for a fillet command, finds none, and gives up.</sub>
+
+<a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/solidcraft98-after.png&alt=SolidCraft%2098%20with%20the%20same%20box%2C%20its%20four%20upright%20edges%20rounded%203%20mm%2C%20next%20to%20the%20chat%20window%3A%20gemma4%20e4b%20through%20Pilot"><img src="docs/images/solidcraft98-after.png" width="100%" alt="SolidCraft 98 with the same box, its four upright edges rounded 3 mm, next to the chat window: gemma4 e4b through Pilot"></a>
+
+<sub>With Pilot: the model opens the box's sketch and sets its corner radius, which rounds the
+four upright edges. Rounding the top and bottom edges requires SolidCraft 2000.</sub>
+
+Both are replays of recorded runs, so they skip the model's thinking time. The run shown is the
+second of two recorded tries; the first typed "3 mm" into a numbers-only field, which Pilot now
+fixes. It is not reliable yet: in an earlier 11-task test with two runs each, gemma4 e4b built 2
+of 22 parts through Pilot and 6 of 22 on its own; qwen2.5 7B, granite4 3B, and Muse Glimmer 30B
+built none either way.
 
 Licensed under [Apache-2.0](LICENSE). See [NOTICE](NOTICE).
