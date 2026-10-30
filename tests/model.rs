@@ -1044,7 +1044,7 @@ fn direct_http_turn_has_no_upstream_requests() {
         }
         let (status, _, text) = h.chat(&req);
         assert_eq!(status, 200, "{text}");
-        assert!(text.contains("Exact match (no model):") && text.contains("256.047875"));
+        assert!(text.contains("Exact match (no model):") && text.contains("Total volume 256 mm³"));
         assert!(h.requests.lock().unwrap().is_empty());
         h.finish();
     }
