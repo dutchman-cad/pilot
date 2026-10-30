@@ -8,6 +8,8 @@ use dutchman_pilot::{
 use serde_json::{json, Value};
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+#[path = "support/dev_rectangles.rs"]
+mod dev_rectangles;
 #[path = "support/public_catalog.rs"]
 mod public_catalog;
 struct Session {
