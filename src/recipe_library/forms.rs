@@ -507,6 +507,28 @@ pub(crate) fn aliases(args: &mut Value, schema: &Value) -> Result<Vec<Value>, St
     Ok(changes)
 }
 
+/// These markers make keyword-only inference unreliable. Abstaining does not
+/// validate or change any value supplied by the model.
+pub(crate) fn unclear_request(text: &str) -> bool {
+    text.split(|c: char| !c.is_ascii_alphanumeric())
+        .any(|w| unclear_word(&w.to_ascii_lowercase()))
+}
+
+fn unclear_word(w: &str) -> bool {
+    matches!(
+        w,
+        "not" | "no" | "never" | "without" | "or" | "either" | "neither" | "instead"
+    )
+}
+
+/// A negation or alternative within three words of a cue makes that cue unclear;
+/// one elsewhere in the request ("a cover with no lip") does not.
+fn unclear_near(words: &[&str], at: usize) -> bool {
+    words[at.saturating_sub(3)..(at + 4).min(words.len())]
+        .iter()
+        .any(|w| unclear_word(w))
+}
+
 /// Infer bounded choices and unambiguous omissions from the latest request; never
 /// override supplied slots.
 pub fn request_defaults(
@@ -559,7 +581,12 @@ pub fn request_defaults(
             .split(|c: char| !c.is_ascii_alphanumeric())
             .filter(|s| !s.is_empty())
             .collect();
-        let has_pair = |a, b| words.windows(2).any(|w| w == [a, b]);
+        let has_pair = |a, b| {
+            words
+                .windows(2)
+                .enumerate()
+                .any(|(i, w)| w == [a, b] && !unclear_near(&words, i))
+        };
         let choice = if id == "enclosure" && args.get("open").is_none() {
             let top =
                 has_pair("open", "top") || has_pair("top", "open") || has_pair("top", "opening");
@@ -596,12 +623,19 @@ pub fn request_defaults(
                 (false, false) if cover => Some(("open", "bottom", "cover/lid opens underneath")),
                 _ => None,
             }
-        } else if id == "plate" && args.get("plane").is_none() && has_pair("front", "plane") {
+        } else if id == "plate"
+            && args.get("plane").is_none()
+            && has_pair("front", "plane")
+            && !words.iter().any(|w| matches!(*w, "xy" | "yz"))
+            && !["top", "right", "back", "side", "bottom"]
+                .iter()
+                .any(|w| has_pair(w, "plane"))
+        {
             Some(("plane", "XZ", "front plane is XZ"))
         } else {
             None
         };
-        if id == "plate" {
+        if id == "plate" && !unclear_request(&text) {
             recovered.extend(grid_rows(args, &text)?);
         }
         if let Some((field, value, rule)) = choice {
@@ -621,15 +655,19 @@ pub fn request_defaults(
         return Ok(Vec::new());
     }
     let mut angles = Vec::new();
-    for pair in words.windows(2) {
-        if matches!(pair[1], "deg" | "degree" | "degrees") {
-            if let Ok(n) = pair[0].parse::<f64>() {
-                if n.is_finite() {
-                    angles.push(n);
-                }
-            }
+    for (i, pair) in words.windows(2).enumerate() {
+        let angle = if matches!(pair[1], "deg" | "degree" | "degrees") {
+            pair[0].parse::<f64>().ok().filter(|n| n.is_finite())
         } else if pair == ["quarter", "turn"] {
-            angles.push(90.);
+            Some(90.)
+        } else {
+            None
+        };
+        if let Some(angle) = angle {
+            if unclear_near(&words, i) {
+                return Ok(Vec::new());
+            }
+            angles.push(angle);
         }
     }
     if let [angle] = angles.as_slice() {
@@ -1421,6 +1459,76 @@ pub fn to_slots(args: &Value, schema: &Value) -> Result<Value, String> {
 #[allow(clippy::unwrap_used)]
 mod choice_tests {
     use super::*;
+
+    #[test]
+    fn unclear_request_defaults_preserve_model_slots() {
+        for (id, text, supplied) in [
+            ("plate", "front plane and top plane", json!({})),
+            ("plate", "front plane XY", json!({})),
+            ("plate", "not on front plane", json!({})),
+            ("plate", "front plane or right plane", json!({"plane":"XY"})),
+            ("plate", "not a 3 by 2 hole grid", json!({"grid_columns":3})),
+            ("enclosure", "not open top", json!({})),
+            ("enclosure", "open top or bottom", json!({"open":"bottom"})),
+            ("revolute_joint", "not 45 degrees", json!({})),
+            ("revolute_joint", "45 degrees or a quarter turn", json!({})),
+        ] {
+            let mut args = supplied.clone();
+            let schema = json!({"x-pilot-expander":id});
+            let request = json!({"messages":[{"role":"user","content":text}]});
+            assert!(
+                request_defaults(&mut args, &schema, &request)
+                    .unwrap()
+                    .is_empty(),
+                "{text}"
+            );
+            assert_eq!(args, supplied, "{text}");
+        }
+        for (id, text, field, expected) in [
+            ("plate", "front plane", "plane", json!("XZ")),
+            ("enclosure", "open top", "open", json!("top")),
+            // A negation elsewhere in the request leaves a clear cue alone.
+            (
+                "plate",
+                "a plate on the front plane with four holes, no chamfer on it",
+                "plane",
+                json!("XZ"),
+            ),
+            (
+                "enclosure",
+                "make a cover with an outer lip and no screw bosses",
+                "open",
+                json!("bottom"),
+            ),
+            (
+                "revolute_joint",
+                "do not move the base, then rotate the arm 45 degrees",
+                "angle_deg",
+                json!(45.),
+            ),
+            (
+                "revolute_joint",
+                "rotate 45 degrees",
+                "angle_deg",
+                json!(45.),
+            ),
+        ] {
+            let mut args = json!({});
+            let schema = json!({"x-pilot-expander":id});
+            let req = |text| json!({"messages":[{"role":"user","content":text}]});
+            assert_eq!(
+                request_defaults(&mut args, &schema, &req(text))
+                    .unwrap()
+                    .len(),
+                1
+            );
+            assert_eq!(args[field], expected);
+            assert!(request_defaults(&mut json!({}), &schema, &req(&"x".repeat(65_537))).is_err());
+        }
+        let schema = json!({"x-pilot-expander":"enclosure","properties":{}});
+        assert!(coerce(&mut json!({"lip":false,"lip_width":2}), &schema).is_err());
+        assert!(coerce(&mut json!({"lip":true,"wall":-1}), &schema).is_err());
+    }
 
     #[test]
     fn unique_choice_prefixes_and_trimmed_case_are_audited() {

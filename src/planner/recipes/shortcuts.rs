@@ -1158,6 +1158,27 @@ mod tests {
         }
     }
     #[test]
+    fn typed_joint_ignores_uncertain_rotation_wording() {
+        let catalog = Catalog::bundled().unwrap();
+        let args = json!({"shape":"revolute_joint","pin_component":"Base","hole_component":"Arm","angle_deg":45});
+        let clear = crate::planner::cases::revolute_request("Connect Base and Arm.");
+        let reference = build(&args, &clear, &catalog).unwrap();
+        for text in ["Do not rotate Base", "rotate Base or Arm"] {
+            let req = crate::planner::cases::revolute_request(text);
+            assert_eq!(build(&args, &req, &catalog).unwrap().calls, reference.calls);
+        }
+        for text in [
+            "rotate Base",
+            "Arm must not move",
+            "keep Arm fixed",
+            // A negation elsewhere does not hide a clear role statement.
+            "Pin Arm to Base with no washers, then rotate Base 45 degrees",
+        ] {
+            let conflict = crate::planner::cases::revolute_request(text);
+            assert!(build(&args, &conflict, &catalog).is_err());
+        }
+    }
+    #[test]
     fn strict_schema_and_prompt_budget() {
         fn descriptions(v: &Value) -> usize {
             match v {

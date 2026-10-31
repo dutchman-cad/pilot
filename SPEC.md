@@ -107,7 +107,10 @@ Request side:
   thick qualifies only with thickness already filled. A plate's single hole or boss
   without a layout or offsets may recover one explicit position (axis coordinates,
   edge distances, or centre), expressed internally using the existing centre-offset
-  slots. Competing positions are rejected. Both recoveries audit `fill_defaulted`
+  slots. Unclear or competing request positions infer nothing. Request inference
+  never rejects a fill for unclear wording and leaves supplied model values alone;
+  validation of supplied values and hard resource bounds still applies.
+  Both recoveries audit `fill_defaulted`
   with the inferred value and rule, and never overwrite supplied values.
   A corner-only form defers requests to add holes as well as edit corners to
   native tools, retaining the complete request instead of completing only a subset.
