@@ -1,4 +1,6 @@
 //! Bounded, conservative JSON repair. No prose is ever interpreted as a command.
+mod calls;
+pub use calls::{failed_sketch_context, repair_command};
 use serde_json::{Map, Value};
 
 pub const MAX_BYTES: usize = 1_048_576;
