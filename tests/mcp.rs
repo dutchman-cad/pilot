@@ -662,3 +662,47 @@ fn callrepair_mcp_suggests_only_failed_step_and_audits() {
     assert!(audit.contains("sketch_dependency_error"));
     std::fs::remove_file(log).unwrap();
 }
+
+#[test]
+fn hole_position_handback_uses_public_face_evidence() {
+    let Some(cli) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    for disabled in [false, true] {
+        let log = std::env::temp_dir().join(format!(
+            "pilot-holehow-mcp-{}-{disabled}.jsonl",
+            std::process::id()
+        ));
+        let mut s = Session::with_log(
+            std::path::Path::new(&cli),
+            &["--headless"],
+            if disabled { &["--no-hints"] } else { &[] },
+            &log,
+        );
+        s.initialize();
+        let created = s.call(
+            1,
+            "execute",
+            json!({"command":"solid.box","params":{"length":60,"width":40,"height":20}}),
+        );
+        assert_ne!(created["result"]["isError"], true, "{created}");
+        let faces = s.call(
+            2,
+            "execute",
+            json!({"command":"model.faces","params":{"body":"Body1"}}),
+        );
+        assert_ne!(faces["result"]["isError"], true, "{faces}");
+        let error = s.call(
+            3,
+            "execute",
+            json!({"command":"solid.hole","params":{"position":[20,15,1],"diameter":6,"depth":7}}),
+        );
+        let text = error.to_string();
+        assert!(text.contains("position"), "{text}");
+        assert_eq!(text.contains("Nearby face planes"), !disabled, "{text}");
+        if !disabled {
+            assert!(text.contains("F1:-z"), "{text}");
+        }
+        let _ = std::fs::remove_file(log);
+    }
+}

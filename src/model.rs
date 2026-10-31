@@ -1233,6 +1233,26 @@ impl Proxy {
         .then(|| conversation.clone());
         append_batch_errors(&mut body, audit)?;
         if !self.cfg.no_hints {
+            let hole_context = last_user(&body)
+                .to_ascii_lowercase()
+                .split(|c: char| !c.is_ascii_alphabetic())
+                .any(|w| matches!(w, "hole" | "holes" | "counterbore" | "counterbores"));
+            if let Some(tools) = body["tools"].as_array_mut().filter(|_| hole_context) {
+                for tool in tools.iter_mut().take(128) {
+                    if matches!(tool["function"]["name"].as_str(), Some("execute" | "batch")) {
+                        let old = tool["function"]["description"].as_str().unwrap_or("");
+                        if !old.contains(guidance::holes::HINT) {
+                            tool["function"]["description"] =
+                                json!(format!("{old}\n{}", guidance::holes::HINT));
+                            audit.record(
+                                "hole_tool_hint",
+                                &Value::Null,
+                                &json!(guidance::holes::HINT),
+                            )?;
+                        }
+                    }
+                }
+            }
             if !conversation.facts_seen[0] && prompting::append_placement_fact(&mut body)? {
                 audit.record(
                     "placement_fact",
@@ -2476,6 +2496,7 @@ fn append_hints(
         .map(|m| prompting::message_text(&m["content"]))
         .collect();
     let mut placement_count = 0;
+    let mut hole_faces = guidance::holes::Faces::default();
     for message in messages.iter() {
         let text = message["content"].to_string();
         sketch_seen[0] |= text.contains(&guidance::SKETCH_ENTITY_HINT.replace('"', "\\\""));
@@ -2516,11 +2537,23 @@ fn append_hints(
         let data = tool_data(&messages[i]).unwrap_or(Value::Null);
         let after = data.get("after").unwrap_or(&data);
         let before = data.get("before").or(previous.as_ref());
+        let hole_hints = call
+            .and_then(|call| call["function"].get("arguments"))
+            .map(|args| {
+                let parsed = args
+                    .as_str()
+                    .and_then(|s| serde_json::from_str::<Value>(s).ok());
+                hole_faces.visit(name, parsed.as_ref().unwrap_or(args), &raw)
+            })
+            .unwrap_or_default();
         let mut hint = (i >= start)
             .then(|| guidance::state_hint(before, after, change, Some(catalog)))
             .flatten()
             .map(|h| h.split_whitespace().collect::<Vec<_>>().join(" "));
         if i >= start {
+            for next in hole_hints {
+                hint = Some(hint.map_or_else(|| next.clone(), |h| format!("{h}\n{next}")));
+            }
             if let Some(args) = call.and_then(|call| call["function"].get("arguments")) {
                 let parsed = args
                     .as_str()
@@ -3687,7 +3720,7 @@ mod tests {
                 // Include their actual JSON escaping, separators and message wrappers.
                 let mut full = full_script.requests[index].clone();
                 full["model"] = req["model"].clone();
-                assert_eq!(full["tools"], req["tools"]);
+                assert_tools_with_optional_hole_hint(&full["tools"], &req["tools"]);
                 let added = history::chars(&full).checked_sub(client).unwrap();
                 assert!(
                     upstream <= client + added,
@@ -4255,6 +4288,25 @@ mod tests {
     }
     fn request() -> Value {
         json!({"model":"unit","messages":[{"role":"user","content":"make a box"}],"tools":tools()})
+    }
+    fn assert_tools_with_optional_hole_hint(tools: &Value, originals: &Value) {
+        let mut clean = tools.clone();
+        for (tool, original) in clean
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .zip(originals.as_array().unwrap())
+        {
+            let old = original["function"]["description"].as_str().unwrap_or("");
+            if tool["function"]["description"] == format!("{old}\n{}", guidance::holes::HINT) {
+                let function = tool["function"].as_object_mut().unwrap();
+                function.remove("description");
+                if let Some(description) = original["function"].get("description") {
+                    function.insert("description".into(), description.clone());
+                }
+            }
+        }
+        assert_eq!(clean, *originals);
     }
     fn failed_parse(raw: &str) -> Value {
         json!({"error":format!("error parsing tool call: raw='{raw}', err=invalid JSON")})
@@ -5172,6 +5224,46 @@ mod tests {
             let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
             assert!(log.contains("prompt_help"));
             assert_eq!(log.contains("model_settings"), ollama);
+        }
+    }
+
+    #[test]
+    fn hole_position_handback_preserves_calls_and_respects_no_hints() {
+        for disabled in [false, true] {
+            let mut f = Fixture::new(vec![reply("Ready.")]);
+            f.proxy.cfg.no_hints = disabled;
+            let mut req = request();
+            req["messages"] = json!([
+                {"role":"user","content":"Drill a blind hole from the underside"},
+                {"role":"assistant","tool_calls":[{"id":"box","type":"function","function":{"name":"execute","arguments":json!({"command":"solid.box","params":{"length":60,"width":40,"height":20}}).to_string()}}]},
+                {"role":"tool","tool_call_id":"box","content":json!({"created_bodies":["Body1"]}).to_string()},
+                {"role":"assistant","tool_calls":[{"id":"hole","type":"function","function":{"name":"execute","arguments":json!({"command":"solid.hole","params":{"position":[20,15,1],"diameter":6,"depth":7}}).to_string()}}]},
+                {"role":"tool","tool_call_id":"hole","content":json!({"error":"position is not on a face of a body"}).to_string()}
+            ]);
+            f.chat(req.clone());
+            let script = f.proxy.scripted.as_ref().unwrap().borrow();
+            let sent = &script.requests[0];
+            let messages = sent["messages"].as_array().unwrap();
+            let last = messages.last().unwrap()["content"].as_str().unwrap();
+            assert_eq!(last.contains("Nearby face planes"), !disabled, "{last}");
+            assert_eq!(
+                messages
+                    .iter()
+                    .filter(|m| m["role"] == "assistant")
+                    .cloned()
+                    .collect::<Vec<_>>(),
+                req["messages"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .filter(|m| m["role"] == "assistant")
+                    .cloned()
+                    .collect::<Vec<_>>()
+            );
+            assert_eq!(
+                sent["tools"].to_string().contains(guidance::holes::HINT),
+                !disabled
+            );
         }
     }
 
@@ -7881,7 +7973,7 @@ mod tests {
                 "pilot_fill"
             );
             if decline {
-                assert_eq!(script.requests[1]["tools"], req["tools"]);
+                assert_tools_with_optional_hole_hint(&script.requests[1]["tools"], &req["tools"]);
                 assert!(!script.requests[1]["tools"]
                     .to_string()
                     .contains("pilot_route"));
