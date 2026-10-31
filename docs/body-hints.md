@@ -8,7 +8,8 @@ runs the join, changes a valid model call, or refuses it.
 
 This runs in model-only (N) and default modes. `--no-hints` disables it, including
 plain-style comparisons. Requests mentioning separate parts, bodies, copies,
-components, assemblies or mechanisms suppress it. Recipe descriptions and form
+components, assemblies or mechanisms suppress it, as do counted solids
+("eight boxes") and conversations a recipe built. Recipe descriptions and form
 wording are unaffected.
 
 Pilot reuses complete document and contact measurements from tool history.
