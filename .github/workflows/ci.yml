@@ -29,7 +29,8 @@ permissions:
   contents: read
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Every commit on main finishes its run; a newer push cancels an older one elsewhere.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   toolchains:
