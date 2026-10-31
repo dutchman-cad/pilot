@@ -718,11 +718,11 @@ mod tests {
     #[test]
     fn edit_wording_is_recognised_and_creation_is_not() {
         for yes in [
-            "make the hole 8 mm instead",
-            "drill a 10 mm hole through the centre of it",
-            "chamfer the four top edges 2 mm",
+            "change the hole to 9 mm instead",
+            "drill a 7 mm hole through the middle of it",
+            "chamfer the top four corners by 1.5 mm",
             "add two mounting tabs on the ends of the plate",
-            "make it a row of 6 of those holes",
+            "turn those holes into a row of 5",
             "add a fillet to it",
             "Please change the existing plate to 80 mm long",
         ] {
