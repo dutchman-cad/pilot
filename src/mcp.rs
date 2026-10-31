@@ -344,11 +344,17 @@ impl Proxy {
                     return Err("augmented tools/list exceeds 4096 tools".into());
                 }
                 if !self.cfg.no_hints && crate::prompting::describe_holes(tools) {
-                    self.audit.record(
+                    if let Err(message) = self.audit.record(
                         "hole_tool_hint",
                         &Value::Null,
                         &json!(crate::guidance::holes::HINT),
-                    )?;
+                    ) {
+                        eprintln!(
+                            "{}: {message}; passing tools/list through unchanged",
+                            crate::identity::BINARY
+                        );
+                        return write_raw(&mut self.output, &response);
+                    }
                     modified = true;
                 }
                 if !self.cfg.no_hints && crate::prompting::describe_placement(tools) {
