@@ -1,7 +1,7 @@
 //! Conservative, bounded closed orthogonal profiles, using only the public catalogue.
 use super::*;
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub(super) struct Profile {
     pub(super) shape: String,
     pub(super) plane: String,
@@ -147,11 +147,24 @@ pub(super) fn vocabulary(i: &Input<'_>) -> bool {
                     | "facing"
                     | "up"
                     | "upward"
+                    | "upwards"
+                    | "leftward"
+                    | "leftwards"
+                    | "rightward"
+                    | "rightwards"
                     | "positive"
                     | "negative"
                     | "down"
                     | "downward"
+                    | "downwards"
                     | "y"
+                    | "toward"
+                    | "towards"
+                    | "to"
+                    | "back"
+                    | "side"
+                    | "that"
+                    | "which"
             )
     })
 }
@@ -319,7 +332,8 @@ pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
         if let Some(p) = p {
             planes.push(p);
         }
-        if s == "on"
+        let member_position = n > 0 && matches!(i.t[n - 1].as_str(), "web" | "flange" | "flanges");
+        if (s == "on" && !member_position)
             || (s == "in"
                 && i.t
                     .get(n + 1)
@@ -341,60 +355,12 @@ pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
     }
     let plane = planes.first().copied().unwrap_or("XY").to_string();
     let mut flipped = false;
-    if let Some(n) = i.t.iter().position(|s| {
-        matches!(
-            s.as_str(),
-            "opening" | "opens" | "open" | "faces" | "facing"
-        )
-    }) {
+    if let Some((orientation, reverse)) = opening(&i.t).ok()? {
         if !matches!(shape, "U" | "C") {
             return None;
         }
-        let mut tail = &i.t[n + 1..];
-        while tail
-            .first()
-            .is_some_and(|s| matches!(s.as_str(), "faces" | "facing" | "is" | "the" | "positive"))
-        {
-            tail = &tail[1..];
-        }
-        let negative = tail
-            .first()
-            .is_some_and(|s| matches!(s.as_str(), "-" | "negative"));
-        if negative {
-            tail = &tail[1..];
-        }
-        let direction = tail.first()?.as_str();
-        let rest = tail[1..]
-            .strip_prefix(&["and".into()])
-            .unwrap_or(&tail[1..]);
-        if rest
-            .first()
-            .is_some_and(|s| matches!(s.as_str(), "up" | "down" | "left" | "right" | "x" | "y"))
-            && rest.get(1).is_none_or(|s| s != "plane")
-        {
-            return None;
-        }
-        match direction {
-            "up" | "upward" | "y" if !negative => shape = "U",
-            "down" | "downward" => {
-                shape = "U";
-                flipped = true;
-            }
-            "y" if negative => {
-                shape = "U";
-                flipped = true;
-            }
-            "right" | "x" if !negative => shape = "C",
-            "left" => {
-                shape = "C";
-                flipped = true;
-            }
-            "x" if negative => {
-                shape = "C";
-                flipped = true;
-            }
-            _ => return None,
-        }
+        shape = orientation;
+        flipped = reverse;
     }
     let d = dimensions(&i.t)?;
     if d.len() < 3 || d.len() > 7 {
@@ -580,6 +546,115 @@ pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
     }
     .into_slots()
     .ok()
+}
+
+/// Explicit sketch-axis openings shared by exact parsing and typed forms.
+/// Exact parsing defers on unclear openings; forms ignore that inference error.
+pub(super) fn opening(t: &[String]) -> Result<Option<(&'static str, bool)>, String> {
+    let error = || {
+        "opening requires one sketch direction: up, down, left, right, +X, -X, +Y or -Y".to_string()
+    };
+    let mut choice = None;
+    let mut consumed = 0;
+    for (n, word) in t.iter().enumerate() {
+        if n < consumed || !matches!(word.as_str(), "opening" | "opens" | "open") {
+            continue;
+        }
+        // An open web/flange/plane does not name the profile's opening.
+        let subject = t[..n]
+            .iter()
+            .rev()
+            .find(|s| !matches!(s.as_str(), "is" | "are" | "the"));
+        if subject
+            .is_some_and(|s| matches!(s.as_str(), "web" | "flange" | "flanges" | "plane" | "side"))
+        {
+            continue;
+        }
+        if t.iter()
+            .any(|s| matches!(s.as_str(), "not" | "no" | "without" | "or" | "but"))
+        {
+            return Err(error());
+        }
+        // "left-facing opening"; the length lexer preserves the hyphen.
+        let before = if n >= 2 && t[n - 1] == "facing" {
+            let end = n - 1 - usize::from(n >= 3 && t[n - 2] == "-");
+            Some(&t[..end])
+        } else {
+            None
+        };
+        let (direction, negative, rest) = if let Some(before) = before {
+            let direction = before.last().ok_or_else(error)?.as_str();
+            let negative = before
+                .get(before.len().saturating_sub(2))
+                .is_some_and(|s| matches!(s.as_str(), "-" | "negative"));
+            (direction, negative, &t[n + 1..])
+        } else {
+            let mut start = n + 1;
+            // Fixed grammar; these small optional groups cannot consume a clause.
+            for words in [
+                &["that", "which"][..],
+                &["is"][..],
+                &["facing", "faces", "open", "opens"][..],
+                &["to", "toward", "towards"][..],
+                &["the"][..],
+            ] {
+                if t.get(start).is_some_and(|s| words.contains(&s.as_str())) {
+                    start += 1;
+                }
+            }
+            let negative = t
+                .get(start)
+                .is_some_and(|s| matches!(s.as_str(), "-" | "negative"));
+            if negative || t.get(start).is_some_and(|s| s == "positive") {
+                start += 1;
+            }
+            let direction = t.get(start).ok_or_else(error)?.as_str();
+            consumed = start + 1;
+            (direction, negative, &t[start + 1..])
+        };
+        let rest = if rest.first().is_some_and(|s| s == "and") {
+            &rest[1..]
+        } else {
+            rest
+        };
+        if rest.first().is_some_and(|s| {
+            matches!(
+                s.as_str(),
+                "up" | "upward"
+                    | "upwards"
+                    | "down"
+                    | "downward"
+                    | "downwards"
+                    | "left"
+                    | "leftward"
+                    | "leftwards"
+                    | "right"
+                    | "rightward"
+                    | "rightwards"
+                    | "x"
+                    | "y"
+                    | "-"
+                    | "positive"
+                    | "negative"
+                    | "plane"
+                    | "of"
+            )
+        }) && rest.get(1).is_none_or(|s| s != "plane")
+        {
+            return Err(error());
+        }
+        let next = match (direction, negative) {
+            ("up" | "upward" | "upwards" | "y", false) => ("U", false),
+            ("down" | "downward" | "downwards", false) | ("y", true) => ("U", true),
+            ("right" | "rightward" | "rightwards" | "x", false) => ("C", false),
+            ("left" | "leftward" | "leftwards", false) | ("x", true) => ("C", true),
+            _ => return Err(error()),
+        };
+        if choice.replace(next).is_some() {
+            return Err(error());
+        }
+    }
+    Ok(choice)
 }
 
 impl Profile {
