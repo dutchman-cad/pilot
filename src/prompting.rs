@@ -228,8 +228,9 @@ pub(crate) fn unit_fact_present(body: &Value) -> bool {
     })
 }
 
-/// Add the mm values of inch / cm sizes the latest user message states, once.
-/// Returns the fact text when it was added; the request text is never changed.
+/// Add the mm values of the inch / cm sizes the conversation's user messages state.
+/// Clients do not echo Pilot's system lines, so every request carries the whole
+/// fact. Returns the fact text when it was added; the request text is never changed.
 pub(crate) fn append_unit_fact(body: &mut Value) -> Result<Option<String>, String> {
     if unit_fact_present(body) {
         return Ok(None);
@@ -239,9 +240,10 @@ pub(crate) fn append_unit_fact(body: &mut Value) -> Result<Option<String>, Strin
         .ok_or("messages must be an array")?;
     let text = messages
         .iter()
-        .rev()
-        .find(|m| m["role"] == "user")
-        .map_or_else(String::new, |m| message_text(&m["content"]));
+        .filter(|m| m["role"] == "user")
+        .map(|m| message_text(&m["content"]))
+        .collect::<Vec<_>>()
+        .join("\n");
     let Some(fact) = crate::unitfact::fact(&text) else {
         return Ok(None);
     };

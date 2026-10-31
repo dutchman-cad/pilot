@@ -1342,7 +1342,6 @@ impl Proxy {
         }
         // Sizes in inches or cm: only when no recipe, form or exact match handles the turn.
         if !self.cfg.no_hints
-            && !conversation.unit_fact_seen
             && form_allowed
             && !continuing_form
             && recipe.is_none()
@@ -1353,11 +1352,11 @@ impl Proxy {
             && conversation.pending_recipe.is_none()
         {
             if let Some(fact) = prompting::append_unit_fact(&mut body)? {
-                audit.record("unit_fact", &Value::Null, &json!(fact))?;
+                if conversation.unit_fact.as_deref() != Some(fact.as_str()) {
+                    audit.record("unit_fact", &Value::Null, &json!(fact))?;
+                    conversation.unit_fact = Some(fact);
+                }
             }
-        }
-        if !self.cfg.no_hints && prompting::unit_fact_present(&body) {
-            conversation.unit_fact_seen = true;
         }
         if text_mode && fill_recipe.is_none() && route_candidates.is_empty() {
             text_mode::activate(&mut body, &tools, "profile_or_capabilities", audit)?;
@@ -4997,14 +4996,15 @@ mod tests {
     }
 
     #[test]
-    fn unit_fact_is_added_once_audited_and_optional() {
+    fn unit_fact_repeats_every_turn_audited_and_optional() {
         for disabled in [false, true] {
             let mut f = Fixture::new(vec![reply("Ready."); 3]);
             f.proxy.cfg.no_hints = disabled;
             let mut req = request();
             req["messages"] =
                 json!([{"role":"user","content":"Cut a 3/8\" slot in a 1\" bar, 2 cm deep"}]);
-            let expected = "Sizes in mm: 3/8\" = 9.525; 1\" = 25.4; 2 cm = 20.";
+            // Every request repeats the whole fact; a later turn's sizes join it.
+            let expected = "Sizes in mm: 3/8\" = 9.525; 1\" = 25.4; 2 cm = 20";
             f.chat(req.clone());
             req["messages"].as_array_mut().unwrap().extend([
                 json!({"role":"assistant","content":"Ready."}),
@@ -5021,7 +5021,7 @@ mod tests {
                     !disabled && n < 2,
                     "request {n}"
                 );
-                assert!(!all.contains("1/8\\\" = 3.175"), "once per conversation");
+                assert_eq!(all.contains("3.175"), !disabled && n == 1, "request {n}");
             }
             // The user text is never changed.
             assert_eq!(
@@ -5035,9 +5035,10 @@ mod tests {
             );
             drop(script);
             let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+            // Audited when the fact first appears and when a later turn changes it.
             assert_eq!(
                 log.matches("\"kind\":\"unit_fact\"").count(),
-                usize::from(!disabled)
+                if disabled { 0 } else { 2 }
             );
         }
     }
@@ -5048,14 +5049,14 @@ mod tests {
         let mut req = request();
         req["messages"] = json!([{"role":"user","content":"a 20 mm box"}]);
         f.chat(req.clone());
-        assert!(!f.proxy.conversations[0].unit_fact_seen);
+        assert!(f.proxy.conversations[0].unit_fact.is_none());
         // A later turn with a size still gets the fact (nothing was sent before).
         req["messages"].as_array_mut().unwrap().extend([
             json!({"role":"assistant","content":"Ready."}),
             json!({"role":"user","content":"make it 2 in tall"}),
         ]);
         f.chat(req.clone());
-        assert!(f.proxy.conversations[0].unit_fact_seen);
+        assert!(f.proxy.conversations[0].unit_fact.is_some());
         let script = f.proxy.scripted.as_ref().unwrap().borrow();
         assert!(!script.requests[0].to_string().contains("Sizes in mm"));
         assert!(script.requests[1].to_string().contains("Sizes in mm: 2"));
