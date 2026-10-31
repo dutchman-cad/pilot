@@ -321,7 +321,11 @@ fn body_hint_once_per_turn_survives_client_continuations_and_resets() {
         .unwrap()
         .push(json!({"role":"user","content":"Make this one part with the boss"}));
     // A retained complete inspection and contact evidence are still valid on the next user turn.
-    assert_eq!(f.chat(req).status, 200);
+    // "this one part with the boss" is an edit of the open design: answer Pilot's read.
+    let design = json!({"bodies":[
+        {"name":"Plate","bbox":{"min":[0,0,0],"max":[10,10,2]}},
+        {"name":"Boss","bbox":{"min":[0,0,2],"max":[10,10,4]}}],"timeline":[]});
+    assert_eq!(f.chat_after_edit_read_of(req, design).status, 200);
     assert_eq!(
         f.proxy.scripted.as_ref().unwrap().borrow().requests.len(),
         5

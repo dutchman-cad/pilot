@@ -7,7 +7,7 @@ const MAX_READS: usize = 12;
 const MAX_DOCUMENTS: usize = 4;
 const MARKER: &str = "[dutchman-pilot hint] Body check:";
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub(super) struct State {
     index: Option<usize>,
     reads: usize,
