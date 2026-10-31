@@ -70,11 +70,14 @@ pub(crate) fn edit_shaped(text: &str) -> bool {
                 )
                 && PART_NOUNS.contains(&w[2].as_str())
         });
-    let strong = names_a_feature(text)
-        || ["existing", "instead", "those", "these", "its", "same"]
+    // Words that point at a part that is already there, wherever they stand.
+    let explicit = names_a_feature(text)
+        || ["existing", "instead", "those", "these", "same"]
             .iter()
-            .any(|w| has(w))
-        || the_noun;
+            .any(|w| has(w));
+    // Looser references: "the hole", "its corner". A request that builds a
+    // new part ("sketch an L ... its corner ... extrude it") is not an edit.
+    let strong = explicit || the_noun || has("its");
     const EDIT_VERBS: &[&str] = &[
         "make",
         "change",
@@ -129,16 +132,14 @@ pub(crate) fn edit_shaped(text: &str) -> bool {
                 )
         })
     });
-    // A creation lead ("make a ...", "create a new ...") names a new part.
-    let skip = usize::from(matches!(first, "now" | "then" | "next"));
-    let creating = matches!(
-        t.get(skip).map(String::as_str),
-        Some("make" | "create" | "build" | "design" | "draw" | "model" | "generate" | "sketch")
-    ) && t
-        .get(skip + 1)
-        .is_some_and(|w| matches!(w.as_str(), "a" | "an" | "new") || number(w).is_some());
-    if creating && !(strong || add_to) {
-        return false;
+    let creating = t.windows(2).any(|w| {
+        matches!(
+            w[0].as_str(),
+            "make" | "create" | "build" | "design" | "draw" | "model" | "generate" | "sketch"
+        ) && (matches!(w[1].as_str(), "a" | "an" | "new") || number(&w[1]).is_some())
+    });
+    if creating {
+        return explicit || add_to;
     }
     strong || object_pronoun || add_to
 }
@@ -721,6 +722,8 @@ mod tests {
             "how many holes are there?",
             "what is the volume",
             "build a bracket",
+            "On XZ, sketch an L with its outside corner at the origin, 50 mm wide, 40 mm tall. Fully constrain it with four driving dimensions, then extrude 30 mm.",
+            "Make an enclosure: a box 80 x 50 x 30 mm, hollowed out with 2 mm walls and the top left open. Then add a lip around the top rim for the lid.",
             "",
         ] {
             assert!(!edit_shaped(no), "{no}");
