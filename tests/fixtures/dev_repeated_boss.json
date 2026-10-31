@@ -1,0 +1,893 @@
+{
+  "cases": [
+    {
+      "id": "edge-0",
+      "kind": "edge",
+      "prompt": "Make a 120 cm x 40 cm x 6 cm plate with five 6 cm studs, 8 cm tall, spaced 20 cm along the front long edge 8 cm inset",
+      "args": {
+        "length": 1200,
+        "width": 400,
+        "thickness": 60,
+        "boss_diameter": 60,
+        "boss_height": 80,
+        "row": {
+          "count": 5,
+          "pitch": 200,
+          "axis": "X",
+          "offset_x": 0,
+          "offset_y": -120
+        }
+      }
+    },
+    {
+      "id": "circle-0",
+      "kind": "circle",
+      "prompt": "a 4 in round base 0.25 in thick with 3 0.25 in legs 1 in long on a 3 in circle",
+      "args": {
+        "diameter": 101.6,
+        "thickness": 6.35,
+        "boss_diameter": 6.35,
+        "boss_height": 25.4,
+        "bolt_circle": {
+          "count": 3,
+          "diameter": 76.19999999999999
+        }
+      },
+      "fill": {
+        "diameter": "4 in",
+        "thickness": "0.25 in",
+        "boss_diameter": "0.25 in",
+        "boss_height": "1 in",
+        "bolt_circle_diameter": "3 in"
+      }
+    },
+    {
+      "id": "grid-0",
+      "kind": "grid",
+      "prompt": "hey, could you make me a 80 cm by 60 cm plate, 5 cm, with a 3 by 2 grid of 4 cm studs 10 cm high, 20 cm apart",
+      "args": {
+        "length": 800,
+        "width": 600,
+        "thickness": 50,
+        "boss_diameter": 40,
+        "boss_height": 100,
+        "grid": {
+          "columns": 3,
+          "rows": 2,
+          "pitch_x": 200,
+          "pitch_y": 200
+        }
+      }
+    },
+    {
+      "id": "copies-0",
+      "kind": "copies",
+      "prompt": "a 100 cm x 100 cm x 8 cm plate with a 10 cm boss 12 cm tall, 4 copies 25 cm apart",
+      "args": {
+        "length": 1000,
+        "width": 1000,
+        "thickness": 80,
+        "boss_diameter": 100,
+        "boss_height": 120,
+        "row": {
+          "count": 4,
+          "pitch": 250,
+          "axis": "X",
+          "offset_x": 0,
+          "offset_y": 0
+        }
+      }
+    },
+    {
+      "id": "edge-1",
+      "kind": "edge",
+      "prompt": "Build a 120 mm x 40 mm x 6 mm plate with five 6 mm pegs, 8 mm tall, spaced 20 mm along the back long edge 8 mm inset",
+      "args": {
+        "length": 120,
+        "width": 40,
+        "thickness": 6,
+        "boss_diameter": 6,
+        "boss_height": 8,
+        "row": {
+          "count": 5,
+          "pitch": 20,
+          "axis": "X",
+          "offset_x": 0,
+          "offset_y": 12
+        }
+      }
+    },
+    {
+      "id": "circle-1",
+      "kind": "circle",
+      "prompt": "Make a 4.25 inches round base 0.25 in thick with 4 0.275 in posts 1.125 in long on a 3 in circle",
+      "args": {
+        "diameter": 107.94999999999999,
+        "thickness": 6.35,
+        "boss_diameter": 6.985,
+        "boss_height": 28.575,
+        "bolt_circle": {
+          "count": 4,
+          "diameter": 76.19999999999999
+        }
+      },
+      "fill": {
+        "diameter": "4.25 in",
+        "thickness": "0.25 in",
+        "boss_diameter": "0.275 in",
+        "boss_height": "1.125 in",
+        "bolt_circle_diameter": "3 in"
+      }
+    },
+    {
+      "id": "grid-1",
+      "kind": "grid",
+      "prompt": "hey, could you make me a 60 mm by 80 mm plate, 5 mm, with a 3 by 2 grid of 4 mm pegs 10 mm high, 20 mm apart",
+      "args": {
+        "length": 60,
+        "width": 80,
+        "thickness": 5,
+        "boss_diameter": 4,
+        "boss_height": 10,
+        "grid": {
+          "columns": 2,
+          "rows": 3,
+          "pitch_x": 20,
+          "pitch_y": 20
+        }
+      }
+    },
+    {
+      "id": "copies-1",
+      "kind": "copies",
+      "prompt": "a 100 mm x 100 mm x 8 mm plate with a 10 mm boss 12 mm tall, 4 instances 25 mm apart",
+      "args": {
+        "length": 100,
+        "width": 100,
+        "thickness": 8,
+        "boss_diameter": 10,
+        "boss_height": 12,
+        "row": {
+          "count": 4,
+          "pitch": 25,
+          "axis": "X",
+          "offset_x": 0,
+          "offset_y": 0
+        }
+      }
+    },
+    {
+      "id": "edge-2",
+      "kind": "edge",
+      "prompt": "Make a 120 in x 40 in x 6 in plate with five 6 in pins, 8 in tall, spaced 20 in along the front long edge 8 in inset",
+      "args": {
+        "length": 3048,
+        "width": 1016,
+        "thickness": 152.39999999999998,
+        "boss_diameter": 152.39999999999998,
+        "boss_height": 203.2,
+        "row": {
+          "count": 5,
+          "pitch": 508,
+          "axis": "X",
+          "offset_x": 0,
+          "offset_y": -304.8
+        }
+      }
+    },
+    {
+      "id": "circle-2",
+      "kind": "circle",
+      "prompt": "a 4.5 in round base 0.25 in thick with 5 0.3 in legs 1.25 in long on a 3 in circle",
+      "args": {
+        "diameter": 114.3,
+        "thickness": 6.35,
+        "boss_diameter": 7.619999999999999,
+        "boss_height": 31.75,
+        "bolt_circle": {
+          "count": 5,
+          "diameter": 76.19999999999999
+        }
+      },
+      "fill": {
+        "diameter": "4.5 in",
+        "thickness": "0.25 in",
+        "boss_diameter": "0.3 in",
+        "boss_height": "1.25 in",
+        "bolt_circle_diameter": "3 in"
+      }
+    },
+    {
+      "id": "grid-2",
+      "kind": "grid",
+      "prompt": "hey, could you make me a 80 in by 60 in plate, 5 in, with a 3 by 2 grid of 4 in pins 10 in high, 20 in apart",
+      "args": {
+        "length": 2032,
+        "width": 1524,
+        "thickness": 127,
+        "boss_diameter": 101.6,
+        "boss_height": 254,
+        "grid": {
+          "columns": 3,
+          "rows": 2,
+          "pitch_x": 508,
+          "pitch_y": 508
+        }
+      }
+    },
+    {
+      "id": "copies-2",
+      "kind": "copies",
+      "prompt": "a 100 in x 100 in x 8 in plate with a 10 in boss 12 in tall, 4 copies 25 in apart",
+      "args": {
+        "length": 2540,
+        "width": 2540,
+        "thickness": 203.2,
+        "boss_diameter": 254,
+        "boss_height": 304.79999999999995,
+        "row": {
+          "count": 4,
+          "pitch": 635,
+          "axis": "X",
+          "offset_x": 0,
+          "offset_y": 0
+        }
+      }
+    },
+    {
+      "id": "edge-3",
+      "kind": "edge",
+      "prompt": "Build a 120 cm x 40 cm x 6 cm plate with five 6 cm posts, 8 cm tall, spaced 20 cm along the back long edge 8 cm inset",
+      "args": {
+        "length": 1200,
+        "width": 400,
+        "thickness": 60,
+        "boss_diameter": 60,
+        "boss_height": 80,
+        "row": {
+          "count": 5,
+          "pitch": 200,
+          "axis": "X",
+          "offset_x": 0,
+          "offset_y": 120
+        }
+      }
+    },
+    {
+      "id": "circle-3",
+      "kind": "circle",
+      "prompt": "Make a 4.75 inches round base 0.25 in thick with 3 0.325 in posts 1.375 in long on a 3 in circle",
+      "args": {
+        "diameter": 120.64999999999999,
+        "thickness": 6.35,
+        "boss_diameter": 8.254999999999999,
+        "boss_height": 34.925,
+        "bolt_circle": {
+          "count": 3,
+          "diameter": 76.19999999999999
+        }
+      },
+      "fill": {
+        "diameter": "4.75 in",
+        "thickness": "0.25 in",
+        "boss_diameter": "0.325 in",
+        "boss_height": "1.375 in",
+        "bolt_circle_diameter": "3 in"
+      }
+    },
+    {
+      "id": "grid-3",
+      "kind": "grid",
+      "prompt": "hey, could you make me a 60 cm by 80 cm plate, 5 cm, with a 3 by 2 grid of 4 cm posts 10 cm high, 20 cm apart",
+      "args": {
+        "length": 600,
+        "width": 800,
+        "thickness": 50,
+        "boss_diameter": 40,
+        "boss_height": 100,
+        "grid": {
+          "columns": 2,
+          "rows": 3,
+          "pitch_x": 200,
+          "pitch_y": 200
+        }
+      }
+    },
+    {
+      "id": "copies-3",
+      "kind": "copies",
+      "prompt": "a 100 cm x 100 cm x 8 cm plate with a 10 cm boss 12 cm tall, 4 instances 25 cm apart",
+      "args": {
+        "length": 1000,
+        "width": 1000,
+        "thickness": 80,
+        "boss_diameter": 100,
+        "boss_height": 120,
+        "row": {
+          "count": 4,
+          "pitch": 250,
+          "axis": "X",
+          "offset_x": 0,
+          "offset_y": 0
+        }
+      }
+    },
+    {
+      "id": "edge-4",
+      "kind": "edge",
+      "prompt": "Make a 120 mm x 40 mm x 6 mm plate with five 6 mm bosses, 8 mm tall, spaced 20 mm along the front long edge 8 mm inset",
+      "args": {
+        "length": 120,
+        "width": 40,
+        "thickness": 6,
+        "boss_diameter": 6,
+        "boss_height": 8,
+        "row": {
+          "count": 5,
+          "pitch": 20,
+          "axis": "X",
+          "offset_x": 0,
+          "offset_y": -12
+        }
+      }
+    },
+    {
+      "id": "circle-4",
+      "kind": "circle",
+      "prompt": "a 5 in round base 0.25 in thick with 4 0.35 in legs 1.5 in long on a 3 in circle",
+      "args": {
+        "diameter": 127,
+        "thickness": 6.35,
+        "boss_diameter": 8.889999999999999,
+        "boss_height": 38.099999999999994,
+        "bolt_circle": {
+          "count": 4,
+          "diameter": 76.19999999999999
+        }
+      },
+      "fill": {
+        "diameter": "5 in",
+        "thickness": "0.25 in",
+        "boss_diameter": "0.35 in",
+        "boss_height": "1.5 in",
+        "bolt_circle_diameter": "3 in"
+      }
+    },
+    {
+      "id": "grid-4",
+      "kind": "grid",
+      "prompt": "hey, could you make me a 80 mm by 60 mm plate, 5 mm, with a 3 by 2 grid of 4 mm bosses 10 mm high, 20 mm apart",
+      "args": {
+        "length": 80,
+        "width": 60,
+        "thickness": 5,
+        "boss_diameter": 4,
+        "boss_height": 10,
+        "grid": {
+          "columns": 3,
+          "rows": 2,
+          "pitch_x": 20,
+          "pitch_y": 20
+        }
+      }
+    },
+    {
+      "id": "copies-4",
+      "kind": "copies",
+      "prompt": "a 100 mm x 100 mm x 8 mm plate with a 10 mm boss 12 mm tall, 4 copies 25 mm apart",
+      "args": {
+        "length": 100,
+        "width": 100,
+        "thickness": 8,
+        "boss_diameter": 10,
+        "boss_height": 12,
+        "row": {
+          "count": 4,
+          "pitch": 25,
+          "axis": "X",
+          "offset_x": 0,
+          "offset_y": 0
+        }
+      }
+    },
+    {
+      "id": "edge-5",
+      "kind": "edge",
+      "prompt": "Build a 120 in x 40 in x 6 in plate with five 6 in studs, 8 in tall, spaced 20 in along the back long edge 8 in inset",
+      "args": {
+        "length": 3048,
+        "width": 1016,
+        "thickness": 152.39999999999998,
+        "boss_diameter": 152.39999999999998,
+        "boss_height": 203.2,
+        "row": {
+          "count": 5,
+          "pitch": 508,
+          "axis": "X",
+          "offset_x": 0,
+          "offset_y": 304.8
+        }
+      }
+    },
+    {
+      "id": "circle-5",
+      "kind": "circle",
+      "prompt": "Make a 5.25 inches round base 0.25 in thick with 5 0.375 in posts 1.625 in long on a 3 in circle",
+      "args": {
+        "diameter": 133.35,
+        "thickness": 6.35,
+        "boss_diameter": 9.524999999999999,
+        "boss_height": 41.275,
+        "bolt_circle": {
+          "count": 5,
+          "diameter": 76.19999999999999
+        }
+      },
+      "fill": {
+        "diameter": "5.25 in",
+        "thickness": "0.25 in",
+        "boss_diameter": "0.375 in",
+        "boss_height": "1.625 in",
+        "bolt_circle_diameter": "3 in"
+      }
+    },
+    {
+      "id": "grid-5",
+      "kind": "grid",
+      "prompt": "hey, could you make me a 60 in by 80 in plate, 5 in, with a 3 by 2 grid of 4 in studs 10 in high, 20 in apart",
+      "args": {
+        "length": 1524,
+        "width": 2032,
+        "thickness": 127,
+        "boss_diameter": 101.6,
+        "boss_height": 254,
+        "grid": {
+          "columns": 2,
+          "rows": 3,
+          "pitch_x": 508,
+          "pitch_y": 508
+        }
+      }
+    },
+    {
+      "id": "copies-5",
+      "kind": "copies",
+      "prompt": "a 100 in x 100 in x 8 in plate with a 10 in boss 12 in tall, 4 instances 25 in apart",
+      "args": {
+        "length": 2540,
+        "width": 2540,
+        "thickness": 203.2,
+        "boss_diameter": 254,
+        "boss_height": 304.79999999999995,
+        "row": {
+          "count": 4,
+          "pitch": 635,
+          "axis": "X",
+          "offset_x": 0,
+          "offset_y": 0
+        }
+      }
+    },
+    {
+      "id": "edge-6",
+      "kind": "edge",
+      "prompt": "Make a 120 cm x 40 cm x 6 cm plate with five 6 cm pegs, 8 cm tall, spaced 20 cm along the front long edge 8 cm inset",
+      "args": {
+        "length": 1200,
+        "width": 400,
+        "thickness": 60,
+        "boss_diameter": 60,
+        "boss_height": 80,
+        "row": {
+          "count": 5,
+          "pitch": 200,
+          "axis": "X",
+          "offset_x": 0,
+          "offset_y": -120
+        }
+      }
+    },
+    {
+      "id": "circle-6",
+      "kind": "circle",
+      "prompt": "a 5.5 in round base 0.25 in thick with 3 0.4 in legs 1.75 in long on a 3 in circle",
+      "args": {
+        "diameter": 139.7,
+        "thickness": 6.35,
+        "boss_diameter": 10.16,
+        "boss_height": 44.449999999999996,
+        "bolt_circle": {
+          "count": 3,
+          "diameter": 76.19999999999999
+        }
+      },
+      "fill": {
+        "diameter": "5.5 in",
+        "thickness": "0.25 in",
+        "boss_diameter": "0.4 in",
+        "boss_height": "1.75 in",
+        "bolt_circle_diameter": "3 in"
+      }
+    },
+    {
+      "id": "grid-6",
+      "kind": "grid",
+      "prompt": "hey, could you make me a 80 cm by 60 cm plate, 5 cm, with a 3 by 2 grid of 4 cm pegs 10 cm high, 20 cm apart",
+      "args": {
+        "length": 800,
+        "width": 600,
+        "thickness": 50,
+        "boss_diameter": 40,
+        "boss_height": 100,
+        "grid": {
+          "columns": 3,
+          "rows": 2,
+          "pitch_x": 200,
+          "pitch_y": 200
+        }
+      }
+    },
+    {
+      "id": "copies-6",
+      "kind": "copies",
+      "prompt": "a 100 cm x 100 cm x 8 cm plate with a 10 cm boss 12 cm tall, 4 copies 25 cm apart",
+      "args": {
+        "length": 1000,
+        "width": 1000,
+        "thickness": 80,
+        "boss_diameter": 100,
+        "boss_height": 120,
+        "row": {
+          "count": 4,
+          "pitch": 250,
+          "axis": "X",
+          "offset_x": 0,
+          "offset_y": 0
+        }
+      }
+    },
+    {
+      "id": "edge-7",
+      "kind": "edge",
+      "prompt": "Build a 120 mm x 40 mm x 6 mm plate with five 6 mm pins, 8 mm tall, spaced 20 mm along the back long edge 8 mm inset",
+      "args": {
+        "length": 120,
+        "width": 40,
+        "thickness": 6,
+        "boss_diameter": 6,
+        "boss_height": 8,
+        "row": {
+          "count": 5,
+          "pitch": 20,
+          "axis": "X",
+          "offset_x": 0,
+          "offset_y": 12
+        }
+      }
+    },
+    {
+      "id": "circle-7",
+      "kind": "circle",
+      "prompt": "Make a 5.75 inches round base 0.25 in thick with 4 0.42500000000000004 in posts 1.875 in long on a 3 in circle",
+      "args": {
+        "diameter": 146.04999999999998,
+        "thickness": 6.35,
+        "boss_diameter": 10.795,
+        "boss_height": 47.625,
+        "bolt_circle": {
+          "count": 4,
+          "diameter": 76.19999999999999
+        }
+      },
+      "fill": {
+        "diameter": "5.75 in",
+        "thickness": "0.25 in",
+        "boss_diameter": "0.42500000000000004 in",
+        "boss_height": "1.875 in",
+        "bolt_circle_diameter": "3 in"
+      }
+    },
+    {
+      "id": "grid-7",
+      "kind": "grid",
+      "prompt": "hey, could you make me a 60 mm by 80 mm plate, 5 mm, with a 3 by 2 grid of 4 mm pins 10 mm high, 20 mm apart",
+      "args": {
+        "length": 60,
+        "width": 80,
+        "thickness": 5,
+        "boss_diameter": 4,
+        "boss_height": 10,
+        "grid": {
+          "columns": 2,
+          "rows": 3,
+          "pitch_x": 20,
+          "pitch_y": 20
+        }
+      }
+    },
+    {
+      "id": "copies-7",
+      "kind": "copies",
+      "prompt": "a 100 mm x 100 mm x 8 mm plate with a 10 mm boss 12 mm tall, 4 instances 25 mm apart",
+      "args": {
+        "length": 100,
+        "width": 100,
+        "thickness": 8,
+        "boss_diameter": 10,
+        "boss_height": 12,
+        "row": {
+          "count": 4,
+          "pitch": 25,
+          "axis": "X",
+          "offset_x": 0,
+          "offset_y": 0
+        }
+      }
+    },
+    {
+      "id": "edge-8",
+      "kind": "edge",
+      "prompt": "Make a 120 in x 40 in x 6 in plate with five 6 in posts, 8 in tall, spaced 20 in along the front long edge 8 in inset",
+      "args": {
+        "length": 3048,
+        "width": 1016,
+        "thickness": 152.39999999999998,
+        "boss_diameter": 152.39999999999998,
+        "boss_height": 203.2,
+        "row": {
+          "count": 5,
+          "pitch": 508,
+          "axis": "X",
+          "offset_x": 0,
+          "offset_y": -304.8
+        }
+      }
+    },
+    {
+      "id": "circle-8",
+      "kind": "circle",
+      "prompt": "a 6 in round base 0.25 in thick with 5 0.45 in legs 2 in long on a 3 in circle",
+      "args": {
+        "diameter": 152.39999999999998,
+        "thickness": 6.35,
+        "boss_diameter": 11.43,
+        "boss_height": 50.8,
+        "bolt_circle": {
+          "count": 5,
+          "diameter": 76.19999999999999
+        }
+      },
+      "fill": {
+        "diameter": "6 in",
+        "thickness": "0.25 in",
+        "boss_diameter": "0.45 in",
+        "boss_height": "2 in",
+        "bolt_circle_diameter": "3 in"
+      }
+    },
+    {
+      "id": "grid-8",
+      "kind": "grid",
+      "prompt": "hey, could you make me a 80 in by 60 in plate, 5 in, with a 3 by 2 grid of 4 in posts 10 in high, 20 in apart",
+      "args": {
+        "length": 2032,
+        "width": 1524,
+        "thickness": 127,
+        "boss_diameter": 101.6,
+        "boss_height": 254,
+        "grid": {
+          "columns": 3,
+          "rows": 2,
+          "pitch_x": 508,
+          "pitch_y": 508
+        }
+      }
+    },
+    {
+      "id": "copies-8",
+      "kind": "copies",
+      "prompt": "a 100 in x 100 in x 8 in plate with a 10 in boss 12 in tall, 4 copies 25 in apart",
+      "args": {
+        "length": 2540,
+        "width": 2540,
+        "thickness": 203.2,
+        "boss_diameter": 254,
+        "boss_height": 304.79999999999995,
+        "row": {
+          "count": 4,
+          "pitch": 635,
+          "axis": "X",
+          "offset_x": 0,
+          "offset_y": 0
+        }
+      }
+    },
+    {
+      "id": "edge-9",
+      "kind": "edge",
+      "prompt": "Build a 120 cm x 40 cm x 6 cm plate with five 6 cm bosses, 8 cm tall, spaced 20 cm along the back long edge 8 cm inset",
+      "args": {
+        "length": 1200,
+        "width": 400,
+        "thickness": 60,
+        "boss_diameter": 60,
+        "boss_height": 80,
+        "row": {
+          "count": 5,
+          "pitch": 200,
+          "axis": "X",
+          "offset_x": 0,
+          "offset_y": 120
+        }
+      }
+    },
+    {
+      "id": "circle-9",
+      "kind": "circle",
+      "prompt": "Make a 6.25 inches round base 0.25 in thick with 3 0.475 in posts 2.125 in long on a 3 in circle",
+      "args": {
+        "diameter": 158.75,
+        "thickness": 6.35,
+        "boss_diameter": 12.065,
+        "boss_height": 53.974999999999994,
+        "bolt_circle": {
+          "count": 3,
+          "diameter": 76.19999999999999
+        }
+      },
+      "fill": {
+        "diameter": "6.25 in",
+        "thickness": "0.25 in",
+        "boss_diameter": "0.475 in",
+        "boss_height": "2.125 in",
+        "bolt_circle_diameter": "3 in"
+      }
+    },
+    {
+      "id": "grid-9",
+      "kind": "grid",
+      "prompt": "hey, could you make me a 60 cm by 80 cm plate, 5 cm, with a 3 by 2 grid of 4 cm bosses 10 cm high, 20 cm apart",
+      "args": {
+        "length": 600,
+        "width": 800,
+        "thickness": 50,
+        "boss_diameter": 40,
+        "boss_height": 100,
+        "grid": {
+          "columns": 2,
+          "rows": 3,
+          "pitch_x": 200,
+          "pitch_y": 200
+        }
+      }
+    },
+    {
+      "id": "copies-9",
+      "kind": "copies",
+      "prompt": "a 100 cm x 100 cm x 8 cm plate with a 10 cm boss 12 cm tall, 4 instances 25 cm apart",
+      "args": {
+        "length": 1000,
+        "width": 1000,
+        "thickness": 80,
+        "boss_diameter": 100,
+        "boss_height": 120,
+        "row": {
+          "count": 4,
+          "pitch": 250,
+          "axis": "X",
+          "offset_x": 0,
+          "offset_y": 0
+        }
+      }
+    },
+    {
+      "id": "mixed-grid",
+      "kind": "grid",
+      "prompt": "hey, could you make me a 8 cm by 60 mm plate, 5 mm, with a 3 by 2 grid of 4 mm pins 1 cm high, 20 mm apart",
+      "args": {
+        "length": 80,
+        "width": 60,
+        "thickness": 5,
+        "boss_diameter": 4,
+        "boss_height": 10,
+        "grid": {
+          "columns": 3,
+          "rows": 2,
+          "pitch_x": 20,
+          "pitch_y": 20
+        }
+      }
+    },
+    {
+      "id": "shared-base-unit",
+      "kind": "copies",
+      "prompt": "a 100 x 100 x 8 mm plate with a 10 mm boss 12 mm tall, 4 copies 25 mm apart",
+      "args": {
+        "length": 100,
+        "width": 100,
+        "thickness": 8,
+        "boss_diameter": 10,
+        "boss_height": 12,
+        "row": {
+          "count": 4,
+          "pitch": 25,
+          "axis": "X",
+          "offset_x": 0,
+          "offset_y": 0
+        }
+      }
+    },
+    {
+      "id": "explicit-row",
+      "kind": "edge",
+      "prompt": "a 120 mm x 40 mm x 6 mm plate with a row of five 6 mm studs 8 mm high, 20 mm apart along the front long edge 8 mm inset",
+      "args": {
+        "length": 120,
+        "width": 40,
+        "thickness": 6,
+        "boss_diameter": 6,
+        "boss_height": 8,
+        "row": {
+          "count": 5,
+          "pitch": 20,
+          "axis": "X",
+          "offset_x": 0,
+          "offset_y": -12
+        }
+      }
+    },
+    {
+      "id": "chatty-shared-mm",
+      "kind": "grid",
+      "prompt": "hey, could you make me a 90 by 70 plate, 4 mm, with a 4 by 2 grid of 3 mm pins 8 mm high, 15 mm apart",
+      "args": {
+        "length": 90,
+        "width": 70,
+        "thickness": 4,
+        "boss_diameter": 3,
+        "boss_height": 8,
+        "grid": {
+          "columns": 4,
+          "rows": 2,
+          "pitch_x": 15,
+          "pitch_y": 15
+        }
+      }
+    },
+    {
+      "id": "mixed-circle",
+      "kind": "circle",
+      "prompt": "a 4 in round base 6 mm thick with three 0.5 in posts 2 cm long on a 75 mm circle",
+      "args": {
+        "diameter": 101.6,
+        "thickness": 6,
+        "boss_diameter": 12.7,
+        "boss_height": 20,
+        "bolt_circle": {
+          "count": 3,
+          "diameter": 75
+        }
+      }
+    }
+  ],
+  "declines": [
+    "a 120 x 40 x 6 mm bar with five 6 mm studs, 8 mm tall, spaced 20 mm along the long edge",
+    "a 100 mm x 100 mm x 8 mm plate without a 10 mm boss 12 mm tall, 4 copies 25 mm apart",
+    "a 100 mm x 100 mm x 8 mm plate with a 10 mm boss 12 mm tall, 4 copies 25 mm apart or a cylinder",
+    "a 100 mm x 100 mm x 8 mm plate with a 10 mm boss 12 mm tall, 4 copies 25 mm apart except one",
+    "a 100 mm x 100 mm x 8 mm plate with a 10 mm boss 12 mm tall, 4 or 5 copies 25 mm apart",
+    "a 100 mm x 100 mm x 8 mm plate with a 10 mm boss 12 mm tall, 4 copies 25 mm edge gap",
+    "a 100 mm x 100 mm x 8 mm plate with a 10 mm boss 12 mm tall, 4 copies 25 mm apart along Z",
+    "a 100 mm x 100 mm x 8 mm plate with a 10 mm boss 12 mm tall, 500 copies 25 mm apart",
+    "a 100 mm x 100 mm x 8 mm plate with a 10 mm boss 12 mm tall, 4 copies 2 mm apart",
+    "a 100 mm x 100 mm x 8 mm plate with a 10 mm boss 12 mm tall and 13 mm tall, 4 copies 25 mm apart",
+    "a 10 cm x 100 x 8 mm plate with a 10 mm boss 12 mm tall, 4 copies 25 mm apart",
+    "a 100 mm x 100 mm x 8 mm plate with a 10 mm boss 12 mm tall, 4 copies 25 mm apart don't build it",
+    "a 100 mm x 100 mm x 8 mm plate with a 10 mm boss 12 mm tall, 4 copies 25 mm apart, 10 mm apart",
+    "a 100 mm x 100 mm x 8 mm plate with a 10 mm boss 12 mm tall, 4 additional copies 25 mm apart",
+    "a 100 mm x 100 mm x 8 mm plate with a 10 mm boss 12 mm tall or short, 4 copies 25 mm apart",
+    "a 100 mm x 100 mm x 8 mm plate with a 10 mm boss 12 mm tall, 4 copies 25 mm apart with a hole",
+    "a 10 cm x 10 cm x 1 cm plate with a 1 cm boss 2 tall, 4 copies 2 cm apart",
+    "a 4 round base 0.25 in thick with three 0.01 in legs 0.1 in long on a 0.1 in circle"
+  ]
+}

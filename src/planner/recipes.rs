@@ -4,6 +4,7 @@ use std::f64::consts::PI;
 mod closed_profile;
 mod compound_plate;
 pub(crate) mod cross_drilled;
+mod repeated_boss;
 pub(crate) mod revolute;
 mod shell_box;
 pub(crate) mod shortcuts;
@@ -1520,6 +1521,29 @@ pub(super) fn report_decline(text: &str) -> (&'static str, Vec<String>) {
 }
 
 pub(super) fn select(
+    text: &str,
+    data: Option<&Value>,
+    messages: &[Value],
+    catalog: &Catalog,
+) -> Result<Option<Plan>, String> {
+    let previous = select_existing(text, data, messages, catalog)?;
+    if previous.is_some() {
+        return Ok(previous);
+    }
+    let input = Input {
+        text,
+        t: intent_tokens(text),
+        data,
+        messages,
+    };
+    let Some(args) = repeated_boss::parse(&input) else {
+        return Ok(None);
+    };
+    // Invalid geometry and unsupported combinations are form fallbacks, never rejections.
+    Ok(shortcuts::build(&args, &json!({"messages":messages}), catalog).ok())
+}
+
+fn select_existing(
     text: &str,
     data: Option<&Value>,
     messages: &[Value],
