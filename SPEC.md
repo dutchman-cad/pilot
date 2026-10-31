@@ -116,6 +116,13 @@ Request side:
   fill and route; `--no-shortcuts` disables forms and local recipe tools even with the offer flag.
   No upfront find-first fact is added.
 - Facts and hints are sent once per retained conversation, with existing-history deduplication.
+  The size fact (`unit_fact`, `src/unitfact.rs`) is one of them: when the latest user
+  message states sizes in inches (`in`, `inch`, `inches`, `"`, fractions and mixed numbers
+  such as `3/8"` or `1 1/2 in`) or cm, one system line `Sizes in mm: 1" = 25.4; 3/8" = 9.525.`
+  lists each size in request order (at most 16, mm rounded to 4 decimals, trailing zeros
+  trimmed). Bare numbers, mm sizes and a fraction without a unit add nothing; the request is
+  never changed. It is skipped on turns a recipe, form, route or exact match handles, and by
+  `--no-hints`.
   Relevant guidance is always sent regardless of the client's character count.
   `how` remains available unless disabled with `--no-how`; its shorter schema saves
   64 characters. MCP retains its separate tool-list behavior.

@@ -1268,6 +1268,7 @@ impl Proxy {
             }
         }
         let mut text_mode = profile.text_tool_mode || profile.native_support == Some(false);
+        let continuing_form = pending_form.is_some();
         let (continued_band, context_round) = if let Some((_, band, emitted, rounds)) = pending_form
         {
             if !fill::inspection_results(&original, &emitted) {
@@ -1338,6 +1339,25 @@ impl Proxy {
                 &Value::Null,
                 &json!({"recipe":found["id"],"score":found["score"]}),
             )?;
+        }
+        // Sizes in inches or cm: only when no recipe, form or exact match handles the turn.
+        if !self.cfg.no_hints
+            && !conversation.unit_fact_seen
+            && form_allowed
+            && !continuing_form
+            && recipe.is_none()
+            && fill_recipe.is_none()
+            && route_candidates.is_empty()
+            && conversation.recipe.is_none()
+            && conversation.direct.is_none()
+            && conversation.pending_recipe.is_none()
+        {
+            if let Some(fact) = prompting::append_unit_fact(&mut body)? {
+                audit.record("unit_fact", &Value::Null, &json!(fact))?;
+            }
+        }
+        if !self.cfg.no_hints && prompting::unit_fact_present(&body) {
+            conversation.unit_fact_seen = true;
         }
         if text_mode && fill_recipe.is_none() && route_candidates.is_empty() {
             text_mode::activate(&mut body, &tools, "profile_or_capabilities", audit)?;
@@ -4974,6 +4994,96 @@ mod tests {
             let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
             assert_eq!(log.contains("\"kind\":\"sketch_fact\""), !disabled);
         }
+    }
+
+    #[test]
+    fn unit_fact_is_added_once_audited_and_optional() {
+        for disabled in [false, true] {
+            let mut f = Fixture::new(vec![reply("Ready."); 3]);
+            f.proxy.cfg.no_hints = disabled;
+            let mut req = request();
+            req["messages"] =
+                json!([{"role":"user","content":"Cut a 3/8\" slot in a 1\" bar, 2 cm deep"}]);
+            let expected = "Sizes in mm: 3/8\" = 9.525; 1\" = 25.4; 2 cm = 20.";
+            f.chat(req.clone());
+            req["messages"].as_array_mut().unwrap().extend([
+                json!({"role":"assistant","content":"Ready."}),
+                json!({"role":"user","content":"Now a 1/8 in hole"}),
+            ]);
+            f.chat(req.clone());
+            req["messages"] = json!([{"role":"user","content":"a 20 mm box with a 5 hole"}]);
+            f.chat(req.clone());
+            let script = f.proxy.scripted.as_ref().unwrap().borrow();
+            for (n, sent) in script.requests.iter().enumerate() {
+                let all = sent["messages"].to_string();
+                assert_eq!(
+                    all.contains(&expected.replace('"', "\\\"")),
+                    !disabled && n < 2,
+                    "request {n}"
+                );
+                assert!(!all.contains("1/8\\\" = 3.175"), "once per conversation");
+            }
+            // The user text is never changed.
+            assert_eq!(
+                script.requests[0]["messages"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|m| m["role"] == "user")
+                    .unwrap()["content"],
+                "Cut a 3/8\" slot in a 1\" bar, 2 cm deep"
+            );
+            drop(script);
+            let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+            assert_eq!(
+                log.matches("\"kind\":\"unit_fact\"").count(),
+                usize::from(!disabled)
+            );
+        }
+    }
+
+    #[test]
+    fn unit_fact_skips_turns_without_sizes_and_recipe_turns() {
+        let mut f = Fixture::new(vec![reply("Ready."); 4]);
+        let mut req = request();
+        req["messages"] = json!([{"role":"user","content":"a 20 mm box"}]);
+        f.chat(req.clone());
+        assert!(!f.proxy.conversations[0].unit_fact_seen);
+        // A later turn with a size still gets the fact (nothing was sent before).
+        req["messages"].as_array_mut().unwrap().extend([
+            json!({"role":"assistant","content":"Ready."}),
+            json!({"role":"user","content":"make it 2 in tall"}),
+        ]);
+        f.chat(req.clone());
+        assert!(f.proxy.conversations[0].unit_fact_seen);
+        let script = f.proxy.scripted.as_ref().unwrap().borrow();
+        assert!(!script.requests[0].to_string().contains("Sizes in mm"));
+        assert!(script.requests[1].to_string().contains("Sizes in mm: 2"));
+    }
+
+    #[test]
+    fn unit_fact_is_not_added_when_a_recipe_handles_the_turn() {
+        let mut f = Fixture::with_shortcuts(vec![reply("Ready."); 2]);
+        f.proxy.cfg.direct_recipes = true;
+        f.proxy.cfg.no_shortcuts = false;
+        let mut req = request();
+        req["messages"] = json!([{"role":"user","content":"Create a box 1 in by 2 in by 3 in"}]);
+        let reply = f.chat(req.clone());
+        let upstream = f.proxy.scripted.as_ref().unwrap().borrow().requests.len();
+        let sent = f
+            .proxy
+            .scripted
+            .as_ref()
+            .unwrap()
+            .borrow()
+            .requests
+            .iter()
+            .any(|r| r.to_string().contains("Sizes in mm"));
+        assert!(
+            !sent,
+            "recipe-handled turn (upstream calls {upstream}) got a fact"
+        );
+        drop(reply);
     }
 
     #[test]
