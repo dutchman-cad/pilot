@@ -198,6 +198,11 @@ the real server as a child process (`--solidcraft-cli PATH`, plus pass-through a
    parameter docs, or "SolidCraft has no command for that" with the nearest alternative. Matching
    is deterministic (ids, labels, params docs, a small synonym table: round→fillet, bevel→chamfer,
    hollow→shell, ...), no model involved.
+   Hole help gives one concrete example for underside blind holes, side walls, angled or
+   offset faces, counterbores and wall rows, with entry-point and inward-direction rules.
+   Position failures name up to three nearby face planes from existing public results or
+   known box faces, including on-face points and outward normals. Plane distances do not
+   claim proximity to trimmed faces. No extra reads, call rewriting or automatic retries.
 2. **Errors that carry the fix.** When a forwarded call fails with an unknown command, an unknown
    or misnamed parameter, or a missing required parameter, append a `suggested` corrected call
    when exactly one correction is unambiguous (closest id; renamed key by case/punctuation/word
