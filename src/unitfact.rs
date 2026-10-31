@@ -226,6 +226,37 @@ fn millimetres(v: &Value, unit: Unit) -> Option<String> {
     })
 }
 
+/// Bounded numeric prefix shared with the overall-size check (including fractions).
+pub(crate) fn dimension_number(text: &str) -> Option<(f64, usize)> {
+    let c: Vec<char> = text.chars().take(128).collect();
+    if c.is_empty() || !(c[0].is_ascii_digit() || c[0] == '.') {
+        return None;
+    }
+    let (v, end) = number(&c, 0);
+    let v = v?;
+    let n = v.num as f64 / v.den as f64;
+    (n > 0.0 && n <= 1_000_000.0).then(|| (n, c[..end].iter().map(|c| c.len_utf8()).sum()))
+}
+
+/// Explicit length unit prefix; reuse the inch/preposition rules above.
+pub(crate) fn dimension_unit(text: &str) -> Option<(f64, usize)> {
+    let c: Vec<char> = text.chars().take(64).collect();
+    let word: String = c.iter().take_while(|c| c.is_alphabetic()).collect();
+    let factor = match word.to_lowercase().as_str() {
+        "mm" | "millimeter" | "millimeters" | "millimetre" | "millimetres" => 1.0,
+        _ => match unit_at(&c, 0)? {
+            Unit::Inch => 25.4,
+            Unit::Cm => 10.0,
+        },
+    };
+    let end = if c.first().is_some_and(|c| is_quote(*c)) {
+        c[0].len_utf8()
+    } else {
+        word.len()
+    };
+    (end > 0).then_some((factor, end))
+}
+
 /// `1" = 25.4` style entries for every unambiguous inch or cm size, in request order.
 pub fn sizes(text: &str) -> Vec<String> {
     let c: Vec<char> = text.chars().take(MAX_SCAN).collect();

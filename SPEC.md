@@ -183,6 +183,19 @@ it as a well-formed stream):
    multiple bodies gets at most one hand-back per user turn, repeating the measured
    fact when available or reporting the count without an unverified join.
 
+6. **Overall-size completion check, without a recipe.** In default and model-only modes,
+   outside `--no-hints`, a nonempty final reply gets one hand-back per user turn when
+   complete public bounds for one body clearly disagree with one unambiguous stated
+   overall size. Recognise a product's three dimensions with explicit units (including
+   a shared trailing unit), or one explicitly labelled overall length, width, height,
+   thickness or diameter. Reuse inch, fractional inch and cm parsing. Compare in any
+   axis order, within 0.01 mm or 0.1%, whichever is larger. Report measured bounds
+   against the stated size. Reuse current conversation measurements; if needed, emit
+   at most one `document.inspect` with `measure:true` through the normal client tool
+   path after a successful model action. Failed reads consume the attempt. Stale,
+   partial or invalid bounds, feature sizes, several parts and unclear wording add
+   nothing. Never change or reject a model call. Recipe turns keep their own checks.
+
 Pilot does not depend on SolidCraft crates; it talks to SolidCraft only through its public
 interfaces.
 
