@@ -841,8 +841,9 @@ impl Ranker for Bm25 {
             });
         // New base dimensions plus features belong to the compound plate form.
         // Pronouns and copy/repeat verbs keep edits on existing-part forms.
+        // Match the ranker's tokens: "existing" loses its "ing" suffix.
         let existing = [
-            "that", "this", "existing", "copy", "copie", "repeat", "these", "those", "selected",
+            "that", "this", "exist", "copy", "copie", "repeat", "these", "those", "selected",
             "current", "last", "already", "into",
         ]
         .iter()

@@ -278,6 +278,15 @@ pub(super) fn offer_route(outgoing: &mut Value, candidates: &[Value]) -> Result<
 }
 
 pub(super) fn picked(response: &Value, candidates: &[Value]) -> Option<Value> {
+    let args = route_args(response)?;
+    candidates
+        .iter()
+        .take(4)
+        .find(|r| r["id"] == args["recipe"])
+        .cloned()
+}
+
+fn route_args(response: &Value) -> Option<Value> {
     let choices = response["choices"].as_array().filter(|c| c.len() == 1)?;
     let calls = choices[0]["message"]["tool_calls"]
         .as_array()
@@ -294,11 +303,103 @@ pub(super) fn picked(response: &Value, candidates: &[Value]) -> Option<Value> {
     if args.as_object()?.len() != 1 {
         return None;
     }
-    candidates
+    Some(args)
+}
+
+/// Recover only an explicit abstention, never an invalid answer or a selected
+/// form. This offers extraction once; it supplies no slots and cannot execute
+/// without the usual decline, validation, inspection and shared request caps.
+pub(super) fn pattern_after_none(
+    response: &Value,
+    candidates: &[Value],
+    request: &Value,
+) -> Option<Value> {
+    if route_args(response)?["recipe"] != "none" {
+        return None;
+    }
+    let text = last_user(request);
+    if text.len() > 2048 {
+        return None;
+    }
+    let lower = text.to_ascii_lowercase();
+    let words: Vec<_> = lower
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .collect();
+    let has = |terms: &[&str]| words.iter().any(|w| terms.contains(w));
+    if !has(&["peg", "pegs", "boss", "bosses", "hole", "holes"])
+        || has(&["cone", "cones", "text", "file", "files", "clipboard"])
+    {
+        return None;
+    }
+    // Abstain on ambiguous, negative, explanatory or unsupported operations.
+    // These guards apply only to recovery, never to the model's chosen form.
+    if has(&[
+        "not",
+        "no",
+        "don",
+        "without",
+        "or",
+        "maybe",
+        "perhaps",
+        "if",
+        "explain",
+        "describe",
+        "compare",
+        "how",
+        "what",
+        "why",
+        "remove",
+        "delete",
+        "draw",
+        "sketch",
+        "variable",
+        "unequal",
+        "random",
+        "spiral",
+        "helical",
+        "staggered",
+        "honeycomb",
+        "gear",
+        "loft",
+        "sweep",
+        "twisted",
+        "fillet",
+        "chamfer",
+        "shell",
+    ]) {
+        return None;
+    }
+    let grid = has(&["grid"])
+        || (has(&["rows"]) && has(&["columns"]))
+        || (has(&["rectangular"]) && has(&["array"]));
+    let circle = has(&["circular", "radial", "circumference", "around"]);
+    let row = has(&["row", "linear"])
+        || (!grid && !circle && has(&["pattern", "repeat", "array"]) && has(&["x", "y", "z"]));
+    if usize::from(grid) + usize::from(row) + usize::from(circle) != 1 {
+        return None;
+    }
+    let id = planner::patterns::intent(text)?;
+    if !matches!(id, "grid_pattern" | "linear_pattern" | "circular_pattern") {
+        return None;
+    }
+    // A fresh complete inspection must resolve an actual target. Empty designs,
+    // multiple unselected bodies and failed inspections retain native tools.
+    let hole = has(&["hole", "holes"]);
+    if (hole && has(&["peg", "pegs", "boss", "bosses"]))
+        || !planner::form_context::pattern_seed_matches(request, hole)
+    {
+        return None;
+    }
+    let mut matching = candidates
         .iter()
         .take(4)
-        .find(|r| r["id"] == args["recipe"])
-        .cloned()
+        .filter(|r| r["id"] == id && r["schema"]["x-pilot-expander"] == id);
+    let recipe = matching.next()?;
+    if matching.next().is_some() {
+        return None;
+    }
+    Some(recipe.clone())
 }
 
 pub(super) enum Outcome {
@@ -306,6 +407,213 @@ pub(super) enum Outcome {
     Decline,
     Fallback,
     Invalid(String),
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
+mod route_recovery_tests {
+    use super::*;
+    mod dev_pattern_route {
+        include!("../../tests/support/dev_pattern_route.rs");
+    }
+
+    #[test]
+    fn replay_development_pattern_routes() {
+        let library = crate::recipe_library::Library::embedded().unwrap();
+        let mut failures = Vec::new();
+        let cases = dev_pattern_route::cases()
+            .into_iter()
+            .map(|(k, id, t)| (k, id, t.to_owned()))
+            .chain(dev_pattern_route::chatty_cases());
+        for (kind, expected, text) in cases {
+            let setup = dev_pattern_route::setup(kind);
+            let band = library.form_band(&text).unwrap();
+            let candidates = band["recipes"].as_array().unwrap();
+            let mut wire = dev_pattern_route::request(&text, &setup);
+            offer_route(&mut wire, candidates).unwrap();
+            eprintln!(
+                "{expected}: {text} => {} {}",
+                band["band"],
+                candidates
+                    .iter()
+                    .map(|r| r["id"].as_str().unwrap())
+                    .collect::<Vec<_>>()
+                    .join(",")
+            );
+            if band["band"] == "low"
+                || !candidates.iter().any(|r| r["id"] == expected)
+                || (band["band"] == "fill" && candidates[0]["id"] != expected)
+            {
+                failures.push(format!("wrong band/candidates: {text}"));
+            }
+            if !wire["messages"][1]["content"]
+                .as_str()
+                .unwrap()
+                .contains("Design context:")
+            {
+                failures.push(format!("missing inspected context: {text}"));
+            }
+            let none = json!({"choices":[{"message":{"tool_calls":[{"function":{"name":"pilot_route","arguments":"{\"recipe\":\"none\"}"}}]}}]});
+            if pattern_after_none(
+                &none,
+                candidates,
+                &dev_pattern_route::request(&text, &setup),
+            )
+            .is_none_or(|r| r["id"] != expected)
+            {
+                failures.push(format!("no recovery: {text}"));
+            }
+        }
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
+    }
+
+    #[test]
+    fn pattern_none_recovery_preserves_negative_and_model_choices() {
+        let library = crate::recipe_library::Library::embedded().unwrap();
+        let band = library
+            .form_band("grid pattern of this peg, 3 rows 4 columns")
+            .unwrap();
+        let candidates = band["recipes"].as_array().unwrap();
+        let setup = dev_pattern_route::setup("peg");
+        let response = |args: Value| json!({"choices":[{"message":{"tool_calls":[{"function":{"name":"pilot_route","arguments":args.to_string()}}]}}]});
+        let none = response(json!({"recipe":"none"}));
+        for text in [
+            "Explain a grid of pegs on this plate",
+            "Do not make a grid of pegs on this plate",
+            "Remove the grid of pegs from this plate",
+            "Maybe repeat this peg in a grid",
+            "Repeat this peg in a grid or a circle",
+            "A grid of pegs with variable spacing",
+            "Draw a grid of holes in a sketch",
+            "Repeat text about pegs in a spreadsheet grid",
+            "Add a spiral of pegs to this plate",
+            "Make a grid of cones and pegs on this plate",
+            "Make the plate thicker",
+            "Repeat this peg",
+            "How do I pattern 4 pegs in a grid?",
+            "What is a circular pattern of 6 holes?",
+            "Repeat this peg in a grid and chamfer the plate",
+        ] {
+            assert!(
+                pattern_after_none(&none, candidates, &dev_pattern_route::request(text, &setup))
+                    .is_none(),
+                "{text}"
+            );
+            // Wording guards never invalidate an explicit model selection.
+            assert_eq!(
+                picked(&response(json!({"recipe":"grid_pattern"})), candidates).unwrap()["id"],
+                "grid_pattern"
+            );
+        }
+        let text = "Repeat this peg in a grid, 3 rows 4 columns";
+        let request = dev_pattern_route::request(text, &setup);
+        for args in [
+            json!({"recipe":"grid_pattern"}),
+            json!({"recipe":"invented"}),
+            json!({"recipe":"none","extra":true}),
+            json!({}),
+        ] {
+            assert!(pattern_after_none(&response(args), candidates, &request).is_none());
+        }
+        assert!(pattern_after_none(&none, &[], &request).is_none());
+        let grid = candidates
+            .iter()
+            .find(|r| r["id"] == "grid_pattern")
+            .unwrap()
+            .clone();
+        let mut outside_offer = vec![json!({"id":"unrelated"}); 4];
+        outside_offer.push(grid.clone());
+        assert!(pattern_after_none(&none, &outside_offer, &request).is_none());
+        assert!(pattern_after_none(&none, &[grid.clone(), grid], &request).is_none());
+        assert!(pattern_after_none(
+            &none,
+            candidates,
+            &dev_pattern_route::request(&"x".repeat(2049), &setup)
+        )
+        .is_none());
+        assert!(pattern_after_none(
+            &none,
+            candidates,
+            &json!({"messages":[{"role":"user","content":text}]})
+        )
+        .is_none());
+        for bodies in [json!([]), json!([{"name":"A"},{"name":"B"}])] {
+            let mut setup = setup.clone();
+            setup["document"]["bodies"] = bodies;
+            assert!(pattern_after_none(
+                &none,
+                candidates,
+                &dev_pattern_route::request(text, &setup)
+            )
+            .is_none());
+        }
+        for replacement in [
+            json!({}),
+            json!({"id":2,"name":"Cylinder1","type":"BoxFeature","definition":{"operation":"new_body"}}),
+            json!({"id":2,"name":"Cylinder1","type":"CylinderFeature","definition":{"operation":"join","participants":["Other"]}}),
+        ] {
+            let mut unseeded = setup.clone();
+            unseeded["detail"] = replacement;
+            assert!(pattern_after_none(
+                &none,
+                candidates,
+                &dev_pattern_route::request(text, &unseeded)
+            )
+            .is_none());
+        }
+        assert!(pattern_after_none(
+            &none,
+            candidates,
+            &dev_pattern_route::request("Repeat this hole in a grid, 3 rows 4 columns", &setup)
+        )
+        .is_none());
+        let mut malformed = none.clone();
+        malformed["choices"][0]["message"]["tool_calls"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"function":{"name":"pilot_route","arguments":"{\"recipe\":\"none\"}"}}));
+        assert!(pattern_after_none(&malformed, candidates, &request).is_none());
+    }
+
+    #[test]
+    fn development_pattern_route_setups_match_public_binary() {
+        let Some(cli) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+            return;
+        };
+        for kind in ["peg", "hole", "boss"] {
+            let setup = dev_pattern_route::setup(kind);
+            let path = std::env::temp_dir().join(format!(
+                "pilot-route-setup-{}-{kind}.json",
+                std::process::id()
+            ));
+            std::fs::write(&path, serde_json::to_vec(&setup["commands"]).unwrap()).unwrap();
+            let result = std::process::Command::new(&cli)
+                .arg("eval")
+                .arg(&path)
+                .output()
+                .unwrap();
+            std::fs::remove_file(path).unwrap();
+            assert!(
+                result.status.success(),
+                "{kind}: {}",
+                String::from_utf8_lossy(&result.stderr)
+            );
+            let measured: Value = serde_json::from_slice(&result.stdout).unwrap();
+            assert_eq!(measured["bodies"].as_array().unwrap().len(), 1);
+            for end in ["min", "max"] {
+                for axis in 0..3 {
+                    let actual = measured["bodies"][0]["bbox"][end][axis].as_f64().unwrap();
+                    let expected = setup["document"]["bodies"][0]["bbox"][end][axis]
+                        .as_f64()
+                        .unwrap();
+                    assert!(
+                        (actual - expected).abs() < 0.001,
+                        "{kind} {end}/{axis}: {actual} != {expected}"
+                    );
+                }
+            }
+        }
+    }
 }
 
 /// A corner-only form cannot fulfill a separate request to create holes.
