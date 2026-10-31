@@ -3,7 +3,7 @@
 For requests without a recipe, Pilot can repair these explicit calls conservatively:
 
 - Invented `solid.cut`, `solid.subtract`, `solid.difference`, `solid.union` and spelling variants become `solid.combine` with `target`, `tools` and `operation`. Both sides must name distinct bodies; Pilot never guesses the target or swaps the operands.
-- Extrude operations `new solid` / `new body`, `add` / `union`, and `subtract` / `remove` become `new`, `join`, and `cut` respectively. Native operations, including `auto`, retain their meaning.
+- Extrude operations `new solid` and `remove`, which SolidCraft rejects, become `new` and `cut`. Words SolidCraft accepts itself (`add`, `union`, `subtract`, `new body`) and native operations, including `auto`, stay as written.
 - A misplaced sketch origin can be moved into an explicit plane when a principal plane fixes its axes. Explicit axes or face points can be nested when no other plane competes. A normal alone does not fix sketch rotation. Numeric `X=10`, `Y=4`, or `Z=5` planes become `YZ`, `XZ`, or `XY` plus an offset. Top-level `offset` is already valid SolidCraft syntax and is preserved.
 - Hole positions `{x,y,z}` become world coordinate arrays; numeric coordinate strings can become numbers. Length expressions stay expressions. A 2D position and a face label still need the missing world coordinate: Pilot never invents it.
 - A single move body becomes a one-element `bodies` list. Fillet indices become `{body,index}` only with an explicit body. Edge names need an index or world point from inspection; `Edge1` is never assumed to mean index 0 or 1.

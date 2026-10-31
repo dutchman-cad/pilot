@@ -20,11 +20,11 @@ pub fn accepted() -> Vec<(Value, Value)> {
     }
     for (word, op) in [
         ("new solid", "new"),
-        ("new body", "new"),
-        ("add", "join"),
-        ("subtract", "cut"),
+        ("New Solid", "new"),
+        ("new_solid", "new"),
         ("remove", "cut"),
-        ("union", "join"),
+        ("Remove", "cut"),
+        ("REMOVE", "cut"),
     ] {
         cases.push((
             json!({"command":"solid.extrude","params":{"distance":7,"operation":word}}),
@@ -76,7 +76,6 @@ pub fn refused() -> Vec<Value> {
         json!({"command":"solid.union","params":{"target":"Blank","tools":["Blank"]}}),
         json!({"command":"solid.cut","params":{"target":"Blank","tools":["*"]}}),
         json!({"command":"solid.cut","params":{"target":"Blank","tools":[0]}}),
-        json!({"command":"solid.extrude","params":{"distance":7,"operation":"add or subtract"}}),
         json!({"command":"sketch.create","params":{"plane":"Z=5","offset":4}}),
         json!({"command":"sketch.create","params":{"plane":"X=10","origin":[1,2,3]}}),
         json!({"command":"sketch.create","params":{"plane":{},"normal":[0,0,1],"origin":[0,0,5]}}),

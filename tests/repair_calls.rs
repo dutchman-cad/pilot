@@ -44,6 +44,11 @@ fn callrepair_preserves_native_forms_expressions_and_catalogue_commands() {
     for mut call in [
         json!({"command":"solid.combine","params":{"target":"A","tools":["B"],"operation":"intersect"}}),
         json!({"command":"solid.extrude","params":{"distance":"width / 2","operation":"auto"}}),
+        // SolidCraft accepts these operation words itself.
+        json!({"command":"solid.extrude","params":{"distance":5,"operation":"add"}}),
+        json!({"command":"solid.extrude","params":{"distance":5,"operation":"union"}}),
+        json!({"command":"solid.extrude","params":{"distance":5,"operation":"subtract"}}),
+        json!({"command":"solid.extrude","params":{"distance":5,"operation":"new body"}}),
         json!({"command":"sketch.create","params":{"plane":"XY","offset":"height + 2"}}),
         json!({"command":"sketch.create","params":{"plane":{"face":[1,2,3],"body":"A","index":2}}}),
         json!({"command":"solid.hole","params":{"position":["width / 2",3,"height"],"diameter":"bolt"}}),

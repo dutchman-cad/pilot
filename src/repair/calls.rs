@@ -218,20 +218,15 @@ fn reshape(step: &mut Value, catalog: &Catalog) -> Result<(), String> {
     match id.as_str() {
         "solid.extrude" => {
             if let Some(op) = p.get("operation").and_then(Value::as_str) {
+                // Only words SolidCraft rejects; its own aliases (add, union, subtract,
+                // new body) stay as written.
                 let replacement = match normalized(op).as_str() {
-                    "newsolid" | "newbody" => Some("new"),
-                    "add" | "union" => Some("join"),
-                    "subtract" | "remove" => Some("cut"),
+                    "newsolid" => Some("new"),
+                    "remove" => Some("cut"),
                     _ => None,
                 };
                 if let Some(op) = replacement {
                     p.insert("operation".into(), json!(op));
-                } else if !["new", "join", "cut", "intersect", "auto"].contains(&op) {
-                    return Err(error(
-                        "solid.extrude operation must be new, join, cut, intersect or auto",
-                        &id,
-                        p,
-                    ));
                 }
             }
         }
