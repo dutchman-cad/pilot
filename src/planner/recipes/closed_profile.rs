@@ -26,6 +26,7 @@ pub(super) fn candidate(i: &Input<'_>) -> bool {
             "dimensions",
             "constrain",
             "defined",
+            "profile",
         ]))
 }
 
@@ -277,17 +278,6 @@ pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
         return None;
     };
     let mut shape = *shape;
-    if shape == "R"
-        && !i.any(&[
-            "constrained",
-            "dimensioned",
-            "dimensions",
-            "constrain",
-            "defined",
-        ])
-    {
-        return None;
-    }
     let stem_centred = shape == "T" && i.has("stem") && i.has("under") && i.has("flange");
     if !i.has("origin")
         && (i.any(&["at", "corner"]) || (i.any(&["centred", "centered"]) && !stem_centred))
