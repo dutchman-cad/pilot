@@ -29,6 +29,7 @@ pub(super) struct Conversation {
     pub pattern_inspections: usize,
     pub form_pending: Option<(usize, Value, Value, usize)>,
     pub body_hint: body_hint::State,
+    pub sizecheck: sizecheck::State,
     /// User turn and count of Pilot's own design reads for the edit fact.
     pub edit_ctx: Option<(usize, usize)>,
 }

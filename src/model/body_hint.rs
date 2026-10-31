@@ -28,7 +28,7 @@ impl State {
 
 // Deliberately conservative: plural product nouns, mechanisms and explicit separation
 // suppress guidance, even when an assembly's pieces happen to touch.
-fn one_part(request: &str) -> bool {
+pub(super) fn allows_one_part(request: &str) -> bool {
     let words: Vec<_> = request
         .split(|c: char| !c.is_alphanumeric())
         .filter(|w| !w.is_empty())
@@ -90,6 +90,17 @@ fn one_part(request: &str) -> bool {
     }) {
         return false;
     }
+    true
+}
+fn one_part(request: &str) -> bool {
+    if !allows_one_part(request) {
+        return false;
+    }
+    let words: Vec<_> = request
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .map(str::to_lowercase)
+        .collect();
     words.iter().any(|w| {
         matches!(
             w.as_str(),
@@ -475,4 +486,10 @@ pub(super) fn completion(request: &Value, catalog: &Catalog) -> Option<String> {
     }
     let n = e.document.as_ref()?["bodies"].as_array()?.len();
     (n > 1).then(|| format!("{MARKER} The design has {n} separate bodies for this one-part request; verify contact and join the intended features, or explain why they must remain separate."))
+}
+
+/// Complete, current public document evidence, invalidated by successful mutations.
+pub(super) fn size_evidence(request: &Value) -> (Option<Value>, bool) {
+    let e = evidence(request);
+    (e.document, e.acted)
 }
