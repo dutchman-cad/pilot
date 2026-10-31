@@ -2343,3 +2343,6 @@ fn enclosure_opening_follows_the_named_part() {
         assert_eq!(args["open"].as_str(), open, "{text}");
     }
 }
+
+#[path = "support/dev_l_notation.rs"]
+mod dev_l_notation;
