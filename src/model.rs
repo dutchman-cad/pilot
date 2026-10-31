@@ -941,6 +941,7 @@ impl Proxy {
         // to this request. Preserve conversation-wide facts and hints only.
         if form_allowed {
             conversation.form_pending = None;
+            conversation.edit_ctx = None;
             conversation.recipe = None;
             conversation.completion_checked = false;
             conversation.pending_recipe = None;
@@ -968,12 +969,27 @@ impl Proxy {
             conversation.direct = None;
             conversation.direct_failed = false;
         }
+        // Pilot's own design reads for the edit fact must not make a recipe
+        // fire that the user's bare request would not have fired.
+        let edit_reads = conversation
+            .edit_ctx
+            .is_some_and(|(i, _)| i == user_index && !form_allowed);
+        let planning_view = if edit_reads {
+            let mut view = body.clone();
+            if let Some(messages) = view["messages"].as_array_mut() {
+                messages.truncate(user_index + 1);
+            }
+            view
+        } else {
+            Value::Null
+        };
+        let planning = if edit_reads { &planning_view } else { &body };
         let mut recipe = if pending_form.is_some() {
             None
         } else if self.cfg.direct_recipes {
-            planner::plan_direct(&body, &self.catalog)?
+            planner::plan_direct(planning, &self.catalog)?
         } else if self.cfg.planner {
-            planner::plan(&body, &self.catalog)?
+            planner::plan(planning, &self.catalog)?
         } else {
             None
         };
@@ -1396,6 +1412,34 @@ impl Proxy {
                 }
             }
         }
+        if !self.cfg.no_hints
+            && !self.cfg.solidcraft98
+            && recipe.is_none()
+            && fill_recipe.is_none()
+            && route_candidates.is_empty()
+            && tools.iter().any(|t| t["function"]["name"] == "execute")
+        {
+            let mine = conversation.edit_ctx.filter(|(i, _)| *i == user_index);
+            let rounds = mine.map_or(0, |m| m.1);
+            match planner::edit_fact::step(&original, &self.catalog, mine.is_some(), rounds)? {
+                planner::edit_fact::Step::Skip => conversation.edit_ctx = None,
+                planner::edit_fact::Step::Reads(reads) => {
+                    let calls: Vec<_> = reads.into_iter().enumerate().map(|(n,c)| json!({"id":format!("pilot_edit_{user_index}_{rounds}_{n}"),"type":"function","function":{"name":c["tool"],"arguments":c["arguments"].to_string()}})).collect();
+                    let message = json!({"role":"assistant","content":null,"tool_calls":calls});
+                    conversation.edit_ctx = Some((user_index, rounds + 1));
+                    audit.record("edit_fact_inspect", &Value::Null, &message)?;
+                    return direct::native(&original, message, audit.count);
+                }
+                planner::edit_fact::Step::Fact(fact) => {
+                    conversation.edit_ctx = None;
+                    body["messages"]
+                        .as_array_mut()
+                        .ok_or("messages must be an array")?
+                        .push(json!({"role":"system","content":format!("{} {fact}",crate::identity::HINT)}));
+                    audit.record("edit_fact", &Value::Null, &json!(fact))?;
+                }
+            }
+        }
         if text_mode && fill_recipe.is_none() && route_candidates.is_empty() {
             text_mode::activate(&mut body, &tools, "profile_or_capabilities", audit)?;
         }
@@ -1416,7 +1460,41 @@ impl Proxy {
         // Freeze the current answer's result block before retry nudges append
         // assistant/user messages; those nudges must not make its evidence old.
         let answering = history::answering_start(&body);
+        let mut edit_fact_added = body["messages"].as_array().is_some_and(|ms| {
+            ms.iter().any(|m| {
+                prompting::message_text(&m["content"]).contains(planner::edit_fact::MARKER)
+            })
+        });
         for wire_attempt in 0..=7 {
+            // A declined form leaves its design reads in the history: use them.
+            if !edit_fact_added
+                && form_attempts > 0
+                && fill_recipe.is_none()
+                && route_candidates.is_empty()
+                && !self.cfg.no_hints
+            {
+                edit_fact_added = true;
+                if let Some(fact) = planner::edit_fact::from_form_reads(&original) {
+                    body["messages"]
+                        .as_array_mut()
+                        .ok_or("messages must be an array")?
+                        .push(json!({"role":"system","content":format!("{} {fact}",crate::identity::HINT)}));
+                    audit.record("edit_fact", &Value::Null, &json!(fact))?;
+                } else if conversation.edit_ctx.is_none()
+                    && tools.iter().any(|t| t["function"]["name"] == "execute")
+                {
+                    // The form needed no reads, so the design is still unread.
+                    if let planner::edit_fact::Step::Reads(reads) =
+                        planner::edit_fact::step(&original, &self.catalog, false, 0)?
+                    {
+                        let calls: Vec<_> = reads.into_iter().enumerate().map(|(n,c)| json!({"id":format!("pilot_edit_{user_index}_0_{n}"),"type":"function","function":{"name":c["tool"],"arguments":c["arguments"].to_string()}})).collect();
+                        let message = json!({"role":"assistant","content":null,"tool_calls":calls});
+                        conversation.edit_ctx = Some((user_index, 1));
+                        audit.record("edit_fact_inspect", &Value::Null, &message)?;
+                        return direct::native(&original, message, audit.count);
+                    }
+                }
+            }
             if form_attempts >= 4 && (fill_recipe.is_some() || !route_candidates.is_empty()) {
                 fill_recipe = None;
                 route_candidates.clear();

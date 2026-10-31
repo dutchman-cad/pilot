@@ -101,6 +101,21 @@ a radius 5, height 20 cylinder (approximately [-5,-5,0] to [5,5,20]), and a
 radius 5 sphere ([-5,-5,-5] to [5,5,5]). Thus the sphere's centre defaults to
 the origin; the cylinder's bottom centre defaults to the origin.
 
+On the first turn of an edit-shaped request (wording that refers to the part that
+exists: it, the hole, the part, those, existing, instead, add ... to) with no recipe,
+form or `--no-hints`, Pilot reads the design once through the client: one
+`document.inspect` and then one `timeline.inspect` per listed feature (sketches are
+not inspected), at most two rounds. It then adds one system fact of at most 1,200
+characters: `Design: Body1 box 60 x 40 x 10 mm at X 0..60, Y 0..40, Z 0..10. Features:
+Box1 (length 60, width 40, height 10), Hole1 (diameter 6, through, at (30, 20, 10)).`
+It lists at most 12 bodies and the last 12 features with their editable inputs. For a
+plain size change on one unambiguous feature it ends with the exact call, for example
+`execute timeline.edit {"feature":"Hole1","set":{"diameter":"8"}}` (nested fields use
+dotted keys, such as `extent.distance`); otherwise with the generic `timeline.edit`
+form. New-part requests, questions, empty designs and recipe-handled turns get nothing,
+and the fact is audited as `edit_fact` (reads as `edit_fact_inspect`). It is never a
+rewrite or rejection. Development cases: `tests/dev_edit_fact.rs`.
+
 Plan-text recipes require `--planner` and are off by default. `--no-plan` (alias
 `--no-planner`) is accepted as a no-op alias for the default. Independent direct
 answering enables exact-match calls and measured replies by default with normal
