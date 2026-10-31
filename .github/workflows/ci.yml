@@ -78,6 +78,14 @@ jobs:
       - run: cargo test --locked --all-targets
       - run: cargo test --locked --all-targets --no-default-features --features core
       - run: cargo check --locked --lib --target wasm32-unknown-unknown --no-default-features --features core
+  blind-wording:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: python3 scripts/leak-check.py
   binary:
     # A Linux release binary for each commit, so benchmarks use what CI built.
     runs-on: ubuntu-24.04
