@@ -22,6 +22,14 @@ impl Session {
     }
     fn with_flags(cli: &std::path::Path, args: &[&str], flags: &[&str]) -> Self {
         let log = cli.parent().unwrap().join("rewrites.jsonl");
+        Self::with_log(cli, args, flags, &log)
+    }
+    fn with_log(
+        cli: &std::path::Path,
+        args: &[&str],
+        flags: &[&str],
+        log: &std::path::Path,
+    ) -> Self {
         let mut child = Command::new(env!("CARGO_BIN_EXE_dutchman-pilot"))
             .args(["mcp", "--solidcraft-cli"])
             .arg(cli)
@@ -595,4 +603,62 @@ fn plane_guidance_is_shared_audited_and_optional() {
     let audit = std::fs::read_to_string(path.parent().unwrap().join("rewrites.jsonl")).unwrap();
     assert!(audit.contains("sketch_axes_fact"));
     assert!(audit.contains("plane_hint"));
+}
+
+#[path = "support/callrepair_cases.rs"]
+mod callrepair_cases;
+#[test]
+fn callrepair_mcp_suggests_only_failed_step_and_audits() {
+    let Some(cli) = std::env::var_os("PILOT_SOLIDCRAFT_CLI") else {
+        return;
+    };
+    let log =
+        std::env::temp_dir().join(format!("pilot-callrepair-mcp-{}.jsonl", std::process::id()));
+    let mut session = Session::with_log(
+        &PathBuf::from(cli),
+        &["--headless"],
+        &["--no-plan", "--no-hints"],
+        &log,
+    );
+    session.initialize();
+    for (i, (before, expected)) in callrepair_cases::accepted().into_iter().enumerate() {
+        session.call(1000 + i as u64, "new_design", json!({}));
+        let reply = session.call(i as u64 + 1, "execute", before.clone());
+        let text = reply.to_string();
+        assert!(
+            reply["error"].is_object() || reply["result"]["isError"] == true,
+            "{before}: {reply}"
+        );
+        let raw = if reply["error"].is_object() {
+            reply["error"]["message"].as_str().unwrap().to_string()
+        } else {
+            texts(&reply)
+        };
+        let suggested = raw
+            .lines()
+            .find_map(|l| l.strip_prefix("suggested: "))
+            .unwrap_or_else(|| panic!("{before}: {text}"));
+        let suggested: Value = serde_json::from_str(suggested).unwrap();
+        assert_eq!(suggested, json!({"tool":"execute","arguments":expected}));
+    }
+    for (i, before) in callrepair_cases::refused().into_iter().enumerate() {
+        let reply = session.call(2000 + i as u64, "execute", before.clone());
+        assert!(reply.to_string().contains("; use {"), "{before}: {reply}");
+    }
+    let batch = json!({"commands":[{"command":"sketch.create","params":{"plane":"Z=5"}},{"command":"sketch.circle.center","params":{"center":[0,0],"radius":3}}],"rollback":false});
+    let reply = session.call(99, "batch", batch);
+    assert!(texts(&reply).contains("earlier sketch.create at batch step 0 failed:"));
+    let raw = texts(&reply);
+    let suggested: Value = serde_json::from_str(
+        raw.lines()
+            .find_map(|l| l.strip_prefix("suggested: "))
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(suggested["tool"], "execute");
+    assert_eq!(suggested["arguments"]["command"], "sketch.create");
+    let audit = std::fs::read_to_string(&log).unwrap();
+    assert!(audit.contains("suggested_call"));
+    assert!(audit.contains("sketch_dependency_error"));
+    std::fs::remove_file(log).unwrap();
 }
