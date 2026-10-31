@@ -1417,6 +1417,8 @@ impl Proxy {
             && recipe.is_none()
             && fill_recipe.is_none()
             && route_candidates.is_empty()
+            // Recipe tools offered: the model may build the whole request itself.
+            && !shortcuts_offered
             && tools.iter().any(|t| t["function"]["name"] == "execute")
         {
             let mine = conversation.edit_ctx.filter(|(i, _)| *i == user_index);
@@ -4644,6 +4646,24 @@ mod tests {
                 {"role":"assistant","content":"Done."},
                 {"role":"user","content":"round all the edges"}
             ]);
+            // "round all the edges" refers to the open design: Pilot reads it
+            // first. An empty design adds nothing, so the model is called next.
+            let first: Value = serde_json::from_slice(&f.chat(req.clone()).body).unwrap();
+            let read = first["choices"][0]["message"].clone();
+            let ids: Vec<_> = read["tool_calls"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|c| c["id"].as_str().unwrap().to_string())
+                .collect();
+            assert!(
+                ids.iter().all(|id| id.starts_with("pilot_edit_")),
+                "{ids:?}"
+            );
+            req["messages"].as_array_mut().unwrap().push(read);
+            for id in ids {
+                req["messages"].as_array_mut().unwrap().push(json!({"role":"tool","tool_call_id":id,"content":json!({"bodies":[],"timeline":[]}).to_string()}));
+            }
             f.chat(req);
             let script = f.proxy.scripted.as_ref().unwrap().borrow();
             assert_eq!(script.requests.len(), 2);
@@ -7539,6 +7559,35 @@ mod tests {
             "../tests/fixtures/public-constraints-l1-fill-guard.json"
         ))
         .unwrap()
+    }
+
+    #[test]
+    fn pilots_edit_read_is_not_an_accepted_model_turn() {
+        let turn = |id: &str| {
+            json!({"messages":[
+                {"role":"user","content":"round the edges"},
+                {"role":"assistant","content":null,"tool_calls":[{"id":id,"type":"function","function":{"name":"execute","arguments":"{}"}}]},
+                {"role":"tool","tool_call_id":id,"content":"{\"bodies\":[]}"}
+            ]})
+        };
+        assert!(!recovery::previous_accepted(&turn("pilot_edit_0_0_0")));
+        assert!(recovery::previous_accepted(&turn("model_call")));
+    }
+
+    #[test]
+    fn edit_read_is_not_issued_when_recipe_tools_are_offered() {
+        let mut f = Fixture::with_shortcuts(vec![reply("Which hole?")]);
+        f.proxy.cfg.no_fill = true;
+        f.proxy.cfg.offer_recipe_tools = true;
+        f.proxy.cfg.direct_recipes = false;
+        let mut req = request();
+        req["messages"] = json!([{"role":"user","content":"make the hole 8 mm instead"}]);
+        let out: Value = serde_json::from_slice(&f.chat(req).body).unwrap();
+        assert!(out["choices"][0]["message"]["tool_calls"].is_null());
+        assert_eq!(
+            f.proxy.scripted.as_ref().unwrap().borrow().requests.len(),
+            1
+        );
     }
 
     #[test]

@@ -68,6 +68,17 @@ pub(super) fn previous_accepted(body: &Value) -> bool {
         return false;
     };
     let calls = messages[start]["tool_calls"].as_array();
+    // Pilot's own design reads for the edit fact are not the model's work.
+    if calls.is_some_and(|calls| {
+        !calls.is_empty()
+            && calls.iter().all(|c| {
+                c["id"]
+                    .as_str()
+                    .is_some_and(|id| id.starts_with("pilot_edit_"))
+            })
+    }) {
+        return false;
+    }
     messages[start + 1..].iter().any(|m| {
         m["role"] == "tool"
             && calls.is_some_and(|calls| {
