@@ -7341,19 +7341,26 @@ mod tests {
             reply("Ready."),
             reply("Ready."),
         ]);
-        assert_eq!(f.chat(data["requests"][0].clone()).status, 200);
+        // Pilot's own body-check reads stand in for an upstream request.
+        let mut hint_reads = 0;
+        let mut count = |out: &Reply| {
+            assert_eq!(out.status, 200);
+            hint_reads +=
+                usize::from(String::from_utf8_lossy(&out.body).contains("pilot_bodyhint_"));
+        };
+        count(&f.chat(data["requests"][0].clone()));
         // Replay the real follow-up histories despite deliberately losing all
         // prefix-based conversation state between requests.
         for req in data["requests"].as_array().unwrap().iter().skip(1) {
             f.proxy.conversations.clear();
-            assert_eq!(f.chat(req.clone()).status, 200);
+            count(&f.chat(req.clone()));
         }
         let mut resend = data["requests"][1].clone();
         resend["messages"].as_array_mut().unwrap().remove(0);
         f.proxy.conversations.clear();
-        assert_eq!(f.chat(resend).status, 200);
+        count(&f.chat(resend));
         let script = f.proxy.scripted.as_ref().unwrap().borrow();
-        assert_eq!(script.requests.len(), 7);
+        assert_eq!(script.requests.len() + hint_reads, 7);
         assert!(script
             .requests
             .iter()
@@ -7403,15 +7410,22 @@ mod tests {
             .skip(1)
             .all(|r| !r["tools"].to_string().contains("pilot_fill")));
         drop(script);
-        // A cold proxy must also reject each already-acted public history.
+        // A cold proxy must also reject each already-acted public history. A
+        // history that left separate touching bodies may first get Pilot's own
+        // body-check read instead of an upstream request; neither offers a form.
         for req in data["requests"].as_array().unwrap().iter().skip(1) {
             let mut cold = fill_fixture(vec![reply("Ready.")]);
-            assert_eq!(cold.chat(req.clone()).status, 200);
-            assert!(
-                !cold.proxy.scripted.as_ref().unwrap().borrow().requests[0]["tools"]
-                    .to_string()
-                    .contains("pilot_fill")
-            );
+            let out = cold.chat(req.clone());
+            assert_eq!(out.status, 200);
+            let script = cold.proxy.scripted.as_ref().unwrap().borrow();
+            if let Some(first) = script.requests.first() {
+                assert!(!first["tools"].to_string().contains("pilot_fill"));
+            } else {
+                let out: Value = serde_json::from_slice(&out.body).unwrap();
+                let calls = out["choices"][0]["message"]["tool_calls"].to_string();
+                assert!(calls.contains("pilot_bodyhint_"), "{calls}");
+                assert!(!calls.contains("pilot_fill"), "{calls}");
+            }
         }
     }
 

@@ -57,6 +57,39 @@ fn one_part(request: &str) -> bool {
     }) {
         return false;
     }
+    // A counted plural solid ("eight boxes", "2 cylinders") asks for several bodies.
+    if words.windows(2).any(|w| {
+        (w[0].parse::<u32>().is_ok_and(|n| n > 1)
+            || matches!(
+                w[0].as_str(),
+                "two"
+                    | "three"
+                    | "four"
+                    | "five"
+                    | "six"
+                    | "seven"
+                    | "eight"
+                    | "nine"
+                    | "ten"
+                    | "twelve"
+                    | "several"
+                    | "multiple"
+            ))
+            && matches!(
+                w[1].as_str(),
+                "boxes"
+                    | "cubes"
+                    | "blocks"
+                    | "cylinders"
+                    | "spheres"
+                    | "plates"
+                    | "discs"
+                    | "disks"
+                    | "solids"
+            )
+    }) {
+        return false;
+    }
     words.iter().any(|w| {
         matches!(
             w.as_str(),
@@ -330,8 +363,23 @@ fn fact(e: &Evidence, catalog: &Catalog) -> Option<String> {
     None
 }
 
+/// A recipe form or exact match built this conversation; recipes check their own result.
+fn recipe_history(request: &Value) -> bool {
+    request["messages"].as_array().is_some_and(|ms| {
+        ms.iter()
+            .filter_map(|m| m["tool_calls"].as_array())
+            .flatten()
+            .any(|c| {
+                c["function"]["name"] == "pilot_fill"
+                    || c["id"]
+                        .as_str()
+                        .is_some_and(|id| id.starts_with("pilot_direct_"))
+            })
+    })
+}
 pub(super) fn eligible(request: &Value) -> bool {
-    one_part(last_user(request))
+    !recipe_history(request)
+        && one_part(last_user(request))
         && request["tools"]
             .as_array()
             .is_some_and(|ts| ts.iter().any(|t| t["function"]["name"] == "execute"))
