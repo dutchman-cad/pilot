@@ -7,6 +7,7 @@ use crate::{
 use prompting::FALLBACK;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+mod body_hint;
 mod direct;
 mod fill;
 mod fingerprint;
@@ -933,6 +934,7 @@ impl Proxy {
             .as_array()
             .and_then(|m| m.iter().rposition(|m| m["role"] == "user"))
             .unwrap_or(0);
+        conversation.body_hint.reset(user_index, form_allowed);
         // Prefix matching can reuse state from an identical fresh conversation.
         // Without post-user history, none of its pending form/build state belongs
         // to this request. Preserve conversation-wide facts and hints only.
@@ -1063,6 +1065,23 @@ impl Proxy {
                 )?;
         }
         let accepted = recovery::previous_accepted(&body);
+        let body_hint_enabled = !self.cfg.no_hints
+            && !self.cfg.solidcraft98
+            && recipe.is_none()
+            && conversation.recipe.is_none()
+            && !shortcut_active
+            && body_hint::eligible(&original);
+        if body_hint_enabled {
+            if let Some(message) = body_hint::prepare(
+                &mut body,
+                &mut conversation.body_hint,
+                &self.catalog,
+                audit,
+                false,
+            )? {
+                return direct::native(&original, message, audit.count);
+            }
+        }
         if !self.cfg.no_how {
             let schema = guidance::how_tool();
             let mut tools = body
@@ -1266,6 +1285,9 @@ impl Proxy {
                     conversation.facts_seen[index] = true;
                 }
             }
+        }
+        if body_hint_enabled {
+            body_hint::append(&mut body, &mut conversation.body_hint, &self.catalog, audit)?;
         }
         let mut text_mode = profile.text_tool_mode || profile.native_support == Some(false);
         let (continued_band, context_round) = if let Some((_, band, emitted, rounds)) = pending_form
@@ -1961,6 +1983,32 @@ impl Proxy {
                 continue;
             }
             let mut completion_nudge = false;
+            let mut body_nudge = false;
+            if body_hint_enabled
+                && nudge.is_none()
+                && !conversation.body_hint.handed_back
+                && response["choices"].as_array().is_some_and(|c| c.len() == 1)
+                && message["tool_calls"]
+                    .as_array()
+                    .is_none_or(|c| c.is_empty())
+                && !is_empty(message)
+            {
+                if let Some(read) = body_hint::prepare(
+                    &mut body,
+                    &mut conversation.body_hint,
+                    &self.catalog,
+                    audit,
+                    true,
+                )? {
+                    return direct::native(&original, read, audit.count);
+                }
+                if let Some(reason) = body_hint::completion(&body, &self.catalog) {
+                    conversation.body_hint.handed_back = true;
+                    nudge = Some((reason, false));
+                    completion_nudge = true;
+                    body_nudge = true;
+                }
+            }
             if nudge.is_none()
                 && self.cfg.planner
                 && !conversation.completion_checked
@@ -1997,7 +2045,7 @@ impl Proxy {
                     && hand_backs < 2
                     && reason != last_reason
                     && attempt < 3
-                    && conversation.allow(&command, 1)
+                    && (body_nudge || conversation.allow(&command, 1))
                 {
                     hand_backs += 1;
                     guard_backs += 1;
@@ -3114,6 +3162,7 @@ fn emit_sse(response: &Value, include_usage: bool) -> Result<Vec<u8>, String> {
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
+    mod body_hint_tests;
     mod context_tests;
     use super::*;
     use std::{
