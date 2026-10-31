@@ -4,6 +4,8 @@ use dutchman_pilot::{catalog::Catalog, recipe_library::*};
 use serde_json::{json, Value};
 #[path = "support/dev_stem_offset_core.rs"]
 mod dev_stem_offset_core;
+#[path = "support/dev_rectangles_core.rs"]
+mod dev_rectangles_core;
 
 #[test]
 fn pattern_copy_counts_are_totals_and_inspection_is_idempotent() {
