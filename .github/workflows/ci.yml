@@ -72,6 +72,23 @@ jobs:
       - run: cargo test --locked --all-targets
       - run: cargo test --locked --all-targets --no-default-features --features core
       - run: cargo check --locked --lib --target wasm32-unknown-unknown --no-default-features --features core
+  binary:
+    # A Linux release binary for each commit, so benchmarks use what CI built.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: cargo build --locked --release --bin dutchman-pilot
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dutchman-pilot-linux-x86_64
+          path: target/release/dutchman-pilot
+          if-no-files-found: error
+          retention-days: 14
   installers:
     strategy:
       fail-fast: false
