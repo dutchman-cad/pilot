@@ -1206,6 +1206,11 @@ impl Proxy {
             }
             conversation.sc98_dialog_fact_seen = true;
         }
+        // A turn that Pilot answers with its own design read never reaches the
+        // model, so the facts and hints added to it must not count as sent.
+        let before_facts = (!self.cfg.no_hints
+            && planner::edit_fact::edit_shaped(last_user(&original)))
+        .then(|| conversation.clone());
         if !self.cfg.no_hints {
             if !conversation.facts_seen[0] && prompting::append_placement_fact(&mut body)? {
                 audit.record(
@@ -1371,6 +1376,9 @@ impl Proxy {
                 planner::edit_fact::Step::Reads(reads) => {
                     let calls: Vec<_> = reads.into_iter().enumerate().map(|(n,c)| json!({"id":format!("pilot_edit_{user_index}_{rounds}_{n}"),"type":"function","function":{"name":c["tool"],"arguments":c["arguments"].to_string()}})).collect();
                     let message = json!({"role":"assistant","content":null,"tool_calls":calls});
+                    if let Some(before) = before_facts {
+                        *conversation = before;
+                    }
                     conversation.edit_ctx = Some((user_index, rounds + 1));
                     audit.record("edit_fact_inspect", &Value::Null, &message)?;
                     return direct::native(&original, message, audit.count);
@@ -1434,6 +1442,9 @@ impl Proxy {
                     {
                         let calls: Vec<_> = reads.into_iter().enumerate().map(|(n,c)| json!({"id":format!("pilot_edit_{user_index}_0_{n}"),"type":"function","function":{"name":c["tool"],"arguments":c["arguments"].to_string()}})).collect();
                         let message = json!({"role":"assistant","content":null,"tool_calls":calls});
+                        if let Some(before) = before_facts.clone() {
+                            *conversation = before;
+                        }
                         conversation.edit_ctx = Some((user_index, 1));
                         audit.record("edit_fact_inspect", &Value::Null, &message)?;
                         return direct::native(&original, message, audit.count);
@@ -3288,6 +3299,27 @@ mod tests {
                     body: body.to_string().into_bytes(),
                 })
                 .unwrap()
+        }
+        /// Chat, answering Pilot's own design read for an edit-shaped request (an
+        /// empty design) so the turn continues to the model. Other replies pass.
+        fn chat_after_edit_read(&mut self, mut body: Value) -> Reply {
+            let first = self.chat(body.clone());
+            let reply: Value = serde_json::from_slice(&first.body).unwrap_or(Value::Null);
+            let message = reply["choices"][0]["message"].clone();
+            let ids: Vec<String> = message["tool_calls"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(|c| c["id"].as_str().map(String::from))
+                .collect();
+            if ids.is_empty() || !ids.iter().all(|id| id.starts_with("pilot_edit_")) {
+                return first;
+            }
+            body["messages"].as_array_mut().unwrap().push(message);
+            for id in ids {
+                body["messages"].as_array_mut().unwrap().push(json!({"role":"tool","tool_call_id":id,"content":json!({"bodies":[],"timeline":[]}).to_string()}));
+            }
+            self.chat(body)
         }
         fn audit(&self) -> Audit {
             Audit {
@@ -7333,6 +7365,24 @@ mod tests {
         };
         assert!(!recovery::previous_accepted(&turn("pilot_edit_0_0_0")));
         assert!(recovery::previous_accepted(&turn("model_call")));
+    }
+
+    #[test]
+    fn facts_added_to_a_read_round_are_still_sent_with_the_model_call() {
+        let mut f = Fixture::new(vec![reply("Ready.")]);
+        let mut req = request();
+        req["messages"] =
+            json!([{"role":"user","content":"centre the box through the existing plate"}]);
+        f.chat_after_edit_read(req);
+        let script = f.proxy.scripted.as_ref().unwrap().borrow();
+        assert_eq!(script.requests.len(), 1);
+        let sent = script.requests[0].to_string();
+        assert_eq!(
+            sent.matches("solid.box puts its corner at the origin")
+                .count(),
+            1,
+            "{sent}"
+        );
     }
 
     #[test]

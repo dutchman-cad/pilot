@@ -2,7 +2,7 @@
 use super::*;
 use std::hash::{Hash, Hasher};
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub(super) struct Conversation {
     pub model: String,
     pub facts_seen: [bool; 3],
