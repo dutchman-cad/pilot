@@ -11,6 +11,7 @@ mod direct;
 mod fill;
 mod fingerprint;
 mod history;
+mod holefact;
 mod recovery;
 mod shortcuts;
 mod text_mode;
@@ -1217,6 +1218,20 @@ impl Proxy {
                 &mut conversation.sketch_hints_seen,
                 &mut conversation.next_hints_seen,
             )?;
+            // Recipe turns carry their own verified calls; the model's holes are the target.
+            let recipe_turn = recipe.is_some()
+                || shortcut_active
+                || conversation
+                    .recipe
+                    .as_ref()
+                    .is_some_and(|(i, _)| *i == user_index)
+                || conversation
+                    .direct
+                    .as_ref()
+                    .is_some_and(|(i, _, _)| *i == user_index);
+            if !recipe_turn {
+                holefact::append(&mut body, audit)?;
+            }
             if !conversation.pattern_hint_seen {
                 if let Some(hint) = planner::repetition_hint(&body) {
                     conversation.pattern_hint_seen = true;
@@ -3115,6 +3130,7 @@ fn emit_sse(response: &Value, include_usage: bool) -> Result<Vec<u8>, String> {
 #[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
     mod context_tests;
+    mod holefact_tests;
     use super::*;
     use std::{
         cell::RefCell,
