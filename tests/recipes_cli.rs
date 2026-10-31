@@ -12,6 +12,8 @@ use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 mod dev_stem_offset;
 #[path = "support/dev_rectangles.rs"]
 mod dev_rectangles;
+#[path = "support/dev_profile_openings.rs"]
+mod dev_profile_openings;
 #[path = "support/public_catalog.rs"]
 mod public_catalog;
 struct Session {
