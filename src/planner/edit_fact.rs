@@ -30,6 +30,10 @@ pub(crate) fn edit_shaped(text: &str) -> bool {
         return false;
     }
     let t = tokens(text);
+    // Two words ("make it") say too little to act on.
+    if t.len() < 3 {
+        return false;
+    }
     let has = |w: &str| t.iter().any(|x| x == w);
     let first = t.first().map(String::as_str).unwrap_or("");
     if matches!(
@@ -49,6 +53,14 @@ pub(crate) fn edit_shaped(text: &str) -> bool {
             | "describe"
             | "which"
             | "where"
+            | "inspect"
+            | "check"
+            | "measure"
+            | "open"
+            | "view"
+            | "display"
+            | "find"
+            | "read"
     ) || text.contains('?')
     {
         return false;
@@ -722,6 +734,8 @@ mod tests {
             "how many holes are there?",
             "what is the volume",
             "build a bracket",
+            "inspect the design",
+            "make it",
             "On XZ, sketch an L with its outside corner at the origin, 50 mm wide, 40 mm tall. Fully constrain it with four driving dimensions, then extrude 30 mm.",
             "Make an enclosure: a box 80 x 50 x 30 mm, hollowed out with 2 mm walls and the top left open. Then add a lip around the top rim for the lid.",
             "",
