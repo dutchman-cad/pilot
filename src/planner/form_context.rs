@@ -3,7 +3,7 @@ use super::*;
 
 pub(crate) const MAX_CONTEXT_CHARS: usize = 8192;
 
-fn payloads(request: &Value) -> Vec<Value> {
+pub(super) fn payloads(request: &Value) -> Vec<Value> {
     let messages = request["messages"]
         .as_array()
         .map(Vec::as_slice)
@@ -25,7 +25,7 @@ fn payloads(request: &Value) -> Vec<Value> {
     }
     out
 }
-fn document(data: &[Value]) -> Option<&Value> {
+pub(super) fn document(data: &[Value]) -> Option<&Value> {
     data.iter().rev().find(|d| {
         d["bodies"].as_array().is_some_and(|a| {
             a.len() <= MAX_BODIES
@@ -45,7 +45,7 @@ fn active_features(doc: &Value) -> Vec<&Value> {
         .take(12)
         .collect()
 }
-fn detail<'a>(data: &'a [Value], feature: &Value) -> Option<&'a Value> {
+pub(super) fn detail<'a>(data: &'a [Value], feature: &Value) -> Option<&'a Value> {
     data.iter().rev().find(|d| {
         d["id"] == feature["id"] && d["name"] == feature["name"] && d["definition"].is_object()
     })

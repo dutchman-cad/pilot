@@ -938,6 +938,7 @@ impl Proxy {
         // to this request. Preserve conversation-wide facts and hints only.
         if form_allowed {
             conversation.form_pending = None;
+            conversation.edit_ctx = None;
             conversation.recipe = None;
             conversation.completion_checked = false;
             conversation.pending_recipe = None;
@@ -965,12 +966,27 @@ impl Proxy {
             conversation.direct = None;
             conversation.direct_failed = false;
         }
+        // Pilot's own design reads for the edit fact must not make a recipe
+        // fire that the user's bare request would not have fired.
+        let edit_reads = conversation
+            .edit_ctx
+            .is_some_and(|(i, _)| i == user_index && !form_allowed);
+        let planning_view = if edit_reads {
+            let mut view = body.clone();
+            if let Some(messages) = view["messages"].as_array_mut() {
+                messages.truncate(user_index + 1);
+            }
+            view
+        } else {
+            Value::Null
+        };
+        let planning = if edit_reads { &planning_view } else { &body };
         let mut recipe = if pending_form.is_some() {
             None
         } else if self.cfg.direct_recipes {
-            planner::plan_direct(&body, &self.catalog)?
+            planner::plan_direct(planning, &self.catalog)?
         } else if self.cfg.planner {
-            planner::plan(&body, &self.catalog)?
+            planner::plan(planning, &self.catalog)?
         } else {
             None
         };
@@ -1190,6 +1206,11 @@ impl Proxy {
             }
             conversation.sc98_dialog_fact_seen = true;
         }
+        // A turn that Pilot answers with its own design read never reaches the
+        // model, so the facts and hints added to it must not count as sent.
+        let before_facts = (!self.cfg.no_hints
+            && planner::edit_fact::edit_shaped(last_user(&original)))
+        .then(|| conversation.clone());
         if !self.cfg.no_hints {
             if !conversation.facts_seen[0] && prompting::append_placement_fact(&mut body)? {
                 audit.record(
@@ -1339,6 +1360,39 @@ impl Proxy {
                 &json!({"recipe":found["id"],"score":found["score"]}),
             )?;
         }
+        if !self.cfg.no_hints
+            && !self.cfg.solidcraft98
+            && recipe.is_none()
+            && fill_recipe.is_none()
+            && route_candidates.is_empty()
+            // Recipe tools offered: the model may build the whole request itself.
+            && !shortcuts_offered
+            && tools.iter().any(|t| t["function"]["name"] == "execute")
+        {
+            let mine = conversation.edit_ctx.filter(|(i, _)| *i == user_index);
+            let rounds = mine.map_or(0, |m| m.1);
+            match planner::edit_fact::step(&original, &self.catalog, mine.is_some(), rounds)? {
+                planner::edit_fact::Step::Skip => conversation.edit_ctx = None,
+                planner::edit_fact::Step::Reads(reads) => {
+                    let calls: Vec<_> = reads.into_iter().enumerate().map(|(n,c)| json!({"id":format!("pilot_edit_{user_index}_{rounds}_{n}"),"type":"function","function":{"name":c["tool"],"arguments":c["arguments"].to_string()}})).collect();
+                    let message = json!({"role":"assistant","content":null,"tool_calls":calls});
+                    if let Some(before) = before_facts {
+                        *conversation = before;
+                    }
+                    conversation.edit_ctx = Some((user_index, rounds + 1));
+                    audit.record("edit_fact_inspect", &Value::Null, &message)?;
+                    return direct::native(&original, message, audit.count);
+                }
+                planner::edit_fact::Step::Fact(fact) => {
+                    conversation.edit_ctx = None;
+                    body["messages"]
+                        .as_array_mut()
+                        .ok_or("messages must be an array")?
+                        .push(json!({"role":"system","content":format!("{} {fact}",crate::identity::HINT)}));
+                    audit.record("edit_fact", &Value::Null, &json!(fact))?;
+                }
+            }
+        }
         if text_mode && fill_recipe.is_none() && route_candidates.is_empty() {
             text_mode::activate(&mut body, &tools, "profile_or_capabilities", audit)?;
         }
@@ -1359,7 +1413,44 @@ impl Proxy {
         // Freeze the current answer's result block before retry nudges append
         // assistant/user messages; those nudges must not make its evidence old.
         let answering = history::answering_start(&body);
+        let mut edit_fact_added = body["messages"].as_array().is_some_and(|ms| {
+            ms.iter().any(|m| {
+                prompting::message_text(&m["content"]).contains(planner::edit_fact::MARKER)
+            })
+        });
         for wire_attempt in 0..=7 {
+            // A declined form leaves its design reads in the history: use them.
+            if !edit_fact_added
+                && form_attempts > 0
+                && fill_recipe.is_none()
+                && route_candidates.is_empty()
+                && !self.cfg.no_hints
+            {
+                edit_fact_added = true;
+                if let Some(fact) = planner::edit_fact::from_form_reads(&original) {
+                    body["messages"]
+                        .as_array_mut()
+                        .ok_or("messages must be an array")?
+                        .push(json!({"role":"system","content":format!("{} {fact}",crate::identity::HINT)}));
+                    audit.record("edit_fact", &Value::Null, &json!(fact))?;
+                } else if conversation.edit_ctx.is_none()
+                    && tools.iter().any(|t| t["function"]["name"] == "execute")
+                {
+                    // The form needed no reads, so the design is still unread.
+                    if let planner::edit_fact::Step::Reads(reads) =
+                        planner::edit_fact::step(&original, &self.catalog, false, 0)?
+                    {
+                        let calls: Vec<_> = reads.into_iter().enumerate().map(|(n,c)| json!({"id":format!("pilot_edit_{user_index}_0_{n}"),"type":"function","function":{"name":c["tool"],"arguments":c["arguments"].to_string()}})).collect();
+                        let message = json!({"role":"assistant","content":null,"tool_calls":calls});
+                        if let Some(before) = before_facts.clone() {
+                            *conversation = before;
+                        }
+                        conversation.edit_ctx = Some((user_index, 1));
+                        audit.record("edit_fact_inspect", &Value::Null, &message)?;
+                        return direct::native(&original, message, audit.count);
+                    }
+                }
+            }
             if form_attempts >= 4 && (fill_recipe.is_some() || !route_candidates.is_empty()) {
                 fill_recipe = None;
                 route_candidates.clear();
@@ -3209,6 +3300,27 @@ mod tests {
                 })
                 .unwrap()
         }
+        /// Chat, answering Pilot's own design read for an edit-shaped request (an
+        /// empty design) so the turn continues to the model. Other replies pass.
+        fn chat_after_edit_read(&mut self, mut body: Value) -> Reply {
+            let first = self.chat(body.clone());
+            let reply: Value = serde_json::from_slice(&first.body).unwrap_or(Value::Null);
+            let message = reply["choices"][0]["message"].clone();
+            let ids: Vec<String> = message["tool_calls"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(|c| c["id"].as_str().map(String::from))
+                .collect();
+            if ids.is_empty() || !ids.iter().all(|id| id.starts_with("pilot_edit_")) {
+                return first;
+            }
+            body["messages"].as_array_mut().unwrap().push(message);
+            for id in ids {
+                body["messages"].as_array_mut().unwrap().push(json!({"role":"tool","tool_call_id":id,"content":json!({"bodies":[],"timeline":[]}).to_string()}));
+            }
+            self.chat(body)
+        }
         fn audit(&self) -> Audit {
             Audit {
                 events: None,
@@ -4419,6 +4531,24 @@ mod tests {
                 {"role":"assistant","content":"Done."},
                 {"role":"user","content":"round all the edges"}
             ]);
+            // "round all the edges" refers to the open design: Pilot reads it
+            // first. An empty design adds nothing, so the model is called next.
+            let first: Value = serde_json::from_slice(&f.chat(req.clone()).body).unwrap();
+            let read = first["choices"][0]["message"].clone();
+            let ids: Vec<_> = read["tool_calls"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|c| c["id"].as_str().unwrap().to_string())
+                .collect();
+            assert!(
+                ids.iter().all(|id| id.starts_with("pilot_edit_")),
+                "{ids:?}"
+            );
+            req["messages"].as_array_mut().unwrap().push(read);
+            for id in ids {
+                req["messages"].as_array_mut().unwrap().push(json!({"role":"tool","tool_call_id":id,"content":json!({"bodies":[],"timeline":[]}).to_string()}));
+            }
             f.chat(req);
             let script = f.proxy.scripted.as_ref().unwrap().borrow();
             assert_eq!(script.requests.len(), 2);
@@ -7222,6 +7352,53 @@ mod tests {
             "../tests/fixtures/public-constraints-l1-fill-guard.json"
         ))
         .unwrap()
+    }
+
+    #[test]
+    fn pilots_edit_read_is_not_an_accepted_model_turn() {
+        let turn = |id: &str| {
+            json!({"messages":[
+                {"role":"user","content":"round the edges"},
+                {"role":"assistant","content":null,"tool_calls":[{"id":id,"type":"function","function":{"name":"execute","arguments":"{}"}}]},
+                {"role":"tool","tool_call_id":id,"content":"{\"bodies\":[]}"}
+            ]})
+        };
+        assert!(!recovery::previous_accepted(&turn("pilot_edit_0_0_0")));
+        assert!(recovery::previous_accepted(&turn("model_call")));
+    }
+
+    #[test]
+    fn facts_added_to_a_read_round_are_still_sent_with_the_model_call() {
+        let mut f = Fixture::new(vec![reply("Ready.")]);
+        let mut req = request();
+        req["messages"] =
+            json!([{"role":"user","content":"centre the box through the existing plate"}]);
+        f.chat_after_edit_read(req);
+        let script = f.proxy.scripted.as_ref().unwrap().borrow();
+        assert_eq!(script.requests.len(), 1);
+        let sent = script.requests[0].to_string();
+        assert_eq!(
+            sent.matches("solid.box puts its corner at the origin")
+                .count(),
+            1,
+            "{sent}"
+        );
+    }
+
+    #[test]
+    fn edit_read_is_not_issued_when_recipe_tools_are_offered() {
+        let mut f = Fixture::with_shortcuts(vec![reply("Which hole?")]);
+        f.proxy.cfg.no_fill = true;
+        f.proxy.cfg.offer_recipe_tools = true;
+        f.proxy.cfg.direct_recipes = false;
+        let mut req = request();
+        req["messages"] = json!([{"role":"user","content":"make the hole 8 mm instead"}]);
+        let out: Value = serde_json::from_slice(&f.chat(req).body).unwrap();
+        assert!(out["choices"][0]["message"]["tool_calls"].is_null());
+        assert_eq!(
+            f.proxy.scripted.as_ref().unwrap().borrow().requests.len(),
+            1
+        );
     }
 
     #[test]

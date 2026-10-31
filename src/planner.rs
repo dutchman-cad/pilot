@@ -1,6 +1,8 @@
 //! Bounded recipe plans derived from user instructions and public tool results.
 #[cfg(test)]
 pub(crate) mod cases;
+#[cfg(feature = "proxy")]
+pub(crate) mod edit_fact;
 #[cfg(test)]
 mod english;
 #[cfg(test)]
