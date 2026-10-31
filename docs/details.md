@@ -55,6 +55,27 @@ their state supports guidance; original result text is preserved. Unchanged-desi
 hints require comparable before/after states in the result or conversation history.
 Use `--no-how` and `--no-hints` independently for A/B measurements.
 
+Hole and cut facts. After a successful `solid.hole` or a `solid.extrude` cut of a single
+sketch circle, Pilot appends one `[dutchman-pilot hint]` fact to that tool result saying
+what was made: diameter, depth (or through all), direction, start point, and, when the body
+is a known plain block, whether it goes through and the body's thickness
+(`Hole made: 8 mm diameter, 10 mm deep along -Z from (20, 15, 12); it does not go through
+Body1 (12 mm thick).`). A circle that reaches past the body edge is noted. A cut that cannot
+touch the body says `This cut removed no material:` with the reason: the circle is outside the
+body, or the extrusion runs away from it (the opposite direction is named when it would reach).
+SolidCraft already rejects a hole position that is not on a face, so those failures get no
+fact. Public CLI measurements behind this: `solid.hole` and `solid.extrude` results carry only
+`changed_bodies`, no volume, and `changed_bodies` still lists the body when a cut extruded away
+from it, so Pilot computes the swept range itself. Sketch points map as XY (u, v) to (u, v,
+offset), XZ to (u, offset, -v), YZ to (offset, u, v), all with a positive normal.
+Bounds come from `solid.box` arguments and inspect `bbox` already in the conversation; any other
+change to a body forgets its bounds, and a hole then gets only the diameter and depth it was
+given. Pilot sends no reads of its own for this. Not covered (no fact): threaded, counterbore,
+countersink, sketch-point, `to`, and edge-reference holes; cuts of several or non-circle profiles
+(only the SolidCraft-reported no-change case), face-attached or flipped sketches, tapered cuts.
+Capped at 4 facts per result and 6 per user turn; off with `--no-hints`, absent on recipe turns,
+never changes the model's call.
+
 Before the first model call, requests offering `execute` or `batch` receive a
 short box placement fact when the latest user message mentions a box, cube,
 block, plate, brick or slab and center, centre, centred, centered, middle or through.
