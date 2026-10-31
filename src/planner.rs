@@ -20,6 +20,33 @@ pub use patterns::{intent as pattern_intent, repetition_hint, schema as pattern_
 use serde_json::{json, Value};
 use slots::{dimensions, intent_tokens, labelled, tokens};
 
+/// Search cue only: dimensions still require exact parsing or a model fill.
+pub(crate) fn angle_profile_notation(text: &str) -> bool {
+    if text.len() > 2048 {
+        return false;
+    }
+    let t: Vec<_> = slots::angle_tokens(&intent_tokens(text))
+        .into_iter()
+        .filter(|w| slots::scale(w).is_none())
+        .collect();
+    // "at an angle of 45 degrees" is a rotation, not an angle section.
+    let rotation = t.iter().any(|w| {
+        matches!(
+            w.as_str(),
+            "degree" | "degrees" | "deg" | "tilted" | "rotated"
+        )
+    }) || t.windows(2).any(|w| w[0] == "angle" && w[1] == "of");
+    !rotation
+        && t.iter().any(|w| matches!(w.as_str(), "l" | "angle"))
+        && t.windows(5).any(|w| {
+            [0, 2, 4]
+                .iter()
+                .all(|n| slots::number(&w[*n]).is_some_and(|v| v.is_finite() && v > 0.0))
+                && matches!(w[1].as_str(), "x" | "by")
+                && matches!(w[3].as_str(), "x" | "by")
+        })
+}
+
 const MAX_TEXT: usize = 4096;
 const MAX_BODIES: usize = 1024;
 const MAX_MM: f64 = 1_000_000.0;
@@ -1205,6 +1232,18 @@ mod tests {
         assert_eq!(rounded(12.7, 3).to_string(), "12.7");
         assert_eq!(rounded(35528.839376, 0).to_string(), "35529");
         assert_eq!(rounded(-0.0001, 3).to_string(), "0");
+    }
+    #[test]
+    fn angle_notation_cue_skips_rotations() {
+        assert!(angle_profile_notation("L50x30x5 on XZ, 80 long"));
+        assert!(angle_profile_notation("a 40 x 40 x 4 angle"));
+        assert!(!angle_profile_notation(
+            "a 100 x 50 x 10 block at an angle of 45 degrees"
+        ));
+        assert!(!angle_profile_notation(
+            "100x50x10 plate rotated to an angle"
+        ));
+        assert!(!angle_profile_notation("a 100 x 50 x 10 block"));
     }
     fn get(text: &str) -> Plan {
         plan(&request(text, None), &Catalog::bundled().unwrap())
