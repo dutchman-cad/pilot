@@ -74,9 +74,9 @@ fn cases() -> Vec<Case> {
     vec![
         (
             plate,
-            "make the hole 8 mm instead",
-            &[B1, PLATE_FEATURES, "timeline.edit", "\"diameter\":\"8\""],
-            Some(("Hole1", "diameter", "8")),
+            "change the hole to 9 mm instead",
+            &[B1, PLATE_FEATURES, "timeline.edit", "\"diameter\":\"9\""],
+            Some(("Hole1", "diameter", "9")),
         ),
         (
             plate,
@@ -133,7 +133,7 @@ fn cases() -> Vec<Case> {
         ),
         (
             two_holes,
-            "drill a 10 mm hole through the centre of it",
+            "drill a 7 mm hole through the middle of it",
             &[
                 "Body1 box 80 x 30 x 8 mm at X 0..80, Y 0..30, Z 0..8",
                 "To resize an existing feature",
@@ -142,19 +142,19 @@ fn cases() -> Vec<Case> {
         ),
         (
             two_holes,
-            "make it a row of 6 of those holes",
+            "turn those holes into a row of 5",
             &["Hole1", "Hole2"],
             None,
         ),
         (
             two_holes,
-            "chamfer the four top edges 2 mm",
+            "chamfer the top four corners by 1.5 mm",
             &["Body1 box"],
             None,
         ),
         (
             plate,
-            "add two mounting tabs on the ends",
+            "add a pair of lugs to the plate",
             &[B1, PLATE_FEATURES],
             None,
         ),
