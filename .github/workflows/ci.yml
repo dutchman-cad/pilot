@@ -1,6 +1,7 @@
 name: Checks
 'on':
   push:
+    branches: [main]
     # Prose and images alone skip the builds; Docs checks them in a minute. Recipe files, test
     # fixtures, and the flags reference are read by the code, so they still run everything.
     paths:
@@ -26,6 +27,10 @@ name: Checks
       - 'docs/flags.md'
 permissions:
   contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   toolchains:
     runs-on: ubuntu-24.04
