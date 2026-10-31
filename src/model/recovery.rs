@@ -26,6 +26,8 @@ pub(super) struct Conversation {
     pub plane_hints_seen: [bool; 2],
     pub pattern_inspections: usize,
     pub form_pending: Option<(usize, Value, Value, usize)>,
+    /// User turn and count of Pilot's own design reads for the edit fact.
+    pub edit_ctx: Option<(usize, usize)>,
 }
 impl Conversation {
     pub fn allow(&mut self, command: &str, count: usize) -> bool {

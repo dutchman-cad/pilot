@@ -115,6 +115,10 @@ Request side:
   fills. Forced fill and route do not require `--offer-recipe-tools`. `--no-fill` skips
   fill and route; `--no-shortcuts` disables forms and local recipe tools even with the offer flag.
   No upfront find-first fact is added.
+  On the first turn of an edit-shaped request on an existing design (no recipe, form or
+  `--no-hints`), one design fact of at most 1,200 characters names the bodies with bounds
+  and up to 12 timeline features with their parameters, plus the exact `timeline.edit`
+  call for a plain size change; see docs/details.md.
 - Facts and hints are sent once per retained conversation, with existing-history deduplication.
   Relevant guidance is always sent regardless of the client's character count.
   `how` remains available unless disabled with `--no-how`; its shorter schema saves
