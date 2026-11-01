@@ -175,7 +175,7 @@ pub(crate) fn container_walls(request: &str) -> bool {
     let t = slots::tokens(request);
     let has = |ws: &[&str]| t.iter().any(|s| ws.contains(&s.as_str()));
     has(&["box", "container", "enclosure", "lid", "cover"])
-        && has(&["wall", "walls", "thickness"])
+        && has(&["wall", "walls"])
         && !has(&[
             "existing", "selected", "current", "move", "rename", "copy", "pattern", "array", "not",
             "without", "or", "holes", "hole", "volume", "count", "measure", "inspect", "how",
