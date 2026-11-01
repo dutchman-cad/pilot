@@ -1,0 +1,703 @@
+[
+  {
+    "category": "t_offset_yz",
+    "prompt": "Make a T on YZ width 40 height 30 flange 3 stem 3 stem offset 12 from the left then extrude 9",
+    "recipe": "profile",
+    "args": {
+      "kind": "T",
+      "width": 40,
+      "height": 30,
+      "depth": 9,
+      "web_thickness": 3,
+      "flange_thickness": 3,
+      "stem_offset": 12,
+      "plane": "YZ"
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              30
+            ],
+            [
+              40,
+              30
+            ],
+            [
+              40,
+              27
+            ],
+            [
+              13.5,
+              27
+            ],
+            [
+              13.5,
+              0
+            ],
+            [
+              10.5,
+              0
+            ],
+            [
+              10.5,
+              27
+            ],
+            [
+              0,
+              27
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 9
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          9,
+          40,
+          30
+        ]
+      },
+      "volume": 1809
+    }
+  },
+  {
+    "category": "t_offset_yz",
+    "prompt": "Make a T on YZ width 44 height 32 flange 4 stem 3 stem offset 13 from the left then extrude 10",
+    "recipe": "profile",
+    "args": {
+      "kind": "T",
+      "width": 44,
+      "height": 32,
+      "depth": 10,
+      "web_thickness": 3,
+      "flange_thickness": 4,
+      "stem_offset": 13,
+      "plane": "YZ"
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              32
+            ],
+            [
+              44,
+              32
+            ],
+            [
+              44,
+              28
+            ],
+            [
+              14.5,
+              28
+            ],
+            [
+              14.5,
+              0
+            ],
+            [
+              11.5,
+              0
+            ],
+            [
+              11.5,
+              28
+            ],
+            [
+              0,
+              28
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 10
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          10,
+          44,
+          32
+        ]
+      },
+      "volume": 2600
+    }
+  },
+  {
+    "category": "t_offset_yz",
+    "prompt": "Make a T on YZ width 48 height 34 flange 3 stem 3 stem offset 14 from the left then extrude 11",
+    "recipe": "profile",
+    "args": {
+      "kind": "T",
+      "width": 48,
+      "height": 34,
+      "depth": 11,
+      "web_thickness": 3,
+      "flange_thickness": 3,
+      "plane": "YZ"
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              34
+            ],
+            [
+              48,
+              34
+            ],
+            [
+              48,
+              31
+            ],
+            [
+              15.5,
+              31
+            ],
+            [
+              15.5,
+              0
+            ],
+            [
+              12.5,
+              0
+            ],
+            [
+              12.5,
+              31
+            ],
+            [
+              0,
+              31
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 11
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          11,
+          48,
+          34
+        ]
+      },
+      "volume": 2607
+    }
+  },
+  {
+    "category": "t_offset_yz",
+    "prompt": "Make a T on YZ width 52 height 36 flange 4 stem 3 stem offset 15 from the left then extrude 12",
+    "recipe": "profile",
+    "args": {
+      "kind": "T",
+      "width": 52,
+      "height": 36,
+      "depth": 12,
+      "web_thickness": 3,
+      "flange_thickness": 4,
+      "stem_offset": 15,
+      "plane": "YZ"
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              36
+            ],
+            [
+              52,
+              36
+            ],
+            [
+              52,
+              32
+            ],
+            [
+              16.5,
+              32
+            ],
+            [
+              16.5,
+              0
+            ],
+            [
+              13.5,
+              0
+            ],
+            [
+              13.5,
+              32
+            ],
+            [
+              0,
+              32
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 12
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          12,
+          52,
+          36
+        ]
+      },
+      "volume": 3648
+    }
+  },
+  {
+    "category": "t_offset_yz",
+    "prompt": "Make a T on YZ width 56 height 38 flange 3 stem 3 stem offset 16 from the left then extrude 13",
+    "recipe": "profile",
+    "args": {
+      "kind": "T",
+      "width": 56,
+      "height": 38,
+      "depth": 13,
+      "web_thickness": 3,
+      "flange_thickness": 3,
+      "plane": "YZ"
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              38
+            ],
+            [
+              56,
+              38
+            ],
+            [
+              56,
+              35
+            ],
+            [
+              17.5,
+              35
+            ],
+            [
+              17.5,
+              0
+            ],
+            [
+              14.5,
+              0
+            ],
+            [
+              14.5,
+              35
+            ],
+            [
+              0,
+              35
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 13
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          13,
+          56,
+          38
+        ]
+      },
+      "volume": 3549
+    }
+  },
+  {
+    "category": "t_offset_yz",
+    "prompt": "Make a T on YZ width 60 height 40 flange 4 stem 3 stem offset 17 from the left then extrude 14 centred on the origin",
+    "recipe": "profile",
+    "args": {
+      "kind": "T",
+      "width": 60,
+      "height": 40,
+      "depth": 14,
+      "web_thickness": 3,
+      "flange_thickness": 4,
+      "stem_offset": 17,
+      "plane": "YZ",
+      "centred": true
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              -30,
+              20
+            ],
+            [
+              30,
+              20
+            ],
+            [
+              30,
+              16
+            ],
+            [
+              -11.5,
+              16
+            ],
+            [
+              -11.5,
+              -20
+            ],
+            [
+              -14.5,
+              -20
+            ],
+            [
+              -14.5,
+              16
+            ],
+            [
+              -30,
+              16
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 14
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          -30,
+          -20
+        ],
+        "max": [
+          14,
+          30,
+          20
+        ]
+      },
+      "volume": 4872
+    }
+  },
+  {
+    "category": "t_offset_yz",
+    "prompt": "Make a T on YZ width 40 height 30 flange 3 stem 3 stem offset -8 from the centre then extrude 9",
+    "recipe": "profile",
+    "args": {
+      "kind": "T",
+      "width": 40,
+      "height": 30,
+      "depth": 9,
+      "web_thickness": 3,
+      "flange_thickness": 3,
+      "plane": "YZ"
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              30
+            ],
+            [
+              40,
+              30
+            ],
+            [
+              40,
+              27
+            ],
+            [
+              13.5,
+              27
+            ],
+            [
+              13.5,
+              0
+            ],
+            [
+              10.5,
+              0
+            ],
+            [
+              10.5,
+              27
+            ],
+            [
+              0,
+              27
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 9
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          9,
+          40,
+          30
+        ]
+      },
+      "volume": 1809
+    }
+  },
+  {
+    "category": "t_offset_yz",
+    "prompt": "Make a T on YZ width 44 height 32 flange 4 stem 3 stem offset 0 from the centre then extrude 10",
+    "recipe": "profile",
+    "args": {
+      "kind": "T",
+      "width": 44,
+      "height": 32,
+      "depth": 10,
+      "web_thickness": 3,
+      "flange_thickness": 4,
+      "plane": "YZ"
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              32
+            ],
+            [
+              44,
+              32
+            ],
+            [
+              44,
+              28
+            ],
+            [
+              23.5,
+              28
+            ],
+            [
+              23.5,
+              0
+            ],
+            [
+              20.5,
+              0
+            ],
+            [
+              20.5,
+              28
+            ],
+            [
+              0,
+              28
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 10
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          10,
+          44,
+          32
+        ]
+      },
+      "volume": 2600
+    }
+  }
+]

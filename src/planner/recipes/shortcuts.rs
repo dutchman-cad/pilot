@@ -158,7 +158,7 @@ pub(crate) fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<
                     _ => return Err(format!("thickness {} web_thickness {} flange_thickness {} require 1 uniform or 2 separate leg sizes; supply thickness alone or both web_thickness and flange_thickness", args["thickness"], args["web_thickness"], args["flange_thickness"])),
                 }
             };
-            let slots = closed_profile::Profile {
+            let profile = closed_profile::Profile {
                 shape: shape.into(),
                 plane,
                 width,
@@ -170,8 +170,33 @@ pub(crate) fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<
                 centred,
                 flipped: false,
                 distance: depth,
+            };
+            let text = request["messages"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .rev()
+                .find(|m| m["role"] == "user")
+                .and_then(|m| m["content"].as_str())
+                .unwrap_or("");
+            let mut inferred = None;
+            // An oversized request is not read for an opening; the fill stands.
+            if matches!(profile.shape.as_str(), "U" | "C") && text.len() <= 65_536 {
+                if let Ok(Some((orientation, flipped))) =
+                    closed_profile::opening(&slots::tokens(text))
+                {
+                    let mut directed = profile.clone();
+                    directed.shape = orientation.into();
+                    directed.flipped = flipped;
+                    // Request inference must never invalidate the model's fill,
+                    // including when a new orientation cannot fit these sizes.
+                    inferred = directed.into_slots().ok();
+                }
             }
-            .into_slots()?;
+            let slots = match inferred {
+                Some(slots) => slots,
+                None => profile.into_slots()?,
+            };
             ("closed_profile", slots)
         }
         Build::Enclosure {

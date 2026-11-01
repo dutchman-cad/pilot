@@ -1,0 +1,1108 @@
+[
+  {
+    "category": "rectangle_xz",
+    "prompt": "Make a rectangular plate profile on XZ width 40 height 30 then extrude 9",
+    "recipe": "profile",
+    "args": {
+      "kind": "rectangle",
+      "width": 40,
+      "height": 30,
+      "depth": 9,
+      "plane": "XZ"
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40,
+              0
+            ],
+            [
+              40,
+              30
+            ],
+            [
+              0,
+              30
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 9
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          -30
+        ],
+        "max": [
+          40,
+          9,
+          0
+        ]
+      },
+      "volume": 10800
+    }
+  },
+  {
+    "category": "rectangle_xz",
+    "prompt": "Make a dimensioned rectangular plate profile on XZ width 44 height 32 then extrude 10",
+    "recipe": "profile",
+    "args": {
+      "kind": "rectangle",
+      "width": 44,
+      "height": 32,
+      "depth": 10,
+      "plane": "XZ"
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              44,
+              0
+            ],
+            [
+              44,
+              32
+            ],
+            [
+              0,
+              32
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 10
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          -32
+        ],
+        "max": [
+          44,
+          10,
+          0
+        ]
+      },
+      "volume": 14080
+    }
+  },
+  {
+    "category": "rectangle_xz",
+    "prompt": "Make a rectangular plate profile on XZ width 48 height 34 then extrude 11",
+    "recipe": "profile",
+    "args": {
+      "kind": "rectangle",
+      "width": 48,
+      "height": 34,
+      "depth": 11,
+      "plane": "XZ"
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              48,
+              0
+            ],
+            [
+              48,
+              34
+            ],
+            [
+              0,
+              34
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 11
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          -34
+        ],
+        "max": [
+          48,
+          11,
+          0
+        ]
+      },
+      "volume": 17952
+    }
+  },
+  {
+    "category": "rectangle_xz",
+    "prompt": "Make a dimensioned rectangular plate profile on XZ width 52 height 36 then extrude 12",
+    "recipe": "profile",
+    "args": {
+      "kind": "rectangle",
+      "width": 52,
+      "height": 36,
+      "depth": 12,
+      "plane": "XZ"
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              52,
+              0
+            ],
+            [
+              52,
+              36
+            ],
+            [
+              0,
+              36
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 12
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          -36
+        ],
+        "max": [
+          52,
+          12,
+          0
+        ]
+      },
+      "volume": 22464
+    }
+  },
+  {
+    "category": "rectangle_xz",
+    "prompt": "Make a rectangular plate profile on XZ width 56 height 38 then extrude 13",
+    "recipe": "profile",
+    "args": {
+      "kind": "rectangle",
+      "width": 56,
+      "height": 38,
+      "depth": 13,
+      "plane": "XZ"
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              56,
+              0
+            ],
+            [
+              56,
+              38
+            ],
+            [
+              0,
+              38
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 13
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          -38
+        ],
+        "max": [
+          56,
+          13,
+          0
+        ]
+      },
+      "volume": 27664
+    }
+  },
+  {
+    "category": "rectangle_xz",
+    "prompt": "Make a dimensioned rectangular plate profile on XZ width 60 height 40 then extrude 14 centred on the origin",
+    "recipe": "profile",
+    "args": {
+      "kind": "rectangle",
+      "width": 60,
+      "height": 40,
+      "depth": 14,
+      "plane": "XZ",
+      "centred": true
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              -30,
+              -20
+            ],
+            [
+              30,
+              -20
+            ],
+            [
+              30,
+              20
+            ],
+            [
+              -30,
+              20
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 14
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          -30,
+          0,
+          -20
+        ],
+        "max": [
+          30,
+          14,
+          20
+        ]
+      },
+      "volume": 33600
+    }
+  },
+  {
+    "category": "rectangle_inches_yz",
+    "prompt": "Make a rectangular profile on YZ width 2 in height 1 in then extrude 0.25 in",
+    "recipe": "profile",
+    "args": {
+      "kind": "rectangle",
+      "width": "2 in",
+      "height": "1 in",
+      "depth": "0.25 in",
+      "plane": "YZ"
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              50.8,
+              0
+            ],
+            [
+              50.8,
+              25.4
+            ],
+            [
+              0,
+              25.4
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 6.35
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          6.35,
+          50.8,
+          25.4
+        ]
+      },
+      "volume": 8193.532
+    }
+  },
+  {
+    "category": "rectangle_inches_yz",
+    "prompt": "Make a dimensioned rectangular profile on YZ width 2.25 in height 1.125 in then extrude 0.3125 in",
+    "recipe": "profile",
+    "args": {
+      "kind": "rectangle",
+      "width": "2.25 in",
+      "height": "1.125 in",
+      "depth": "0.3125 in",
+      "plane": "YZ"
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              57.15,
+              0
+            ],
+            [
+              57.15,
+              28.575
+            ],
+            [
+              0,
+              28.575
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 7.9375
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          7.9375,
+          57.15,
+          28.575
+        ]
+      },
+      "volume": 12962.423671875
+    }
+  },
+  {
+    "category": "rectangle_inches_yz",
+    "prompt": "Make a rectangular profile on YZ width 2.5 in height 1.25 in then extrude 0.375 in",
+    "recipe": "profile",
+    "args": {
+      "kind": "rectangle",
+      "width": "2.5 in",
+      "height": "1.25 in",
+      "depth": "0.375 in",
+      "plane": "YZ"
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              63.5,
+              0
+            ],
+            [
+              63.5,
+              31.75
+            ],
+            [
+              0,
+              31.75
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 9.524999999999999
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          9.524999999999999,
+          63.5,
+          31.75
+        ]
+      },
+      "volume": 19203.590624999997
+    }
+  },
+  {
+    "category": "rectangle_inches_yz",
+    "prompt": "Make a dimensioned rectangular profile on YZ width 2.75 in height 1.375 in then extrude 0.4375 in",
+    "recipe": "profile",
+    "args": {
+      "kind": "rectangle",
+      "width": "2.75 in",
+      "height": "1.375 in",
+      "depth": "0.4375 in",
+      "plane": "YZ"
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              69.85,
+              0
+            ],
+            [
+              69.85,
+              34.925
+            ],
+            [
+              0,
+              34.925
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 11.112499999999999
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          11.112499999999999,
+          69.85,
+          34.925
+        ]
+      },
+      "volume": 27109.068765624994
+    }
+  },
+  {
+    "category": "rectangle_inches_yz",
+    "prompt": "Make a rectangular profile on YZ width 3 in height 1.5 in then extrude 0.5 in",
+    "recipe": "profile",
+    "args": {
+      "kind": "rectangle",
+      "width": "3 in",
+      "height": "1.5 in",
+      "depth": "0.5 in",
+      "plane": "YZ"
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              76.19999999999999,
+              0
+            ],
+            [
+              76.19999999999999,
+              38.099999999999994
+            ],
+            [
+              0,
+              38.099999999999994
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 12.7
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          12.7,
+          76.19999999999999,
+          38.099999999999994
+        ]
+      },
+      "volume": 36870.89399999999
+    }
+  },
+  {
+    "category": "rectangle_inches_yz",
+    "prompt": "Make a dimensioned rectangular profile on YZ width 3.25 in height 1.625 in then extrude 0.5625 in centred on the origin",
+    "recipe": "profile",
+    "args": {
+      "kind": "rectangle",
+      "width": "3.25 in",
+      "height": "1.625 in",
+      "depth": "0.5625 in",
+      "plane": "YZ",
+      "centred": true
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              -41.275,
+              -20.6375
+            ],
+            [
+              41.275,
+              -20.6375
+            ],
+            [
+              41.275,
+              20.6375
+            ],
+            [
+              -41.275,
+              20.6375
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 14.2875
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          -41.275,
+          -20.6375
+        ],
+        "max": [
+          14.2875,
+          41.275,
+          20.6375
+        ]
+      },
+      "volume": 48681.102234374994
+    }
+  },
+  {
+    "category": "rectangle_xz",
+    "prompt": "Make a rectangular profile 40 by 30 mm on XZ then extrude 9 mm",
+    "recipe": "profile",
+    "args": {
+      "kind": "rectangle",
+      "width": 40,
+      "height": 30,
+      "depth": 9,
+      "plane": "XZ"
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40,
+              0
+            ],
+            [
+              40,
+              30
+            ],
+            [
+              0,
+              30
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 9
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          -30
+        ],
+        "max": [
+          40,
+          9,
+          0
+        ]
+      },
+      "volume": 10800
+    }
+  },
+  {
+    "category": "rectangle_xz",
+    "prompt": "Make a rectangular profile on the front plane width 44 height 32 then extrude 10",
+    "recipe": "profile",
+    "args": {
+      "kind": "rectangle",
+      "width": 44,
+      "height": 32,
+      "depth": 10,
+      "plane": "XZ"
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              44,
+              0
+            ],
+            [
+              44,
+              32
+            ],
+            [
+              0,
+              32
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 10
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          -32
+        ],
+        "max": [
+          44,
+          10,
+          0
+        ]
+      },
+      "volume": 14080
+    }
+  },
+  {
+    "category": "rectangle_inches_yz",
+    "prompt": "Make a rectangular profile 2 by 1 in on YZ then extrude 1/4 in",
+    "recipe": "profile",
+    "args": {
+      "kind": "rectangle",
+      "width": "2 in",
+      "height": "1 in",
+      "depth": "1/4 in",
+      "plane": "YZ"
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              50.8,
+              0
+            ],
+            [
+              50.8,
+              25.4
+            ],
+            [
+              0,
+              25.4
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 6.35
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          6.35,
+          50.8,
+          25.4
+        ]
+      },
+      "volume": 8193.532
+    }
+  },
+  {
+    "category": "rectangle_inches_yz",
+    "prompt": "Make a rectangular profile on the right plane width 2.25 inches height 1.125 inches then extrude 0.3125 inches",
+    "recipe": "profile",
+    "args": {
+      "kind": "rectangle",
+      "width": "2.25 in",
+      "height": "1.125 in",
+      "depth": "0.3125 in",
+      "plane": "YZ"
+    },
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              57.15,
+              0
+            ],
+            [
+              57.15,
+              28.575
+            ],
+            [
+              0,
+              28.575
+            ]
+          ],
+          "closed": true
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 7.9375
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          7.9375,
+          57.15,
+          28.575
+        ]
+      },
+      "volume": 12962.423671875
+    }
+  }
+]

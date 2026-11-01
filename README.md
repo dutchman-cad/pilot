@@ -108,6 +108,24 @@ so these numbers say more about recipe parts than about everything people ask fo
 numbers, and results with other models, are in
 [the results issue](https://github.com/dutchman-cad/pilot/issues/1).
 
+Free-form requests are harder. A fifth blind set has everyday requests (spacers, knobs,
+brackets, hinges, cable clips, and enclosures), written without looking at the recipes. Five
+of its 30 requests are no longer blind, so these numbers use the other 25. gemma4 e4b, three
+runs each, the same settings with and without Pilot, average parts built correctly:
+
+| Requests | Without Pilot | With Pilot |
+| --- | ---: | ---: |
+| A recipe was offered (15) | 3.7 (24%) | 6.3 (42%) |
+| No recipe (10) | 2.0 (20%) | 2.7 (27%) |
+| **All 25** | **5.7 (23%)** | **9.0 (36%)** |
+
+So Pilot helps on requests like these, mostly where a recipe fits, and most of them still
+fail. The most common failures are holes that are missing or the wrong size, wrong overall
+sizes, and missing features. Without a recipe, expect little from a small model.
+
+Edits to an existing part: on a separate blind set of 12 edit requests, measured the same
+way, gemma4 e4b built 5.3 with Pilot against 2.7 without.
+
 ## Models that work
 
 - **gemma4 e4b** (`ollama pull gemma4:e4b`) is the recommended model and the one Pilot

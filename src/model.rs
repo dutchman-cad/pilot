@@ -7,12 +7,15 @@ use crate::{
 use prompting::FALLBACK;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+mod body_hint;
 mod direct;
 mod fill;
 mod fingerprint;
 mod history;
+mod holefact;
 mod recovery;
 mod shortcuts;
+mod sizecheck;
 mod text_mode;
 use recovery::Conversation;
 use std::{
@@ -933,6 +936,8 @@ impl Proxy {
             .as_array()
             .and_then(|m| m.iter().rposition(|m| m["role"] == "user"))
             .unwrap_or(0);
+        conversation.body_hint.reset(user_index, form_allowed);
+        conversation.sizecheck.reset(user_index, form_allowed);
         // Prefix matching can reuse state from an identical fresh conversation.
         // Without post-user history, none of its pending form/build state belongs
         // to this request. Preserve conversation-wide facts and hints only.
@@ -1063,6 +1068,29 @@ impl Proxy {
                 )?;
         }
         let accepted = recovery::previous_accepted(&body);
+        let body_hint_enabled = !self.cfg.no_hints
+            && !self.cfg.solidcraft98
+            && recipe.is_none()
+            && conversation.recipe.is_none()
+            && !shortcut_active
+            && body_hint::eligible(&original);
+        let sizecheck_enabled = !self.cfg.no_hints
+            && !self.cfg.solidcraft98
+            && recipe.is_none()
+            && conversation.recipe.is_none()
+            && !shortcut_active
+            && sizecheck::eligible(&original);
+        if body_hint_enabled {
+            if let Some(message) = body_hint::prepare(
+                &mut body,
+                &mut conversation.body_hint,
+                &self.catalog,
+                audit,
+                false,
+            )? {
+                return direct::native(&original, message, audit.count);
+            }
+        }
         if !self.cfg.no_how {
             let schema = guidance::how_tool();
             let mut tools = body
@@ -1190,7 +1218,28 @@ impl Proxy {
             }
             conversation.sc98_dialog_fact_seen = true;
         }
+        append_batch_errors(&mut body, audit)?;
         if !self.cfg.no_hints {
+            let hole_context = last_user(&body)
+                .to_ascii_lowercase()
+                .split(|c: char| !c.is_ascii_alphabetic())
+                .any(|w| matches!(w, "hole" | "holes" | "counterbore" | "counterbores"));
+            if let Some(tools) = body["tools"].as_array_mut().filter(|_| hole_context) {
+                for tool in tools.iter_mut().take(128) {
+                    if matches!(tool["function"]["name"].as_str(), Some("execute" | "batch")) {
+                        let old = tool["function"]["description"].as_str().unwrap_or("");
+                        if !old.contains(guidance::holes::HINT) {
+                            tool["function"]["description"] =
+                                json!(format!("{old}\n{}", guidance::holes::HINT));
+                            audit.record(
+                                "hole_tool_hint",
+                                &Value::Null,
+                                &json!(guidance::holes::HINT),
+                            )?;
+                        }
+                    }
+                }
+            }
             if !conversation.facts_seen[0] && prompting::append_placement_fact(&mut body)? {
                 audit.record(
                     "placement_fact",
@@ -1217,6 +1266,20 @@ impl Proxy {
                 &mut conversation.sketch_hints_seen,
                 &mut conversation.next_hints_seen,
             )?;
+            // Recipe turns carry their own verified calls; the model's holes are the target.
+            let recipe_turn = recipe.is_some()
+                || shortcut_active
+                || conversation
+                    .recipe
+                    .as_ref()
+                    .is_some_and(|(i, _)| *i == user_index)
+                || conversation
+                    .direct
+                    .as_ref()
+                    .is_some_and(|(i, _, _)| *i == user_index);
+            if !recipe_turn {
+                holefact::append(&mut body, audit)?;
+            }
             if !conversation.pattern_hint_seen {
                 if let Some(hint) = planner::repetition_hint(&body) {
                     conversation.pattern_hint_seen = true;
@@ -1267,7 +1330,11 @@ impl Proxy {
                 }
             }
         }
+        if body_hint_enabled {
+            body_hint::append(&mut body, &mut conversation.body_hint, &self.catalog, audit)?;
+        }
         let mut text_mode = profile.text_tool_mode || profile.native_support == Some(false);
+        let continuing_form = pending_form.is_some();
         let (continued_band, context_round) = if let Some((_, band, emitted, rounds)) = pending_form
         {
             if !fill::inspection_results(&original, &emitted) {
@@ -1338,6 +1405,24 @@ impl Proxy {
                 &Value::Null,
                 &json!({"recipe":found["id"],"score":found["score"]}),
             )?;
+        }
+        // Sizes in inches or cm: only when no recipe, form or exact match handles the turn.
+        if !self.cfg.no_hints
+            && form_allowed
+            && !continuing_form
+            && recipe.is_none()
+            && fill_recipe.is_none()
+            && route_candidates.is_empty()
+            && conversation.recipe.is_none()
+            && conversation.direct.is_none()
+            && conversation.pending_recipe.is_none()
+        {
+            if let Some(fact) = prompting::append_unit_fact(&mut body)? {
+                if conversation.unit_fact.as_deref() != Some(fact.as_str()) {
+                    audit.record("unit_fact", &Value::Null, &json!(fact))?;
+                    conversation.unit_fact = Some(fact);
+                }
+            }
         }
         if text_mode && fill_recipe.is_none() && route_candidates.is_empty() {
             text_mode::activate(&mut body, &tools, "profile_or_capabilities", audit)?;
@@ -1961,6 +2046,54 @@ impl Proxy {
                 continue;
             }
             let mut completion_nudge = false;
+            let mut body_nudge = false;
+            if sizecheck_enabled
+                && nudge.is_none()
+                && !conversation.sizecheck.handed_back
+                && response["choices"].as_array().is_some_and(|c| c.len() == 1)
+                && message["tool_calls"]
+                    .as_array()
+                    .is_none_or(|c| c.is_empty())
+                && !is_empty(message)
+            {
+                if let Some(read) =
+                    sizecheck::prepare(&body, &mut conversation.sizecheck, &self.catalog, audit)?
+                {
+                    return direct::native(&original, read, audit.count);
+                }
+                if let Some(reason) = sizecheck::completion(&body) {
+                    conversation.sizecheck.handed_back = true;
+                    audit.record("size_check", message, &json!(reason))?;
+                    nudge = Some((reason, false));
+                    completion_nudge = true;
+                    body_nudge = true;
+                }
+            }
+            if body_hint_enabled
+                && nudge.is_none()
+                && !conversation.body_hint.handed_back
+                && response["choices"].as_array().is_some_and(|c| c.len() == 1)
+                && message["tool_calls"]
+                    .as_array()
+                    .is_none_or(|c| c.is_empty())
+                && !is_empty(message)
+            {
+                if let Some(read) = body_hint::prepare(
+                    &mut body,
+                    &mut conversation.body_hint,
+                    &self.catalog,
+                    audit,
+                    true,
+                )? {
+                    return direct::native(&original, read, audit.count);
+                }
+                if let Some(reason) = body_hint::completion(&body, &self.catalog) {
+                    conversation.body_hint.handed_back = true;
+                    nudge = Some((reason, false));
+                    completion_nudge = true;
+                    body_nudge = true;
+                }
+            }
             if nudge.is_none()
                 && self.cfg.planner
                 && !conversation.completion_checked
@@ -1997,7 +2130,7 @@ impl Proxy {
                     && hand_backs < 2
                     && reason != last_reason
                     && attempt < 3
-                    && conversation.allow(&command, 1)
+                    && (body_nudge || conversation.allow(&command, 1))
                 {
                     hand_backs += 1;
                     guard_backs += 1;
@@ -2231,6 +2364,57 @@ fn append_plane_hints(
     Ok(())
 }
 
+fn append_batch_errors(body: &mut Value, audit: &mut Audit) -> Result<(), String> {
+    let Some(messages) = body["messages"].as_array_mut() else {
+        return Ok(());
+    };
+    let start = messages
+        .iter()
+        .rposition(|m| m["role"] != "tool")
+        .map_or(0, |i| i + 1);
+    for i in start..messages.len() {
+        let Some(id) = messages[i]["tool_call_id"].as_str() else {
+            continue;
+        };
+        let args = messages[..i]
+            .iter()
+            .rev()
+            .filter_map(|m| m["tool_calls"].as_array())
+            .flatten()
+            .find(|c| c["id"] == id && c["function"]["name"] == "batch")
+            .map(|c| c["function"]["arguments"].clone());
+        let Some(args) = args else {
+            continue;
+        };
+        let args = args
+            .as_str()
+            .and_then(|s| serde_json::from_str::<Value>(s).ok())
+            .unwrap_or(args);
+        let content = &messages[i]["content"];
+        let result = content
+            .as_str()
+            .and_then(|s| serde_json::from_str::<Value>(s).ok())
+            .unwrap_or_else(|| json!({"content":content}));
+        let Some(reason) = repair::failed_sketch_context(&args, &result) else {
+            continue;
+        };
+        if prompting::message_text(content).contains(&reason) {
+            continue;
+        }
+        let before = content.clone();
+        let content = &mut messages[i]["content"];
+        if let Some(text) = content.as_str() {
+            *content = json!(format!("{text}\n{reason}"));
+        } else if let Some(blocks) = content.as_array_mut() {
+            blocks.push(json!({"type":"text","text":reason}));
+        }
+        if *content != before {
+            audit.record("sketch_dependency_error", &before, content)?;
+        }
+    }
+    Ok(())
+}
+
 fn append_hints(
     body: &mut Value,
     catalog: &Catalog,
@@ -2251,6 +2435,7 @@ fn append_hints(
         .map(|m| prompting::message_text(&m["content"]))
         .collect();
     let mut placement_count = 0;
+    let mut hole_faces = guidance::holes::Faces::default();
     for message in messages.iter() {
         let text = message["content"].to_string();
         sketch_seen[0] |= text.contains(&guidance::SKETCH_ENTITY_HINT.replace('"', "\\\""));
@@ -2291,11 +2476,23 @@ fn append_hints(
         let data = tool_data(&messages[i]).unwrap_or(Value::Null);
         let after = data.get("after").unwrap_or(&data);
         let before = data.get("before").or(previous.as_ref());
+        let hole_hints = call
+            .and_then(|call| call["function"].get("arguments"))
+            .map(|args| {
+                let parsed = args
+                    .as_str()
+                    .and_then(|s| serde_json::from_str::<Value>(s).ok());
+                hole_faces.visit(name, parsed.as_ref().unwrap_or(args), &raw)
+            })
+            .unwrap_or_default();
         let mut hint = (i >= start)
             .then(|| guidance::state_hint(before, after, change, Some(catalog)))
             .flatten()
             .map(|h| h.split_whitespace().collect::<Vec<_>>().join(" "));
         if i >= start {
+            for next in hole_hints {
+                hint = Some(hint.map_or_else(|| next.clone(), |h| format!("{h}\n{next}")));
+            }
             if let Some(args) = call.and_then(|call| call["function"].get("arguments")) {
                 let parsed = args
                     .as_str()
@@ -2876,7 +3073,8 @@ fn guard_command(
     if command.len() > 256 {
         return Err("command id exceeds 256 bytes".into());
     }
-    let (id, packed) = split_command(command);
+    let command = command.to_string();
+    let (id, packed) = split_command(&command);
     let mut id = id.to_string();
     if !packed.is_empty() {
         if let Some(params) = packed_params(packed) {
@@ -2892,6 +3090,16 @@ fn guard_command(
             }
         } else {
             return Ok(Some(format!("{id} needs a valid params object")));
+        }
+    }
+    step["command"] = json!(id);
+    // Semantic aliases must be resolved before edit-distance command matching.
+    if let Err(reason) = repair::repair_command(step, catalog) {
+        return Ok(Some(reason));
+    }
+    if let Some(repaired) = step["command"].as_str() {
+        if repaired != command {
+            id = repaired.to_string();
         }
     }
     if catalog.get(&id).is_none() {
@@ -3114,7 +3322,10 @@ fn emit_sse(response: &Value, include_usage: bool) -> Result<Vec<u8>, String> {
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
+    mod body_hint_tests;
     mod context_tests;
+    mod holefact_tests;
+    mod sizecheck_tests;
     use super::*;
     use std::{
         cell::RefCell,
@@ -3403,7 +3614,7 @@ mod tests {
                 // Include their actual JSON escaping, separators and message wrappers.
                 let mut full = full_script.requests[index].clone();
                 full["model"] = req["model"].clone();
-                assert_eq!(full["tools"], req["tools"]);
+                assert_tools_with_optional_hole_hint(&full["tools"], &req["tools"]);
                 let added = history::chars(&full).checked_sub(client).unwrap();
                 assert!(
                     upstream <= client + added,
@@ -3971,6 +4182,25 @@ mod tests {
     }
     fn request() -> Value {
         json!({"model":"unit","messages":[{"role":"user","content":"make a box"}],"tools":tools()})
+    }
+    fn assert_tools_with_optional_hole_hint(tools: &Value, originals: &Value) {
+        let mut clean = tools.clone();
+        for (tool, original) in clean
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .zip(originals.as_array().unwrap())
+        {
+            let old = original["function"]["description"].as_str().unwrap_or("");
+            if tool["function"]["description"] == format!("{old}\n{}", guidance::holes::HINT) {
+                let function = tool["function"].as_object_mut().unwrap();
+                function.remove("description");
+                if let Some(description) = original["function"].get("description") {
+                    function.insert("description".into(), description.clone());
+                }
+            }
+        }
+        assert_eq!(clean, *originals);
     }
     fn failed_parse(raw: &str) -> Value {
         json!({"error":format!("error parsing tool call: raw='{raw}', err=invalid JSON")})
@@ -4874,6 +5104,46 @@ mod tests {
     }
 
     #[test]
+    fn hole_position_handback_preserves_calls_and_respects_no_hints() {
+        for disabled in [false, true] {
+            let mut f = Fixture::new(vec![reply("Ready.")]);
+            f.proxy.cfg.no_hints = disabled;
+            let mut req = request();
+            req["messages"] = json!([
+                {"role":"user","content":"Drill a blind hole from the underside"},
+                {"role":"assistant","tool_calls":[{"id":"box","type":"function","function":{"name":"execute","arguments":json!({"command":"solid.box","params":{"length":60,"width":40,"height":20}}).to_string()}}]},
+                {"role":"tool","tool_call_id":"box","content":json!({"created_bodies":["Body1"]}).to_string()},
+                {"role":"assistant","tool_calls":[{"id":"hole","type":"function","function":{"name":"execute","arguments":json!({"command":"solid.hole","params":{"position":[20,15,1],"diameter":6,"depth":7}}).to_string()}}]},
+                {"role":"tool","tool_call_id":"hole","content":json!({"error":"position is not on a face of a body"}).to_string()}
+            ]);
+            f.chat(req.clone());
+            let script = f.proxy.scripted.as_ref().unwrap().borrow();
+            let sent = &script.requests[0];
+            let messages = sent["messages"].as_array().unwrap();
+            let last = messages.last().unwrap()["content"].as_str().unwrap();
+            assert_eq!(last.contains("Nearby face planes"), !disabled, "{last}");
+            assert_eq!(
+                messages
+                    .iter()
+                    .filter(|m| m["role"] == "assistant")
+                    .cloned()
+                    .collect::<Vec<_>>(),
+                req["messages"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .filter(|m| m["role"] == "assistant")
+                    .cloned()
+                    .collect::<Vec<_>>()
+            );
+            assert_eq!(
+                sent["tools"].to_string().contains(guidance::holes::HINT),
+                !disabled
+            );
+        }
+    }
+
+    #[test]
     fn edge_hints_persist_per_conversation_and_respect_no_hints() {
         for disabled in [false, true] {
             let mut f = Fixture::new(vec![reply("Ready."); 3]);
@@ -4974,6 +5244,98 @@ mod tests {
             let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
             assert_eq!(log.contains("\"kind\":\"sketch_fact\""), !disabled);
         }
+    }
+
+    #[test]
+    fn unit_fact_repeats_every_turn_audited_and_optional() {
+        for disabled in [false, true] {
+            let mut f = Fixture::new(vec![reply("Ready."); 3]);
+            f.proxy.cfg.no_hints = disabled;
+            let mut req = request();
+            req["messages"] =
+                json!([{"role":"user","content":"Cut a 3/8\" slot in a 1\" bar, 2 cm deep"}]);
+            // Every request repeats the whole fact; a later turn's sizes join it.
+            let expected = "Sizes in mm: 3/8\" = 9.525; 1\" = 25.4; 2 cm = 20";
+            f.chat(req.clone());
+            req["messages"].as_array_mut().unwrap().extend([
+                json!({"role":"assistant","content":"Ready."}),
+                json!({"role":"user","content":"Now a 1/8 in hole"}),
+            ]);
+            f.chat(req.clone());
+            req["messages"] = json!([{"role":"user","content":"a 20 mm box with a 5 hole"}]);
+            f.chat(req.clone());
+            let script = f.proxy.scripted.as_ref().unwrap().borrow();
+            for (n, sent) in script.requests.iter().enumerate() {
+                let all = sent["messages"].to_string();
+                assert_eq!(
+                    all.contains(&expected.replace('"', "\\\"")),
+                    !disabled && n < 2,
+                    "request {n}"
+                );
+                assert_eq!(all.contains("3.175"), !disabled && n == 1, "request {n}");
+            }
+            // The user text is never changed.
+            assert_eq!(
+                script.requests[0]["messages"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|m| m["role"] == "user")
+                    .unwrap()["content"],
+                "Cut a 3/8\" slot in a 1\" bar, 2 cm deep"
+            );
+            drop(script);
+            let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+            // Audited when the fact first appears and when a later turn changes it.
+            assert_eq!(
+                log.matches("\"kind\":\"unit_fact\"").count(),
+                if disabled { 0 } else { 2 }
+            );
+        }
+    }
+
+    #[test]
+    fn unit_fact_skips_turns_without_sizes_and_recipe_turns() {
+        let mut f = Fixture::new(vec![reply("Ready."); 4]);
+        let mut req = request();
+        req["messages"] = json!([{"role":"user","content":"a 20 mm box"}]);
+        f.chat(req.clone());
+        assert!(f.proxy.conversations[0].unit_fact.is_none());
+        // A later turn with a size still gets the fact (nothing was sent before).
+        req["messages"].as_array_mut().unwrap().extend([
+            json!({"role":"assistant","content":"Ready."}),
+            json!({"role":"user","content":"make it 2 in tall"}),
+        ]);
+        f.chat(req.clone());
+        assert!(f.proxy.conversations[0].unit_fact.is_some());
+        let script = f.proxy.scripted.as_ref().unwrap().borrow();
+        assert!(!script.requests[0].to_string().contains("Sizes in mm"));
+        assert!(script.requests[1].to_string().contains("Sizes in mm: 2"));
+    }
+
+    #[test]
+    fn unit_fact_is_not_added_when_a_recipe_handles_the_turn() {
+        let mut f = Fixture::with_shortcuts(vec![reply("Ready."); 2]);
+        f.proxy.cfg.direct_recipes = true;
+        f.proxy.cfg.no_shortcuts = false;
+        let mut req = request();
+        req["messages"] = json!([{"role":"user","content":"Create a box 1 in by 2 in by 3 in"}]);
+        let reply = f.chat(req.clone());
+        let upstream = f.proxy.scripted.as_ref().unwrap().borrow().requests.len();
+        let sent = f
+            .proxy
+            .scripted
+            .as_ref()
+            .unwrap()
+            .borrow()
+            .requests
+            .iter()
+            .any(|r| r.to_string().contains("Sizes in mm"));
+        assert!(
+            !sent,
+            "recipe-handled turn (upstream calls {upstream}) got a fact"
+        );
+        drop(reply);
     }
 
     #[test]
@@ -7051,6 +7413,36 @@ mod tests {
         f
     }
     #[test]
+    fn dev_l_notation_first_turn_offers_profile_without_hand_back() {
+        let cases: Vec<Value> =
+            serde_json::from_str(include_str!("../tests/fixtures/dev_l_notation.json")).unwrap();
+        for case in cases {
+            let mut f = fill_fixture(vec![call(
+                "pilot_fill",
+                json!({"kind":"L","plane":case["plane"],"width":case["size"][0],"height":case["size"][1],"thickness":case["size"][2],"depth":80}),
+            )]);
+            f.proxy.cfg.direct_recipes = true;
+            let mut req = fill_request();
+            req["messages"] = json!([{"role":"user","content":case["prompt"]}]);
+            let out = f.chat(req);
+            assert_eq!(out.status, 200, "{}", case["prompt"]);
+            let script = f.proxy.scripted.as_ref().unwrap().borrow();
+            assert_eq!(script.requests.len(), 1, "{}", case["prompt"]);
+            assert_eq!(
+                script.requests[0]["tool_choice"]["function"]["name"],
+                "pilot_fill"
+            );
+            let body: Value = serde_json::from_slice(&out.body).unwrap();
+            assert!(body["choices"][0]["message"]["tool_calls"].is_array());
+            let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+            assert!(
+                log.contains("fill_offered") && log.contains("fill_accepted"),
+                "{log}"
+            );
+            assert!(!log.contains("hand_back"), "{log}");
+        }
+    }
+    #[test]
     fn pattern_coercions_and_unmeasurable_skips_are_audited_in_both_modes() {
         for direct in [false, true] {
             for circular in [false, true] {
@@ -7292,19 +7684,26 @@ mod tests {
             reply("Ready."),
             reply("Ready."),
         ]);
-        assert_eq!(f.chat(data["requests"][0].clone()).status, 200);
+        // Pilot's own body-check reads stand in for an upstream request.
+        let mut hint_reads = 0;
+        let mut count = |out: &Reply| {
+            assert_eq!(out.status, 200);
+            hint_reads +=
+                usize::from(String::from_utf8_lossy(&out.body).contains("pilot_bodyhint_"));
+        };
+        count(&f.chat(data["requests"][0].clone()));
         // Replay the real follow-up histories despite deliberately losing all
         // prefix-based conversation state between requests.
         for req in data["requests"].as_array().unwrap().iter().skip(1) {
             f.proxy.conversations.clear();
-            assert_eq!(f.chat(req.clone()).status, 200);
+            count(&f.chat(req.clone()));
         }
         let mut resend = data["requests"][1].clone();
         resend["messages"].as_array_mut().unwrap().remove(0);
         f.proxy.conversations.clear();
-        assert_eq!(f.chat(resend).status, 200);
+        count(&f.chat(resend));
         let script = f.proxy.scripted.as_ref().unwrap().borrow();
-        assert_eq!(script.requests.len(), 7);
+        assert_eq!(script.requests.len() + hint_reads, 7);
         assert!(script
             .requests
             .iter()
@@ -7354,15 +7753,22 @@ mod tests {
             .skip(1)
             .all(|r| !r["tools"].to_string().contains("pilot_fill")));
         drop(script);
-        // A cold proxy must also reject each already-acted public history.
+        // A cold proxy must also reject each already-acted public history. A
+        // history that left separate touching bodies may first get Pilot's own
+        // body-check read instead of an upstream request; neither offers a form.
         for req in data["requests"].as_array().unwrap().iter().skip(1) {
             let mut cold = fill_fixture(vec![reply("Ready.")]);
-            assert_eq!(cold.chat(req.clone()).status, 200);
-            assert!(
-                !cold.proxy.scripted.as_ref().unwrap().borrow().requests[0]["tools"]
-                    .to_string()
-                    .contains("pilot_fill")
-            );
+            let out = cold.chat(req.clone());
+            assert_eq!(out.status, 200);
+            let script = cold.proxy.scripted.as_ref().unwrap().borrow();
+            if let Some(first) = script.requests.first() {
+                assert!(!first["tools"].to_string().contains("pilot_fill"));
+            } else {
+                let out: Value = serde_json::from_slice(&out.body).unwrap();
+                let calls = out["choices"][0]["message"]["tool_calls"].to_string();
+                assert!(calls.contains("pilot_bodyhint_"), "{calls}");
+                assert!(!calls.contains("pilot_fill"), "{calls}");
+            }
         }
     }
 
@@ -7425,7 +7831,7 @@ mod tests {
                 "pilot_fill"
             );
             if decline {
-                assert_eq!(script.requests[1]["tools"], req["tools"]);
+                assert_tools_with_optional_hole_hint(&script.requests[1]["tools"], &req["tools"]);
                 assert!(!script.requests[1]["tools"]
                     .to_string()
                     .contains("pilot_route"));

@@ -884,12 +884,13 @@ impl Ranker for Bm25 {
         };
         let lipped =
             (has("enclosure") || has("wall")) && has("lip") && (has("open") || has("wall"));
-        let section = ["l", "t", "u", "c"].iter().any(|w| has(w))
+        let section = (["l", "t", "u", "c"].iter().any(|w| has(w))
             && (has("profile")
                 || ((has("sketch") || has("extrude"))
                     && ["width", "height", "wide", "tall", "leg", "thickness"]
                         .iter()
-                        .any(|w| has(w))));
+                        .any(|w| has(w)))))
+            || planner::angle_profile_notation(query);
         let general_joint =
             planner::joints::intent(query) && planner::joints::generic_wanted(query);
         let named: BTreeSet<_> = query
