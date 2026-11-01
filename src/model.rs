@@ -7413,6 +7413,36 @@ mod tests {
         f
     }
     #[test]
+    fn dev_l_notation_first_turn_offers_profile_without_hand_back() {
+        let cases: Vec<Value> =
+            serde_json::from_str(include_str!("../tests/fixtures/dev_l_notation.json")).unwrap();
+        for case in cases {
+            let mut f = fill_fixture(vec![call(
+                "pilot_fill",
+                json!({"kind":"L","plane":case["plane"],"width":case["size"][0],"height":case["size"][1],"thickness":case["size"][2],"depth":80}),
+            )]);
+            f.proxy.cfg.direct_recipes = true;
+            let mut req = fill_request();
+            req["messages"] = json!([{"role":"user","content":case["prompt"]}]);
+            let out = f.chat(req);
+            assert_eq!(out.status, 200, "{}", case["prompt"]);
+            let script = f.proxy.scripted.as_ref().unwrap().borrow();
+            assert_eq!(script.requests.len(), 1, "{}", case["prompt"]);
+            assert_eq!(
+                script.requests[0]["tool_choice"]["function"]["name"],
+                "pilot_fill"
+            );
+            let body: Value = serde_json::from_slice(&out.body).unwrap();
+            assert!(body["choices"][0]["message"]["tool_calls"].is_array());
+            let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+            assert!(
+                log.contains("fill_offered") && log.contains("fill_accepted"),
+                "{log}"
+            );
+            assert!(!log.contains("hand_back"), "{log}");
+        }
+    }
+    #[test]
     fn pattern_coercions_and_unmeasurable_skips_are_audited_in_both_modes() {
         for direct in [false, true] {
             for circular in [false, true] {

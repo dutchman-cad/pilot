@@ -115,6 +115,33 @@ pub(super) fn intent_tokens(text: &str) -> Vec<String> {
     }
     t
 }
+/// A three-size drafting designation is distinct from a two-part fraction.
+/// Scope slash expansion to explicitly named angles; all other lexing stays put.
+pub(super) fn angle_tokens(words: &[String]) -> Vec<String> {
+    if !words.iter().any(|w| matches!(w.as_str(), "l" | "angle")) {
+        return words.to_vec();
+    }
+    let mut out = Vec::new();
+    for word in words {
+        let parts: Vec<_> = word.split('/').collect();
+        if parts.len() == 3
+            && parts.iter().all(|p| {
+                p.parse::<f64>()
+                    .is_ok_and(|n| n.is_finite() && n > 0.0 && n <= MAX_MM)
+            })
+        {
+            for (n, part) in parts.iter().enumerate() {
+                if n > 0 {
+                    out.push("x".into());
+                }
+                out.push((*part).into());
+            }
+        } else {
+            out.push(word.clone());
+        }
+    }
+    out
+}
 pub(super) fn has_question(text: &str) -> bool {
     if let Some(range) = rename_name_range(text, &tokens(text)) {
         return text[..range.start].contains('?') || text[range.end..].contains('?');
