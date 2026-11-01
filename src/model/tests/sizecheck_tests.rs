@@ -126,7 +126,7 @@ fn sizecheck_fifteen_public_cli_silent_builds() {
     let prompts = [
         "Build a 51 x 23 x 7 mm bar",
         "Create a 7 x 51 x 23 mm block",
-        "Make a 23 x 7 x 51 mm plate",
+        "I need a bar, 23 x 7 x 51 mm",
         "Build a 5.1 x 2.3 x 0.7 cm bar",
         "Make a bar, 51 mm overall length",
         "Make a bar with a 12 mm hole",
