@@ -116,6 +116,16 @@ Request side:
   fill and route; `--no-shortcuts` disables forms and local recipe tools even with the offer flag.
   No upfront find-first fact is added.
 - Facts and hints are sent once per retained conversation, with existing-history deduplication.
+- Hole and circle-cut fact (model face, outside `--no-hints`, not on recipe turns): after a
+  successful `solid.hole` (position, numeric diameter, simple type) or a `solid.extrude` cut of
+  one sketch circle, the trailing tool result gets one short fact of what was made, for example
+  `Hole made: 8 mm diameter, 10 mm deep along -Z from (20, 15, 12); it does not go through Body1
+  (12 mm thick).` A cut that cannot reach any body says `This cut removed no material: ...` with
+  the reason (circle outside the body, or swept away from it). The fact comes only from the call's
+  arguments, the result's `changed_bodies`, and body bounds seen earlier in the conversation
+  (`solid.box` arguments, inspect `bbox`); Pilot sends no reads. Thickness and through claims are
+  made only for bodies known to be plain blocks. At most 4 facts per tool result and 6 per user
+  turn. The call is never rewritten, rejected or replayed. Audited as `hole_fact`.
   The size fact (`unit_fact`, `src/unitfact.rs`) is one of them: when the conversation's user
   messages state sizes in inches (`in`, `inch`, `inches`, `"`, fractions and mixed numbers
   such as `3/8"` or `1 1/2 in`) or cm, one system line `Sizes in mm: 1" = 25.4; 3/8" = 9.525.`
