@@ -108,26 +108,23 @@ so these numbers say more about recipe parts than about everything people ask fo
 numbers, and results with other models, are in
 [the results issue](https://github.com/dutchman-cad/pilot/issues/1).
 
-Free-form requests are harder. A fifth blind set has 30 everyday requests (spacers, knobs,
-brackets, hinges, cable clips, enclosures, and seven edits to an existing part), written
-without looking at the recipes. Pilot offers a recipe for 16 of them. gemma4 e4b, three runs
-each, the same settings with and without Pilot, average parts built correctly:
+Free-form requests are harder. A fifth blind set has everyday requests (spacers, knobs,
+brackets, hinges, cable clips, and enclosures), written without looking at the recipes. Five
+of its 30 requests are no longer blind, so these numbers use the other 25. gemma4 e4b, three
+runs each, the same settings with and without Pilot, average parts built correctly:
 
 | Requests | Without Pilot | With Pilot |
 | --- | ---: | ---: |
-| A recipe was offered (16) | 3.7 (23%) | 4.0 (25%) |
-| No recipe (14) | 3.7 (26%) | 3.0 (21%) |
-| **All 30** | **7.3 (24%)** | **7.0 (23%)** |
+| A recipe was offered (15) | 3.7 (24%) | 6.3 (42%) |
+| No recipe (10) | 2.0 (20%) | 2.7 (27%) |
+| **All 25** | **5.7 (23%)** | **9.0 (36%)** |
 
-So on requests like these, Pilot does not help yet. A recipe that is offered often does not
-fit the part (a hinge leaf or a flanged pulley is not a plate). The most common failures are
-holes that are missing or the wrong size, parts left as separate pieces, and wrong overall
-sizes. Each of these is being worked on, and these numbers will be updated as the fixes are
-measured.
+So Pilot helps on requests like these, mostly where a recipe fits, and most of them still
+fail. The most common failures are holes that are missing or the wrong size, wrong overall
+sizes, and missing features. Without a recipe, expect little from a small model.
 
-Edits to an existing part are noisier. The seven edits in that set went worse with Pilot (1.0
-against 2.7), but a separate blind set of 12 edit requests, measured the same way, went
-better: 5.3 of 12 with Pilot against 2.7 without.
+Edits to an existing part: on a separate blind set of 12 edit requests, measured the same
+way, gemma4 e4b built 5.3 with Pilot against 2.7 without.
 
 ## Models that work
 
