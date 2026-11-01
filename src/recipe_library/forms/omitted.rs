@@ -88,6 +88,9 @@ pub(super) fn recover(
     }
     let words = tokens(&text.to_ascii_lowercase());
     let mut changes = Vec::new();
+    if schema["x-pilot-expander"] == "profile" {
+        profile(args, &words, &mut changes)?;
+    }
     if schema["x-pilot-expander"] == "profile" && args.get("depth").is_none() {
         let mut unused = Vec::new();
         for i in 0..words.len() {
@@ -127,6 +130,59 @@ pub(super) fn recover(
         plate(args, &words, &mut changes)?;
     }
     Ok(changes)
+}
+
+fn profile(args: &mut Value, words: &[String], changes: &mut Vec<Value>) -> Result<(), String> {
+    // An omitted plane is left to the builder's XY default: filling it from the
+    // request lost blind XZ profiles that pass with the default.
+    if args["kind"] != "T" || args.get("stem_offset").is_some() {
+        return Ok(());
+    }
+    let offsets: Vec<_> = words
+        .iter()
+        .enumerate()
+        .filter(|(_, s)| *s == "offset")
+        .collect();
+    let Some((i, _)) = offsets.first() else {
+        return Ok(());
+    };
+    // Only one clear "offset N from the left/centre" is inferred; anything else
+    // leaves the fill as the model wrote it.
+    if offsets.len() != 1
+        || words
+            .iter()
+            .any(|s| matches!(s.as_str(), "not" | "without" | "or" | "either"))
+    {
+        return Ok(());
+    }
+    let Some((value, end)) = length(words, i + 1) else {
+        return Ok(());
+    };
+    let Some(mut tail) = words[end..].strip_prefix(&["from".into()]) else {
+        return Ok(());
+    };
+    if tail.first().is_some_and(|s| s == "the") {
+        tail = &tail[1..];
+    }
+    let offset = match tail.first().map(String::as_str) {
+        Some("left") => value,
+        Some("centre" | "center") => match args["width"].as_f64() {
+            Some(width) => width / 2. + value,
+            None => return Ok(()),
+        },
+        _ => return Ok(()),
+    };
+    if !offset.is_finite() || !(0. ..=1_000_000.).contains(&offset) {
+        return Ok(());
+    }
+    default(
+        args,
+        changes,
+        "stem_offset",
+        offset,
+        "explicit stem centre offset; converted to distance from left",
+    );
+    Ok(())
 }
 
 fn plate(args: &mut Value, words: &[String], changes: &mut Vec<Value>) -> Result<(), String> {

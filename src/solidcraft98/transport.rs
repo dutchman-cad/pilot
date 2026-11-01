@@ -129,9 +129,10 @@ impl RemoteSession {
                     }
                     match TcpStream::connect_timeout(address, remaining) {
                         Ok(stream) => {
-                            stream
-                                .set_read_timeout(Some(Duration::from_secs(15)))
-                                .map_err(|e| e.to_string())?;
+                            // No socket read timeout: the reader waits for the next answer while
+                            // the model thinks, which can take longer than any command. exchange()
+                            // bounds each command at fifteen seconds, and dropping the worker shuts
+                            // the socket down.
                             stream
                                 .set_write_timeout(Some(Duration::from_secs(15)))
                                 .map_err(|e| e.to_string())?;
@@ -238,6 +239,28 @@ mod tests {
         fn flush(&mut self) -> std::io::Result<()> {
             Ok(())
         }
+    }
+    #[test]
+    fn tcp_session_survives_a_long_model_turn() {
+        use std::io::{BufRead, BufReader};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let peer = thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            let mut out = stream.try_clone().unwrap();
+            for line in BufReader::new(stream).lines() {
+                if line.unwrap() == "look" {
+                    out.write_all(b"screen\n.\n").unwrap();
+                }
+            }
+        });
+        let mut session = RemoteSession::new(Endpoint::Tcp(address));
+        assert_eq!(session.exchange("look").unwrap(), "screen\n");
+        // Longer than the fifteen-second command deadline, as a slow model turn can be.
+        thread::sleep(Duration::from_secs(16));
+        assert_eq!(session.exchange("look").unwrap(), "screen\n");
+        drop(session);
+        peer.join().unwrap();
     }
     #[test]
     fn complete_deadline_includes_blocked_writes() {

@@ -34,6 +34,8 @@ pub mod recipe_library;
 pub mod repair;
 #[cfg(feature = "core")]
 pub mod solidcraft98;
+#[cfg(feature = "proxy")]
+pub mod unitfact;
 
 #[cfg(feature = "proxy")]
 pub mod capture;

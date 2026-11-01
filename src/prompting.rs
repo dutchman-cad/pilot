@@ -200,6 +200,11 @@ fn append_fact(body: &mut Value, fact: &str, marker: &str, sketch: bool) -> Resu
     if !applies {
         return Ok(false);
     }
+    add_system_text(messages, fact)?;
+    Ok(true)
+}
+
+fn add_system_text(messages: &mut Vec<Value>, fact: &str) -> Result<(), String> {
     if let Some(system) = messages.iter_mut().rev().find(|m| m["role"] == "system") {
         if let Some(content) = system["content"].as_str() {
             system["content"] = json!(format!("{content}\n{fact}"));
@@ -211,7 +216,39 @@ fn append_fact(body: &mut Value, fact: &str, marker: &str, sketch: bool) -> Resu
     } else {
         messages.insert(0, json!({"role":"system","content":fact}));
     }
-    Ok(true)
+    Ok(())
+}
+
+/// True when any message already carries the size fact.
+pub(crate) fn unit_fact_present(body: &Value) -> bool {
+    body["messages"].as_array().is_some_and(|messages| {
+        messages
+            .iter()
+            .any(|m| message_text(&m["content"]).contains(crate::unitfact::UNIT_MARKER))
+    })
+}
+
+/// Add the mm values of the inch / cm sizes the conversation's user messages state.
+/// Clients do not echo Pilot's system lines, so every request carries the whole
+/// fact. Returns the fact text when it was added; the request text is never changed.
+pub(crate) fn append_unit_fact(body: &mut Value) -> Result<Option<String>, String> {
+    if unit_fact_present(body) {
+        return Ok(None);
+    }
+    let messages = body["messages"]
+        .as_array_mut()
+        .ok_or("messages must be an array")?;
+    let text = messages
+        .iter()
+        .filter(|m| m["role"] == "user")
+        .map(|m| message_text(&m["content"]))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let Some(fact) = crate::unitfact::fact(&text) else {
+        return Ok(None);
+    };
+    add_system_text(messages, &fact)?;
+    Ok(Some(fact))
 }
 
 /// MCP has no user conversation: offer the fact once in an action tool description.
@@ -221,6 +258,14 @@ pub(crate) fn describe_placement(tools: &mut [Value]) -> bool {
 
 pub(crate) fn describe_sketch(tools: &mut [Value]) -> bool {
     describe_fact(tools, SKETCH_FACT, SKETCH_MARKER)
+}
+
+pub(crate) fn describe_holes(tools: &mut [Value]) -> bool {
+    describe_fact(
+        tools,
+        crate::guidance::holes::HINT,
+        "solid.hole: position is on the entry face",
+    )
 }
 
 fn describe_fact(tools: &mut [Value], fact: &str, marker: &str) -> bool {

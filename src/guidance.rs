@@ -1,6 +1,8 @@
 //! Deterministic state guidance over caller-supplied tool results.
 use crate::catalog::Catalog;
 use serde_json::{json, Value};
+#[cfg(feature = "proxy")]
+pub(crate) mod holes;
 
 #[cfg(feature = "proxy")]
 pub(crate) const XZ_SIGN_HINT: &str =
