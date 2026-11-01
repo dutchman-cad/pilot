@@ -15,6 +15,7 @@ mod history;
 mod holefact;
 mod recovery;
 mod shortcuts;
+mod sizecheck;
 mod text_mode;
 use recovery::Conversation;
 use std::{
@@ -936,6 +937,7 @@ impl Proxy {
             .and_then(|m| m.iter().rposition(|m| m["role"] == "user"))
             .unwrap_or(0);
         conversation.body_hint.reset(user_index, form_allowed);
+        conversation.sizecheck.reset(user_index, form_allowed);
         // Prefix matching can reuse state from an identical fresh conversation.
         // Without post-user history, none of its pending form/build state belongs
         // to this request. Preserve conversation-wide facts and hints only.
@@ -1072,6 +1074,12 @@ impl Proxy {
             && conversation.recipe.is_none()
             && !shortcut_active
             && body_hint::eligible(&original);
+        let sizecheck_enabled = !self.cfg.no_hints
+            && !self.cfg.solidcraft98
+            && recipe.is_none()
+            && conversation.recipe.is_none()
+            && !shortcut_active
+            && sizecheck::eligible(&original);
         if body_hint_enabled {
             if let Some(message) = body_hint::prepare(
                 &mut body,
@@ -2039,6 +2047,28 @@ impl Proxy {
             }
             let mut completion_nudge = false;
             let mut body_nudge = false;
+            if sizecheck_enabled
+                && nudge.is_none()
+                && !conversation.sizecheck.handed_back
+                && response["choices"].as_array().is_some_and(|c| c.len() == 1)
+                && message["tool_calls"]
+                    .as_array()
+                    .is_none_or(|c| c.is_empty())
+                && !is_empty(message)
+            {
+                if let Some(read) =
+                    sizecheck::prepare(&body, &mut conversation.sizecheck, &self.catalog, audit)?
+                {
+                    return direct::native(&original, read, audit.count);
+                }
+                if let Some(reason) = sizecheck::completion(&body) {
+                    conversation.sizecheck.handed_back = true;
+                    audit.record("size_check", message, &json!(reason))?;
+                    nudge = Some((reason, false));
+                    completion_nudge = true;
+                    body_nudge = true;
+                }
+            }
             if body_hint_enabled
                 && nudge.is_none()
                 && !conversation.body_hint.handed_back
@@ -3295,6 +3325,7 @@ mod tests {
     mod body_hint_tests;
     mod context_tests;
     mod holefact_tests;
+    mod sizecheck_tests;
     use super::*;
     use std::{
         cell::RefCell,
