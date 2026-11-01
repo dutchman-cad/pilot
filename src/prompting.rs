@@ -260,6 +260,14 @@ pub(crate) fn describe_sketch(tools: &mut [Value]) -> bool {
     describe_fact(tools, SKETCH_FACT, SKETCH_MARKER)
 }
 
+pub(crate) fn describe_holes(tools: &mut [Value]) -> bool {
+    describe_fact(
+        tools,
+        crate::guidance::holes::HINT,
+        "solid.hole: position is on the entry face",
+    )
+}
+
 fn describe_fact(tools: &mut [Value], fact: &str, marker: &str) -> bool {
     if tools.iter().any(|t| {
         t["description"]
