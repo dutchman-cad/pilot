@@ -29,6 +29,7 @@ pub(super) struct Conversation {
     pub pattern_inspections: usize,
     pub form_pending: Option<(usize, Value, Value, usize)>,
     pub body_hint: body_hint::State,
+    pub sizecheck: sizecheck::State,
 }
 impl Conversation {
     pub fn allow(&mut self, command: &str, count: usize) -> bool {
