@@ -342,3 +342,7 @@ implement `Display` and `std::error::Error`. The caller prints errors and choose
 its failure exit code. Proxy commands block until their server stops; `run`
 never exits the calling process. Parsing handles help, version, and argument
 errors through clap. The API requires `proxy` and is absent with only `core`.
+
+## Native call repairs
+
+See [Native call repairs](call-repairs.md) for supported argument and command corrections, ambiguity limits, and MCP's suggestion-only behavior.

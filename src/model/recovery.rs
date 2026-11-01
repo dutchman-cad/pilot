@@ -28,6 +28,7 @@ pub(super) struct Conversation {
     pub plane_hints_seen: [bool; 2],
     pub pattern_inspections: usize,
     pub form_pending: Option<(usize, Value, Value, usize)>,
+    pub body_hint: body_hint::State,
 }
 impl Conversation {
     pub fn allow(&mut self, command: &str, count: usize) -> bool {

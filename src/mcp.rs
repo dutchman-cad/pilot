@@ -373,6 +373,14 @@ impl Proxy {
             }
         }
         if method == "tools/call" {
+            if name == "batch" {
+                if let Some(reason) =
+                    crate::repair::failed_sketch_context(&v["params"]["arguments"], &reply)
+                {
+                    modified |=
+                        self.append(&mut reply, &reason, false, "sketch_dependency_error")?;
+                }
+            }
             let mut data = payload(&reply);
             let page = result_pages(&reply);
             if !page.is_empty() && data.is_object() {
@@ -558,6 +566,14 @@ impl Proxy {
         let Some(catalog) = self.catalog.as_ref() else {
             return Ok((None, None));
         };
+        let mut fixed = args.clone();
+        match crate::repair::repair_command(&mut fixed, catalog) {
+            Ok(changes) if !changes.is_empty() => {
+                return Ok((None, Some(json!({"tool":"execute","arguments":fixed}))));
+            }
+            Err(reason) => return Ok((Some(reason), None)),
+            _ => (),
+        }
         if text.contains("unknown command") {
             let task = request
                 .pointer("/params/arguments/task")
