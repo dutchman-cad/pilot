@@ -6,7 +6,7 @@ pub fn help(task: &str) -> Value {
         .iter()
         .any(|w| task.contains(w))
     {
-        json!({"source":"Pilot help","limitation":"SolidCraft 98 cannot fillet solid edges. A sketch corner radius is a limited alternative; this does not round solid edges."})
+        json!({"source":"Pilot help","examples":[{"name":"doubleclick","arguments":{"name":"Sketch1"}},{"name":"look","arguments":{}}],"limitation":"SolidCraft 98 cannot fillet or chamfer the top and bottom edges of a solid. The four upright edges of a block grown from a rectangle sketch are that sketch's corners: doubleclick the sketch in the timeline, set Corner radius and press OK. That rounds only those four edges; say so if other edges were asked for."})
     } else if task.contains("rename") {
         json!({"source":"Pilot help","limitation":"SolidCraft 98 cannot rename bodies. The design is unchanged by this help lookup."})
     } else if task.contains("volume") {

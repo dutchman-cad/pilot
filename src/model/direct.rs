@@ -4,6 +4,15 @@ use super::*;
 pub(super) fn unavailable() -> String {
     format!("No model is configured. I can handle exact requests with every required dimension or slot for: {}. See docs/recipes.md for supported forms.", planner::supported_recipes().join(", "))
 }
+/// The measured reply; only a plan Pilot read without the model is called an exact match.
+fn summary(request: &Value, plan: &planner::Plan, from_model: bool) -> String {
+    let text = planner::direct_summary(request, plan);
+    if from_model {
+        text.replacen("Exact match (no model):", "Built from the model's form:", 1)
+    } else {
+        text
+    }
+}
 pub(super) fn reply(request: &Value, text: String, rewrites: usize) -> Result<Reply, String> {
     response(
         request,
@@ -96,6 +105,11 @@ impl Proxy {
         if conversation.direct_failed {
             return Ok(Outcome::Continue);
         }
+        // A plan the model filled in (a form or its own shortcut call) is not an exact match.
+        let from_model = conversation
+            .shortcut_args
+            .as_ref()
+            .is_some_and(|(i, _)| *i == index);
         if let Some((previous_index, previous, emitted)) = conversation.direct.take() {
             if previous_index == index {
                 let messages = request["messages"]
@@ -171,8 +185,8 @@ impl Proxy {
                     conversation.pending_recipe = None;
                     audit.record(
                         "direct_recipe_fallback",
-                        &json!({"rule":previous.rule,"from_model":false}),
-                        &json!({"reason":reason,"from_model":false}),
+                        &json!({"rule":previous.rule,"from_model":from_model}),
+                        &json!({"reason":reason,"from_model":from_model}),
                     )?;
                     if self.cfg.upstream == "none" {
                         let text = format!(
@@ -196,11 +210,11 @@ impl Proxy {
                     } else {
                         &previous
                     };
-                    let text = planner::direct_summary(request, summary_plan);
+                    let text = summary(request, summary_plan, from_model);
                     audit.record(
                         "direct_recipe_reply",
                         &Value::Null,
-                        &json!({"rule":previous.rule,"from_model":false,"text":text}),
+                        &json!({"rule":previous.rule,"from_model":from_model,"text":text}),
                     )?;
                     return Ok(Outcome::Reply(reply(request, text, audit.count)?));
                 }
@@ -210,11 +224,11 @@ impl Proxy {
             return Ok(Outcome::Continue);
         };
         if plan.calls.is_empty() {
-            let text = planner::direct_summary(request, plan);
+            let text = summary(request, plan, from_model);
             audit.record(
                 "direct_recipe_reply",
                 &Value::Null,
-                &json!({"rule":plan.rule,"from_model":false,"text":text}),
+                &json!({"rule":plan.rule,"from_model":from_model,"text":text}),
             )?;
             return Ok(Outcome::Reply(reply(request, text, audit.count)?));
         }
@@ -226,7 +240,7 @@ impl Proxy {
         }
         let message =
             json!({"role":"assistant","content":null,"tool_calls":calls(request, plan, index)});
-        audit.record("direct_recipe_calls", &Value::Null, &json!({"request":last_user(request),"rule":plan.rule,"slots":plan.slots,"expected":plan.expected,"calls":plan.calls,"message":message,"from_model":false}))?;
+        audit.record("direct_recipe_calls", &Value::Null, &json!({"request":last_user(request),"rule":plan.rule,"slots":plan.slots,"expected":plan.expected,"calls":plan.calls,"message":message,"from_model":from_model}))?;
         conversation.direct = Some((index, plan.clone(), message.clone()));
         conversation.recipe = plan.expected.clone().map(|e| (index, e));
         conversation.pending_recipe = plan.continuation.as_ref().map(|_| plan.clone());

@@ -15,6 +15,9 @@ validates and approves them normally. Streaming requests receive valid SSE.
 After the client returns every call's result, Pilot runs the same completion
 check and replies with `Exact match (no model):`, the recipe, measured body count,
 volume, and available bounds-derived sizes. Length conversions are stated explicitly.
+When the model filled in the recipe's form, the same measured reply starts
+`Built from the model's form:` instead, so only a request Pilot read by itself is
+called an exact match.
 A tool error, missing result, unresolved topology, or completion mismatch hands
 back the failure to the model once; direct answering stays disabled for that
 turn so the model can recover without replaying accepted changes. With no model,

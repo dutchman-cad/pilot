@@ -2308,3 +2308,32 @@ fn unneeded_pattern_join_is_removed_without_allowing_overlap() {
         assert!(build(args, &explicit).unwrap_err().contains("join"));
     }
 }
+
+#[test]
+fn enclosure_opening_follows_the_named_part() {
+    let lib = Library::embedded().unwrap();
+    let schema = &lib
+        .recipes
+        .iter()
+        .find(|r| r.id == "enclosure")
+        .unwrap()
+        .schema;
+    for (text, open) in [
+        ("Make a cover with an outer lip", Some("bottom")),
+        ("Make an enclosure cover with an outer lip", Some("bottom")),
+        ("Build a box lid, 60 by 40 by 10", Some("bottom")),
+        ("Make an enclosure with an outer lip for a lid", None),
+        ("Make a box without a cover", None),
+        ("Make an enclosure 80 by 60 by 30", None),
+        ("Make an enclosure cover, open top", Some("top")),
+    ] {
+        let mut args = json!({"length":60,"width":40,"height":20,"wall":2});
+        forms::request_defaults(
+            &mut args,
+            schema,
+            &json!({"messages":[{"role":"user","content":text}]}),
+        )
+        .unwrap();
+        assert_eq!(args["open"].as_str(), open, "{text}");
+    }
+}
