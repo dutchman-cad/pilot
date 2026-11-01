@@ -120,10 +120,14 @@ each, the same settings with and without Pilot, average parts built correctly:
 | **All 30** | **7.3 (24%)** | **7.0 (23%)** |
 
 So on requests like these, Pilot does not help yet. A recipe that is offered often does not
-fit the part (a hinge leaf or a flanged pulley is not a plate), and edits to an existing part
-went worse with Pilot (1.0 of 7 against 2.7). The most common failures are holes that are
-missing or the wrong size, parts left as separate pieces, and wrong overall sizes. Each of
-these is being worked on, and these numbers will be updated as the fixes are measured.
+fit the part (a hinge leaf or a flanged pulley is not a plate). The most common failures are
+holes that are missing or the wrong size, parts left as separate pieces, and wrong overall
+sizes. Each of these is being worked on, and these numbers will be updated as the fixes are
+measured.
+
+Edits to an existing part are noisier. The seven edits in that set went worse with Pilot (1.0
+against 2.7), but a separate blind set of 12 edit requests, measured the same way, went
+better: 5.3 of 12 with Pilot against 2.7 without.
 
 ## Models that work
 
