@@ -166,6 +166,23 @@ pub fn matches_prose(
 pub fn resume(request: &Value, previous: &Plan, catalog: &Catalog) -> Result<Option<Plan>, String> {
     recipes::resume(request, previous, catalog)
 }
+
+/// Strong creation intent independent of the calibrated recipe text corpus.
+pub(crate) fn container_walls(request: &str) -> bool {
+    if request.len() > 65_536 {
+        return false;
+    }
+    let t = slots::tokens(request);
+    let has = |ws: &[&str]| t.iter().any(|s| ws.contains(&s.as_str()));
+    has(&["box", "container", "enclosure", "lid", "cover"])
+        && has(&["wall", "walls", "thickness"])
+        && !has(&[
+            "existing", "selected", "current", "move", "rename", "copy", "pattern", "array", "not",
+            "without", "or", "holes", "hole", "volume", "count", "measure", "inspect", "how",
+            "what", "explain", "describe",
+        ])
+        && slots::dimensions(&t).is_some_and(|d| d.len() >= 4)
+}
 fn tool_payload(message: &Value) -> Option<Value> {
     let content = message.get("content")?;
     let data = if let Some(s) = content.as_str() {
@@ -883,6 +900,32 @@ pub fn direct_summary(request: &Value, plan: &Plan) -> String {
     );
     if plan.slots["CompoundPlate"]["default_start"] == true {
         text.push_str(" Bolt circle starts at +X (no start angle was specified).");
+    }
+    if plan.rule == "shell" && plan.slots["ShellBox"]["rounding"].is_null() {
+        let t = request["messages"]
+            .as_array()
+            .and_then(|m| m.iter().rev().find(|m| m["role"] == "user"))
+            .and_then(|m| m["content"].as_str())
+            .filter(|s| s.len() <= MAX_TEXT)
+            .map(tokens)
+            .unwrap_or_default();
+        if t.iter().any(|s| {
+            matches!(
+                s.as_str(),
+                "fillet"
+                    | "fillets"
+                    | "filleted"
+                    | "round"
+                    | "rounded"
+                    | "chamfer"
+                    | "chamfers"
+                    | "chamfered"
+                    | "bevel"
+                    | "bevelled"
+            )
+        }) {
+            text.push_str(" The requested edge treatment was not applied: specify one size and an unambiguous set of edges.");
+        }
     }
     if let Some(data) = request["messages"].as_array().and_then(|m| state(m)) {
         if let Some(bodies) = data["bodies"].as_array() {

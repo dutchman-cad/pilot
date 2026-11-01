@@ -229,6 +229,17 @@ pub(crate) fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<
                 centred,
                 lip,
                 outer,
+                closed: open == "closed",
+                rounding: request["messages"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .rev()
+                    .find(|m| m["role"] == "user")
+                    .and_then(|m| m["content"].as_str())
+                    .filter(|s| s.len() <= 65_536)
+                    .and_then(|s| shell_box::rounding(&slots::tokens(s)))
+                    .map(|(_, f, a)| (f, a)),
             }
             .into_slots()?;
             ("shell", slots)
@@ -601,7 +612,7 @@ pub(crate) fn tool() -> Value {
             ("width", n.clone()),
             ("height", n.clone()),
             ("wall", n.clone()),
-            ("open", choice(&["top", "bottom"])),
+            ("open", choice(&["top", "bottom", "closed"])),
             ("floor", n.clone()),
             ("centred", b),
             ("lip", lip),
@@ -759,6 +770,8 @@ pub(crate) fn file_build(
                 centred: false,
                 lip: None,
                 outer: false,
+                closed: false,
+                rounding: None,
             }
             .into_slots()?
         }
