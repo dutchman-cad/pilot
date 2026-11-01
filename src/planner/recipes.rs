@@ -1348,7 +1348,7 @@ fn expand(slots: &Slots, catalog: &Catalog) -> Result<Expansion, String> {
             for (command, params) in shell.commands() {
                 add(command, params)?;
             }
-            v = Some(shell.volume());
+            v = shell.rounding.is_none().then(|| shell.volume());
             creates = true;
         }
         Slots::Shell { size, wall } => {
@@ -1742,7 +1742,9 @@ fn from_slots(
                 params["targets"] = json!([created]);
             } else if matches!(slots, Slots::ShellBox(_)) {
                 match c["arguments"]["command"].as_str().unwrap_or("") {
-                    "solid.shell" => c["arguments"]["params"]["body"] = json!(created),
+                    "solid.shell" | "model.edges" => {
+                        c["arguments"]["params"]["body"] = json!(created)
+                    }
                     "solid.box" | "solid.extrude" => {
                         c["arguments"]["params"]["targets"] = json!([created])
                     }
@@ -1812,6 +1814,7 @@ fn from_slots(
     let rounding_kind = match &slots {
         Slots::Edges { fillet, .. } => Some(*fillet),
         Slots::CompoundPlate(p) => p.rounding.map(|(fillet, _, _)| fillet),
+        Slots::ShellBox(s) => s.rounding.map(|(fillet, _)| fillet),
         _ => None,
     };
     let expected = Expected {
@@ -1839,6 +1842,7 @@ fn from_slots(
                             .count(),
                     )
                 })
+                .or_else(|| matches!(slots, Slots::ShellBox(_)).then_some((kind.into(), 1)))
         } else {
             None
         },
@@ -1861,6 +1865,16 @@ fn from_slots(
         name,
     };
     let continuation = match &slots {
+        Slots::ShellBox(s) => {
+            s.rounding
+                .zip(expected.name.as_ref())
+                .map(|((fillet, amount), body)| EdgeContinuation {
+                    body: body.clone(),
+                    amount,
+                    fillet,
+                    top: false,
+                })
+        }
         Slots::CompoundPlate(p) if p.rounding.is_some_and(|(_, all, _)| all) => p
             .rounding
             .zip(expected.name.as_ref())
@@ -1943,7 +1957,7 @@ pub(super) fn resume(
     let mut next = previous.clone();
     next.calls = calls;
     next.continuation = None;
-    if previous.rule != "compound_plate" {
+    if previous.rule != "compound_plate" && previous.slots.get("ShellBox").is_none() {
         next.slots =
             serde_json::to_value(slots).map_err(|e| format!("cannot audit edge slots: {e}"))?;
     }

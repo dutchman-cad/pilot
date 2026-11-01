@@ -156,6 +156,13 @@ impl Proxy {
                         })
                 };
                 if let Some(reason) = difference {
+                    if let Some(text) = shell_edge_failure(request, &previous, from_model) {
+                        conversation.direct_failed = true;
+                        conversation.completion_checked = true;
+                        conversation.pending_recipe = None;
+                        audit.record("direct_recipe_reply", &Value::Null, &json!({"rule":previous.rule,"from_model":from_model,"text":text,"edge_failed":true}))?;
+                        return Ok(Outcome::Reply(reply(request, text, audit.count)?));
+                    }
                     // These recipes have only read the design. Their successful reads
                     // are also valid form context; no accepted mutation needs recovery.
                     let provisional = matches!(
@@ -253,6 +260,69 @@ impl Proxy {
     }
 }
 
+/// A refused finishing operation must not send an accepted shell back for rebuilding.
+fn shell_edge_failure(request: &Value, plan: &planner::Plan, from_model: bool) -> Option<String> {
+    let shell = plan.slots.get("ShellBox")?;
+    let fillet = shell["rounding"][0].as_bool()?;
+    if plan.continuation.is_some()
+        || !matches!(
+            plan.calls.first()?["arguments"]["command"].as_str(),
+            Some("solid.fillet" | "solid.chamfer")
+        )
+    {
+        return None;
+    }
+    let name = plan.expected.as_ref()?.name.as_ref()?;
+    let messages = request["messages"].as_array()?;
+    let refused = messages
+        .iter()
+        .rev()
+        .filter(|m| m["role"] == "tool")
+        .take(2)
+        .any(|m| {
+            let raw = m["content"]
+                .as_str()
+                .and_then(|s| serde_json::from_str::<Value>(s).ok())
+                .unwrap_or_else(|| m["content"].clone());
+            has_error(&raw) || has_error(&guidance::payload(&raw))
+        });
+    if !refused {
+        return None;
+    }
+    let measured = request["messages"]
+        .as_array()?
+        .iter()
+        .rev()
+        .filter(|m| m["role"] == "tool")
+        .take(2)
+        .filter_map(tool_data)
+        .find(|d| d["bodies"].is_array());
+    let retained = measured.as_ref().is_some_and(|d| {
+        d["bodies"].as_array().is_some_and(|b| {
+            b.iter().any(|b| {
+                b["name"] == *name
+                    && b["volume_mm3"]
+                        .as_f64()
+                        .is_some_and(|v| v.is_finite() && v > 0.0)
+            })
+        })
+    });
+    let prefix = if from_model {
+        "Built from the model's form:"
+    } else {
+        "Exact match (no model):"
+    };
+    let edge = if fillet { "fillet" } else { "chamfer" };
+    Some(format!(
+        "{prefix} The requested all-edge {edge} could not build. {} No finishing retry was made.",
+        if retained {
+            "The shell remains in place."
+        } else {
+            "Shell creation was accepted, but its current measurements are unverified."
+        }
+    ))
+}
+
 // JSON ingress already bounds size and nesting, including batch result trees.
 pub(super) fn has_error(value: &Value) -> bool {
     match value {
@@ -265,5 +335,35 @@ pub(super) fn has_error(value: &Value) -> bool {
         }),
         Value::Array(values) => values.iter().any(has_error),
         _ => false,
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod shell_tests {
+    use super::*;
+    #[test]
+    fn refused_shell_fillet_reports_preserved_shell() {
+        let cat = Catalog::bundled().unwrap();
+        let mut req = json!({"messages":[{"role":"user","content":"open top box 68x46x32mm walls 2mm fillet all edges 3mm"}],"tools":[{"function":{"name":"execute"}}]});
+        let plan = planner::plan_direct(&req, &cat).unwrap().unwrap();
+        // The refusal reply is only for the finishing phase, never the creation prefix.
+        assert!(shell_edge_failure(&req, &plan, false).is_none());
+        req["messages"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"role":"tool","content":{"body":"PilotRecipe1","edges":[{"index":0}]}}));
+        let next = planner::resume(&req, &plan, &cat).unwrap().unwrap();
+        assert_eq!(next.calls.len(), 2);
+        req["messages"].as_array_mut().unwrap().extend([
+            json!({"role":"tool","content":{"isError":true,"error":"radius cannot build"}}),
+            json!({"role":"tool","content":{"bodies":[{"name":"PilotRecipe1","volume_mm3":15552.}],"timeline":[]}}),
+        ]);
+        for from_model in [false, true] {
+            let text = shell_edge_failure(&req, &next, from_model).unwrap();
+            assert!(text.contains("fillet could not build"));
+            assert!(text.contains("shell remains in place"));
+            assert_eq!(text.starts_with("Built from the model's form:"), from_model);
+        }
     }
 }

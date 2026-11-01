@@ -884,6 +884,7 @@ impl Ranker for Bm25 {
         };
         let lipped =
             (has("enclosure") || has("wall")) && has("lip") && (has("open") || has("wall"));
+        let container = !existing && planner::container_walls(query);
         let section = (["l", "t", "u", "c"].iter().any(|w| has(w))
             && (has("profile")
                 || ((has("sketch") || has("extrude"))
@@ -911,6 +912,16 @@ impl Ranker for Bm25 {
             .map(|(i, ds)| {
                 if recipes[i].id == "joint" {
                     return (i, if general_joint { 100.0 } else { 0.0 });
+                }
+                if container {
+                    return (
+                        i,
+                        if recipes[i].id == "enclosure" {
+                            100.0
+                        } else {
+                            0.0
+                        },
+                    );
                 }
                 if (edge_edit || existing_grid) && recipes[i].id == "plate" {
                     return (i, 0.0);

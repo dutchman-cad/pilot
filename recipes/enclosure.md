@@ -103,7 +103,8 @@
         "description": "Face to remove",
         "enum": [
           "top",
-          "bottom"
+          "bottom",
+          "closed"
         ],
         "type": "string"
       },
@@ -194,7 +195,8 @@
           "description": "Choice",
           "enum": [
             "top",
-            "bottom"
+            "bottom",
+            "closed"
           ],
           "type": "string",
           "x-slot": "/open"
