@@ -156,6 +156,14 @@ it as a well-formed stream):
    (assembled for SSE; null when unavailable) and its tool call names. Names are capped
    at 128 entries of 128 characters. No text, descriptions, or argument values are added.
    FNV-1a is a deterministic comparison aid, not a cryptographic integrity guarantee.
+5. **Separate-body fact, without a recipe.** In model-only and default modes, unless
+   hints are disabled, a one-part request gets a short tool-result fact when public
+   measurements confirm separate solids touch or overlap. Include the exact native
+   join call using inspected names; never run the join or change a valid model call.
+   Reuse document inspection and bound additional reads. Explicit separate parts,
+   bodies, copies as bodies, and assemblies suppress the fact. A final reply with
+   multiple bodies gets at most one hand-back per user turn, repeating the measured
+   fact when available or reporting the count without an unverified join.
 
 Pilot does not depend on SolidCraft crates; it talks to SolidCraft only through its public
 interfaces.
