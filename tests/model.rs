@@ -1208,3 +1208,106 @@ fn solidcraft98_dialect_has_only_screen_tools_and_no_catalogue_plans() {
 
 #[path = "support/dev_boss_model.rs"]
 mod dev_boss_model;
+
+#[path = "support/callrepair_cases.rs"]
+mod callrepair_cases;
+#[test]
+fn callrepair_model_repairs_native_text_and_batch_and_audits() {
+    let cases = callrepair_cases::accepted();
+    for style in ["execute", "batch", "text"] {
+        let replies = cases
+            .iter()
+            .map(|(before, _)| {
+                ok(match style {
+                    "text" => prose(&json!({"tool":"execute","args":before}).to_string()),
+                    "batch" => call("batch", json!({"commands":[before]})),
+                    _ => call("execute", before.clone()),
+                })
+            })
+            .collect();
+        let h = Harness::new(replies, cases.len(), FallbackPrompt::Off, None, json!({}));
+        for (before, expected) in &cases {
+            let (_, header, text) = h.chat(&request("Perform the supplied native operation."));
+            let actual = args(&text);
+            assert_eq!(
+                if style == "batch" {
+                    &actual["commands"][0]
+                } else {
+                    &actual
+                },
+                expected,
+                "{before}: {text}"
+            );
+            assert_ne!(header, "rewrites=0");
+        }
+        let log = fs::read_to_string(h.dir.join("audit.jsonl")).unwrap();
+        assert!(log.contains("argument_reconcile"));
+        for (before, expected) in &cases {
+            assert!(
+                log.lines()
+                    .filter_map(|s| serde_json::from_str::<Value>(s).ok())
+                    .any(|r| {
+                        if style == "batch" {
+                            r["before"]["commands"][0] == *before
+                                && r["after"]["commands"][0] == *expected
+                        } else {
+                            r["before"] == *before && r["after"] == *expected
+                        }
+                    }),
+                "missing audit for {before}"
+            );
+        }
+        h.finish();
+    }
+}
+#[test]
+fn callrepair_model_errors_explain_form_and_preserve_values() {
+    for before in callrepair_cases::refused() {
+        let h = Harness::new(
+            vec![
+                ok(call("execute", before.clone())),
+                ok(prose("Please clarify the missing geometry.")),
+            ],
+            1,
+            FallbackPrompt::Off,
+            None,
+            json!({}),
+        );
+        let (_, _, text) = h.chat(&request("Perform the supplied native operation."));
+        assert!(text.contains("Please clarify"), "{before}: {text}");
+        let chats = h.chats();
+        let reason = chats[1]["messages"].as_array().unwrap().last().unwrap()["content"]
+            .as_str()
+            .unwrap();
+        assert!(reason.contains("; use {\"command\":"), "{before}: {reason}");
+        h.finish();
+    }
+}
+#[test]
+fn callrepair_model_batch_error_names_failed_create() {
+    for command in ["sketch.circle.center", "sketch.rectangle.two_point"] {
+        let commands = json!({"commands":[{"command":"sketch.create","params":{"plane":"Unknown fixture plane"}},{"command":command,"params":{"center":[2,3],"radius":4}}]});
+        let result = json!({"results":[{"error":"no plane Unknown fixture plane"},{"error":"no sketch is being edited"}]});
+        let h = Harness::new(
+            vec![ok(prose("Please correct the sketch plane."))],
+            1,
+            FallbackPrompt::Off,
+            None,
+            json!({}),
+        );
+        let mut req = request("Continue the supplied operation.");
+        req["messages"].as_array_mut().unwrap().extend([
+            json!({"role":"assistant","tool_calls":[{"id":"failed-batch","type":"function","function":{"name":"batch","arguments":commands.to_string()}}]}),
+            json!({"role":"tool","tool_call_id":"failed-batch","content":result.to_string()}),
+        ]);
+        h.chat(&req);
+        let chats = h.chats();
+        assert!(chats[0].to_string().contains(
+            "earlier sketch.create at batch step 0 failed: no plane Unknown fixture plane"
+        ));
+        assert!(fs::read_to_string(h.dir.join("audit.jsonl"))
+            .unwrap()
+            .contains("sketch_dependency_error"));
+        h.finish();
+    }
+}
