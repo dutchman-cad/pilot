@@ -155,6 +155,26 @@ fn strict_text_and_explicit_objects_only() {
             assert!(drive::parse_text(s, plain).is_ok(), "{s}");
         }
     }
+    let gemma = r#"fill_dialog{fields:[{name:<|"|>Corner radius (mm)<|"|>,value:<|"|>3<|"|>}]}"#;
+    assert_eq!(
+        drive::parse_text(gemma, false).unwrap(),
+        Call::Tool {
+            name: "fill_dialog".into(),
+            args: json!({"fields":[{"name":"Corner radius (mm)","value":"3"}]})
+        }
+    );
+    assert!(drive::parse_text(gemma, true).is_err());
+    assert!(drive::parse_text("I will click{name:x}", false).is_err());
+    assert_eq!(
+        drive::parse_text("doubleclick Sketch1", false).unwrap_err(),
+        "a command needs its prefix and did not run; reply exactly: COMMAND: doubleclick Sketch1"
+    );
+    assert!(drive::parse_text("doubleclick Sketch1", true)
+        .unwrap_err()
+        .starts_with("expected one COMMAND: line"));
+    assert!(drive::parse_text("I'll click New Part", false)
+        .unwrap_err()
+        .starts_with("expected one COMMAND: line"));
     assert!(drive::parse_text("```json\n{tool:'look',args:{},}\n```", false).is_ok());
     assert!(drive::parse_text("```json\n{tool:'look',args:{},}\n```", true).is_err());
     assert_eq!(
@@ -166,6 +186,18 @@ fn strict_text_and_explicit_objects_only() {
     );
     let multi = json!({"tool_calls":[{},{}]});
     assert!(drive::parse_message(&multi, false).is_err());
+}
+#[test]
+fn double_and_right_clicks_use_the_verbs_both_builds_know() {
+    let u = Upstream::new(vec![
+        native("doubleclick", r#"{"point":{"x":200,"y":300}}"#),
+        native("rightclick", r#"{"point":{"x":200,"y":300}}"#),
+        text("COMMAND: done finished"),
+    ]);
+    let result = drive::run(u.cfg(false)).unwrap();
+    assert_eq!(result["stop_reason"], "done");
+    assert_eq!(result["actions"], 2);
+    assert_eq!(result["errors"], 0, "{result}");
 }
 #[test]
 fn loop_format_errors_native_done_and_transcript() {
@@ -425,6 +457,13 @@ fn cli_offline_help_and_driver_bounds() {
     assert!(out.status.success());
     let v: Value = serde_json::from_slice(&out.stdout).unwrap();
     assert_eq!(v["examples"][0]["name"], "doubleclick");
+    let out = Command::new(binary)
+        .args(["how98", "round the four upright edges with a 3 mm radius"])
+        .output()
+        .unwrap();
+    let v: Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(v["examples"][0]["arguments"]["name"], "Sketch1");
+    assert!(v["limitation"].as_str().unwrap().contains("Corner radius"));
     for args in [
         vec![
             "drive98",
@@ -479,8 +518,10 @@ fn replay_peer(
     let endpoint = Endpoint::Tcp(listener.local_addr().unwrap());
     let handle = thread::spawn(move || {
         let (mut stream, _) = listener.accept().unwrap();
+        // Only a guard against a hung test: a loaded CI runner can take over ten seconds
+        // between commands.
         stream
-            .set_read_timeout(Some(Duration::from_secs(10)))
+            .set_read_timeout(Some(Duration::from_secs(60)))
             .unwrap();
         let mut reader = BufReader::new(stream.try_clone().unwrap());
         let mut screen = initial;

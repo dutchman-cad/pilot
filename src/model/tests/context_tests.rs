@@ -188,7 +188,7 @@ fn public_clean_pattern_context_end_to_end() {
                     message["content"]
                         .as_str()
                         .unwrap()
-                        .starts_with("Exact match (no model):"),
+                        .starts_with("Built from the model's form:"),
                     "{message}"
                 );
                 assert!(!message.to_string().contains("unverified"), "{message}");
@@ -321,7 +321,7 @@ fn public_existing_forms_primitives_and_features() {
             message["content"]
                 .as_str()
                 .unwrap()
-                .starts_with("Exact match (no model):"),
+                .starts_with("Built from the model's form:"),
             "{text}: {message}; {}",
             fs::read_to_string(f.dir.join("log.jsonl")).unwrap()
         );
@@ -370,7 +370,7 @@ fn public_joint_form_sees_components_and_contact_geometry() {
         message["content"]
             .as_str()
             .unwrap()
-            .starts_with("Exact match (no model):"),
+            .starts_with("Built from the model's form:"),
         "{message}"
     );
     let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
@@ -430,7 +430,7 @@ fn selection_wins_and_failed_inspection_never_offers_a_form() {
         out["content"]
             .as_str()
             .unwrap()
-            .starts_with("Exact match (no model):"),
+            .starts_with("Built from the model's form:"),
         "{out}"
     );
     let state = s.execute("document.inspect", json!({"measure":true}));

@@ -55,6 +55,27 @@ their state supports guidance; original result text is preserved. Unchanged-desi
 hints require comparable before/after states in the result or conversation history.
 Use `--no-how` and `--no-hints` independently for A/B measurements.
 
+Hole and cut facts. After a successful `solid.hole` or a `solid.extrude` cut of a single
+sketch circle, Pilot appends one `[dutchman-pilot hint]` fact to that tool result saying
+what was made: diameter, depth (or through all), direction, start point, and, when the body
+is a known plain block, whether it goes through and the body's thickness
+(`Hole made: 8 mm diameter, 10 mm deep along -Z from (20, 15, 12); it does not go through
+Body1 (12 mm thick).`). A circle that reaches past the body edge is noted. A cut that cannot
+touch the body says `This cut removed no material:` with the reason: the circle is outside the
+body, or the extrusion runs away from it (the opposite direction is named when it would reach).
+SolidCraft already rejects a hole position that is not on a face, so those failures get no
+fact. Public CLI measurements behind this: `solid.hole` and `solid.extrude` results carry only
+`changed_bodies`, no volume, and `changed_bodies` still lists the body when a cut extruded away
+from it, so Pilot computes the swept range itself. Sketch points map as XY (u, v) to (u, v,
+offset), XZ to (u, offset, -v), YZ to (offset, u, v), all with a positive normal.
+Bounds come from `solid.box` arguments and inspect `bbox` already in the conversation; any other
+change to a body forgets its bounds, and a hole then gets only the diameter and depth it was
+given. Pilot sends no reads of its own for this. Not covered (no fact): threaded, counterbore,
+countersink, sketch-point, `to`, and edge-reference holes; cuts of several or non-circle profiles
+(only the SolidCraft-reported no-change case), face-attached or flipped sketches, tapered cuts.
+Capped at 4 facts per result and 6 per user turn; off with `--no-hints`, absent on recipe turns,
+never changes the model's call.
+
 Before the first model call, requests offering `execute` or `batch` receive a
 short box placement fact when the latest user message mentions a box, cube,
 block, plate, brick or slab and center, centre, centred, centered, middle or through.
@@ -64,6 +85,17 @@ an existing fact anywhere in the conversation prevents repetition across turns.
 MCP has no user conversation, so its tool list carries the same fact once in the
 `execute` description (or `batch` when `execute` is absent). Both faces audit
 `placement_fact`, add less than 400 bytes, and honour `--no-hints`.
+
+Size fact: when the conversation's user messages state sizes with a unit in inches (`in`,
+`inch`, `inches`, `"`, including fractions and mixed numbers such as `1/8"`, `3/8 in`,
+`1-1/2"`, `1 1/2 in`) or in cm, and no recipe, form, route or exact match handles the
+turn, Pilot adds one system line, for example
+`Sizes in mm: 1" = 25.4; 3/8" = 9.525; 1/8" = 3.175.`, listing each stated size in request
+order with exact mm (at most 16 sizes, at most 4 decimals, trailing zeros trimmed). Only
+sizes written with a unit count: bare numbers, mm, and a fraction with no unit add nothing,
+and nothing is inferred. The request text is never changed. Every request carries the whole
+fact, since clients do not send Pilot's system lines back; a later turn's sizes join it. It
+is audited as `unit_fact` when it first appears or changes, and `--no-hints` disables it.
 The 0.20 binary was checked with a 20 mm box (bbox [0,0,0] to [20,20,20]),
 a radius 5, height 20 cylinder (approximately [-5,-5,0] to [5,5,20]), and a
 radius 5 sphere ([-5,-5,-5] to [5,5,5]). Thus the sphere's centre defaults to
@@ -331,3 +363,7 @@ implement `Display` and `std::error::Error`. The caller prints errors and choose
 its failure exit code. Proxy commands block until their server stops; `run`
 never exits the calling process. Parsing handles help, version, and argument
 errors through clap. The API requires `proxy` and is absent with only `core`.
+
+## Native call repairs
+
+See [Native call repairs](call-repairs.md) for supported argument and command corrections, ambiguity limits, and MCP's suggestion-only behavior.
