@@ -3,6 +3,7 @@ use super::*;
 use std::f64::consts::PI;
 mod closed_profile;
 mod compound_plate;
+mod compound_plate_wording;
 pub(crate) mod cross_drilled;
 mod repeated_boss;
 pub(crate) mod revolute;

@@ -148,6 +148,19 @@ fn allowed(s: &str) -> bool {
         )
 }
 pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
+    // Preserve every existing match and its calls. Only a complete additional
+    // grammar may supply form-equivalent defaults for a previously missed request.
+    parse_original(i).or_else(|| {
+        let t = compound_plate_wording::normalize(i)?;
+        parse_original(&Input {
+            text: i.text,
+            t,
+            data: i.data,
+            messages: i.messages,
+        })
+    })
+}
+fn parse_original(i: &Input<'_>) -> Option<Slots> {
     let t = &i.t;
     if !candidate(i) || !t.iter().all(|s| allowed(s)) {
         return None;
@@ -256,10 +269,10 @@ pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
             data: i.data,
             messages: i.messages,
         };
-        let Slots::CompoundPlate(mut a) = parse(&left)? else {
+        let Slots::CompoundPlate(mut a) = parse_original(&left)? else {
             return None;
         };
-        let Slots::CompoundPlate(b) = parse(&right)? else {
+        let Slots::CompoundPlate(b) = parse_original(&right)? else {
             return None;
         };
         a.holes.extend(b.holes);
