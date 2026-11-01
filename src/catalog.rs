@@ -2,6 +2,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::collections::BTreeSet;
+mod holes;
 
 pub const MAX_CATALOG_BYTES: usize = 8 * 1_048_576;
 pub const MAX_COMMANDS: usize = 4096;
@@ -233,6 +234,12 @@ impl Catalog {
 
     /// Compact guidance for small models: one call first, details last.
     pub fn how_text(&self, task: &str) -> Result<String, String> {
+        query_limit(task)?;
+        if let Some((id, call, rule)) = holes::example(task) {
+            if self.get(id).is_some() {
+                return Ok(format!("{call}\n{rule}"));
+            }
+        }
         let how = self.how(task)?;
         let Some(found) = how.matches.first() else {
             return Ok(format!(
@@ -269,6 +276,20 @@ impl Catalog {
     }
 
     pub fn how(&self, task: &str) -> Result<How, String> {
+        query_limit(task)?;
+        if let Some((id, example, rule)) = holes::example(task) {
+            if let Some(command) = self.get(id) {
+                return Ok(How {
+                    message: rule.into(),
+                    matches: vec![Match {
+                        command: command.clone(),
+                        example,
+                        template: template(command),
+                    }],
+                    nearest: Vec::new(),
+                });
+            }
+        }
         let commands = self.search(task)?;
         if commands.is_empty() {
             return Ok(How {
