@@ -764,6 +764,13 @@ fn plan_impl(
 }
 /// A read-only prerequisite is offered only when every edit slot already parses.
 /// A hypothetical sole body checks syntax; its name never reaches a mutation.
+/// Recipes that edit a body which already exists.
+pub(crate) fn is_edit_rule(rule: &str) -> bool {
+    matches!(
+        rule,
+        "move" | "rename" | "fillet" | "chamfer" | "mirror" | "scale" | "hole"
+    )
+}
 pub fn inspect_for_edit(request: &Value, catalog: &Catalog) -> Result<Option<Plan>, String> {
     repair::check_value(request)?;
     let Some(messages) = request["messages"].as_array() else {
@@ -790,10 +797,7 @@ pub fn inspect_for_edit(request: &Value, catalog: &Catalog) -> Result<Option<Pla
     let Some(candidate) = plan(&probe, catalog)? else {
         return Ok(None);
     };
-    if !matches!(
-        candidate.rule,
-        "move" | "rename" | "fillet" | "chamfer" | "mirror" | "scale" | "hole"
-    ) {
+    if !is_edit_rule(candidate.rule) {
         return Ok(None);
     }
     Ok(Some(Plan {

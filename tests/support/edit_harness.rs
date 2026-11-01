@@ -68,6 +68,11 @@ impl Drop for Proxy {
 
 /// `direct` is the default mode; false is `--no-direct-recipes` (model only).
 pub fn proxy(direct: bool, no_hints: bool) -> Proxy {
+    proxy_with(direct, no_hints, false)
+}
+
+/// `inspecting` makes the fake model read the design first, as a real one does.
+pub fn proxy_with(direct: bool, no_hints: bool, inspecting: bool) -> Proxy {
     let dir = std::env::temp_dir().join(format!(
         "dutchman-edit-proxy-{}-{}",
         std::process::id(),
@@ -92,7 +97,23 @@ pub fn proxy(direct: bool, no_hints: bool) -> Proxy {
                         .lock()
                         .unwrap()
                         .push(serde_json::from_str(&text).unwrap_or(Value::Null));
-                    json!({"id":"t","object":"chat.completion","model":"m","created":1,"choices":[{"index":0,"message":{"role":"assistant","content":"done"},"finish_reason":"stop"}]}).to_string()
+                    let last_role = serde_json::from_str::<Value>(&text)
+                        .ok()
+                        .and_then(|b| {
+                            b["messages"].as_array().and_then(|m| {
+                                m.iter()
+                                    .rev()
+                                    .find(|m| m["role"] != "system")
+                                    .map(|m| m["role"].clone())
+                            })
+                        })
+                        .unwrap_or(Value::Null);
+                    let message = if inspecting && last_role == "user" {
+                        json!({"role":"assistant","content":null,"tool_calls":[{"id":"model_inspect","type":"function","function":{"name":"execute","arguments":"{\"command\":\"document.inspect\",\"params\":{\"measure\":true}}"}}]})
+                    } else {
+                        json!({"role":"assistant","content":"done"})
+                    };
+                    json!({"id":"t","object":"chat.completion","model":"m","created":1,"choices":[{"index":0,"message":message,"finish_reason":"stop"}]}).to_string()
                 };
                 let response = tiny_http::Response::from_string(body).with_header(
                     tiny_http::Header::from_bytes("Content-Type", "application/json").unwrap(),

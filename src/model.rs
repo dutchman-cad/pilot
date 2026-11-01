@@ -990,6 +990,22 @@ impl Proxy {
         } else {
             None
         };
+        // Pilot's design reads are the same data the model's own inspection would
+        // give: an exact edit recipe answers from them, as it does on main. Any
+        // other recipe stays hidden from them.
+        if edit_reads && recipe.is_none() && pending_form.is_none() {
+            let full = if self.cfg.direct_recipes {
+                planner::plan_direct(&body, &self.catalog)?
+            } else if self.cfg.planner {
+                planner::plan(&body, &self.catalog)?
+            } else {
+                None
+            };
+            recipe = full.filter(|p| planner::is_edit_rule(p.rule));
+        }
+        if recipe.is_some() {
+            conversation.edit_ctx = None;
+        }
         let shortcut_active = conversation
             .direct
             .as_ref()
@@ -1371,7 +1387,13 @@ impl Proxy {
         {
             let mine = conversation.edit_ctx.filter(|(i, _)| *i == user_index);
             let rounds = mine.map_or(0, |m| m.1);
-            match planner::edit_fact::step(&original, &self.catalog, mine.is_some(), rounds)? {
+            match planner::edit_fact::step(
+                &original,
+                &self.catalog,
+                mine.is_some(),
+                rounds,
+                self.cfg.direct_recipes || self.cfg.planner,
+            )? {
                 planner::edit_fact::Step::Skip => conversation.edit_ctx = None,
                 planner::edit_fact::Step::Reads(reads) => {
                     let calls: Vec<_> = reads.into_iter().enumerate().map(|(n,c)| json!({"id":format!("pilot_edit_{user_index}_{rounds}_{n}"),"type":"function","function":{"name":c["tool"],"arguments":c["arguments"].to_string()}})).collect();
@@ -1437,9 +1459,13 @@ impl Proxy {
                     && tools.iter().any(|t| t["function"]["name"] == "execute")
                 {
                     // The form needed no reads, so the design is still unread.
-                    if let planner::edit_fact::Step::Reads(reads) =
-                        planner::edit_fact::step(&original, &self.catalog, false, 0)?
-                    {
+                    if let planner::edit_fact::Step::Reads(reads) = planner::edit_fact::step(
+                        &original,
+                        &self.catalog,
+                        false,
+                        0,
+                        self.cfg.direct_recipes || self.cfg.planner,
+                    )? {
                         let calls: Vec<_> = reads.into_iter().enumerate().map(|(n,c)| json!({"id":format!("pilot_edit_{user_index}_0_{n}"),"type":"function","function":{"name":c["tool"],"arguments":c["arguments"].to_string()}})).collect();
                         let message = json!({"role":"assistant","content":null,"tool_calls":calls});
                         if let Some(before) = before_facts.clone() {

@@ -81,7 +81,7 @@ plain size change on one unambiguous feature it ends with the exact call, for ex
 `execute timeline.edit {"feature":"Hole1","set":{"diameter":"8"}}` (nested fields use
 dotted keys, such as `extent.distance`); otherwise with the generic `timeline.edit`
 form. New-part requests, questions, empty designs and recipe-handled turns get nothing,
-and the fact is audited as `edit_fact` (reads as `edit_fact_inspect`). It is never a
+a request an exact edit recipe would answer once it has the design (move, rename, fillet, chamfer, mirror) gets no read and no fact, and a turn whose declined form already left the design in the history gets the fact only when it carries the exact edit call; the fact is audited as `edit_fact` (reads as `edit_fact_inspect`). It is never a
 rewrite or rejection. Development cases: `tests/dev_edit_fact.rs`.
 
 Plan-text recipes require `--planner` and are off by default. `--no-plan` (alias

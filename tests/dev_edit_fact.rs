@@ -255,23 +255,26 @@ fn edit_requests_get_a_design_fact_and_a_working_edit_command() {
         return;
     };
     assert!(cases().len() >= 25);
+    let mut skipped = 0;
+    let mut facts_seen = std::collections::BTreeSet::new();
     for direct in [true, false] {
         let p = edit_harness::proxy(direct, false);
         for (design, text, wanted, edit) in cases() {
             let start = design();
             let t = p.ask(&cli, &start, text);
-            let f = fact(&t).unwrap_or_else(|| {
-                let log = std::fs::read_to_string(p.dir.join("audit.jsonl")).unwrap_or_default();
-                let kinds: Vec<String> = log
-                    .lines()
-                    .filter_map(|l| serde_json::from_str::<Value>(l).ok())
-                    .map(|v| v["kind"].to_string())
-                    .collect();
-                panic!(
-                    "direct={direct} no fact for {text}: reads {:?} direct {:?} upstream {} audit {:?}",
-                    t.pilot_reads, t.direct, t.upstream["messages"], kinds
-                )
-            });
+            let Some(f) = fact(&t) else {
+                // A declined form leaves its design reads in the history the model
+                // sees; without an exact command a fact would add nothing.
+                let history = t.upstream["messages"].to_string();
+                assert!(
+                    edit.is_none() && history.contains("pilot_context_"),
+                    "direct={direct} no fact for {text}: reads {:?} upstream {}",
+                    t.pilot_reads,
+                    history
+                );
+                skipped += 1;
+                continue;
+            };
             assert!(
                 f.chars().count() <= 1200 + 40,
                 "{text}: {}",
@@ -290,6 +293,7 @@ fn edit_requests_get_a_design_fact_and_a_working_edit_command() {
                     .count(),
                 1
             );
+            facts_seen.insert(text);
             let Some((feature, input, value)) = edit else {
                 continue;
             };
@@ -316,6 +320,9 @@ fn edit_requests_get_a_design_fact_and_a_working_edit_command() {
             assert_eq!(changed["expression"], value, "{text}");
         }
     }
+    // Every request either got the fact or kept the reads its declined form left.
+    assert!(facts_seen.len() >= 15, "{} facts", facts_seen.len());
+    assert!(facts_seen.len() + skipped / 2 >= 25, "{skipped} skipped");
 }
 
 #[test]
@@ -365,4 +372,111 @@ fn requests_that_are_not_edits_get_no_fact() {
     let t = p.ask(&cli, &[], "make the hole 8 mm instead");
     assert!(fact(&t).is_none());
     assert_eq!(t.pilot_reads.len(), 1);
+}
+
+fn two_bodies() -> Vec<Value> {
+    vec![
+        json!({"command":"solid.box","params":{"length":60,"width":40,"height":10,"body_name":"Plate"}}),
+        json!({"command":"solid.cylinder","params":{"radius":5,"height":20,"base":[100,0,0],"body_name":"Peg"}}),
+    ]
+}
+
+/// Exact edit recipes, on an existing design in default mode: the calls and the
+/// final reply must equal what the proxy does without the edit fact.
+const SINGLE_BODY: &[&str] = &[
+    "move it 50 mm along X",
+    "rename the body to Mount",
+    "fillet all the edges 2 mm",
+    "chamfer the top edges 2 mm",
+    "chamfer all edges 1 mm",
+    "mirror it across YZ",
+    "shift the part 30 mm along Z",
+    "rename it to Lid",
+    "mirror the body across the XZ plane",
+    "round all the edges 1.5 mm",
+    "bevel all edges 1 mm",
+];
+const NAMED_TARGET: &[&str] = &[
+    "move Peg 5 mm along X",
+    "rename Peg to Pin",
+    "mirror Peg across YZ",
+    "shift Plate 12 mm along Z",
+    "chamfer all edges of Plate 1 mm",
+    "round all the edges of Peg 1 mm",
+];
+
+fn mutating(reads: &[String]) -> Vec<String> {
+    reads
+        .iter()
+        .filter(|r| !r.contains("document.inspect") && !r.contains("timeline.inspect"))
+        .cloned()
+        .collect()
+}
+
+#[test]
+fn exact_recipes_answer_edit_requests_with_the_same_calls_as_without_the_fact() {
+    let Some(cli) = edit_harness::cli() else {
+        return;
+    };
+    for direct in [true, false] {
+        for (design, requests) in [
+            (vec![box_(60.0, 40.0, 10.0)], SINGLE_BODY),
+            (two_bodies(), &NAMED_TARGET[..4]),
+            (two_bodies(), &NAMED_TARGET[5..]),
+        ] {
+            // The model reads the design itself, so a recipe fires after its inspection.
+            let with = edit_harness::proxy_with(direct, false, true);
+            let without = edit_harness::proxy_with(direct, true, true);
+            for text in requests {
+                let a = with.ask(&cli, &design, text);
+                let b = without.ask(&cli, &design, text);
+                assert_eq!(mutating(&a.pilot_reads), mutating(&b.pilot_reads), "{text}");
+                if !mutating(&b.pilot_reads).is_empty() {
+                    assert!(fact(&a).is_none(), "direct={direct} {text}");
+                }
+                assert_eq!(a.direct, b.direct, "{text}");
+            }
+        }
+    }
+}
+
+#[test]
+fn a_declined_form_gets_a_fact_only_when_it_adds_the_exact_edit_or_unread_design() {
+    let Some(cli) = edit_harness::cli() else {
+        return;
+    };
+    let mut checked = 0;
+    for (design, text, _, _) in cases() {
+        let p = edit_harness::proxy(true, false);
+        let t = p.ask(&cli, &design(), text);
+        let log = std::fs::read_to_string(p.dir.join("audit.jsonl")).unwrap_or_default();
+        let kinds: Vec<String> = log
+            .lines()
+            .filter_map(|l| serde_json::from_str::<Value>(l).ok())
+            .map(|v| v["kind"].as_str().unwrap_or("").to_string())
+            .collect();
+        let offered = kinds
+            .iter()
+            .any(|k| k == "route_offered" || k == "fill_offered");
+        let own_reads = kinds.iter().any(|k| k == "edit_fact_inspect");
+        // At most one fact and at most two rounds of Pilot's own reads per turn.
+        assert!(
+            kinds.iter().filter(|k| *k == "edit_fact").count() <= 1,
+            "{text}"
+        );
+        assert!(
+            kinds.iter().filter(|k| *k == "edit_fact_inspect").count() <= 2,
+            "{text}"
+        );
+        if offered {
+            checked += 1;
+            if let Some(f) = fact(&t) {
+                assert!(
+                    own_reads || f.contains("execute timeline.edit {\"feature\""),
+                    "{text}: {f}"
+                );
+            }
+        }
+    }
+    assert!(checked >= 3, "only {checked} cases went through a form");
 }

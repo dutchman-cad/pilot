@@ -215,6 +215,21 @@ fn is_sketch(feature: &Value) -> bool {
     feature["type"] == "Sketch"
 }
 
+/// Would an exact recipe plan this request if the design had one unnamed body?
+/// The same probe `inspect_for_edit` uses to decide to read the design.
+fn planner_could_answer(request: &Value, catalog: &Catalog) -> bool {
+    let Some(messages) = request["messages"].as_array() else {
+        return false;
+    };
+    let mut probe = request.clone();
+    let mut synthetic = vec![
+        json!({"role":"tool","content":json!({"bodies":[{"name":"PilotUnresolvedBody"}]}).to_string()}),
+    ];
+    synthetic.extend(messages.iter().cloned());
+    probe["messages"] = json!(synthetic);
+    super::plan_direct(&probe, catalog).is_ok_and(|p| p.is_some())
+}
+
 /// Decide the next step. `mine` says Pilot already issued reads for this user
 /// turn; `rounds` counts them. The first turn is the only one that gets a fact.
 pub(crate) fn step(
@@ -222,9 +237,15 @@ pub(crate) fn step(
     catalog: &Catalog,
     mine: bool,
     rounds: usize,
+    planner_active: bool,
 ) -> Result<Step, String> {
     let text = user_text(request);
     if !edit_shaped(&text) || !(mine || fresh(request)) || rounds > 2 {
+        return Ok(Step::Skip);
+    }
+    // An exact recipe answers once it has the design; main reads it itself and
+    // the recipe's own calls must not be preceded by ours.
+    if !mine && planner_active && planner_could_answer(request, catalog) {
         return Ok(Step::Skip);
     }
     let data = payloads(request);
@@ -260,7 +281,7 @@ pub(crate) fn step(
     if !mine {
         return Ok(Step::Skip);
     }
-    Ok(build(doc, &features, &data, &text).map_or(Step::Skip, Step::Fact))
+    Ok(build(doc, &features, &data, &text).map_or(Step::Skip, |(fact, _)| Step::Fact(fact)))
 }
 
 /// The fact for an edit-shaped request whose design Pilot already read for a
@@ -302,7 +323,9 @@ pub(crate) fn from_form_reads(request: &Value) -> Option<String> {
     {
         return None;
     }
-    build(doc, &features, &data, &text)
+    // The model already holds these reads in its history; the fact is worth a
+    // system message only when it carries the exact edit command.
+    build(doc, &features, &data, &text).and_then(|(fact, exact)| exact.then_some(fact))
 }
 
 fn num(v: f64) -> String {
@@ -660,7 +683,7 @@ fn size_edit(text: &str, features: &[&Value], data: &[Value]) -> Option<String> 
 
 const GENERIC_EDIT: &str = "To resize an existing feature: execute timeline.edit {\"feature\":\"<name>\",\"set\":{\"<field>\":\"<mm>\"}}; the field is the parameter name above.";
 
-fn build(doc: &Value, features: &[&Value], data: &[Value], text: &str) -> Option<String> {
+fn build(doc: &Value, features: &[&Value], data: &[Value], text: &str) -> Option<(String, bool)> {
     let details: Vec<&Value> = features.iter().filter_map(|f| detail(data, f)).collect();
     let bodies: Vec<String> = doc["bodies"]
         .as_array()?
@@ -698,14 +721,14 @@ fn build(doc: &Value, features: &[&Value], data: &[Value], text: &str) -> Option
         }
         let with_tail = format!("{out} {tail}");
         if with_tail.chars().count() <= MAX_CHARS {
-            return Some(with_tail);
+            return Some((with_tail, exact.is_some()));
         }
         if out.chars().count() <= MAX_CHARS && exact.is_none() {
-            return Some(out);
+            return Some((out, false));
         }
         if listed.pop().is_none() {
             // Bodies alone are over the cap: cut at a body boundary.
-            return Some(out.chars().take(MAX_CHARS).collect());
+            return Some((out.chars().take(MAX_CHARS).collect(), false));
         }
     }
 }
@@ -742,6 +765,30 @@ mod tests {
         ] {
             assert!(!edit_shaped(no), "{no}");
         }
+    }
+
+    #[test]
+    fn requests_an_exact_recipe_answers_get_no_edit_read() {
+        let catalog = Catalog::bundled().unwrap();
+        let request = |text: &str| json!({"messages":[{"role":"user","content":text}],"tools":[{"function":{"name":"execute"}}]});
+        for text in [
+            "move it 50 mm along X",
+            "rename the body to Mount",
+            "mirror it across YZ",
+            "fillet all the edges 2 mm",
+        ] {
+            assert!(planner_could_answer(&request(text), &catalog), "{text}");
+            let step = step(&request(text), &catalog, false, 0, true).unwrap();
+            assert!(matches!(step, Step::Skip), "{text}");
+        }
+        // Without recipes active, or for wording no recipe takes, the read is allowed.
+        let text = "move it 50 mm along X";
+        assert!(matches!(
+            step(&request(text), &catalog, false, 0, false).unwrap(),
+            Step::Reads(_)
+        ));
+        let text = "add a pair of lugs to the plate";
+        assert!(!planner_could_answer(&request(text), &catalog));
     }
 
     #[test]
