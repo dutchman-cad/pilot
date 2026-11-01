@@ -1,8 +1,8 @@
 //! A fake SolidCraft client and model for edit-request development tests.
 //!
 //! The proxy runs with a fake upstream that always answers in prose. The client
-//! side executes every tool call Pilot emits through the public `solidcraft-cli
-//! run` command on a design built from a start script, as the Assistant would.
+//! side supplies model inspection history and replays suggestions through the
+//! public `solidcraft-cli run` command on a design built from a start script.
 #![allow(dead_code, clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 use dutchman_pilot::model::{Config, FallbackPrompt, Server};
 use serde_json::{json, Value};
@@ -66,13 +66,8 @@ impl Drop for Proxy {
     }
 }
 
-/// `direct` is the default mode; false is `--no-direct-recipes` (model only).
+/// `direct` is the default mode; false is model only.
 pub fn proxy(direct: bool, no_hints: bool) -> Proxy {
-    proxy_with(direct, no_hints, false)
-}
-
-/// `inspecting` makes the fake model read the design first, as a real one does.
-pub fn proxy_with(direct: bool, no_hints: bool, inspecting: bool) -> Proxy {
     let dir = std::env::temp_dir().join(format!(
         "dutchman-edit-proxy-{}-{}",
         std::process::id(),
@@ -97,22 +92,7 @@ pub fn proxy_with(direct: bool, no_hints: bool, inspecting: bool) -> Proxy {
                         .lock()
                         .unwrap()
                         .push(serde_json::from_str(&text).unwrap_or(Value::Null));
-                    let last_role = serde_json::from_str::<Value>(&text)
-                        .ok()
-                        .and_then(|b| {
-                            b["messages"].as_array().and_then(|m| {
-                                m.iter()
-                                    .rev()
-                                    .find(|m| m["role"] != "system")
-                                    .map(|m| m["role"].clone())
-                            })
-                        })
-                        .unwrap_or(Value::Null);
-                    let message = if inspecting && last_role == "user" {
-                        json!({"role":"assistant","content":null,"tool_calls":[{"id":"model_inspect","type":"function","function":{"name":"execute","arguments":"{\"command\":\"document.inspect\",\"params\":{\"measure\":true}}"}}]})
-                    } else {
-                        json!({"role":"assistant","content":"done"})
-                    };
+                    let message = json!({"role":"assistant","content":"done"});
                     json!({"id":"t","object":"chat.completion","model":"m","created":1,"choices":[{"index":0,"message":message,"finish_reason":"stop"}]}).to_string()
                 };
                 let response = tiny_http::Response::from_string(body).with_header(
@@ -134,8 +114,8 @@ pub fn proxy_with(direct: bool, no_hints: bool, inspecting: bool) -> Proxy {
         no_hints,
         offer_recipe_tools: false,
         no_shortcuts: false,
-        no_fill: false,
-        no_trim: false,
+        no_fill: true,
+        no_trim: true,
         trim_cap: 1500,
         trim_keep: 2,
         recipes_dir: None,
@@ -170,67 +150,18 @@ pub fn tools() -> Value {
     ])
 }
 
-pub struct Turn {
-    /// The last chat request that reached the model.
-    pub upstream: Value,
-    /// Commands Pilot asked the client to run before the model was called.
-    pub pilot_reads: Vec<String>,
-    /// The first reply, when Pilot answered without the model.
-    pub direct: Option<Value>,
-}
-
 impl Proxy {
-    /// Send one user message the way a client does, running Pilot's own tool calls.
-    pub fn ask(&self, cli: &PathBuf, start: &[Value], text: &str) -> Turn {
-        let before = self.requests.lock().unwrap().len();
-        let mut messages = vec![json!({"role":"user","content":text})];
-        let mut reads = Vec::new();
-        for round in 0..8 {
-            let body = json!({"model":"m","messages":messages,"tools":tools()});
-            let response = ureq::post(&format!("{}/v1/chat/completions", self.url))
-                .timeout(Duration::from_secs(60))
-                .set("Content-Type", "application/json")
-                .send_string(&body.to_string());
-            let response = match response {
-                Ok(r) | Err(ureq::Error::Status(_, r)) => r,
-                Err(e) => panic!("{e}"),
-            };
-            let value: Value = serde_json::from_str(&response.into_string().unwrap()).unwrap();
-            let message = value["choices"][0]["message"].clone();
-            let Some(calls) = message["tool_calls"].as_array().filter(|c| !c.is_empty()) else {
-                let seen = self.requests.lock().unwrap().len();
-                let upstream = if seen > before {
-                    self.requests.lock().unwrap()[seen - 1].clone()
-                } else {
-                    Value::Null
-                };
-                return Turn {
-                    upstream,
-                    pilot_reads: reads,
-                    direct: (seen == before).then_some(message),
-                };
-            };
-            assert!(round < 7, "too many tool rounds");
-            messages.push(message.clone());
-            for call in calls {
-                let args: Value =
-                    serde_json::from_str(call["function"]["arguments"].as_str().unwrap()).unwrap();
-                let commands: Vec<Value> = if call["function"]["name"] == "batch" {
-                    args["commands"].as_array().unwrap().clone()
-                } else {
-                    vec![json!({"command":args["command"],"params":args["params"]})]
-                };
-                for c in &commands {
-                    reads.push(format!("{} {}", c["command"], c["params"]));
-                }
-                let mut script = start.to_vec();
-                script.extend(commands.iter().cloned());
-                let results = run_script(cli, &script);
-                let last = results.last().unwrap().to_string();
-                messages.push(json!({"role":"tool","tool_call_id":call["id"],"content":last}));
-            }
-        }
-        panic!("unreachable");
+    pub fn send(&self, messages: &[Value]) -> Value {
+        let body = json!({"model":"m","messages":messages,"tools":tools()});
+        let response = ureq::post(&format!("{}/v1/chat/completions", self.url))
+            .timeout(Duration::from_secs(60))
+            .set("Content-Type", "application/json")
+            .send_string(&body.to_string())
+            .unwrap();
+        serde_json::from_str(&response.into_string().unwrap()).unwrap()
+    }
+    pub fn last(&self) -> Value {
+        self.requests.lock().unwrap().last().unwrap().clone()
     }
 }
 

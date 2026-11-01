@@ -1,13 +1,12 @@
 //! One short design fact for edit requests on a part that already exists.
 //!
 //! Small models rebuild the part, edit the wrong feature, or place new features
-//! without knowing where the body is. On the first turn of an edit-shaped request
-//! Pilot reads the design once through public inspection (one `document.inspect`
-//! plus one `timeline.inspect` per listed feature) and states the bodies with their
+//! without knowing where the body is. After a failed edit or a rebuild attempt,
+//! Pilot uses only the model's public inspection results to state the bodies with their
 //! bounds, the timeline features with their editable parameters, and, for a plain
 //! size change, the exact `timeline.edit` call. It only adds a fact: nothing is
 //! rewritten or rejected, and unclear wording adds nothing.
-use super::form_context::{detail, document, payloads};
+use super::form_context::{detail, document};
 use super::slots::{number, scale, tokens};
 use super::*;
 
@@ -16,12 +15,6 @@ pub(crate) const MAX_FEATURES: usize = 12;
 const FACT_BODIES: usize = 12;
 /// Prefix of the fact; also the marker that prevents repeating it.
 pub(crate) const MARKER: &str = "Design:";
-
-pub(crate) enum Step {
-    Skip,
-    Reads(Vec<Value>),
-    Fact(String),
-}
 
 /// Edit-shaped wording refers to a part that is already there. A plain creation
 /// request ("make a 20 mm cube") and a question are not.
@@ -174,17 +167,6 @@ fn names_a_feature(text: &str) -> bool {
     false
 }
 
-fn fresh(request: &Value) -> bool {
-    let messages = request["messages"]
-        .as_array()
-        .map(Vec::as_slice)
-        .unwrap_or(&[]);
-    messages
-        .iter()
-        .rposition(|m| m["role"] == "user")
-        .is_some_and(|i| messages[i + 1..].iter().all(|m| m["role"] == "system"))
-}
-
 fn user_text(request: &Value) -> String {
     request["messages"]
         .as_array()
@@ -211,121 +193,160 @@ fn timeline(doc: &Value) -> Vec<&Value> {
     all[all.len().saturating_sub(MAX_FEATURES)..].to_vec()
 }
 
-fn is_sketch(feature: &Value) -> bool {
-    feature["type"] == "Sketch"
-}
-
-/// Would an exact recipe plan this request if the design had one unnamed body?
-/// The same probe `inspect_for_edit` uses to decide to read the design.
-fn planner_could_answer(request: &Value, catalog: &Catalog) -> bool {
-    let Some(messages) = request["messages"].as_array() else {
-        return false;
-    };
-    let mut probe = request.clone();
-    let mut synthetic = vec![
-        json!({"role":"tool","content":json!({"bodies":[{"name":"PilotUnresolvedBody"}]}).to_string()}),
-    ];
-    synthetic.extend(messages.iter().cloned());
-    probe["messages"] = json!(synthetic);
-    super::plan_direct(&probe, catalog).is_ok_and(|p| p.is_some())
-}
-
-/// Decide the next step. `mine` says Pilot already issued reads for this user
-/// turn; `rounds` counts them. The first turn is the only one that gets a fact.
-pub(crate) fn step(
-    request: &Value,
-    catalog: &Catalog,
-    mine: bool,
-    rounds: usize,
-    planner_active: bool,
-) -> Result<Step, String> {
-    let text = user_text(request);
-    if !edit_shaped(&text) || !(mine || fresh(request)) || rounds > 2 {
-        return Ok(Step::Skip);
-    }
-    // An exact recipe answers once it has the design; main reads it itself and
-    // the recipe's own calls must not be preceded by ours.
-    if !mine && planner_active && planner_could_answer(request, catalog) {
-        return Ok(Step::Skip);
-    }
-    let data = payloads(request);
-    let Some(doc) = document(&data) else {
-        if mine {
-            return Ok(Step::Skip);
+/// Decode only bounded public tool results, including MCP wrappers.
+fn result(message: &Value) -> Option<Value> {
+    let content = message.get("content")?;
+    let raw = if let Some(text) = content.as_str() {
+        if text.len() > repair::MAX_BYTES {
+            return None;
         }
-        return Ok(Step::Reads(vec![call(
-            catalog,
-            "document.inspect",
-            json!({"measure":true}),
-        )?]));
+        serde_json::from_str(text).ok()?
+    } else {
+        content.clone()
     };
-    if doc["bodies"].as_array().is_none_or(Vec::is_empty) {
-        return Ok(Step::Skip);
-    }
-    let features = timeline(doc);
-    let mut reads = Vec::new();
-    for f in &features {
-        if !is_sketch(f) && detail(&data, f).is_none() {
-            if let Some(name) = f["name"].as_str().filter(|n| n.len() <= 128) {
-                reads.push(call(catalog, "timeline.inspect", json!({"feature":name}))?);
-            }
-        }
-    }
-    if !reads.is_empty() {
-        return Ok(if mine && rounds < 2 {
-            Step::Reads(reads)
-        } else {
-            Step::Skip
-        });
-    }
-    if !mine {
-        return Ok(Step::Skip);
-    }
-    Ok(build(doc, &features, &data, &text).map_or(Step::Skip, |(fact, _)| Step::Fact(fact)))
+    repair::check_value(&raw).ok()?;
+    Some(raw)
 }
 
-/// The fact for an edit-shaped request whose design Pilot already read for a
-/// form that was then declined: ordinary tools resume with those results in the
-/// history, so no further read is needed. Only Pilot's own reads may sit between
-/// the user message and now (the first model call of the turn).
-pub(crate) fn from_form_reads(request: &Value) -> Option<String> {
+fn failed(v: &Value) -> bool {
+    v["isError"] == true || v["ok"] == false || v.get("error").is_some_and(|e| !e.is_null())
+}
+
+fn creates(step: &Value) -> bool {
+    match step["command"].as_str().unwrap_or("") {
+        "solid.box" | "solid.cube" | "solid.cylinder" | "solid.sphere" | "solid.cone"
+        | "solid.torus" | "sketch.create" => true,
+        "solid.extrude" | "solid.revolve" | "solid.sweep" | "solid.loft" => {
+            step["params"]["operation"] == "new_body"
+        }
+        _ => false,
+    }
+}
+
+fn edits(step: &Value) -> bool {
+    let id = step["command"].as_str().unwrap_or("");
+    id == "timeline.edit"
+        || (id.starts_with("solid.") && !creates(step))
+        || matches!(
+            id,
+            "timeline.suppress" | "timeline.delete" | "body.move" | "body.rename"
+        )
+}
+
+/// A continuation only: never manufacture reads or intervene before the model.
+/// A create is observed on the next client request, leaving the call untouched.
+pub(crate) fn after_mistake(request: &Value) -> Option<String> {
     let text = user_text(request);
     if !edit_shaped(&text) {
         return None;
     }
     let messages = request["messages"].as_array()?;
     let user = messages.iter().rposition(|m| m["role"] == "user")?;
-    let own = messages[user + 1..].iter().all(|m| {
-        m["role"] == "tool"
-            || m["role"] == "system"
-            || (m["role"] == "assistant"
-                && m["tool_calls"].as_array().is_some_and(|calls| {
-                    !calls.is_empty()
-                        && calls.iter().all(|c| {
-                            c["id"]
-                                .as_str()
-                                .is_some_and(|id| id.starts_with("pilot_context_"))
-                        })
-                }))
-    });
-    if !own {
-        return None;
-    }
-    let data = payloads(request);
-    let doc = document(&data)?;
-    if doc["bodies"].as_array().is_none_or(Vec::is_empty) {
-        return None;
-    }
-    let features = timeline(doc);
-    if features
-        .iter()
-        .any(|f| !is_sketch(f) && detail(&data, f).is_none())
+    let messages = &messages[user + 1..];
+    if messages.len() > 4096
+        || messages.iter().any(|m| {
+            m["role"] == "system" && m["content"].as_str().is_some_and(|s| s.contains(MARKER))
+        })
     {
         return None;
     }
-    // The model already holds these reads in its history; the fact is worth a
-    // system message only when it carries the exact edit command.
-    build(doc, &features, &data, &text).and_then(|(fact, exact)| exact.then_some(fact))
+    let mut data = Vec::new();
+    let mut mistake = false;
+    let latest = messages.iter().rposition(|m| m["role"] == "assistant")?;
+    for (i, message) in messages.iter().enumerate() {
+        if message["role"] != "assistant" {
+            continue;
+        }
+        for call in message["tool_calls"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .take(128)
+        {
+            let id = call["id"].as_str()?;
+            if id.starts_with("pilot_") {
+                continue;
+            }
+            let args: Value = serde_json::from_str(call["function"]["arguments"].as_str()?).ok()?;
+            let name = call["function"]["name"].as_str().unwrap_or("");
+            let steps: Vec<&Value> = match name {
+                "execute" => vec![&args],
+                "batch" => args["commands"].as_array()?.iter().take(64).collect(),
+                "inspect" => Vec::new(),
+                _ => continue,
+            };
+            let response = messages[i + 1..]
+                .iter()
+                .take_while(|m| m["role"] != "assistant")
+                .find(|m| m["role"] == "tool" && m["tool_call_id"] == id);
+            let raw = response.and_then(result);
+            let payload = raw.as_ref().map(guidance::payload);
+            let error = raw
+                .as_ref()
+                .is_some_and(|v| failed(v) || failed(&v["result"]))
+                || payload.as_ref().is_some_and(failed);
+            let failed_edit = if name == "batch" {
+                payload
+                    .as_ref()
+                    .and_then(|p| p["results"].as_array())
+                    .is_some_and(|results| {
+                        steps
+                            .iter()
+                            .zip(results)
+                            .any(|(s, r)| edits(s) && (failed(r) || failed(&guidance::payload(r))))
+                    })
+            } else {
+                error && steps.iter().any(|s| edits(s))
+            };
+            // The document must have been read BEFORE creation, so a newly
+            // created body's result cannot make an empty design look existing.
+            if i == latest
+                && document(&data)
+                    .is_some_and(|d| d["bodies"].as_array().is_some_and(|b| !b.is_empty()))
+                && (steps.iter().any(|s| creates(s)) || failed_edit)
+            {
+                mistake = true;
+            }
+            if i != latest && !error && steps.iter().any(|s| creates(s) || edits(s)) {
+                data.clear();
+            }
+            let read = name == "inspect"
+                || (!steps.is_empty()
+                    && steps.iter().all(|s| {
+                        matches!(
+                            s["command"].as_str(),
+                            Some("document.inspect" | "timeline.inspect")
+                        )
+                    }));
+            if read && !error {
+                if let Some(response) = response {
+                    if let Some(value) = super::tool_payload(response) {
+                        if name == "batch" {
+                            if let Some(results) = value["results"]
+                                .as_array()
+                                .filter(|r| r.len() == steps.len())
+                            {
+                                for value in results.iter().take(64) {
+                                    if let Some(value) =
+                                        super::tool_payload(&json!({"content":value}))
+                                    {
+                                        data.push(value);
+                                    }
+                                }
+                            }
+                        } else {
+                            data.push(value);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if !mistake {
+        return None;
+    }
+    let doc = document(&data)?;
+    build(doc, &timeline(doc), &data, &text).map(|(fact, _)| fact)
 }
 
 fn num(v: f64) -> String {
@@ -768,27 +789,68 @@ mod tests {
     }
 
     #[test]
-    fn requests_an_exact_recipe_answers_get_no_edit_read() {
-        let catalog = Catalog::bundled().unwrap();
-        let request = |text: &str| json!({"messages":[{"role":"user","content":text}],"tools":[{"function":{"name":"execute"}}]});
-        for text in [
-            "move it 50 mm along X",
-            "rename the body to Mount",
-            "mirror it across YZ",
-            "fillet all the edges 2 mm",
-        ] {
-            assert!(planner_could_answer(&request(text), &catalog), "{text}");
-            let step = step(&request(text), &catalog, false, 0, true).unwrap();
-            assert!(matches!(step, Step::Skip), "{text}");
+    fn model_evidence_wrappers_batches_and_partial_reads() {
+        let doc = json!({"bodies":[{"name":"Base","bbox":{"min":[0,0,0],"max":[72,44,16]}}],"timeline":[]});
+        let call = |id: &str, name: &str, args: Value| json!({"role":"assistant","tool_calls":[{"id":id,"function":{"name":name,"arguments":args.to_string()}}]});
+        let response = |id: &str, value: Value| json!({"role":"tool","tool_call_id":id,"content":value.to_string()});
+        for batch in [false, true] {
+            for wrapped in [false, true] {
+                let read = json!({"command":"document.inspect","params":{"measure":true}});
+                let edit = json!({"command":"solid.hole","params":{"diameter":11}});
+                let wrap = |v: Value| {
+                    if wrapped {
+                        json!({"result":{"content":[{"type":"text","text":v.to_string()}]}})
+                    } else {
+                        v
+                    }
+                };
+                let mut messages = vec![
+                    json!({"role":"user","content":"Add a hole to the existing part"}),
+                    call(
+                        "r",
+                        if batch { "batch" } else { "execute" },
+                        if batch {
+                            json!({"commands":[read]})
+                        } else {
+                            read
+                        },
+                    ),
+                    response(
+                        "r",
+                        wrap(if batch {
+                            json!({"results":[doc]})
+                        } else {
+                            doc.clone()
+                        }),
+                    ),
+                    call(
+                        "e",
+                        if batch { "batch" } else { "execute" },
+                        if batch {
+                            json!({"commands":[edit]})
+                        } else {
+                            edit
+                        },
+                    ),
+                    response(
+                        "e",
+                        wrap(if batch {
+                            json!({"results":[{"ok":false,"error":"missing position"}]})
+                        } else {
+                            json!({"isError":true,"error":"missing position"})
+                        }),
+                    ),
+                ];
+                assert!(after_mistake(&json!({"messages":messages})).is_some());
+                messages.push(json!({"role":"system","content":"[Pilot] Design: Base"}));
+                assert!(after_mistake(&json!({"messages":messages})).is_none());
+                messages.pop();
+                messages.push(
+                    json!({"role":"user","content":"Change the existing part width to 50 mm"}),
+                );
+                assert!(after_mistake(&json!({"messages":messages})).is_none());
+            }
         }
-        // Without recipes active, or for wording no recipe takes, the read is allowed.
-        let text = "move it 50 mm along X";
-        assert!(matches!(
-            step(&request(text), &catalog, false, 0, false).unwrap(),
-            Step::Reads(_)
-        ));
-        let text = "add a pair of lugs to the plate";
-        assert!(!planner_could_answer(&request(text), &catalog));
     }
 
     #[test]

@@ -2,9 +2,10 @@
 use super::*;
 use std::hash::{Hash, Hasher};
 
-#[derive(Default, Clone)]
+#[derive(Default)]
 pub(super) struct Conversation {
     pub model: String,
+    pub edit_fact_turn: Option<usize>,
     pub facts_seen: [bool; 3],
     pub sc98_dialog_fact_seen: bool,
     pub next_hints_seen: std::collections::BTreeSet<u64>,
@@ -26,8 +27,6 @@ pub(super) struct Conversation {
     pub plane_hints_seen: [bool; 2],
     pub pattern_inspections: usize,
     pub form_pending: Option<(usize, Value, Value, usize)>,
-    /// User turn and count of Pilot's own design reads for the edit fact.
-    pub edit_ctx: Option<(usize, usize)>,
 }
 impl Conversation {
     pub fn allow(&mut self, command: &str, count: usize) -> bool {
@@ -65,17 +64,6 @@ pub(super) fn previous_accepted(body: &Value) -> bool {
         return false;
     };
     let calls = messages[start]["tool_calls"].as_array();
-    // Pilot's own design reads for the edit fact are not the model's work.
-    if calls.is_some_and(|calls| {
-        !calls.is_empty()
-            && calls.iter().all(|c| {
-                c["id"]
-                    .as_str()
-                    .is_some_and(|id| id.starts_with("pilot_edit_"))
-            })
-    }) {
-        return false;
-    }
     messages[start + 1..].iter().any(|m| {
         m["role"] == "tool"
             && calls.is_some_and(|calls| {

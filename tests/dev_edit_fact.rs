@@ -1,482 +1,240 @@
-//! Development edit requests on existing designs built through the public CLI.
+//! Independently authored development examples, using only the public CLI.
 #![cfg(feature = "proxy")]
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 use serde_json::{json, Value};
 #[path = "support/edit_harness.rs"]
 mod edit_harness;
 
-fn box_(l: f64, w: f64, h: f64) -> Value {
-    json!({"command":"solid.box","params":{"length":l,"width":w,"height":h}})
-}
-fn hole(x: f64, y: f64, z: f64, d: f64) -> Value {
-    json!({"command":"solid.hole","params":{"position":[x,y,z],"diameter":d}})
-}
-fn plate() -> Vec<Value> {
-    vec![box_(60.0, 40.0, 10.0), hole(30.0, 20.0, 10.0, 6.0)]
-}
-fn two_holes() -> Vec<Value> {
+fn start() -> Vec<Value> {
     vec![
-        box_(80.0, 30.0, 8.0),
-        hole(20.0, 15.0, 8.0, 5.0),
-        hole(60.0, 15.0, 8.0, 5.0),
+        json!({"command":"solid.box","params":{"length":72,"width":44,"height":16}}),
+        json!({"command":"solid.hole","params":{"position":[24,22,16],"diameter":8,"depth":7}}),
     ]
 }
-fn pegs() -> Vec<Value> {
-    vec![
-        json!({"command":"solid.cylinder","params":{"radius":5,"height":20,"base":[100,0,0]}}),
-        json!({"command":"solid.sphere","params":{"radius":7,"center":[200,0,0]}}),
-    ]
+fn call(id: &str, command: &str, params: Value) -> Value {
+    json!({"role":"assistant","content":null,"tool_calls":[{"id":id,"type":"function",
+        "function":{"name":"execute","arguments":json!({"command":command,"params":params}).to_string()}}]})
 }
-fn extruded() -> Vec<Value> {
-    vec![
-        json!({"command":"sketch.create","params":{"plane":"XY"}}),
-        json!({"command":"sketch.rectangle.two_point","params":{"p0":[0,0],"p1":[10,5]}}),
-        json!({"command":"solid.extrude","params":{"distance":3,"operation":"new_body"}}),
-    ]
+fn result(id: &str, value: Value) -> Value {
+    json!({"role":"tool","tool_call_id":id,"content":value.to_string()})
 }
-fn blind() -> Vec<Value> {
-    vec![
-        box_(50.0, 50.0, 20.0),
-        json!({"command":"solid.hole","params":{"position":[25,25,20],"diameter":8,"depth":6}}),
-    ]
-}
-fn many() -> Vec<Value> {
-    let mut v = vec![box_(100.0, 100.0, 10.0)];
-    for i in 0..14 {
-        v.push(hole(5.0 + 6.0 * i as f64, 50.0, 10.0, 3.0));
+fn inspected(cli: &std::path::PathBuf, text: &str) -> Vec<Value> {
+    let reads = [
+        ("document.inspect", json!({"measure":true})),
+        ("timeline.inspect", json!({"feature":"Box1"})),
+        ("timeline.inspect", json!({"feature":"Hole1"})),
+    ];
+    let mut script = start();
+    for (command, params) in &reads {
+        script.push(json!({"command":command,"params":params}));
     }
-    v
-}
-
-fn fact(t: &edit_harness::Turn) -> Option<String> {
-    if t.upstream.is_null() {
-        return None;
+    let results = edit_harness::run_script(cli, &script);
+    let mut messages = vec![json!({"role":"user","content":text})];
+    for (i, (command, params)) in reads.into_iter().enumerate() {
+        let id = format!("model_read_{i}");
+        messages.push(call(&id, command, params));
+        messages.push(result(&id, results[start().len() + i].clone()));
     }
-    edit_harness::systems(&t.upstream)
+    messages
+}
+fn fact(request: &Value) -> Option<String> {
+    edit_harness::systems(request)
         .into_iter()
         .find(|s| s.contains("Design:"))
 }
 
-/// (design, request, substrings the fact must contain, applied edit: feature, input, value)
-type Design = fn() -> Vec<Value>;
-type Case = (
-    fn() -> Vec<Value>,
-    &'static str,
-    &'static [&'static str],
-    Option<(&'static str, &'static str, &'static str)>,
-);
-
-const B1: &str = "Body1 box 60 x 40 x 10 mm at X 0..60, Y 0..40, Z 0..10";
-const PLATE_FEATURES: &str =
-    "Box1 (length 60, width 40, height 10), Hole1 (diameter 6, through, at (30, 20, 10))";
-
-fn cases() -> Vec<Case> {
-    vec![
-        (
-            plate,
-            "change the hole to 9 mm instead",
-            &[B1, PLATE_FEATURES, "timeline.edit", "\"diameter\":\"9\""],
-            Some(("Hole1", "diameter", "9")),
-        ),
-        (
-            plate,
-            "change the hole diameter to 9",
-            &[B1, "\"diameter\":\"9\""],
-            Some(("Hole1", "diameter", "9")),
-        ),
-        (
-            plate,
-            "make the hole 0.5 cm instead",
-            &["\"diameter\":\"5\""],
-            Some(("Hole1", "diameter", "5")),
-        ),
-        (
-            plate,
-            "make the box 80 mm long instead",
-            &["\"feature\":\"Box1\"", "\"length\":\"80\""],
-            Some(("Box1", "length", "80")),
-        ),
-        (
-            plate,
-            "resize the plate height to 12 mm",
-            &["\"height\":\"12\""],
-            Some(("Box1", "height", "12")),
-        ),
-        (
-            plate,
-            "make the existing part 50 mm wide",
-            &["\"width\":\"50\""],
-            Some(("Box1", "width", "50")),
-        ),
-        (
-            plate,
-            "set Hole1 diameter to 4 mm",
-            &["\"feature\":\"Hole1\"", "\"diameter\":\"4\""],
-            Some(("Hole1", "diameter", "4")),
-        ),
-        (
-            two_holes,
-            "make Hole2 7 mm instead",
-            &[
-                "Hole1 (diameter 5, through, at (20, 15, 8))",
-                "Hole2 (diameter 5, through, at (60, 15, 8))",
-                "\"feature\":\"Hole2\"",
-                "\"diameter\":\"7\"",
-            ],
-            Some(("Hole2", "diameter", "7")),
-        ),
-        (
-            two_holes,
-            "make the hole 7 mm instead",
-            &["Hole2", "To resize an existing feature"],
-            None,
-        ),
-        (
-            two_holes,
-            "drill a 7 mm hole through the middle of it",
-            &[
-                "Body1 box 80 x 30 x 8 mm at X 0..80, Y 0..30, Z 0..8",
-                "To resize an existing feature",
-            ],
-            None,
-        ),
-        (
-            two_holes,
-            "turn those holes into a row of 5",
-            &["Hole1", "Hole2"],
-            None,
-        ),
-        (
-            two_holes,
-            "chamfer the top four corners by 1.5 mm",
-            &["Body1 box"],
-            None,
-        ),
-        (
-            plate,
-            "add a pair of lugs to the plate",
-            &[B1, PLATE_FEATURES],
-            None,
-        ),
-        (plate, "add a fillet to it", &[B1], None),
-        (
-            plate,
-            "add a slot along the top of the existing part",
-            &["Z 0..10"],
-            None,
-        ),
-        (
-            plate,
-            "make it 3 mm thicker and keep the hole",
-            &["Box1"],
-            None,
-        ),
-        (plate, "add a second hole to the part", &["Hole1"], None),
-        (
-            pegs,
-            "make the cylinder 30 mm tall instead",
-            &[
-                "Body1 cylinder 10 x 10 x 20 mm",
-                "Body2 sphere 14 x 14 x 14 mm",
-                "Cylinder1 (radius 5, height 20, at (100, 0, 0))",
-                "\"height\":\"30\"",
-            ],
-            Some(("Cylinder1", "height", "30")),
-        ),
-        (
-            pegs,
-            "change the sphere radius to 9 mm",
-            &["Sphere1 (radius 7, at (200, 0, 0))", "\"radius\":\"9\""],
-            Some(("Sphere1", "radius", "9")),
-        ),
-        (
-            pegs,
-            "make the cylinder radius 6 instead",
-            &["\"radius\":\"6\""],
-            Some(("Cylinder1", "radius", "6")),
-        ),
-        (
-            pegs,
-            "move the existing sphere onto the cylinder",
-            &["Sphere1"],
-            None,
-        ),
-        (
-            extruded,
-            "make the extrusion 5 mm instead",
-            &[
-                "Body1 10 x 5 x 3 mm",
-                "Sketch1",
-                "Extrude1 (distance 3)",
-                "extent.distance",
-            ],
-            Some(("Extrude1", "distance", "5")),
-        ),
-        (
-            extruded,
-            "add a hole to the existing part",
-            &["Extrude1"],
-            None,
-        ),
-        (
-            blind,
-            "make the hole 10 mm instead",
-            &[
-                "Hole1 (diameter 8, depth 6, at (25, 25, 20))",
-                "\"diameter\":\"10\"",
-            ],
-            Some(("Hole1", "diameter", "10")),
-        ),
-        (
-            blind,
-            "make the hole depth 9 mm instead",
-            &["\"depth\":\"9\""],
-            Some(("Hole1", "depth", "9")),
-        ),
-        (
-            blind,
-            "make the hole 6 mm and 12 mm deep instead",
-            &["To resize an existing feature"],
-            None,
-        ),
-        (
-            many,
-            "make the holes bigger instead",
-            &["last 12 of 15"],
-            None,
-        ),
-        (many, "add another hole to the plate", &["Hole14"], None),
-    ]
-}
-
 #[test]
-fn edit_requests_get_a_design_fact_and_a_working_edit_command() {
+fn failed_edits_and_rebuilds_get_one_fact_with_replayable_size_suggestions() {
     let Some(cli) = edit_harness::cli() else {
         return;
     };
-    assert!(cases().len() >= 25);
-    let mut skipped = 0;
-    let mut facts_seen = std::collections::BTreeSet::new();
-    for direct in [true, false] {
-        let p = edit_harness::proxy(direct, false);
-        for (design, text, wanted, edit) in cases() {
-            let start = design();
-            let t = p.ask(&cli, &start, text);
-            let Some(f) = fact(&t) else {
-                // A declined form leaves its design reads in the history the model
-                // sees; without an exact command a fact would add nothing.
-                let history = t.upstream["messages"].to_string();
-                assert!(
-                    edit.is_none() && history.contains("pilot_context_"),
-                    "direct={direct} no fact for {text}: reads {:?} upstream {}",
-                    t.pilot_reads,
-                    history
-                );
-                skipped += 1;
-                continue;
-            };
-            assert!(
-                f.chars().count() <= 1200 + 40,
-                "{text}: {}",
-                f.chars().count()
-            );
-            for w in wanted {
-                assert!(f.contains(w), "direct={direct} {text}: missing {w} in {f}");
+    let examples = [
+        (
+            "Please change Hole1 diameter to 11 mm",
+            "Hole1",
+            "diameter",
+            "11",
+        ),
+        ("Set the hole diameter to 1.2 cm", "Hole1", "diameter", "12"),
+        ("Resize Hole1 depth to 9 mm", "Hole1", "depth", "9"),
+        ("Adjust the hole depth to 0.6 cm", "Hole1", "depth", "6"),
+        ("Change the box length to 84 mm", "Box1", "length", "84"),
+        ("Set the plate width to 51 mm", "Box1", "width", "51"),
+        ("Resize the block height to 18 mm", "Box1", "height", "18"),
+        ("Make the existing box 90 mm long", "Box1", "length", "90"),
+        ("Make the existing plate 48 mm wide", "Box1", "width", "48"),
+        ("Make the existing block 20 mm tall", "Box1", "height", "20"),
+        ("Update Box1 length to 8 cm", "Box1", "length", "80"),
+        ("Modify Box1 width to 4.6 cm", "Box1", "width", "46"),
+        ("Edit Box1 height to 1.7 cm", "Box1", "height", "17"),
+        (
+            "Increase Hole1 diameter to 10 mm",
+            "Hole1",
+            "diameter",
+            "10",
+        ),
+        ("Reduce the hole depth to 5 mm", "Hole1", "depth", "5"),
+        (
+            "Adjust the existing part width to 49 mm",
+            "Box1",
+            "width",
+            "49",
+        ),
+    ];
+    assert!(examples.len() >= 15);
+    for (direct, rebuild) in [(false, false), (false, true), (true, false), (true, true)] {
+        for (text, feature, input, value) in examples {
+            let proxy = edit_harness::proxy(direct, false);
+            let mut messages = inspected(&cli, text);
+            proxy.send(&messages);
+            assert!(fact(&proxy.last()).is_none(), "inspection alone: {text}");
+            messages.push(if rebuild {
+                call(
+                    "wrong",
+                    "solid.box",
+                    json!({"length":84,"width":44,"height":16}),
+                )
+            } else {
+                call(
+                    "wrong",
+                    "timeline.edit",
+                    json!({"feature":"Missing","set":{"diameter":"11"}}),
+                )
+            });
+            messages.push(result(
+                "wrong",
+                if rebuild {
+                    json!({"created_bodies":["Body2"]})
+                } else {
+                    json!({"isError":true,"error":"feature Missing not found"})
+                },
+            ));
+            let before = messages.clone();
+            proxy.send(&messages);
+            let upstream = proxy.last();
+            let f = fact(&upstream).unwrap_or_else(|| panic!("{text}: {upstream}"));
+            assert!(f.chars().count() <= 1240);
+            assert!(f.contains("Body1 box 72 x 44 x 16"), "{f}");
+            for message in before.iter().filter(|m| m["role"] == "assistant") {
+                assert!(upstream["messages"].as_array().unwrap().contains(message));
             }
-            assert!(t.pilot_reads[0].contains("document.inspect"), "{text}");
-            assert!(t.pilot_reads.len() <= 14, "{text}");
-            // The fact appears once, on the first model call only.
-            assert_eq!(
-                edit_harness::systems(&t.upstream)
-                    .iter()
-                    .filter(|s| s.contains("Design:"))
-                    .count(),
-                1
-            );
-            facts_seen.insert(text);
-            let Some((feature, input, value)) = edit else {
-                continue;
-            };
-            let at = f
-                .find("execute timeline.edit ")
-                .unwrap_or_else(|| panic!("{text}: {f}"));
-            let json_text = f[at + "execute timeline.edit ".len()..]
-                .trim_end_matches('.')
-                .to_string();
-            let end = json_text.rfind("}}").unwrap() + 2;
-            let params: Value = serde_json::from_str(&json_text[..end]).unwrap();
-            assert_eq!(params["feature"], feature, "{text}");
-            let mut script = start.clone();
+            let params_text = f
+                .split_once("execute timeline.edit ")
+                .unwrap()
+                .1
+                .trim_end_matches('.');
+            let params: Value = serde_json::from_str(params_text).unwrap();
+            assert_eq!(params["feature"], feature);
+            assert_eq!(params["set"][input], value);
+            let mut script = start();
             script.push(json!({"command":"timeline.edit","params":params}));
             script.push(json!({"command":"timeline.inspect","params":{"feature":feature}}));
-            let results = edit_harness::run_script(&cli, &script);
-            let inspected = results.last().unwrap();
-            let changed = inspected["inputs"]
+            let replay = edit_harness::run_script(&cli, &script);
+            let changed = replay.last().unwrap()["inputs"]
                 .as_array()
                 .unwrap()
                 .iter()
                 .find(|i| i["label"].as_str().unwrap().eq_ignore_ascii_case(input))
-                .unwrap_or_else(|| panic!("{text}: {inspected}"));
-            assert_eq!(changed["expression"], value, "{text}");
+                .unwrap();
+            assert_eq!(changed["expression"], value);
+            // Same failing continuation and then another mistake: no second fact.
+            proxy.send(&messages);
+            assert!(fact(&proxy.last()).is_none());
+            messages.push(call(
+                "wrong_again",
+                "timeline.edit",
+                json!({"feature":"Missing","set":{"height":"2"}}),
+            ));
+            messages.push(result("wrong_again", json!({"ok":false,"error":"missing"})));
+            proxy.send(&messages);
+            assert!(fact(&proxy.last()).is_none());
+            let log = std::fs::read_to_string(proxy.dir.join("audit.jsonl")).unwrap();
+            assert_eq!(
+                log.lines()
+                    .filter(|l| serde_json::from_str::<Value>(l).unwrap()["kind"] == "edit_fact")
+                    .count(),
+                1
+            );
+            assert!(!log.contains("edit_fact_inspect"));
+            if text == examples[0].0 {
+                // A new user turn earns its own single fact after fresh model reads.
+                messages.extend(inspected(&cli, text));
+                messages.push(call(
+                    "next_turn",
+                    "timeline.edit",
+                    json!({"feature":"Missing","set":{"diameter":"11"}}),
+                ));
+                messages.push(result(
+                    "next_turn",
+                    json!({"isError":true,"error":"missing"}),
+                ));
+                proxy.send(&messages);
+                assert!(fact(&proxy.last()).is_some());
+            }
         }
     }
-    // Every request either got the fact or kept the reads its declined form left.
-    assert!(facts_seen.len() >= 15, "{} facts", facts_seen.len());
-    assert!(facts_seen.len() + skipped / 2 >= 25, "{skipped} skipped");
 }
 
 #[test]
-fn requests_that_are_not_edits_get_no_fact() {
+fn ten_continuations_must_not_get_a_fact() {
     let Some(cli) = edit_harness::cli() else {
         return;
     };
-    let no_fact: Vec<(Design, &str)> = vec![
-        (plate, "make a 20 mm cube"),
-        (plate, "create a new plate 60x40x10 with a 6 mm hole"),
-        (plate, "how many holes are there?"),
-        (plate, "what is the volume"),
-        (plate, "build a bracket"),
-        (plate, "Report the volume of the existing part"),
-        (
-            pegs,
-            "draw a circle of diameter 12 mm on XY and extrude it 4 mm",
-        ),
-        (plate, "tell me about the hole"),
-        (plate, "hello"),
-        (plate, "design a 30 mm cylinder 10 mm tall"),
-    ];
-    assert!(no_fact.len() + 2 >= 12);
-    for direct in [true, false] {
-        let p = edit_harness::proxy(direct, false);
-        for (design, text) in &no_fact {
-            let t = p.ask(&cli, &design(), text);
-            assert!(fact(&t).is_none(), "direct={direct} {text}");
-        }
-    }
-    // Recipe-handled turns (default mode) get nothing.
-    let p = edit_harness::proxy(true, false);
-    for text in ["move it 50 mm along X", "rename the body to Mount"] {
-        let t = p.ask(&cli, &plate(), text);
-        assert!(fact(&t).is_none(), "{text}");
-    }
-    // --no-hints: no fact and no extra reads, even for an edit request.
-    let p = edit_harness::proxy(true, true);
-    let t = p.ask(&cli, &plate(), "make the hole 8 mm instead");
-    assert!(fact(&t).is_none());
-    assert!(t
-        .pilot_reads
-        .iter()
-        .all(|r| !r.contains("timeline.inspect")));
-    // An empty design: the edit wording is read once and nothing is added.
-    let p = edit_harness::proxy(false, false);
-    let t = p.ask(&cli, &[], "make the hole 8 mm instead");
-    assert!(fact(&t).is_none());
-    assert_eq!(t.pilot_reads.len(), 1);
-}
-
-fn two_bodies() -> Vec<Value> {
-    vec![
-        json!({"command":"solid.box","params":{"length":60,"width":40,"height":10,"body_name":"Plate"}}),
-        json!({"command":"solid.cylinder","params":{"radius":5,"height":20,"base":[100,0,0],"body_name":"Peg"}}),
-    ]
-}
-
-/// Exact edit recipes, on an existing design in default mode: the calls and the
-/// final reply must equal what the proxy does without the edit fact.
-const SINGLE_BODY: &[&str] = &[
-    "move it 50 mm along X",
-    "rename the body to Mount",
-    "fillet all the edges 2 mm",
-    "chamfer the top edges 2 mm",
-    "chamfer all edges 1 mm",
-    "mirror it across YZ",
-    "shift the part 30 mm along Z",
-    "rename it to Lid",
-    "mirror the body across the XZ plane",
-    "round all the edges 1.5 mm",
-    "bevel all edges 1 mm",
-];
-const NAMED_TARGET: &[&str] = &[
-    "move Peg 5 mm along X",
-    "rename Peg to Pin",
-    "mirror Peg across YZ",
-    "shift Plate 12 mm along Z",
-    "chamfer all edges of Plate 1 mm",
-    "round all the edges of Peg 1 mm",
-];
-
-fn mutating(reads: &[String]) -> Vec<String> {
-    reads
-        .iter()
-        .filter(|r| !r.contains("document.inspect") && !r.contains("timeline.inspect"))
-        .cloned()
-        .collect()
-}
-
-#[test]
-fn exact_recipes_answer_edit_requests_with_the_same_calls_as_without_the_fact() {
-    let Some(cli) = edit_harness::cli() else {
-        return;
-    };
-    for direct in [true, false] {
-        for (design, requests) in [
-            (vec![box_(60.0, 40.0, 10.0)], SINGLE_BODY),
-            (two_bodies(), &NAMED_TARGET[..4]),
-            (two_bodies(), &NAMED_TARGET[5..]),
-        ] {
-            // The model reads the design itself, so a recipe fires after its inspection.
-            let with = edit_harness::proxy_with(direct, false, true);
-            let without = edit_harness::proxy_with(direct, true, true);
-            for text in requests {
-                let a = with.ask(&cli, &design, text);
-                let b = without.ask(&cli, &design, text);
-                assert_eq!(mutating(&a.pilot_reads), mutating(&b.pilot_reads), "{text}");
-                if !mutating(&b.pilot_reads).is_empty() {
-                    assert!(fact(&a).is_none(), "direct={direct} {text}");
+    for scenario in 0..10 {
+        let proxy = edit_harness::proxy(false, scenario == 9);
+        let text = match scenario {
+            0 => "Create a new 84 mm box",
+            1 => "What is the hole diameter?",
+            _ => "Change the box length to 84 mm",
+        };
+        let mut messages = inspected(&cli, text);
+        match scenario {
+            2 => (), // inspection alone
+            3 => {
+                messages.truncate(1);
+            } // no model action
+            4 => {
+                // unknown/unmatched result cannot supply evidence
+                messages.retain(|m| m["role"] != "assistant");
+            }
+            5 => {
+                // Pilot form reads cannot supply evidence
+                for m in &mut messages {
+                    if let Some(calls) = m["tool_calls"].as_array_mut() {
+                        calls[0]["id"] = json!("pilot_context_0");
+                    }
                 }
-                assert_eq!(a.direct, b.direct, "{text}");
             }
-        }
-    }
-}
-
-#[test]
-fn a_declined_form_gets_a_fact_only_when_it_adds_the_exact_edit_or_unread_design() {
-    let Some(cli) = edit_harness::cli() else {
-        return;
-    };
-    let mut checked = 0;
-    for (design, text, _, _) in cases() {
-        let p = edit_harness::proxy(true, false);
-        let t = p.ask(&cli, &design(), text);
-        let log = std::fs::read_to_string(p.dir.join("audit.jsonl")).unwrap_or_default();
-        let kinds: Vec<String> = log
-            .lines()
-            .filter_map(|l| serde_json::from_str::<Value>(l).ok())
-            .map(|v| v["kind"].as_str().unwrap_or("").to_string())
-            .collect();
-        let offered = kinds
-            .iter()
-            .any(|k| k == "route_offered" || k == "fill_offered");
-        let own_reads = kinds.iter().any(|k| k == "edit_fact_inspect");
-        // At most one fact and at most two rounds of Pilot's own reads per turn.
-        assert!(
-            kinds.iter().filter(|k| *k == "edit_fact").count() <= 1,
-            "{text}"
-        );
-        assert!(
-            kinds.iter().filter(|k| *k == "edit_fact_inspect").count() <= 2,
-            "{text}"
-        );
-        if offered {
-            checked += 1;
-            if let Some(f) = fact(&t) {
-                assert!(
-                    own_reads || f.contains("execute timeline.edit {\"feature\""),
-                    "{text}: {f}"
-                );
+            6 => {
+                // empty design
+                messages.truncate(1);
+                messages.push(call("empty", "document.inspect", json!({"measure":true})));
+                messages.push(result("empty", json!({"bodies":[],"timeline":[]})));
             }
+            _ => (),
         }
+        if !matches!(scenario, 2 | 3) {
+            messages.push(call(
+                "last",
+                if scenario == 7 {
+                    "timeline.edit"
+                } else if scenario == 8 {
+                    "timeline.inspect"
+                } else {
+                    "solid.box"
+                },
+                json!({"feature":"Box1","length":84,"width":44,"height":16,"set":{"length":"84"}}),
+            ));
+            messages.push(result(
+                "last",
+                if scenario == 8 {
+                    json!({"isError":true})
+                } else {
+                    json!({"ok":true})
+                },
+            ));
+        }
+        proxy.send(&messages);
+        assert!(fact(&proxy.last()).is_none(), "scenario {scenario}");
     }
-    assert!(checked >= 3, "only {checked} cases went through a form");
 }

@@ -115,10 +115,16 @@ Request side:
   fills. Forced fill and route do not require `--offer-recipe-tools`. `--no-fill` skips
   fill and route; `--no-shortcuts` disables forms and local recipe tools even with the offer flag.
   No upfront find-first fact is added.
-  On the first turn of an edit-shaped request on an existing design (no recipe, form or
-  `--no-hints`), one design fact of at most 1,200 characters names the bodies with bounds
-  and up to 12 timeline features with their parameters, plus the exact `timeline.edit`
-  call for a plain size change; see docs/details.md.
+  Without a recipe, the first upstream request on an edit-shaped turn is exactly
+  the same bytes as without edit facts: no Pilot reads and no design fact.
+  Only after a failed edit call, or a create call when the model has inspected
+  existing bodies and the user refers to the existing part, Pilot may add one
+  design fact per user turn on the next upstream request. It uses only public
+  inspection results requested by the model, never issues reads for the fact,
+  and never rewrites or rejects the model's call. The fact is at most 1,200
+  characters, with bounds and up to 12 timeline features and inspected parameters;
+  a plain size change includes the exact `timeline.edit` suggestion. `--no-hints`
+  disables it. See docs/details.md.
 - Facts and hints are sent once per retained conversation, with existing-history deduplication.
   Relevant guidance is always sent regardless of the client's character count.
   `how` remains available unless disabled with `--no-how`; its shorter schema saves
