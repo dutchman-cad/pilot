@@ -74,7 +74,11 @@ dutchman-pilot how98 'drill a hole'
 
 The driver accepts one native tool call, one explicit tool JSON object, or one
 `COMMAND:` line per reply. Optional `THOUGHT:` text is commentary. `COMMAND: done
-<answer>` finishes locally and reads the final screen. Prose alone never acts.
+<answer>` finishes locally and reads the final screen. Prose alone never acts. A
+reply that is exactly one command without the prefix does not run either; its error
+names the `COMMAND:` line to send. Outside `--plain`, a whole reply in Gemma's own
+call syntax (`fill_dialog{fields:[...]}` with `<|"|>` quotes) counts as one tool
+object.
 `--plain` disables Pilot's help, repairs, target matching, and hints for comparisons;
 framing, schema validation, and budgets still apply.
 
@@ -96,10 +100,18 @@ The commands also work under `dutchman pilot`.
 
 Rectangle and circle sketches, extrusions, through holes, source-sketch position
 edits, and feature parameter edits are supported through application dialogs.
-Solid-edge fillets and body renaming are unavailable. Sketch corner rounding is a
-limited alternative that must be described as such. A volume computed from
+Fillets on the top and bottom edges of a solid and body renaming are unavailable.
+A rectangle sketch's corner radius rounds the four upright edges of the block grown
+from it; when other edges were asked for, the reply must say only those four were
+rounded. When a rounding request ends with rounded sketch corners, `drive98` adds
+that to its done message: "Rounded the four upright edges (3 mm). Rounding the top
+and bottom edges requires SolidCraft 2000." The model never sees that line. A volume computed from
 sketch and extrusion dimensions is a calculation, not an application measurement.
 The [benchmark set](../bench/sets/sc98/README.md) checks these distinctions.
+
+Outside `--plain`, `fill_dialog` types a value that carries its field's own unit,
+such as `3 mm` in `Corner radius (mm)`, as the number alone, since the fields take
+numbers only.
 
 Commands use Windows-1252. Unrepresentable text, embedded newlines, NUL, oversized
 frames, and invalid schemas return errors. Limits include 4 KiB per command,

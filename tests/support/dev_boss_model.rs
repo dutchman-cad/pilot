@@ -144,7 +144,8 @@ fn boss_copies_end_to_end_model_proxy() {
                     message["content"].as_str().unwrap().contains(if missing {
                         "spacing"
                     } else {
-                        "Exact match (no model):"
+                        // The scripted model fills the form, so the build is not an exact match.
+                        "Built from the model's form:"
                     }),
                     "{}: {message}",
                     case["id"]

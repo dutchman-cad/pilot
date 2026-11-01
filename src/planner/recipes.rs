@@ -7,6 +7,7 @@ pub(crate) mod cross_drilled;
 pub(crate) mod revolute;
 mod shell_box;
 pub(crate) mod shortcuts;
+mod turned;
 
 #[derive(Clone, Copy)]
 enum Kind {
@@ -85,6 +86,7 @@ enum Slots {
     ClosedProfile(closed_profile::Profile),
     CompoundPlate(compound_plate::Plate),
     CrossDrilled(cross_drilled::BoxHoles),
+    Turned(turned::Turned),
     Edges {
         body: String,
         edges: Vec<Value>,
@@ -1317,6 +1319,13 @@ fn expand(slots: &Slots, catalog: &Catalog) -> Result<Expansion, String> {
                 json!({"bodies":[body],"factor":factor,"origin":[0,0,0]}),
             )?;
         }
+        Slots::Turned(part) => {
+            for (command, params) in part.commands() {
+                add(command, params)?;
+            }
+            v = Some(part.volume());
+            creates = true;
+        }
         Slots::Tube {
             outer_radius,
             inner_radius,
@@ -1525,6 +1534,36 @@ pub(super) fn select(
     messages: &[Value],
     catalog: &Catalog,
 ) -> Result<Option<Plan>, String> {
+    // Preserve every existing exact match and its expansion before trying the
+    // additional grammar. In particular, existing tube forms stay identical.
+    if let Some(plan) = select_existing(text, data, messages, catalog)? {
+        return Ok(Some(plan));
+    }
+    let input = Input {
+        text,
+        t: intent_tokens(text),
+        data,
+        messages,
+    };
+    if turned::candidate(&input) {
+        if let Some(slots) = turned::parse(&input) {
+            let rule = if matches!(slots, Slots::Tube { .. }) {
+                "tube"
+            } else {
+                "turned"
+            };
+            return from_slots(rule, slots, data, catalog);
+        }
+    }
+    Ok(None)
+}
+
+fn select_existing(
+    text: &str,
+    data: Option<&Value>,
+    messages: &[Value],
+    catalog: &Catalog,
+) -> Result<Option<Plan>, String> {
     let input = Input {
         text,
         t: intent_tokens(text),
@@ -1663,6 +1702,7 @@ fn from_slots(
             | Slots::CompoundPlate(_)
             | Slots::ShellBox(_)
             | Slots::CrossDrilled(_)
+            | Slots::Turned(_)
     ) {
         let names: Vec<_> = data
             .and_then(|d| d["bodies"].as_array())
@@ -1688,7 +1728,10 @@ fn from_slots(
                 }
             } else if matches!(
                 slots,
-                Slots::Holes { .. } | Slots::Tube { .. } | Slots::CrossDrilled(_)
+                Slots::Holes { .. }
+                    | Slots::Tube { .. }
+                    | Slots::CrossDrilled(_)
+                    | Slots::Turned(_)
             ) {
                 params["targets"] = json!([created]);
             } else if matches!(slots, Slots::ShellBox(_)) {
@@ -1905,7 +1948,7 @@ pub(super) fn names() -> impl Iterator<Item = &'static str> {
     LIBRARY
         .iter()
         .map(|(name, _)| *name)
-        .chain(["revolute_joint", "cross_drilled_box"])
+        .chain(["revolute_joint", "cross_drilled_box", "turned"])
 }
 
 fn positive_mm(field: &str, value: f64) -> Result<(), String> {
