@@ -1,6 +1,7 @@
 name: Checks
 'on':
   push:
+    branches: [main]
     # Prose and images alone skip the builds; Docs checks them in a minute. Recipe files, test
     # fixtures, and the flags reference are read by the code, so they still run everything.
     paths:
@@ -26,6 +27,11 @@ name: Checks
       - 'docs/flags.md'
 permissions:
   contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Every commit on main finishes its run; a newer push cancels an older one elsewhere.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   toolchains:
     runs-on: ubuntu-24.04
@@ -72,6 +78,31 @@ jobs:
       - run: cargo test --locked --all-targets
       - run: cargo test --locked --all-targets --no-default-features --features core
       - run: cargo check --locked --lib --target wasm32-unknown-unknown --no-default-features --features core
+  blind-wording:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: python3 scripts/leak-check.py
+  binary:
+    # A Linux release binary for each commit, so benchmarks use what CI built.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: cargo build --locked --release --bin dutchman-pilot
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dutchman-pilot-linux-x86_64
+          path: target/release/dutchman-pilot
+          if-no-files-found: error
+          retention-days: 14
   installers:
     strategy:
       fail-fast: false

@@ -116,6 +116,24 @@ Request side:
   fill and route; `--no-shortcuts` disables forms and local recipe tools even with the offer flag.
   No upfront find-first fact is added.
 - Facts and hints are sent once per retained conversation, with existing-history deduplication.
+- Hole and circle-cut fact (model face, outside `--no-hints`, not on recipe turns): after a
+  successful `solid.hole` (position, numeric diameter, simple type) or a `solid.extrude` cut of
+  one sketch circle, the trailing tool result gets one short fact of what was made, for example
+  `Hole made: 8 mm diameter, 10 mm deep along -Z from (20, 15, 12); it does not go through Body1
+  (12 mm thick).` A cut that cannot reach any body says `This cut removed no material: ...` with
+  the reason (circle outside the body, or swept away from it). The fact comes only from the call's
+  arguments, the result's `changed_bodies`, and body bounds seen earlier in the conversation
+  (`solid.box` arguments, inspect `bbox`); Pilot sends no reads. Thickness and through claims are
+  made only for bodies known to be plain blocks. At most 4 facts per tool result and 6 per user
+  turn. The call is never rewritten, rejected or replayed. Audited as `hole_fact`.
+  The size fact (`unit_fact`, `src/unitfact.rs`) is one of them: when the conversation's user
+  messages state sizes in inches (`in`, `inch`, `inches`, `"`, fractions and mixed numbers
+  such as `3/8"` or `1 1/2 in`) or cm, one system line `Sizes in mm: 1" = 25.4; 3/8" = 9.525.`
+  lists each size in order of first mention, repeated on every request since clients do not
+  echo it (at most 16, mm rounded to 4 decimals, trailing zeros
+  trimmed). Bare numbers, mm sizes and a fraction without a unit add nothing; the request is
+  never changed. It is skipped on turns a recipe, form, route or exact match handles, and by
+  `--no-hints`.
   Relevant guidance is always sent regardless of the client's character count.
   `how` remains available unless disabled with `--no-how`; its shorter schema saves
   64 characters. MCP retains its separate tool-list behavior.
@@ -156,6 +174,27 @@ it as a well-formed stream):
    (assembled for SSE; null when unavailable) and its tool call names. Names are capped
    at 128 entries of 128 characters. No text, descriptions, or argument values are added.
    FNV-1a is a deterministic comparison aid, not a cryptographic integrity guarantee.
+5. **Separate-body fact, without a recipe.** In model-only and default modes, unless
+   hints are disabled, a one-part request gets a short tool-result fact when public
+   measurements confirm separate solids touch or overlap. Include the exact native
+   join call using inspected names; never run the join or change a valid model call.
+   Reuse document inspection and bound additional reads. Explicit separate parts,
+   bodies, copies as bodies, and assemblies suppress the fact. A final reply with
+   multiple bodies gets at most one hand-back per user turn, repeating the measured
+   fact when available or reporting the count without an unverified join.
+
+6. **Overall-size completion check, without a recipe.** In default and model-only modes,
+   outside `--no-hints`, a nonempty final reply gets one hand-back per user turn when
+   complete public bounds for one body clearly disagree with one unambiguous stated
+   overall size. Recognise a product's three dimensions with explicit units (including
+   a shared trailing unit), or one explicitly labelled overall length, width, height,
+   thickness or diameter. Reuse inch, fractional inch and cm parsing. Compare in any
+   axis order, within 0.01 mm or 0.1%, whichever is larger. Report measured bounds
+   against the stated size. Reuse current conversation measurements; if needed, emit
+   at most one `document.inspect` with `measure:true` through the normal client tool
+   path after a successful model action. Failed reads consume the attempt. Stale,
+   partial or invalid bounds, feature sizes, several parts and unclear wording add
+   nothing. Never change or reject a model call. Recipe turns keep their own checks.
 
 Pilot does not depend on SolidCraft crates; it talks to SolidCraft only through its public
 interfaces.
@@ -172,6 +211,11 @@ the real server as a child process (`--solidcraft-cli PATH`, plus pass-through a
    parameter docs, or "SolidCraft has no command for that" with the nearest alternative. Matching
    is deterministic (ids, labels, params docs, a small synonym table: round→fillet, bevel→chamfer,
    hollow→shell, ...), no model involved.
+   Hole help gives one concrete example for underside blind holes, side walls, angled or
+   offset faces, counterbores and wall rows, with entry-point and inward-direction rules.
+   Position failures name up to three nearby face planes from existing public results or
+   known box faces, including on-face points and outward normals. Plane distances do not
+   claim proximity to trimmed faces. No extra reads, call rewriting or automatic retries.
 2. **Errors that carry the fix.** When a forwarded call fails with an unknown command, an unknown
    or misnamed parameter, or a missing required parameter, append a `suggested` corrected call
    when exactly one correction is unambiguous (closest id; renamed key by case/punctuation/word

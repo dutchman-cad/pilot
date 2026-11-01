@@ -102,6 +102,7 @@ struct Proxy {
     plane_guidance: crate::guidance::PlaneGuidance,
     plane_seen: [bool; 2],
     axes_seen: bool,
+    hole_faces: crate::guidance::holes::Faces,
 }
 impl Proxy {
     // While a call is outstanding, relay reverse requests and client replies immediately.
@@ -342,6 +343,20 @@ impl Proxy {
                 if tools.len() > 4096 {
                     return Err("augmented tools/list exceeds 4096 tools".into());
                 }
+                if !self.cfg.no_hints && crate::prompting::describe_holes(tools) {
+                    if let Err(message) = self.audit.record(
+                        "hole_tool_hint",
+                        &Value::Null,
+                        &json!(crate::guidance::holes::HINT),
+                    ) {
+                        eprintln!(
+                            "{}: {message}; passing tools/list through unchanged",
+                            crate::identity::BINARY
+                        );
+                        return write_raw(&mut self.output, &response);
+                    }
+                    modified = true;
+                }
                 if !self.cfg.no_hints && crate::prompting::describe_placement(tools) {
                     if let Err(message) = self.audit.record(
                         "placement_fact",
@@ -373,6 +388,14 @@ impl Proxy {
             }
         }
         if method == "tools/call" {
+            if name == "batch" {
+                if let Some(reason) =
+                    crate::repair::failed_sketch_context(&v["params"]["arguments"], &reply)
+                {
+                    modified |=
+                        self.append(&mut reply, &reason, false, "sketch_dependency_error")?;
+                }
+            }
             let mut data = payload(&reply);
             let page = result_pages(&reply);
             if !page.is_empty() && data.is_object() {
@@ -383,6 +406,11 @@ impl Proxy {
             }
             if !self.cfg.no_hints {
                 let args = &v["params"]["arguments"];
+                let hints = self.hole_faces.visit(name, args, &reply);
+                if !hints.is_empty() {
+                    modified |=
+                        self.append(&mut reply, &hints.join("\n"), false, "hole_position_hint")?;
+                }
                 self.plane_guidance.visit(name, args, &reply);
                 // Sketch setup changes no body, so plane guidance does not wait for a change.
                 let mut context = json!({"tools":[{"function":{"name":"execute"}}],"messages":[{"role":"user","content":args.to_string()},{"role":"assistant","tool_calls":[{"function":{"name":name,"arguments":args.to_string()}}]}]});
@@ -558,6 +586,14 @@ impl Proxy {
         let Some(catalog) = self.catalog.as_ref() else {
             return Ok((None, None));
         };
+        let mut fixed = args.clone();
+        match crate::repair::repair_command(&mut fixed, catalog) {
+            Ok(changes) if !changes.is_empty() => {
+                return Ok((None, Some(json!({"tool":"execute","arguments":fixed}))));
+            }
+            Err(reason) => return Ok((Some(reason), None)),
+            _ => (),
+        }
         if text.contains("unknown command") {
             let task = request
                 .pointer("/params/arguments/task")
@@ -698,6 +734,7 @@ pub fn serve(cfg: Config) -> Result<(), String> {
         audit,
         sketch_seen: [false; 2],
         plane_guidance: crate::guidance::PlaneGuidance::default(),
+        hole_faces: crate::guidance::holes::Faces::default(),
         plane_seen: [false; 2],
         axes_seen: false,
     }

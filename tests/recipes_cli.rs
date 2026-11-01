@@ -8,6 +8,12 @@ use dutchman_pilot::{
 use serde_json::{json, Value};
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+#[path = "support/dev_profile_openings.rs"]
+mod dev_profile_openings;
+#[path = "support/dev_rectangles.rs"]
+mod dev_rectangles;
+#[path = "support/dev_stem_offset.rs"]
+mod dev_stem_offset;
 #[path = "support/public_catalog.rs"]
 mod public_catalog;
 struct Session {
@@ -15,6 +21,82 @@ struct Session {
     input: ChildStdin,
     output: BufReader<ChildStdout>,
     id: u64,
+}
+
+#[test]
+fn dev_profile_exact_claims_and_hand_filled_forms() {
+    use dutchman_pilot::recipe_library::Library;
+    fn equivalent(a: &Value, b: &Value) -> bool {
+        match (a, b) {
+            (Value::Number(a), Value::Number(b)) => {
+                (a.as_f64().unwrap() - b.as_f64().unwrap()).abs() < 1e-9
+            }
+            (Value::Object(a), Value::Object(b)) => {
+                a.len() == b.len()
+                    && a.iter()
+                        .all(|(k, v)| b.get(k).is_some_and(|b| equivalent(v, b)))
+            }
+            _ => a == b,
+        }
+    }
+    let cases: Vec<Value> =
+        serde_json::from_str(include_str!("fixtures/dev_profile_exact.json")).unwrap();
+    let lib = Library::embedded().unwrap();
+    let cat = Catalog::bundled().unwrap();
+    let path = std::env::var_os("PILOT_SOLIDCRAFT_CLI");
+    let mut failures = Vec::new();
+    assert!(cases.iter().filter(|c| c["claim"] == true).count() >= 60);
+    for case in cases {
+        let req = json!({"messages":[{"role":"user","content":case["prompt"]}],"tools":[{"function":{"name":"execute"}}]});
+        let exact = planner::plan(&req, &cat).unwrap();
+        if exact.is_some() != case["claim"].as_bool().unwrap() {
+            failures.push(case["prompt"].as_str().unwrap().to_string());
+            continue;
+        }
+        let Some(exact) = exact else { continue };
+        // Empty request: the hand-filled form is independent of request inference.
+        let form = lib
+            .build(
+                &json!({"recipe":"profile","args":case["args"]}),
+                &json!({"messages":[]}),
+                &cat,
+            )
+            .unwrap();
+        assert!(
+            equivalent(&exact.slots, &form.slots),
+            "{}: {} != {}",
+            case["prompt"],
+            exact.slots,
+            form.slots
+        );
+        let Some(path) = &path else { continue };
+        let check = |s: &mut Session| {
+            let e = &case["expected"];
+            check_shortcut_body(
+                s,
+                e["volume"].as_f64().unwrap(),
+                std::array::from_fn(|i| e["bbox"]["min"][i].as_f64().unwrap()),
+                std::array::from_fn(|i| e["bbox"]["max"][i].as_f64().unwrap()),
+                false,
+            );
+        };
+        let mut reference = Session::new(path);
+        for c in case["commands"].as_array().unwrap() {
+            reference.execute(c["command"].as_str().unwrap(), c["params"].clone());
+        }
+        check(&mut reference);
+        for plan in [exact, form] {
+            let mut session = Session::new(path);
+            for c in &plan.calls {
+                session.execute(
+                    c["arguments"]["command"].as_str().unwrap(),
+                    c["arguments"]["params"].clone(),
+                );
+            }
+            check(&mut session);
+        }
+    }
+    assert!(failures.is_empty(), "claim mismatches: {failures:#?}");
 }
 
 #[test]
@@ -2831,3 +2913,6 @@ mod dev_joint_profile;
 
 #[path = "support/dev_boss_copies.rs"]
 mod dev_boss_copies;
+
+#[path = "support/dev_turned.rs"]
+mod dev_turned;

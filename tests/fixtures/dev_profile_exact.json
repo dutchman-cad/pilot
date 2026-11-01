@@ -1,0 +1,5830 @@
+[
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "rectangle",
+      "plane": "XY",
+      "width": 40.0
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          30.0,
+          100.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 120000.0
+    },
+    "prompt": "Make a dimensioned rectangular profile on XY width 40 height 30  then extrude 100",
+    "style": 0
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "rectangle",
+      "plane": "XZ",
+      "width": 40.0
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          100.0,
+          0
+        ],
+        "min": [
+          0,
+          0,
+          -30.0
+        ]
+      },
+      "volume": 120000.0
+    },
+    "prompt": "Please make a rectangular profile on the XZ plane, 40 wide, 30 tall, , 100 long",
+    "style": 1
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "rectangle",
+      "plane": "YZ",
+      "width": 40.0
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          100.0,
+          40.0,
+          30.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 120000.0
+    },
+    "prompt": "40 x 30 mm rectangular profile on YZ with , length 100 mm",
+    "style": 2
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "rectangle",
+      "plane": "XY",
+      "width": 40.0
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          30.0,
+          100.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 120000.0
+    },
+    "prompt": "Build a rectangular profile in the top plane 40 mm by 30 mm with  and pad 100 mm",
+    "style": 3
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "rectangle",
+      "plane": "XZ",
+      "width": 40.0
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          100.0,
+          0
+        ],
+        "min": [
+          0,
+          0,
+          -30.0
+        ]
+      },
+      "volume": 120000.0
+    },
+    "prompt": "I need a rectangular profile on the front plane, width is 40 mm and height is 30 mm with , extruded 100 mm",
+    "style": 4
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "rectangle",
+      "plane": "YZ",
+      "width": 40.0
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          100.0,
+          40.0,
+          30.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 120000.0
+    },
+    "prompt": "Create a rectangular profile on the right plane, 40 × 30 mm, , extrusion length 100 mm",
+    "style": 5
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "rectangle",
+      "plane": "XY",
+      "width": 40.0
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          30.0,
+          100.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 120000.0
+    },
+    "prompt": "A rectangular profile on XY, 4 by 3 cm, , 10 cm deep",
+    "style": 6
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "rectangle",
+      "plane": "XZ",
+      "width": 40.0
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          100.0,
+          0
+        ],
+        "min": [
+          0,
+          0,
+          -30.0
+        ]
+      },
+      "volume": 120000.0
+    },
+    "prompt": "Please build a rectangular profile on XZ, 4 cm wide and 3 cm high, , pad it 10 cm",
+    "style": 7
+  },
+  {
+    "args": {
+      "depth": 76.2,
+      "height": 38.1,
+      "kind": "rectangle",
+      "plane": "YZ",
+      "width": 50.8
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              50.8,
+              0
+            ],
+            [
+              50.8,
+              38.1
+            ],
+            [
+              0,
+              38.1
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 76.2,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          76.2,
+          50.8,
+          38.1
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 147483.576
+    },
+    "prompt": "Make a rectangular profile on YZ 2 x 1.5 inches  length 3 inches",
+    "style": 8
+  },
+  {
+    "args": {
+      "depth": 76.2,
+      "height": 38.1,
+      "kind": "rectangle",
+      "plane": "XY",
+      "width": 50.8
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              50.8,
+              0
+            ],
+            [
+              50.8,
+              38.1
+            ],
+            [
+              0,
+              38.1
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 76.2,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          50.8,
+          38.1,
+          76.2
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 147483.576
+    },
+    "prompt": "Make a rectangular profile on XY width 2 inch height 3/2 inch  extrude 3 inch",
+    "style": 9
+  },
+  {
+    "args": {
+      "depth": 76.2,
+      "height": 38.1,
+      "kind": "rectangle",
+      "plane": "XZ",
+      "width": 50.8
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              50.8,
+              0
+            ],
+            [
+              50.8,
+              38.1
+            ],
+            [
+              0,
+              38.1
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 76.2,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          50.8,
+          76.2,
+          0
+        ],
+        "min": [
+          0,
+          0,
+          -38.1
+        ]
+      },
+      "volume": 147483.576
+    },
+    "prompt": "Make a rectangular profile on XZ width 2 inch height 1 1/2 inch  extrude 3 inch",
+    "style": 10
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "rectangle",
+      "plane": "YZ",
+      "width": 40.0
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          100.0,
+          40.0,
+          30.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 120000.0
+    },
+    "prompt": "Please give me a rectangular profile on YZ, 40 wide and 30 high with , extrude it for 100 mm",
+    "style": 11
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "rectangle",
+      "plane": "XY",
+      "width": 40.0
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          30.0,
+          100.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 120000.0
+    },
+    "prompt": "Build a rectangular profile on XY width 40 millimeters height 30 millimeters  then pad to 100 mm",
+    "style": 12
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "L",
+      "plane": "XY",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          30.0,
+          100.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 20100.0
+    },
+    "prompt": "Make a dimensioned L on XY width 40 height 30 uniform thickness 3 mm then extrude 100",
+    "style": 0
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "L",
+      "plane": "XZ",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          100.0,
+          0
+        ],
+        "min": [
+          0,
+          0,
+          -30.0
+        ]
+      },
+      "volume": 20100.0
+    },
+    "prompt": "Please make a L on the XZ plane, 40 wide, 30 tall, uniform thickness 3 mm, 100 long",
+    "style": 1
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "L",
+      "plane": "YZ",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          100.0,
+          40.0,
+          30.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 20100.0
+    },
+    "prompt": "40 x 30 mm L on YZ with uniform thickness 3 mm, length 100 mm",
+    "style": 2
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "L",
+      "plane": "XY",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          30.0,
+          100.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 20100.0
+    },
+    "prompt": "Build a L in the top plane 40 mm by 30 mm with uniform thickness 3 mm and pad 100 mm",
+    "style": 3
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "L",
+      "plane": "XZ",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          100.0,
+          0
+        ],
+        "min": [
+          0,
+          0,
+          -30.0
+        ]
+      },
+      "volume": 20100.0
+    },
+    "prompt": "I need a L on the front plane, width is 40 mm and height is 30 mm with uniform thickness 3 mm, extruded 100 mm",
+    "style": 4
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "L",
+      "plane": "YZ",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          100.0,
+          40.0,
+          30.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 20100.0
+    },
+    "prompt": "Create a L on the right plane, 40 × 30 mm, uniform thickness 3 mm, extrusion length 100 mm",
+    "style": 5
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "L",
+      "plane": "XY",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          30.0,
+          100.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 20100.0
+    },
+    "prompt": "A L on XY, 4 by 3 cm, uniform thickness 0.3 cm, 10 cm deep",
+    "style": 6
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "L",
+      "plane": "XZ",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          100.0,
+          0
+        ],
+        "min": [
+          0,
+          0,
+          -30.0
+        ]
+      },
+      "volume": 20100.0
+    },
+    "prompt": "Please build a L on XZ, 4 cm wide and 3 cm high, uniform thickness 0.3 cm, pad it 10 cm",
+    "style": 7
+  },
+  {
+    "args": {
+      "depth": 76.2,
+      "height": 38.1,
+      "kind": "L",
+      "plane": "YZ",
+      "thickness": 3.175,
+      "width": 50.8
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              50.8,
+              0
+            ],
+            [
+              50.8,
+              3.175
+            ],
+            [
+              3.175,
+              3.175
+            ],
+            [
+              3.175,
+              38.1
+            ],
+            [
+              0,
+              38.1
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 76.2,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          76.2,
+          50.8,
+          38.1
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 20739.877875
+    },
+    "prompt": "Make a L on YZ 2 x 1.5 inches uniform thickness 1/8 inch length 3 inches",
+    "style": 8
+  },
+  {
+    "args": {
+      "depth": 76.2,
+      "height": 38.1,
+      "kind": "L",
+      "plane": "XY",
+      "thickness": 3.175,
+      "width": 50.8
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              50.8,
+              0
+            ],
+            [
+              50.8,
+              3.175
+            ],
+            [
+              3.175,
+              3.175
+            ],
+            [
+              3.175,
+              38.1
+            ],
+            [
+              0,
+              38.1
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 76.2,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          50.8,
+          38.1,
+          76.2
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 20739.877875
+    },
+    "prompt": "Make a L on XY width 2 inch height 3/2 inch uniform thickness 1/8 inch extrude 3 inch",
+    "style": 9
+  },
+  {
+    "args": {
+      "depth": 76.2,
+      "height": 38.1,
+      "kind": "L",
+      "plane": "XZ",
+      "thickness": 3.175,
+      "width": 50.8
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              50.8,
+              0
+            ],
+            [
+              50.8,
+              3.175
+            ],
+            [
+              3.175,
+              3.175
+            ],
+            [
+              3.175,
+              38.1
+            ],
+            [
+              0,
+              38.1
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 76.2,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          50.8,
+          76.2,
+          0
+        ],
+        "min": [
+          0,
+          0,
+          -38.1
+        ]
+      },
+      "volume": 20739.877875
+    },
+    "prompt": "Make a L on XZ width 2 inch height 1 1/2 inch uniform thickness 1/8 inch extrude 3 inch",
+    "style": 10
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "L",
+      "plane": "YZ",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          100.0,
+          40.0,
+          30.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 20100.0
+    },
+    "prompt": "Please give me a L on YZ, 40 wide and 30 high with uniform thickness 3 mm, extrude it for 100 mm",
+    "style": 11
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "L",
+      "plane": "XY",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          30.0,
+          100.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 20100.0
+    },
+    "prompt": "Build a L on XY width 40 millimeters height 30 millimeters uniform thickness 3 mm then pad to 100 mm",
+    "style": 12
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "flange_thickness": 4.0,
+      "height": 30.0,
+      "kind": "T",
+      "plane": "XY",
+      "web_thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              30.0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              40.0,
+              26.0
+            ],
+            [
+              21.5,
+              26.0
+            ],
+            [
+              21.5,
+              0
+            ],
+            [
+              18.5,
+              0
+            ],
+            [
+              18.5,
+              26.0
+            ],
+            [
+              0,
+              26.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          30.0,
+          100.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 23800.0
+    },
+    "prompt": "Make a dimensioned T on XY width 40 height 30 web 3 mm flange 4 mm then extrude 100",
+    "style": 0
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "flange_thickness": 4.0,
+      "height": 30.0,
+      "kind": "T",
+      "plane": "XZ",
+      "web_thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              30.0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              40.0,
+              26.0
+            ],
+            [
+              21.5,
+              26.0
+            ],
+            [
+              21.5,
+              0
+            ],
+            [
+              18.5,
+              0
+            ],
+            [
+              18.5,
+              26.0
+            ],
+            [
+              0,
+              26.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          100.0,
+          0
+        ],
+        "min": [
+          0,
+          0,
+          -30.0
+        ]
+      },
+      "volume": 23800.0
+    },
+    "prompt": "Please make a T on the XZ plane, 40 wide, 30 tall, web 3 mm flange 4 mm, 100 long",
+    "style": 1
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "flange_thickness": 4.0,
+      "height": 30.0,
+      "kind": "T",
+      "plane": "YZ",
+      "web_thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              30.0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              40.0,
+              26.0
+            ],
+            [
+              21.5,
+              26.0
+            ],
+            [
+              21.5,
+              0
+            ],
+            [
+              18.5,
+              0
+            ],
+            [
+              18.5,
+              26.0
+            ],
+            [
+              0,
+              26.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          100.0,
+          40.0,
+          30.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 23800.0
+    },
+    "prompt": "40 x 30 mm T on YZ with web 3 mm flange 4 mm, length 100 mm",
+    "style": 2
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "flange_thickness": 4.0,
+      "height": 30.0,
+      "kind": "T",
+      "plane": "XY",
+      "web_thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              30.0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              40.0,
+              26.0
+            ],
+            [
+              21.5,
+              26.0
+            ],
+            [
+              21.5,
+              0
+            ],
+            [
+              18.5,
+              0
+            ],
+            [
+              18.5,
+              26.0
+            ],
+            [
+              0,
+              26.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          30.0,
+          100.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 23800.0
+    },
+    "prompt": "Build a T in the top plane 40 mm by 30 mm with web 3 mm flange 4 mm and pad 100 mm",
+    "style": 3
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "flange_thickness": 4.0,
+      "height": 30.0,
+      "kind": "T",
+      "plane": "XZ",
+      "web_thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              30.0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              40.0,
+              26.0
+            ],
+            [
+              21.5,
+              26.0
+            ],
+            [
+              21.5,
+              0
+            ],
+            [
+              18.5,
+              0
+            ],
+            [
+              18.5,
+              26.0
+            ],
+            [
+              0,
+              26.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          100.0,
+          0
+        ],
+        "min": [
+          0,
+          0,
+          -30.0
+        ]
+      },
+      "volume": 23800.0
+    },
+    "prompt": "I need a T on the front plane, width is 40 mm and height is 30 mm with web 3 mm flange 4 mm, extruded 100 mm",
+    "style": 4
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "flange_thickness": 4.0,
+      "height": 30.0,
+      "kind": "T",
+      "plane": "YZ",
+      "web_thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              30.0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              40.0,
+              26.0
+            ],
+            [
+              21.5,
+              26.0
+            ],
+            [
+              21.5,
+              0
+            ],
+            [
+              18.5,
+              0
+            ],
+            [
+              18.5,
+              26.0
+            ],
+            [
+              0,
+              26.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          100.0,
+          40.0,
+          30.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 23800.0
+    },
+    "prompt": "Create a T on the right plane, 40 × 30 mm, web 3 mm flange 4 mm, extrusion length 100 mm",
+    "style": 5
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "flange_thickness": 4.0,
+      "height": 30.0,
+      "kind": "T",
+      "plane": "XY",
+      "web_thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              30.0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              40.0,
+              26.0
+            ],
+            [
+              21.5,
+              26.0
+            ],
+            [
+              21.5,
+              0
+            ],
+            [
+              18.5,
+              0
+            ],
+            [
+              18.5,
+              26.0
+            ],
+            [
+              0,
+              26.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          30.0,
+          100.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 23800.0
+    },
+    "prompt": "A T on XY, 4 by 3 cm, web 0.3 cm flange 0.4 cm, 10 cm deep",
+    "style": 6
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "flange_thickness": 4.0,
+      "height": 30.0,
+      "kind": "T",
+      "plane": "XZ",
+      "web_thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              30.0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              40.0,
+              26.0
+            ],
+            [
+              21.5,
+              26.0
+            ],
+            [
+              21.5,
+              0
+            ],
+            [
+              18.5,
+              0
+            ],
+            [
+              18.5,
+              26.0
+            ],
+            [
+              0,
+              26.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          100.0,
+          0
+        ],
+        "min": [
+          0,
+          0,
+          -30.0
+        ]
+      },
+      "volume": 23800.0
+    },
+    "prompt": "Please build a T on XZ, 4 cm wide and 3 cm high, web 0.3 cm flange 0.4 cm, pad it 10 cm",
+    "style": 7
+  },
+  {
+    "args": {
+      "depth": 76.2,
+      "flange_thickness": 6.35,
+      "height": 38.1,
+      "kind": "T",
+      "plane": "YZ",
+      "web_thickness": 3.175,
+      "width": 50.8
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              38.1
+            ],
+            [
+              50.8,
+              38.1
+            ],
+            [
+              50.8,
+              31.75
+            ],
+            [
+              26.987499999999997,
+              31.75
+            ],
+            [
+              26.987499999999997,
+              0
+            ],
+            [
+              23.8125,
+              0
+            ],
+            [
+              23.8125,
+              31.75
+            ],
+            [
+              0,
+              31.75
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 76.2,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          76.2,
+          50.8,
+          38.1
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 32262.032249999997
+    },
+    "prompt": "Make a T on YZ 2 x 1.5 inches web 1/8 inch flange 1/4 inch length 3 inches",
+    "style": 8
+  },
+  {
+    "args": {
+      "depth": 76.2,
+      "flange_thickness": 6.35,
+      "height": 38.1,
+      "kind": "T",
+      "plane": "XY",
+      "web_thickness": 3.175,
+      "width": 50.8
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              38.1
+            ],
+            [
+              50.8,
+              38.1
+            ],
+            [
+              50.8,
+              31.75
+            ],
+            [
+              26.987499999999997,
+              31.75
+            ],
+            [
+              26.987499999999997,
+              0
+            ],
+            [
+              23.8125,
+              0
+            ],
+            [
+              23.8125,
+              31.75
+            ],
+            [
+              0,
+              31.75
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 76.2,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          50.8,
+          38.1,
+          76.2
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 32262.032249999997
+    },
+    "prompt": "Make a T on XY width 2 inch height 3/2 inch web 1/8 inch flange 1/4 inch extrude 3 inch",
+    "style": 9
+  },
+  {
+    "args": {
+      "depth": 76.2,
+      "flange_thickness": 6.35,
+      "height": 38.1,
+      "kind": "T",
+      "plane": "XZ",
+      "web_thickness": 3.175,
+      "width": 50.8
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              38.1
+            ],
+            [
+              50.8,
+              38.1
+            ],
+            [
+              50.8,
+              31.75
+            ],
+            [
+              26.987499999999997,
+              31.75
+            ],
+            [
+              26.987499999999997,
+              0
+            ],
+            [
+              23.8125,
+              0
+            ],
+            [
+              23.8125,
+              31.75
+            ],
+            [
+              0,
+              31.75
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 76.2,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          50.8,
+          76.2,
+          0
+        ],
+        "min": [
+          0,
+          0,
+          -38.1
+        ]
+      },
+      "volume": 32262.032249999997
+    },
+    "prompt": "Make a T on XZ width 2 inch height 1 1/2 inch web 1/8 inch flange 1/4 inch extrude 3 inch",
+    "style": 10
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "flange_thickness": 4.0,
+      "height": 30.0,
+      "kind": "T",
+      "plane": "YZ",
+      "web_thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              30.0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              40.0,
+              26.0
+            ],
+            [
+              21.5,
+              26.0
+            ],
+            [
+              21.5,
+              0
+            ],
+            [
+              18.5,
+              0
+            ],
+            [
+              18.5,
+              26.0
+            ],
+            [
+              0,
+              26.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          100.0,
+          40.0,
+          30.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 23800.0
+    },
+    "prompt": "Please give me a T on YZ, 40 wide and 30 high with web 3 mm flange 4 mm, extrude it for 100 mm",
+    "style": 11
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "flange_thickness": 4.0,
+      "height": 30.0,
+      "kind": "T",
+      "plane": "XY",
+      "web_thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              30.0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              40.0,
+              26.0
+            ],
+            [
+              21.5,
+              26.0
+            ],
+            [
+              21.5,
+              0
+            ],
+            [
+              18.5,
+              0
+            ],
+            [
+              18.5,
+              26.0
+            ],
+            [
+              0,
+              26.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          30.0,
+          100.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 23800.0
+    },
+    "prompt": "Build a T on XY width 40 millimeters height 30 millimeters web 3 mm flange 4 mm then pad to 100 mm",
+    "style": 12
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "U",
+      "plane": "XY",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              37.0,
+              30.0
+            ],
+            [
+              37.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          30.0,
+          100.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 28200.0
+    },
+    "prompt": "Make a dimensioned U on XY width 40 height 30 uniform thickness 3 mm then extrude 100",
+    "style": 0
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "U",
+      "plane": "XZ",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              37.0,
+              30.0
+            ],
+            [
+              37.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          100.0,
+          0
+        ],
+        "min": [
+          0,
+          0,
+          -30.0
+        ]
+      },
+      "volume": 28200.0
+    },
+    "prompt": "Please make a U on the XZ plane, 40 wide, 30 tall, uniform thickness 3 mm, 100 long",
+    "style": 1
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "U",
+      "plane": "YZ",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              37.0,
+              30.0
+            ],
+            [
+              37.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          100.0,
+          40.0,
+          30.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 28200.0
+    },
+    "prompt": "40 x 30 mm U on YZ with uniform thickness 3 mm, length 100 mm",
+    "style": 2
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "U",
+      "plane": "XY",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              37.0,
+              30.0
+            ],
+            [
+              37.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          30.0,
+          100.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 28200.0
+    },
+    "prompt": "Build a U in the top plane 40 mm by 30 mm with uniform thickness 3 mm and pad 100 mm",
+    "style": 3
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "U",
+      "plane": "XZ",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              37.0,
+              30.0
+            ],
+            [
+              37.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          100.0,
+          0
+        ],
+        "min": [
+          0,
+          0,
+          -30.0
+        ]
+      },
+      "volume": 28200.0
+    },
+    "prompt": "I need a U on the front plane, width is 40 mm and height is 30 mm with uniform thickness 3 mm, extruded 100 mm",
+    "style": 4
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "U",
+      "plane": "YZ",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              37.0,
+              30.0
+            ],
+            [
+              37.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          100.0,
+          40.0,
+          30.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 28200.0
+    },
+    "prompt": "Create a U on the right plane, 40 × 30 mm, uniform thickness 3 mm, extrusion length 100 mm",
+    "style": 5
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "U",
+      "plane": "XY",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              37.0,
+              30.0
+            ],
+            [
+              37.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          30.0,
+          100.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 28200.0
+    },
+    "prompt": "A U on XY, 4 by 3 cm, uniform thickness 0.3 cm, 10 cm deep",
+    "style": 6
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "U",
+      "plane": "XZ",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              37.0,
+              30.0
+            ],
+            [
+              37.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          100.0,
+          0
+        ],
+        "min": [
+          0,
+          0,
+          -30.0
+        ]
+      },
+      "volume": 28200.0
+    },
+    "prompt": "Please build a U on XZ, 4 cm wide and 3 cm high, uniform thickness 0.3 cm, pad it 10 cm",
+    "style": 7
+  },
+  {
+    "args": {
+      "depth": 76.2,
+      "height": 38.1,
+      "kind": "U",
+      "plane": "YZ",
+      "thickness": 3.175,
+      "width": 50.8
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              50.8,
+              0
+            ],
+            [
+              50.8,
+              38.1
+            ],
+            [
+              47.625,
+              38.1
+            ],
+            [
+              47.625,
+              3.175
+            ],
+            [
+              3.175,
+              3.175
+            ],
+            [
+              3.175,
+              38.1
+            ],
+            [
+              0,
+              38.1
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 76.2,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          76.2,
+          50.8,
+          38.1
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 29189.45775
+    },
+    "prompt": "Make a U on YZ 2 x 1.5 inches uniform thickness 1/8 inch length 3 inches",
+    "style": 8
+  },
+  {
+    "args": {
+      "depth": 76.2,
+      "height": 38.1,
+      "kind": "U",
+      "plane": "XY",
+      "thickness": 3.175,
+      "width": 50.8
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              50.8,
+              0
+            ],
+            [
+              50.8,
+              38.1
+            ],
+            [
+              47.625,
+              38.1
+            ],
+            [
+              47.625,
+              3.175
+            ],
+            [
+              3.175,
+              3.175
+            ],
+            [
+              3.175,
+              38.1
+            ],
+            [
+              0,
+              38.1
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 76.2,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          50.8,
+          38.1,
+          76.2
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 29189.45775
+    },
+    "prompt": "Make a U on XY width 2 inch height 3/2 inch uniform thickness 1/8 inch extrude 3 inch",
+    "style": 9
+  },
+  {
+    "args": {
+      "depth": 76.2,
+      "height": 38.1,
+      "kind": "U",
+      "plane": "XZ",
+      "thickness": 3.175,
+      "width": 50.8
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              50.8,
+              0
+            ],
+            [
+              50.8,
+              38.1
+            ],
+            [
+              47.625,
+              38.1
+            ],
+            [
+              47.625,
+              3.175
+            ],
+            [
+              3.175,
+              3.175
+            ],
+            [
+              3.175,
+              38.1
+            ],
+            [
+              0,
+              38.1
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 76.2,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          50.8,
+          76.2,
+          0
+        ],
+        "min": [
+          0,
+          0,
+          -38.1
+        ]
+      },
+      "volume": 29189.45775
+    },
+    "prompt": "Make a U on XZ width 2 inch height 1 1/2 inch uniform thickness 1/8 inch extrude 3 inch",
+    "style": 10
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "U",
+      "plane": "YZ",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              37.0,
+              30.0
+            ],
+            [
+              37.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          100.0,
+          40.0,
+          30.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 28200.0
+    },
+    "prompt": "Please give me a U on YZ, 40 wide and 30 high with uniform thickness 3 mm, extrude it for 100 mm",
+    "style": 11
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "U",
+      "plane": "XY",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              37.0,
+              30.0
+            ],
+            [
+              37.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          30.0,
+          100.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 28200.0
+    },
+    "prompt": "Build a U on XY width 40 millimeters height 30 millimeters uniform thickness 3 mm then pad to 100 mm",
+    "style": 12
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "C",
+      "plane": "XY",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              27.0
+            ],
+            [
+              40.0,
+              27.0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          30.0,
+          100.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 31200.0
+    },
+    "prompt": "Make a dimensioned C on XY width 40 height 30 uniform thickness 3 mm then extrude 100",
+    "style": 0
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "C",
+      "plane": "XZ",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              27.0
+            ],
+            [
+              40.0,
+              27.0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          100.0,
+          0
+        ],
+        "min": [
+          0,
+          0,
+          -30.0
+        ]
+      },
+      "volume": 31200.0
+    },
+    "prompt": "Please make a C on the XZ plane, 40 wide, 30 tall, uniform thickness 3 mm, 100 long",
+    "style": 1
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "C",
+      "plane": "YZ",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              27.0
+            ],
+            [
+              40.0,
+              27.0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          100.0,
+          40.0,
+          30.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 31200.0
+    },
+    "prompt": "40 x 30 mm C on YZ with uniform thickness 3 mm, length 100 mm",
+    "style": 2
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "C",
+      "plane": "XY",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              27.0
+            ],
+            [
+              40.0,
+              27.0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          30.0,
+          100.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 31200.0
+    },
+    "prompt": "Build a C in the top plane 40 mm by 30 mm with uniform thickness 3 mm and pad 100 mm",
+    "style": 3
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "C",
+      "plane": "XZ",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              27.0
+            ],
+            [
+              40.0,
+              27.0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          100.0,
+          0
+        ],
+        "min": [
+          0,
+          0,
+          -30.0
+        ]
+      },
+      "volume": 31200.0
+    },
+    "prompt": "I need a C on the front plane, width is 40 mm and height is 30 mm with uniform thickness 3 mm, extruded 100 mm",
+    "style": 4
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "C",
+      "plane": "YZ",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              27.0
+            ],
+            [
+              40.0,
+              27.0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          100.0,
+          40.0,
+          30.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 31200.0
+    },
+    "prompt": "Create a C on the right plane, 40 × 30 mm, uniform thickness 3 mm, extrusion length 100 mm",
+    "style": 5
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "C",
+      "plane": "XY",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              27.0
+            ],
+            [
+              40.0,
+              27.0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          30.0,
+          100.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 31200.0
+    },
+    "prompt": "A C on XY, 4 by 3 cm, uniform thickness 0.3 cm, 10 cm deep",
+    "style": 6
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "C",
+      "plane": "XZ",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              27.0
+            ],
+            [
+              40.0,
+              27.0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          100.0,
+          0
+        ],
+        "min": [
+          0,
+          0,
+          -30.0
+        ]
+      },
+      "volume": 31200.0
+    },
+    "prompt": "Please build a C on XZ, 4 cm wide and 3 cm high, uniform thickness 0.3 cm, pad it 10 cm",
+    "style": 7
+  },
+  {
+    "args": {
+      "depth": 76.2,
+      "height": 38.1,
+      "kind": "C",
+      "plane": "YZ",
+      "thickness": 3.175,
+      "width": 50.8
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              50.8,
+              0
+            ],
+            [
+              50.8,
+              3.175
+            ],
+            [
+              3.175,
+              3.175
+            ],
+            [
+              3.175,
+              34.925000000000004
+            ],
+            [
+              50.8,
+              34.925000000000004
+            ],
+            [
+              50.8,
+              38.1
+            ],
+            [
+              0,
+              38.1
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 76.2,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          76.2,
+          50.8,
+          38.1
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 32262.032250000004
+    },
+    "prompt": "Make a C on YZ 2 x 1.5 inches uniform thickness 1/8 inch length 3 inches",
+    "style": 8
+  },
+  {
+    "args": {
+      "depth": 76.2,
+      "height": 38.1,
+      "kind": "C",
+      "plane": "XY",
+      "thickness": 3.175,
+      "width": 50.8
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              50.8,
+              0
+            ],
+            [
+              50.8,
+              3.175
+            ],
+            [
+              3.175,
+              3.175
+            ],
+            [
+              3.175,
+              34.925000000000004
+            ],
+            [
+              50.8,
+              34.925000000000004
+            ],
+            [
+              50.8,
+              38.1
+            ],
+            [
+              0,
+              38.1
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 76.2,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          50.8,
+          38.1,
+          76.2
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 32262.032250000004
+    },
+    "prompt": "Make a C on XY width 2 inch height 3/2 inch uniform thickness 1/8 inch extrude 3 inch",
+    "style": 9
+  },
+  {
+    "args": {
+      "depth": 76.2,
+      "height": 38.1,
+      "kind": "C",
+      "plane": "XZ",
+      "thickness": 3.175,
+      "width": 50.8
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              50.8,
+              0
+            ],
+            [
+              50.8,
+              3.175
+            ],
+            [
+              3.175,
+              3.175
+            ],
+            [
+              3.175,
+              34.925000000000004
+            ],
+            [
+              50.8,
+              34.925000000000004
+            ],
+            [
+              50.8,
+              38.1
+            ],
+            [
+              0,
+              38.1
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 76.2,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          50.8,
+          76.2,
+          0
+        ],
+        "min": [
+          0,
+          0,
+          -38.1
+        ]
+      },
+      "volume": 32262.032250000004
+    },
+    "prompt": "Make a C on XZ width 2 inch height 1 1/2 inch uniform thickness 1/8 inch extrude 3 inch",
+    "style": 10
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "C",
+      "plane": "YZ",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "YZ"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              27.0
+            ],
+            [
+              40.0,
+              27.0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          100.0,
+          40.0,
+          30.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 31200.0
+    },
+    "prompt": "Please give me a C on YZ, 40 wide and 30 high with uniform thickness 3 mm, extrude it for 100 mm",
+    "style": 11
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "C",
+      "plane": "XY",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": false,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              27.0
+            ],
+            [
+              40.0,
+              27.0
+            ],
+            [
+              40.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          30.0,
+          100.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 31200.0
+    },
+    "prompt": "Build a C on XY width 40 millimeters height 30 millimeters uniform thickness 3 mm then pad to 100 mm",
+    "style": 12
+  },
+  {
+    "baseline_claimed": false,
+    "claim": false,
+    "prompt": "Make a T width 40 height 30 thickness 3 length 100"
+  },
+  {
+    "baseline_claimed": false,
+    "claim": false,
+    "prompt": "Make a U width 40 height 30 length 100"
+  },
+  {
+    "baseline_claimed": false,
+    "claim": false,
+    "prompt": "Make an L 40 x 30 x 3"
+  },
+  {
+    "baseline_claimed": false,
+    "claim": false,
+    "prompt": "Make a C width 40 height 30 wall 3 length 100 or 120"
+  },
+  {
+    "baseline_claimed": false,
+    "claim": false,
+    "prompt": "Make a U width 40 height 30 wall 3 length 100 on XY and XZ"
+  },
+  {
+    "baseline_claimed": false,
+    "claim": false,
+    "prompt": "Make a rectangular profile width 40 height 30 length 100 with a hole"
+  },
+  {
+    "baseline_claimed": false,
+    "claim": false,
+    "prompt": "Make a U width 40 height 30 wall 3 length 100 and width 45"
+  },
+  {
+    "baseline_claimed": false,
+    "claim": false,
+    "prompt": "Make a C width 40 height 30 wall 3 extrude about 100"
+  },
+  {
+    "baseline_claimed": false,
+    "claim": false,
+    "prompt": "Make a T width 40 height 30 web 3 flange 4 offset 5 length 100"
+  },
+  {
+    "baseline_claimed": false,
+    "claim": false,
+    "prompt": "Make a U width 40 height 30 wall 3 length -100"
+  },
+  {
+    "baseline_claimed": false,
+    "claim": false,
+    "prompt": "Make a U width 40 height 30 wall 3 length 1000001"
+  },
+  {
+    "baseline_claimed": false,
+    "claim": false,
+    "prompt": "Make a rectangle 40 x 30 x 100"
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "L",
+      "plane": "XY",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          30.0,
+          100.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 20100.0
+    },
+    "prompt": "40 x 30 x 3 angle, 100 long",
+    "style": "drafting_angle"
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "L",
+      "plane": "XY",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          30.0,
+          100.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 20100.0
+    },
+    "prompt": "40 mm by 30 mm by 3 mm angle, length 100 mm",
+    "style": "drafting_angle"
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "L",
+      "plane": "XY",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          30.0,
+          100.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 20100.0
+    },
+    "prompt": "40 × 30 × 3 mm angle, extrude 100 mm",
+    "style": "drafting_angle"
+  },
+  {
+    "args": {
+      "depth": 100.0,
+      "height": 30.0,
+      "kind": "L",
+      "plane": "XY",
+      "thickness": 3.0,
+      "width": 40.0
+    },
+    "baseline_claimed": true,
+    "claim": true,
+    "commands": [
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.line",
+        "params": {
+          "closed": true,
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              40.0,
+              0
+            ],
+            [
+              40.0,
+              3.0
+            ],
+            [
+              3.0,
+              3.0
+            ],
+            [
+              3.0,
+              30.0
+            ],
+            [
+              0,
+              30.0
+            ]
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 100.0,
+          "operation": "new"
+        }
+      }
+    ],
+    "expected": {
+      "bbox": {
+        "max": [
+          40.0,
+          30.0,
+          100.0
+        ],
+        "min": [
+          0,
+          0,
+          0
+        ]
+      },
+      "volume": 20100.0
+    },
+    "prompt": "4 x 3 x 0.3 cm angle, 10 cm deep",
+    "style": "drafting_angle"
+  },
+  {
+    "baseline_claimed": false,
+    "claim": false,
+    "prompt": "Make a rectangular profile width 40 height 30 extruded about 100"
+  },
+  {
+    "baseline_claimed": false,
+    "claim": false,
+    "prompt": "Make a rectangular profile width 40 height 30 pad to 100 or 120"
+  },
+  {
+    "baseline_claimed": false,
+    "claim": false,
+    "prompt": "Make a rectangular profile width 2 inch height 1 3/2 inch extrude 3 inch"
+  },
+  {
+    "baseline_claimed": false,
+    "claim": false,
+    "prompt": "Make a rectangular profile width 2 inch height 1 1/0 inch extrude 3 inch"
+  },
+  {
+    "baseline_claimed": false,
+    "claim": false,
+    "prompt": "Make a rectangular profile width 2 inch height 1 1/2 extrude 3 inch"
+  },
+  {
+    "baseline_claimed": false,
+    "claim": false,
+    "prompt": "Make a U width 40 height 30 uniform thickness 3 extruded 100 and drill a hole"
+  },
+  {
+    "baseline_claimed": false,
+    "claim": false,
+    "prompt": "Make a T width 40 height 30 web 3 flange 4 extruded 100 pad 120"
+  },
+  {
+    "baseline_claimed": false,
+    "claim": false,
+    "prompt": "Make a U width 40 height 30 uniform thickness 3 extruded to the front"
+  }
+]
