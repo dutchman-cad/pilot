@@ -801,7 +801,7 @@
     {
       "id": "shared-base-unit",
       "kind": "copies",
-      "prompt": "a 100 x 100 x 8 mm base with a 10 mm boss 12 mm tall, 4 copies 25 mm apart",
+      "prompt": "a 100 x 100 x 8 mm block with a 10 mm post 12 mm tall, 4 copies 25 mm apart",
       "args": {
         "length": 100,
         "width": 100,
