@@ -1,198 +1,195 @@
 # Pilot
 
+[![Pilot: helps small local models drive SolidCraft](docs/social-preview.png)](https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/social-preview.png&alt=Pilot%3A%20helps%20small%20local%20models%20drive%20SolidCraft)
+
+Pilot lets a small AI model running on your own computer build parts in SolidCraft:
+ask for "a 42 mm cube with a 5 mm hole through the middle" and it builds it, checked.
+
+<a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/assistant-plate.gif&alt=SolidCraft%27s%20Assistant%3A%20gemma4%20e4b%20fills%20Pilot%27s%20plate%20form%20and%20SolidCraft%20builds%20a%20plate%20with%20four%20holes%20on%20a%20bolt%20circle"><img src="docs/images/assistant-plate.gif" width="100%" alt="SolidCraft's Assistant: gemma4 e4b fills Pilot's plate form and SolidCraft builds a plate with four holes on a bolt circle"></a>
+
+<sub>gemma4 e4b filling Pilot's plate form in SolidCraft 0.27.1. The wait for the model is shortened.</sub>
+
 [![Discord](https://img.shields.io/badge/Discord-Dutchman%20CAD-5865F2?logo=discord&logoColor=white)](https://discord.gg/yTcseBEdeu)
 
-Pilot is a local helper that lets small language models drive
-SolidCraft through its public interfaces. It repairs explicit tool calls,
-finds commands, and adds bounded hints. With `--planner`, a matching
-action pledge can become a catalogue-checked recipe; SolidCraft validates every call.
+## Get started
 
-Run it as `dutchman pilot` from the [dutchman](https://github.com/dutchman-cad/dutchman)
-command line. The same commands also come as a standalone download,
-`dutchman-pilot`, which takes the same arguments; examples below use
-`dutchman pilot`.
+1. Install Pilot from [the latest release](https://github.com/dutchman-cad/pilot/releases/latest):
 
-**Status:** Early beta: results are still being measured; expect rough edges.
+   | System | Command |
+   | --- | --- |
+   | macOS (Apple silicon) and Linux, with Homebrew | `brew install dutchman-cad/tap/dutchman-pilot` |
+   | Windows, with Scoop | `scoop bucket add dutchman-cad https://github.com/dutchman-cad/scoop-bucket; scoop install dutchman-cad/dutchman-pilot` |
+   | Any, from the release archive | `sh install.sh` (or `.\install.ps1` on Windows) in the extracted folder |
 
-- [SolidCraft 98](docs/solidcraft98.md) screen tools, a bounded model driver, and
-  offline help, using its public remote protocol (SolidCraft 98 1.2 or later).
-- Recipe forms: Pilot finds the recipe that fits a request and asks the model only to
-  fill in its typed form, in a short separate request, then builds the part with checked
-  calls. Recipes cover primitives, hole layouts, profiles (L, T, U, C, rectangle), plates
-  with bores, bolt circles, and rounded corners, enclosures with a locating lip,
-  cross-drilled boxes, honeycomb hole patterns, patterns of existing parts, a revolute
-  joint on a pin, edge finishes, movement, renaming, mirror, shell, revolve, and
-  measured queries.
-- Fewer input tokens: older tool results are trimmed inside long tasks (`--no-trim` to
-  keep them), and Pilot adds no unused tool schemas.
-- Millimetres, metric and inch units, fractions, and deterministic expansions.
-- Opt-in `--planner`: recipe suggestions, matching prose conversion, continuations,
-  and one measured completion check. These plan-text features are off by default;
-  `--no-plan` (alias `--no-planner`) is accepted as a no-op.
-- Text tool mode for models without native tools, with automatic retry and saved profiles.
-- Exact matches use native tool proposals and measured replies without a model
-  by default, with normal client approval; `--upstream none` supports recipe-only use.
-  Use `--no-direct-recipes` to send everything to the model.
-- Argument repair, text-call pickup, command lookup, hints, buffered streaming,
-  and bounded retries remain enabled by default, with audited rewrites.
-- Local, redacted [bug reports](docs/report.md) from five memory-only turns or offline
-  planner replay: type `/report` in the Assistant. Chat reports omit request words;
-  the CLI can include them with `--include-request`. You review and submit.
+2. Run a local model with [Ollama](https://ollama.com), then start Pilot in front of it:
 
-For SolidCraft 98, start `dutchman pilot mcp98 --program /path/to/sc98 --headless`
-as an MCP server, or attach with `--connect 127.0.0.1:9898` to an application started with `/REMOTE`
-(`/REMOTE:ANY` when Pilot runs on another machine or a virtual machine's host). See the
-[SolidCraft 98 quick start](docs/solidcraft98.md) for the model driver and limits.
+   ```sh
+   ollama pull gemma4:e4b
+   dutchman-pilot model --upstream http://localhost:11434/v1
+   ```
 
-See [recipes and their limits](docs/recipes.md).
+3. In SolidCraft's Assistant, add an API agent with base URL `http://127.0.0.1:11500/v1`
+   and model `gemma4:e4b`. Then ask for a part.
 
-**Small models:** For 3–8B models, recipe forms and exact matches are on by default with
-your upstream URL. On four blind test sets (56 tasks) with fixed model settings, gemma4 e4b
-passes 37.7 with exact matches on 0.1.0-beta.8 (average of three runs), against 34.7 on
-beta.7, with no set lower; model-only it passes 35.3, against 33.2. Before
-recipe forms it passed 2 at default settings ([results](https://github.com/dutchman-cad/pilot/issues/1)).
-Use `--no-direct-recipes` to send everything to the model. Exact matches bypass the model,
-and their replies are marked **"Exact match (no model):"**.
-The proposed calls still go through SolidCraft's approval and validation.
-Other requests go to the model. Keep plan-text recipes off unless you want to try
-`--planner`; they reduced reliability in measurements with small models.
+Stuck? See [First-run help](docs/first-run.md). More options are in the
+[Assistant guide](docs/assistant.md) (LM Studio, and Pilot without a model) and the
+[install guide](docs/install.md).
 
-Choose the face that fits your client:
+## What it can build today
 
-| Client | Start | Connect |
-| --- | --- | --- |
-| SolidCraft's Assistant | `dutchman pilot model --upstream http://localhost:11434/v1` | Add an API agent at `http://127.0.0.1:11500/v1`. |
-| An MCP client | `dutchman pilot mcp --solidcraft-cli /path/to/solidcraft-cli -- --in part.solidcraft` | Configure a local stdio server with this command. |
+Each of these was built by Pilot in SolidCraft 0.27.1 from the request under it.
 
-Pilot does not run a model or embed SolidCraft. Install SolidCraft separately;
-use Ollama, LM Studio, or another chat-completions endpoint for the model face.
+<table>
+  <tr>
+    <td align="center" valign="top" width="25%"><a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/tiles/enclosure.png&alt=an%2080%20x%2060%20x%2030%20mm%20enclosure%20with%202%20mm%20walls%20and%20a%20lip%20for%20the%20lid"><img src="docs/images/tiles/enclosure.png" width="240" alt="an 80 x 60 x 30 mm enclosure with 2 mm walls and a lip for the lid"></a><br><sub>“an 80 x 60 x 30 mm enclosure with 2 mm walls and a lip for the lid”</sub></td>
+    <td align="center" valign="top" width="25%"><a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/tiles/boltcircle.png&alt=a%20100%20x%2060%20x%206%20mm%20plate%20with%20four%205%20mm%20holes%20on%20a%2040%20mm%20bolt%20circle"><img src="docs/images/tiles/boltcircle.png" width="240" alt="a 100 x 60 x 6 mm plate with four 5 mm holes on a 40 mm bolt circle"></a><br><sub>“a 100 x 60 x 6 mm plate with four 5 mm holes on a 40 mm bolt circle”</sub></td>
+    <td align="center" valign="top" width="25%"><a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/tiles/lprofile.png&alt=an%20L%20profile%2050%20x%2030%20x%204%20mm%2C%20200%20mm%20long"><img src="docs/images/tiles/lprofile.png" width="240" alt="an L profile 50 x 30 x 4 mm, 200 mm long"></a><br><sub>“an L profile 50 x 30 x 4 mm, 200 mm long”</sub></td>
+    <td align="center" valign="top" width="25%"><a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/tiles/cchannel.png&alt=a%20C%20channel%2060%20mm%20wide%20with%2030%20mm%20flanges%2C%204%20mm%20thick%20and%20150%20mm%20long"><img src="docs/images/tiles/cchannel.png" width="240" alt="a C channel 60 mm wide with 30 mm flanges, 4 mm thick and 150 mm long"></a><br><sub>“a C channel 60 mm wide with 30 mm flanges, 4 mm thick and 150 mm long”</sub></td>
+  </tr>
+  <tr>
+    <td align="center" valign="top" width="25%"><a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/tiles/crossdrilled.png&alt=a%2040%20mm%20cube%20with%208%20mm%20holes%20through%20all%20six%20faces"><img src="docs/images/tiles/crossdrilled.png" width="240" alt="a 40 mm cube with 8 mm holes through all six faces"></a><br><sub>“a 40 mm cube with 8 mm holes through all six faces”</sub></td>
+    <td align="center" valign="top" width="25%"><a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/tiles/tube.png&alt=a%20tube%2040%20mm%20outside%20diameter%2C%2032%20mm%20inside%20diameter%2C%20100%20mm%20long"><img src="docs/images/tiles/tube.png" width="240" alt="a tube 40 mm outside diameter, 32 mm inside diameter, 100 mm long"></a><br><sub>“a tube 40 mm outside diameter, 32 mm inside diameter, 100 mm long”</sub></td>
+    <td align="center" valign="top" width="25%"><a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/tiles/cubehole.png&alt=a%2042%20mm%20cube%20with%20a%205%20mm%20hole%20through%20the%20middle"><img src="docs/images/tiles/cubehole.png" width="240" alt="a 42 mm cube with a 5 mm hole through the middle"></a><br><sub>“a 42 mm cube with a 5 mm hole through the middle”</sub></td>
+    <td align="center" valign="top" width="25%"><a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/tiles/gridplate.png&alt=a%20100%20x%2080%20x%205%20mm%20plate%20with%208%20mm%20rounded%20corners%20and%20a%203%20by%204%20grid%20of%206%20mm%20holes%2020%20mm%20apart"><img src="docs/images/tiles/gridplate.png" width="240" alt="a 100 x 80 x 5 mm plate with 8 mm rounded corners and a 3 by 4 grid of 6 mm holes 20 mm apart"></a><br><sub>“a 100 x 80 x 5 mm plate with 8 mm rounded corners and a 3 by 4 grid of 6 mm holes 20 mm apart”</sub></td>
+  </tr>
+  <tr>
+    <td align="center" valign="top" width="25%"><a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/tiles/tsection.png&alt=a%20T%20section%2060%20mm%20wide%2C%2040%20mm%20tall%2C%205%20mm%20thick%2C%20120%20mm%20long"><img src="docs/images/tiles/tsection.png" width="240" alt="a T section 60 mm wide, 40 mm tall, 5 mm thick, 120 mm long"></a><br><sub>“a T section 60 mm wide, 40 mm tall, 5 mm thick, 120 mm long”</sub></td>
+    <td align="center" valign="top" width="25%"><a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/tiles/copies.png&alt=a%20cylinder%2010%20mm%20across%20and%2010%20mm%20tall%20then%20make%2012%20copies%20of%20it%20in%20a%20row%2C%2015%20mm%20apart"><img src="docs/images/tiles/copies.png" width="240" alt="a cylinder 10 mm across and 10 mm tall then make 12 copies of it in a row, 15 mm apart"></a><br><sub>“a cylinder 10 mm across and 10 mm tall” then “make 12 copies of it in a row, 15 mm apart”</sub></td>
+    <td align="center" valign="top" width="25%"><a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/tiles/fillet.png&alt=a%2060%20x%2040%20x%2020%20mm%20box%20then%20round%20all%20edges%203%20mm"><img src="docs/images/tiles/fillet.png" width="240" alt="a 60 x 40 x 20 mm box then round all edges 3 mm"></a><br><sub>“a 60 x 40 x 20 mm box” then “round all edges 3 mm”</sub></td>
+  </tr>
+</table>
 
-## Install
+The full list:
 
-Homebrew (Linux, and macOS on Apple silicon):
+- Boxes, cylinders, tubes, and spheres, with holes through them
+- Holes, bolt circles, hole grids, honeycomb cuts, and cross-drilled blocks
+- Plates with holes, bores, and rounded corners
+- L, T, U, C, and rectangular profiles
+- Enclosures with walls, a floor, and a lip for the lid
+- Joints between parts, including a revolute joint on a pin
+- Patterns of parts you already have
+- Edits: fillets, chamfers, shells, mirrors, revolves, moves, and renames, plus measurements
 
-```sh
-brew install dutchman-cad/tap/dutchman-pilot
-```
+Each kind and its limits are in [recipes](docs/recipes.md).
 
-A Homebrew install needs no first-run Gatekeeper approval on macOS.
+## What Pilot actually does
 
-Scoop (Windows):
+Pilot is mostly a recipe engine, with a safety net for everything else.
 
-```powershell
-scoop bucket add dutchman-cad https://github.com/dutchman-cad/scoop-bucket
-scoop install dutchman-cad/dutchman-pilot
-```
+1. **Recipes (almost all of the gain).** For a request that fits a known part (plates,
+   profiles, holes and hole patterns, enclosures, patterns of parts), Pilot picks the
+   recipe and asks the model only to fill in its short typed form: sizes, counts, and
+   positions. Pilot then builds the part with checked SolidCraft commands and measures it.
+   When the request states every value, Pilot skips the model altogether.
+2. **Free-form help (small gain).** When no recipe fits, the model drives SolidCraft's
+   tools itself. Pilot repairs broken tool calls, finds the right command, adds short hints,
+   retries, and trims old results so the context stays small. That helps a little, but a
+   small model still rarely finishes anything with several steps on its own.
+3. **Extras:** `/report` bug reports, an opt-in `--planner`, and the SolidCraft 98 driver.
 
-Both install `dutchman-pilot` and `dutchman-pilot-eval`, and follow each new release.
+Every set of commands waits for your approval in SolidCraft, and SolidCraft checks every
+command before it runs.
 
-Or download the archive for your platform from
-[GitHub Releases](https://github.com/dutchman-cad/pilot/releases):
-`x86_64-linux`, `aarch64-linux`, `aarch64-macos`, or `x86_64-windows`.
-Archive names start with `pilot-VERSION-`. Each contains `dutchman-pilot`,
-`dutchman-pilot-eval`, the shared `dutchman` launcher, installers, docs, corpus,
-license notices, and a `LAUNCHER_REV` file identifying the launcher source commit.
-Compare its SHA-256 digest with the adjacent `.sha256` file before extracting:
+## How well it works
 
-```sh
-sha256sum -c <archive>.sha256
-# macOS: shasum -a 256 -c <archive>.sha256
-```
+Pilot is an early beta. On four blind test sets (56 requests never used during development,
+three runs each), gemma4 e4b on 0.1.0-beta.8:
 
-On Windows, run `Get-FileHash <archive>.zip -Algorithm SHA256` in PowerShell
-and compare the digest with the checksum file. Extract the archive, enter its
-directory, and run the installer:
+| How the part was built | Attempts | Built correctly |
+| --- | ---: | ---: |
+| The model filled in a recipe's form | 150 | 100 (67%) |
+| Pilot read every value from the request, no model | 4 | 3 |
+| The model drove SolidCraft itself, with Pilot's repairs | 14 | 3 (21%) |
+| **All** | **168** | **106 (63%)** |
 
-```sh
-# Linux and macOS: installs into ~/.local/bin
-sh install.sh
-# Or choose a bin directory; preview with --dry-run
-sh install.sh --prefix "$HOME/bin" --dry-run
-```
+The same model without Pilot built 4 of the 56 (7%). So the recipes are what make a small
+model useful today; outside them, expect little. 54 of the 56 test requests have a recipe,
+so these numbers say more about recipe parts than about everything people ask for. Full
+numbers, and results with other models, are in
+[the results issue](https://github.com/dutchman-cad/pilot/issues/1).
 
-```powershell
-# Windows: installs into %LOCALAPPDATA%\Programs\dutchman-cad\bin
-.\install.ps1
-# Or choose a bin directory; preview with -DryRun
-.\install.ps1 -Prefix "$HOME\bin" -DryRun
-# Optionally add the directory to your user PATH, then open a new terminal
-.\install.ps1 -AddToPath
-```
+Free-form requests are harder. A fifth blind set has everyday requests (spacers, knobs,
+brackets, hinges, cable clips, and enclosures), written without looking at the recipes. Five
+of its 30 requests are no longer blind, so these numbers use the other 25. gemma4 e4b, three
+runs each, the same settings with and without Pilot, average parts built correctly:
 
-The installers copy `dutchman-pilot`, `dutchman-pilot-eval`, and `dutchman` into the chosen bin directory.
-Add that directory to PATH as the installer suggests. They require no administrator
-access. Only Windows `-AddToPath` changes your saved user PATH.
-You can rerun either installer to update an older launcher. A full Dutchman install
-at the destination or on PATH is kept; it also runs `dutchman pilot`.
+| Requests | Without Pilot | With Pilot |
+| --- | ---: | ---: |
+| A recipe was offered (15) | 3.7 (24%) | 6.3 (42%) |
+| No recipe (10) | 2.0 (20%) | 2.7 (27%) |
+| **All 25** | **5.7 (23%)** | **9.0 (36%)** |
 
-Both command forms now work:
+So Pilot helps on requests like these, mostly where a recipe fits, and most of them still
+fail. The most common failures are holes that are missing or the wrong size, wrong overall
+sizes, and missing features. Without a recipe, expect little from a small model.
 
-```sh
-dutchman pilot --version
-dutchman-pilot --version
-```
+Edits to an existing part: on a separate blind set of 12 edit requests, measured the same
+way, gemma4 e4b built 5.3 with Pilot against 2.7 without.
 
-macOS binaries are ad-hoc signed, without notarization; use your system's approval
-controls for a trusted download.
-Linux archives are built on Ubuntu 24.04 with glibc; build from source for older
-systems or other C libraries.
+## Models that work
 
-Or build from a checkout with Rust 1.88 or newer:
+- **gemma4 e4b** (`ollama pull gemma4:e4b`) is the recommended model and the one Pilot
+  is measured with. It is small enough to run on many laptops.
+- Larger models such as gemma4 12B and gemma4 26B did well in earlier tests. qwen2.5 7B,
+  qwen3 14B, gpt-oss 20B, and llama 3.1 and 3.2 have also been tried.
+- Any model served through Ollama, LM Studio, or another chat-completions endpoint can be
+  used. Numbers for each are in [the results issue](https://github.com/dutchman-cad/pilot/issues/1).
 
-```sh
-cargo install --locked --path . --bins
-dutchman-pilot --help
-dutchman-pilot how "round all edges 3 mm"
-```
+## Privacy
 
-## Quick start
+Pilot runs on your computer and sends requests only to the model server you choose; with
+Ollama or LM Studio, that is your own computer too. Pilot sends nothing anywhere else. Reports from `/report` are redacted, saved locally, and
+only leave your computer if you submit the issue yourself.
 
-For Ollama, start Ollama, pull a model, and start Pilot:
+## Limits
 
-```sh
-ollama pull qwen2.5:7b
-dutchman pilot model --upstream http://localhost:11434/v1
-```
+- It is an early beta: about a third of the blind test requests still fail, most often
+  because the model fills in a wrong value.
+- It builds the kinds of parts listed above. Freeform shapes, arbitrary sketches, and large
+  edits to existing designs go to the model on its own, which a small model rarely gets right.
+- Every set of commands waits for your approval in SolidCraft, and a part Pilot built without
+  the model says so in its reply.
 
-In SolidCraft's Assistant, add an API agent with base URL
-`http://127.0.0.1:11500/v1` and model `qwen2.5:7b`.
-See the [Assistant guide](docs/assistant.md) for setup details.
+## Contributing
 
-For an MCP client, configure a local stdio server:
+The most useful thing is a request that went wrong: type `/report` in the Assistant and
+submit the issue it prepares. Ideas and questions are welcome on the
+[Discord](https://discord.gg/yTcseBEdeu); code changes are described in
+[contributing](CONTRIBUTING.md).
 
-```json
-{
-  "mcpServers": {
-    "solidcraft": {
-      "command": "/path/to/dutchman-pilot",
-      "args": ["mcp", "--solidcraft-cli", "/path/to/solidcraft-cli", "--", "--in", "/path/to/part.solidcraft"]
-    }
-  }
-}
-```
+## Help and more
 
-Use absolute paths for the installed binaries and design file. See the
-[MCP guide](docs/mcp.md) for client-specific setup and live connections.
-
-Run the public [SolidCraft Assistant model benchmarks](bench/) directly or through Pilot.
-
-## Guides
-
-- [Use Pilot with SolidCraft's Assistant](docs/assistant.md): Ollama and LM Studio.
-- [Use Pilot with an MCP client](docs/mcp.md): Claude Code, Codex, and other clients.
-- [Measure it](docs/measure.md): paired benchmark runs and corpus evaluation.
-- [Flags reference](docs/flags.md): generated from both binaries' help.
-- [Behavior and limits](docs/details.md): repair, planning, profiles, and reports.
-- [Plugin preparation](docs/plugin.md): portable logic and future plugin boundaries.
+- Something wrong? Type `/report` in SolidCraft's Assistant. Pilot writes a redacted report and a
+  prefilled [issue](https://github.com/dutchman-cad/pilot/issues) link you review before
+  sending.
+- Questions and discussion: the [Dutchman CAD Discord](https://discord.gg/yTcseBEdeu).
+- Your own model's results: add them to [#1](https://github.com/dutchman-cad/pilot/issues/1).
+- [Command-line options](docs/command-line.md): MCP clients, exact matches, trimming,
+  text tool mode, and the planner. Every flag is in the [flags reference](docs/flags.md).
+- [Behavior and limits](docs/details.md), [measuring it](docs/measure.md),
+  [public benchmarks](bench/), and [plugin preparation](docs/plugin.md).
 - [Changelog](CHANGELOG.md), [contributing](CONTRIBUTING.md),
   [security](SECURITY.md), and [the contract](SPEC.md).
 
-## Help and community
+## SolidCraft 98
 
-- Questions and discussion: the [Dutchman CAD Discord](https://discord.gg/yTcseBEdeu).
-- Bugs: type `/report` in SolidCraft's Assistant, or run `dutchman pilot report`. Either
-  writes a redacted report and a prefilled [issue](https://github.com/dutchman-cad/pilot/issues)
-  link you review before submitting.
-- Results with your own model: add them to [#1](https://github.com/dutchman-cad/pilot/issues/1).
+A side extra: Pilot can also drive [SolidCraft 98](docs/solidcraft98.md) through its screen.
+Same model (gemma4 e4b), same request ("Round the four upright edges of the box with a 3 mm
+radius."), same 40 mm box:
+
+<a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/solidcraft98-before.png&alt=SolidCraft%2098%20with%20a%2040%20mm%20box%2C%20next%20to%20its%20chat%20window%3A%20gemma4%20e4b%20without%20Pilot%20looks%20for%20a%20fillet%20command%20and%20gives%20up"><img src="docs/images/solidcraft98-before.png" width="100%" alt="SolidCraft 98 with a 40 mm box, next to its chat window: gemma4 e4b without Pilot looks for a fillet command and gives up"></a>
+
+<sub>Without Pilot: the model searches the menus for a fillet command, finds none, and gives up.</sub>
+
+<a href="https://dutchman-cad.github.io/view.html?src=https://raw.githubusercontent.com/dutchman-cad/pilot/main/docs/images/solidcraft98-after.png&alt=SolidCraft%2098%20with%20the%20same%20box%2C%20its%20four%20upright%20edges%20rounded%203%20mm%2C%20next%20to%20the%20chat%20window%3A%20gemma4%20e4b%20through%20Pilot"><img src="docs/images/solidcraft98-after.png" width="100%" alt="SolidCraft 98 with the same box, its four upright edges rounded 3 mm, next to the chat window: gemma4 e4b through Pilot"></a>
+
+<sub>With Pilot: the model opens the box's sketch and sets its corner radius, which rounds the
+four upright edges. Rounding the top and bottom edges requires SolidCraft 2000.</sub>
+
+Both are replays of recorded runs, so they skip the model's thinking time. The run shown is the
+second of two recorded tries; the first typed "3 mm" into a numbers-only field, which Pilot now
+fixes. It is not reliable yet: in an earlier 11-task test with two runs each, gemma4 e4b built 2
+of 22 parts through Pilot and 6 of 22 on its own; qwen2.5 7B, granite4 3B, and Muse Glimmer 30B
+built none either way.
 
 Licensed under [Apache-2.0](LICENSE). See [NOTICE](NOTICE).

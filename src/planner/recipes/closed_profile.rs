@@ -26,11 +26,15 @@ pub(super) fn candidate(i: &Input<'_>) -> bool {
             "dimensions",
             "constrain",
             "defined",
+            "profile",
         ]))
 }
 
 pub(super) fn vocabulary(i: &Input<'_>) -> bool {
-    i.t.iter().all(|s| {
+    let Some(t) = profile_tokens(&i.t) else {
+        return false;
+    };
+    t.iter().all(|s| {
         s.parse::<f64>().is_ok()
             || s.split_once('/')
                 .is_some_and(|(a, b)| a.parse::<f64>().is_ok() && b.parse::<f64>().is_ok())
@@ -169,6 +173,58 @@ pub(super) fn vocabulary(i: &Input<'_>) -> bool {
     })
 }
 
+/// Normalize only explicit profile phrasing. Keep unrelated words visible so
+/// unsupported work and ambiguous dimensions still decline.
+fn profile_tokens(words: &[String]) -> Option<Vec<String>> {
+    let mut out: Vec<String> = Vec::new();
+    let mut n = 0;
+    while n < words.len() {
+        let word = words[n].as_str();
+        if word == "uniform" && words.get(n + 1).is_some_and(|w| w == "thickness") {
+            n += 1;
+            continue;
+        }
+        // A mixed fraction needs a proper positive fractional part and an
+        // explicit unit. Adjacent bare numbers retain their ambiguity.
+        if let (Ok(whole), Some(fraction), Some(unit)) =
+            (word.parse::<u32>(), words.get(n + 1), words.get(n + 2))
+        {
+            if fraction.contains('/') && slots::scale(unit).is_some() {
+                let part = slots::number(fraction)?;
+                if !(0.0..1.0).contains(&part) || part == 0.0 {
+                    return None;
+                }
+                out.push((f64::from(whole) + part).to_string());
+                n += 2;
+                continue;
+            }
+        }
+        if matches!(word, "for" | "to")
+            && (out
+                .last()
+                .is_some_and(|w| matches!(w.as_str(), "extrude" | "pad"))
+                || (out.last().is_some_and(|w| w == "it")
+                    && out
+                        .iter()
+                        .rev()
+                        .nth(1)
+                        .is_some_and(|w| matches!(w.as_str(), "extrude" | "pad"))))
+        {
+            n += 1;
+            continue;
+        }
+        out.push(
+            match word {
+                "extruded" | "extrusion" => "extrude",
+                _ => word,
+            }
+            .to_string(),
+        );
+        n += 1;
+    }
+    Some(out)
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Role {
     Width,
@@ -271,6 +327,13 @@ pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
     if !candidate(i) || !vocabulary(i) {
         return None;
     }
+    let normalized = Input {
+        text: i.text,
+        t: profile_tokens(&i.t)?,
+        data: i.data,
+        messages: i.messages,
+    };
+    let i = &normalized;
     let mut shapes = Vec::new();
     for (name, words) in [
         ("L", &["l", "angle", "bracket"][..]),
@@ -290,17 +353,6 @@ pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
         return None;
     };
     let mut shape = *shape;
-    if shape == "R"
-        && !i.any(&[
-            "constrained",
-            "dimensioned",
-            "dimensions",
-            "constrain",
-            "defined",
-        ])
-    {
-        return None;
-    }
     let stem_centred = shape == "T" && i.has("stem") && i.has("under") && i.has("flange");
     if !i.has("origin")
         && (i.any(&["at", "corner"]) || (i.any(&["centred", "centered"]) && !stem_centred))

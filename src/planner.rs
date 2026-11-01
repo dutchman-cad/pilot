@@ -861,7 +861,7 @@ pub fn direct_summary(request: &Value, plan: &Plan) -> String {
         if let Some(bodies) = data["bodies"].as_array() {
             text.push_str(&format!(" Measured {} bodies.", bodies.len()));
             if let Some(total) = volume(&data) {
-                text.push_str(&format!(" Total volume {total:.6} mm³."));
+                text.push_str(&format!(" Total volume {} mm³.", rounded(total, 0)));
             }
             for body in bodies.iter().take(8) {
                 if let (Some(min), Some(max)) = (
@@ -877,7 +877,9 @@ pub fn direct_summary(request: &Value, plan: &Plan) -> String {
                         {
                             text.push_str(&format!(
                                 " Measured size {} × {} × {} mm.",
-                                size[0], size[1], size[2]
+                                rounded(size[0], 3),
+                                rounded(size[1], 3),
+                                rounded(size[2], 3)
                             ));
                         }
                     }
@@ -890,6 +892,17 @@ pub fn direct_summary(request: &Value, plan: &Plan) -> String {
     }
     text.push_str(" Length slots use mm (1 inch = 25.4 mm; 1 cm = 10 mm; 1 m = 1000 mm).");
     text
+}
+
+/// A measured value for the reply text: rounded so float noise such as 6.000000000000004 reads 6.
+fn rounded(value: f64, places: i32) -> f64 {
+    let scale = 10f64.powi(places);
+    let value = (value * scale).round() / scale;
+    if value == 0.0 {
+        0.0
+    } else {
+        value
+    }
 }
 
 /// Cubic units are explicit and bounded by the request size. Conflicting units defer.
@@ -1185,6 +1198,13 @@ mod tests {
         }
         messages.push(json!({"role":"user","content":text}));
         json!({"messages":messages,"tools":[{"function":{"name":"execute"}}]})
+    }
+    #[test]
+    fn measured_values_drop_float_noise() {
+        assert_eq!(rounded(6.000000000000004, 3).to_string(), "6");
+        assert_eq!(rounded(12.7, 3).to_string(), "12.7");
+        assert_eq!(rounded(35528.839376, 0).to_string(), "35529");
+        assert_eq!(rounded(-0.0001, 3).to_string(), "0");
     }
     fn get(text: &str) -> Plan {
         plan(&request(text, None), &Catalog::bundled().unwrap())
