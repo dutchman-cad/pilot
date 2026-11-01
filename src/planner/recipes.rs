@@ -4,6 +4,7 @@ use std::f64::consts::PI;
 mod closed_profile;
 mod compound_plate;
 pub(crate) mod cross_drilled;
+mod repeated_boss;
 pub(crate) mod revolute;
 mod shell_box;
 pub(crate) mod shortcuts;
@@ -1555,7 +1556,11 @@ pub(super) fn select(
             return from_slots(rule, slots, data, catalog);
         }
     }
-    Ok(None)
+    let Some(args) = repeated_boss::parse(&input) else {
+        return Ok(None);
+    };
+    // Invalid geometry and unsupported combinations are form fallbacks, never rejections.
+    Ok(shortcuts::build(&args, &json!({"messages":messages}), catalog).ok())
 }
 
 fn select_existing(
