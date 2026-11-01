@@ -126,6 +126,14 @@ Request side:
   a plain size change includes the exact `timeline.edit` suggestion. `--no-hints`
   disables it. See docs/details.md.
 - Facts and hints are sent once per retained conversation, with existing-history deduplication.
+  The size fact (`unit_fact`, `src/unitfact.rs`) is one of them: when the conversation's user
+  messages state sizes in inches (`in`, `inch`, `inches`, `"`, fractions and mixed numbers
+  such as `3/8"` or `1 1/2 in`) or cm, one system line `Sizes in mm: 1" = 25.4; 3/8" = 9.525.`
+  lists each size in order of first mention, repeated on every request since clients do not
+  echo it (at most 16, mm rounded to 4 decimals, trailing zeros
+  trimmed). Bare numbers, mm sizes and a fraction without a unit add nothing; the request is
+  never changed. It is skipped on turns a recipe, form, route or exact match handles, and by
+  `--no-hints`.
   Relevant guidance is always sent regardless of the client's character count.
   `how` remains available unless disabled with `--no-how`; its shorter schema saves
   64 characters. MCP retains its separate tool-list behavior.
@@ -166,6 +174,14 @@ it as a well-formed stream):
    (assembled for SSE; null when unavailable) and its tool call names. Names are capped
    at 128 entries of 128 characters. No text, descriptions, or argument values are added.
    FNV-1a is a deterministic comparison aid, not a cryptographic integrity guarantee.
+5. **Separate-body fact, without a recipe.** In model-only and default modes, unless
+   hints are disabled, a one-part request gets a short tool-result fact when public
+   measurements confirm separate solids touch or overlap. Include the exact native
+   join call using inspected names; never run the join or change a valid model call.
+   Reuse document inspection and bound additional reads. Explicit separate parts,
+   bodies, copies as bodies, and assemblies suppress the fact. A final reply with
+   multiple bodies gets at most one hand-back per user turn, repeating the measured
+   fact when available or reporting the count without an unverified join.
 
 Pilot does not depend on SolidCraft crates; it talks to SolidCraft only through its public
 interfaces.
