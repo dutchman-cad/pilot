@@ -2,6 +2,8 @@
 #![allow(clippy::unwrap_used, clippy::panic)]
 use dutchman_pilot::{catalog::Catalog, recipe_library::*};
 use serde_json::{json, Value};
+#[path = "support/dev_profile_openings_core.rs"]
+mod dev_profile_openings_core;
 #[path = "support/dev_rectangles_core.rs"]
 mod dev_rectangles_core;
 #[path = "support/dev_stem_offset_core.rs"]

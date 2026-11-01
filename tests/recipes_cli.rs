@@ -8,6 +8,8 @@ use dutchman_pilot::{
 use serde_json::{json, Value};
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+#[path = "support/dev_profile_openings.rs"]
+mod dev_profile_openings;
 #[path = "support/dev_rectangles.rs"]
 mod dev_rectangles;
 #[path = "support/dev_stem_offset.rs"]
