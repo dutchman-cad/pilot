@@ -1209,6 +1209,7 @@ impl Proxy {
             }
             conversation.sc98_dialog_fact_seen = true;
         }
+        append_batch_errors(&mut body, audit)?;
         if !self.cfg.no_hints {
             if !conversation.facts_seen[0] && prompting::append_placement_fact(&mut body)? {
                 audit.record(
@@ -2279,6 +2280,57 @@ fn append_plane_hints(
     Ok(())
 }
 
+fn append_batch_errors(body: &mut Value, audit: &mut Audit) -> Result<(), String> {
+    let Some(messages) = body["messages"].as_array_mut() else {
+        return Ok(());
+    };
+    let start = messages
+        .iter()
+        .rposition(|m| m["role"] != "tool")
+        .map_or(0, |i| i + 1);
+    for i in start..messages.len() {
+        let Some(id) = messages[i]["tool_call_id"].as_str() else {
+            continue;
+        };
+        let args = messages[..i]
+            .iter()
+            .rev()
+            .filter_map(|m| m["tool_calls"].as_array())
+            .flatten()
+            .find(|c| c["id"] == id && c["function"]["name"] == "batch")
+            .map(|c| c["function"]["arguments"].clone());
+        let Some(args) = args else {
+            continue;
+        };
+        let args = args
+            .as_str()
+            .and_then(|s| serde_json::from_str::<Value>(s).ok())
+            .unwrap_or(args);
+        let content = &messages[i]["content"];
+        let result = content
+            .as_str()
+            .and_then(|s| serde_json::from_str::<Value>(s).ok())
+            .unwrap_or_else(|| json!({"content":content}));
+        let Some(reason) = repair::failed_sketch_context(&args, &result) else {
+            continue;
+        };
+        if prompting::message_text(content).contains(&reason) {
+            continue;
+        }
+        let before = content.clone();
+        let content = &mut messages[i]["content"];
+        if let Some(text) = content.as_str() {
+            *content = json!(format!("{text}\n{reason}"));
+        } else if let Some(blocks) = content.as_array_mut() {
+            blocks.push(json!({"type":"text","text":reason}));
+        }
+        if *content != before {
+            audit.record("sketch_dependency_error", &before, content)?;
+        }
+    }
+    Ok(())
+}
+
 fn append_hints(
     body: &mut Value,
     catalog: &Catalog,
@@ -2924,7 +2976,8 @@ fn guard_command(
     if command.len() > 256 {
         return Err("command id exceeds 256 bytes".into());
     }
-    let (id, packed) = split_command(command);
+    let command = command.to_string();
+    let (id, packed) = split_command(&command);
     let mut id = id.to_string();
     if !packed.is_empty() {
         if let Some(params) = packed_params(packed) {
@@ -2940,6 +2993,16 @@ fn guard_command(
             }
         } else {
             return Ok(Some(format!("{id} needs a valid params object")));
+        }
+    }
+    step["command"] = json!(id);
+    // Semantic aliases must be resolved before edit-distance command matching.
+    if let Err(reason) = repair::repair_command(step, catalog) {
+        return Ok(Some(reason));
+    }
+    if let Some(repaired) = step["command"].as_str() {
+        if repaired != command {
+            id = repaired.to_string();
         }
     }
     if catalog.get(&id).is_none() {
