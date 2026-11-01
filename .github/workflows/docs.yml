@@ -1,6 +1,7 @@
 name: Docs
 'on':
   push:
+    branches: [main]
     paths:
       - '**.md'
       - 'docs/**'
@@ -14,6 +15,10 @@ name: Docs
       - '.github/workflows/docs.yml'
 permissions:
   contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   links:
     runs-on: ubuntu-24.04

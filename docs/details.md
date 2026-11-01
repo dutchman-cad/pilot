@@ -85,6 +85,17 @@ an existing fact anywhere in the conversation prevents repetition across turns.
 MCP has no user conversation, so its tool list carries the same fact once in the
 `execute` description (or `batch` when `execute` is absent). Both faces audit
 `placement_fact`, add less than 400 bytes, and honour `--no-hints`.
+
+Size fact: when the conversation's user messages state sizes with a unit in inches (`in`,
+`inch`, `inches`, `"`, including fractions and mixed numbers such as `1/8"`, `3/8 in`,
+`1-1/2"`, `1 1/2 in`) or in cm, and no recipe, form, route or exact match handles the
+turn, Pilot adds one system line, for example
+`Sizes in mm: 1" = 25.4; 3/8" = 9.525; 1/8" = 3.175.`, listing each stated size in request
+order with exact mm (at most 16 sizes, at most 4 decimals, trailing zeros trimmed). Only
+sizes written with a unit count: bare numbers, mm, and a fraction with no unit add nothing,
+and nothing is inferred. The request text is never changed. Every request carries the whole
+fact, since clients do not send Pilot's system lines back; a later turn's sizes join it. It
+is audited as `unit_fact` when it first appears or changes, and `--no-hints` disables it.
 The 0.20 binary was checked with a 20 mm box (bbox [0,0,0] to [20,20,20]),
 a radius 5, height 20 cylinder (approximately [-5,-5,0] to [5,5,20]), and a
 radius 5 sphere ([-5,-5,-5] to [5,5,5]). Thus the sphere's centre defaults to
@@ -352,3 +363,7 @@ implement `Display` and `std::error::Error`. The caller prints errors and choose
 its failure exit code. Proxy commands block until their server stops; `run`
 never exits the calling process. Parsing handles help, version, and argument
 errors through clap. The API requires `proxy` and is absent with only `core`.
+
+## Native call repairs
+
+See [Native call repairs](call-repairs.md) for supported argument and command corrections, ambiguity limits, and MCP's suggestion-only behavior.

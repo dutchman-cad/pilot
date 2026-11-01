@@ -7,6 +7,8 @@ pub(super) struct Conversation {
     pub model: String,
     pub facts_seen: [bool; 3],
     pub sc98_dialog_fact_seen: bool,
+    /// The last size fact sent, so the audit records only a changed fact.
+    pub unit_fact: Option<String>,
     pub next_hints_seen: std::collections::BTreeSet<u64>,
     pub history: Vec<u64>,
     counts: BTreeMap<String, usize>,
@@ -26,6 +28,7 @@ pub(super) struct Conversation {
     pub plane_hints_seen: [bool; 2],
     pub pattern_inspections: usize,
     pub form_pending: Option<(usize, Value, Value, usize)>,
+    pub body_hint: body_hint::State,
 }
 impl Conversation {
     pub fn allow(&mut self, command: &str, count: usize) -> bool {
