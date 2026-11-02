@@ -13,6 +13,7 @@ pub const HIT_THRESHOLD: f64 = 1.8;
 pub const FILL_THRESHOLD: f64 = 4.5;
 pub const ROUTE_THRESHOLD: f64 = 1.5;
 pub const IDS: &[&str] = &[
+    "named_feature",
     "cross_drilled_box",
     "honeycomb_pattern",
     "linear_pattern",
@@ -168,6 +169,9 @@ fn shared(s: &mut Value) {
 }
 /// Schemas derive from the typed shortcut contract, with shared scalar constraints.
 pub fn schema(id: &str) -> Result<Value, String> {
+    if id == "named_feature" {
+        return Ok(planner::named_feature::schema());
+    }
     if id == "joint" {
         let mut s = json!({"type":"object","properties":{},"required":["joint_type"],"additionalProperties":false,
             "$schema":"https://json-schema.org/draft/2020-12/schema","$defs":definitions(),"x-pilot-expander":"joint"});
@@ -261,6 +265,10 @@ pub fn schema(id: &str) -> Result<Value, String> {
 /// Validate the small JSON Schema vocabulary emitted by Pilot. Unknown keywords fail closed.
 pub fn validate(value: &Value, schema: &Value) -> Result<(), String> {
     validate_structure(value, schema)?;
+    // Named edits require fresh public geometry; build() validates it in context.
+    if schema["x-pilot-expander"] == "named_feature" {
+        return Ok(());
+    }
     // JSON Schema cannot compare two arbitrary numeric properties. This explicit
     // vocabulary hook shares geometry validation with the expander (no I/O).
     if let Some(id) = schema["x-pilot-expander"].as_str() {
@@ -535,7 +543,10 @@ impl Library {
         }
         let mut ranked = ranker.rank(request, &self.recipes);
         ranked.retain(|(i, s)| {
-            *i < self.recipes.len() && s.is_finite() && (self.recipes[*i].id != "joint" || *s > 0.0)
+            *i < self.recipes.len()
+                && s.is_finite()
+                && self.recipes[*i].id != "named_feature"
+                && (self.recipes[*i].id != "joint" || *s > 0.0)
         });
         ranked.sort_by(|a, b| {
             b.1.total_cmp(&a.1)
@@ -573,6 +584,13 @@ impl Library {
     }
     /// One bounded decision shared by the proxy and development calibration.
     pub fn form_band(&self, request: &str) -> Result<Value, String> {
+        if planner::named_feature::candidate(request) {
+            if let Some(r) = self.recipes.iter().find(|r| r.id == "named_feature") {
+                return Ok(
+                    json!({"band":"fill","recipes":[{"id":r.id,"description":r.description,"schema":r.schema,"score":4.5}]}),
+                );
+            }
+        }
         if request.trim().is_empty() || request.len() > 2048 {
             return Ok(json!({"band":"low","recipes":[]}));
         }
@@ -776,7 +794,7 @@ impl Ranker for Bm25 {
             .map(|r| {
                 // General joints use an independent gate. They contribute no documents,
                 // lengths or term frequencies to the calibrated existing recipe index.
-                if r.id == "joint" {
+                if r.id == "joint" || r.id == "named_feature" {
                     return Vec::new();
                 }
                 std::iter::once(r.description.as_str())

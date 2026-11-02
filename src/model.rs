@@ -1047,7 +1047,13 @@ impl Proxy {
                 audit.record("direct_recipe_fallback", &Value::Null, &json!({"reason":"multiple intents","offered":plan,"remaining":rest,"from_model":false}))?;
             }
         }
-        if self.cfg.upstream == "none" {
+        let named_edit = !self.cfg.no_shortcuts
+            && !self.cfg.solidcraft98
+            && shortcuts::supported(&original)
+            && !self.cfg.no_fill
+            && planner::named_feature::candidate(last_user(&original))
+            && (form_allowed || pending_form.is_some());
+        if self.cfg.upstream == "none" && !named_edit {
             return direct::reply(&original, direct::unavailable(), audit.count);
         }
         if let Some(plan) = &recipe {
@@ -1369,7 +1375,12 @@ impl Proxy {
                 .iter()
                 .take(4)
                 .any(|r| r["id"] == "revolute_joint" || r["id"] == "joint");
-            let reads = planner::form_context::reads(&original, joint, &self.catalog)?;
+            let named = candidates.iter().any(|r| r["id"] == "named_feature");
+            let reads = if named {
+                planner::named_feature::reads(&original, &self.catalog)?
+            } else {
+                planner::form_context::reads(&original, joint, &self.catalog)?
+            };
             if !reads.is_empty() {
                 if context_round >= 3 {
                     return direct::reply(&original, "Form error: design inspection limit reached; select a target and inspect it again.".into(), audit.count);
@@ -1380,6 +1391,30 @@ impl Proxy {
                     Some((user_index, band, message.clone(), context_round + 1));
                 audit.record("form_inspect", &Value::Null, &message)?;
                 return direct::native(&original, message, audit.count);
+            }
+        }
+        if band["band"] == "fill" && band["recipes"][0]["id"] == "named_feature" {
+            let schema = planner::named_feature::form(&original);
+            if schema["properties"]["feature"]["enum"]
+                .as_array()
+                .is_none_or(Vec::is_empty)
+                || schema["properties"]["parameter"]["enum"]
+                    .as_array()
+                    .is_none_or(Vec::is_empty)
+            {
+                return direct::reply(&original, "Named feature edit needs clarification: no matching editable feature has complete measured geometry within the inspection limits. Inspect a supported target and give its feature name. No change was made.".into(), audit.count);
+            }
+            if self.cfg.direct_recipes {
+                if let Some(plan) = planner::named_feature::exact(&original, &self.catalog)? {
+                    if let direct::Outcome::Reply(reply) =
+                        self.direct_turn(&original, &Some(plan), user_index, conversation, audit)?
+                    {
+                        return Ok(reply);
+                    }
+                }
+            }
+            if self.cfg.upstream == "none" {
+                return direct::reply(&original, "Named feature edit needs clarification: choose one inspected feature and a measurable parameter. No change was made.".into(), audit.count);
             }
         }
         if band["band"] == "fill" && fill::partial_edge_edit(&band["recipes"][0], &original) {
@@ -3325,6 +3360,7 @@ mod tests {
     mod body_hint_tests;
     mod context_tests;
     mod holefact_tests;
+    mod named_feature_tests;
     mod sizecheck_tests;
     use super::*;
     use std::{

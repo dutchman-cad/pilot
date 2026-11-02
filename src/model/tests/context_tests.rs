@@ -4,16 +4,16 @@ use crate::catalog::MAX_CATALOG_BYTES;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 #[path = "../../../tests/support/public_catalog.rs"]
-mod public_catalog;
+pub(super) mod public_catalog;
 
-struct Session {
+pub(super) struct Session {
     child: Child,
     input: ChildStdin,
     output: BufReader<ChildStdout>,
     id: usize,
 }
 impl Session {
-    fn new() -> Option<Self> {
+    pub(super) fn new() -> Option<Self> {
         let path = std::env::var_os("PILOT_SOLIDCRAFT_CLI")?;
         let mut child = Command::new(path)
             .arg("mcp")
@@ -29,7 +29,7 @@ impl Session {
             id: 0,
         })
     }
-    fn execute(&mut self, command: &str, params: Value) -> Value {
+    pub(super) fn execute(&mut self, command: &str, params: Value) -> Value {
         self.tool("execute", json!({"command":command,"params":params}))
     }
     fn tool(&mut self, name: &str, arguments: Value) -> Value {
@@ -216,7 +216,7 @@ fn public_clean_pattern_context_end_to_end() {
     }
 }
 
-fn drive(f: &mut Fixture, s: &mut Session, req: &mut Value) -> Value {
+pub(super) fn drive(f: &mut Fixture, s: &mut Session, req: &mut Value) -> Value {
     for _ in 0..8 {
         let response = f.chat(req.clone());
         assert_eq!(

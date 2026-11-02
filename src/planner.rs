@@ -5,10 +5,10 @@ pub(crate) mod cases;
 mod english;
 #[cfg(test)]
 mod first_turn;
-#[cfg(feature = "proxy")]
 pub(crate) mod form_context;
 mod honeycomb;
 pub(crate) mod joints;
+pub mod named_feature;
 pub(crate) mod patterns;
 mod recipes;
 #[cfg(test)]
@@ -852,6 +852,9 @@ pub(crate) fn joint_hint(request: &Value) -> Option<&'static str> {
 }
 /// Report measured facts only after the ordinary completion check succeeds.
 pub fn direct_summary(request: &Value, plan: &Plan) -> String {
+    if plan.rule == "named_feature" {
+        return named_feature::summary(request, plan);
+    }
     if let Some(facts) = &plan.facts {
         if plan.rule == "body_count" {
             return format!("Exact match (no model): {} bodies", facts["body_count"]);
@@ -1192,6 +1195,9 @@ pub fn recipe_expand(
     request: &Value,
     catalog: &Catalog,
 ) -> Result<Plan, String> {
+    if id == "named_feature" {
+        return named_feature::build(args, request, catalog);
+    }
     if id == "joint" {
         return joints::build(args, request, catalog);
     }

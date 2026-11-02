@@ -143,6 +143,8 @@ impl Proxy {
                         "Recipe target is unresolved: inspection must identify exactly one requested body. No edit plan was built. No change was made.".into())
                 } else if previous.continuation.is_some() {
                     recipe.is_none().then(|| "Recipe completion is unverified: the edge lookup could not resolve the requested edges.".into())
+                } else if previous.rule == "named_feature" {
+                    planner::named_feature::completion(request, &previous)
                 } else if let Some(expected) = &previous.expected {
                     planner::completion(request, expected)
                 } else {

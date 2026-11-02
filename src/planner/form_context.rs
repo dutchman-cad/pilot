@@ -1,9 +1,10 @@
 //! Compact facts for extraction, derived only from public inspection results.
 use super::*;
 
+#[cfg(feature = "proxy")]
 pub(crate) const MAX_CONTEXT_CHARS: usize = 8192;
 
-fn payloads(request: &Value) -> Vec<Value> {
+pub(super) fn payloads(request: &Value) -> Vec<Value> {
     let messages = request["messages"]
         .as_array()
         .map(Vec::as_slice)
@@ -25,7 +26,7 @@ fn payloads(request: &Value) -> Vec<Value> {
     }
     out
 }
-fn document(data: &[Value]) -> Option<&Value> {
+pub(super) fn document(data: &[Value]) -> Option<&Value> {
     data.iter().rev().find(|d| {
         d["bodies"].as_array().is_some_and(|a| {
             a.len() <= MAX_BODIES
@@ -35,7 +36,7 @@ fn document(data: &[Value]) -> Option<&Value> {
         }) && d["timeline"].is_array()
     })
 }
-fn active_features(doc: &Value) -> Vec<&Value> {
+pub(super) fn active_features(doc: &Value) -> Vec<&Value> {
     doc["timeline"]
         .as_array()
         .into_iter()
@@ -45,7 +46,7 @@ fn active_features(doc: &Value) -> Vec<&Value> {
         .take(12)
         .collect()
 }
-fn detail<'a>(data: &'a [Value], feature: &Value) -> Option<&'a Value> {
+pub(super) fn detail<'a>(data: &'a [Value], feature: &Value) -> Option<&'a Value> {
     data.iter().rev().find(|d| {
         d["id"] == feature["id"] && d["name"] == feature["name"] && d["definition"].is_object()
     })
@@ -87,6 +88,7 @@ pub(crate) fn reads(request: &Value, joint: bool, catalog: &Catalog) -> Result<V
     }
     Ok(calls)
 }
+#[cfg(feature = "proxy")]
 fn fields(value: &Value, keys: &[&str]) -> Value {
     let mut out = json!({});
     for key in keys {
@@ -96,6 +98,7 @@ fn fields(value: &Value, keys: &[&str]) -> Value {
     }
     out
 }
+#[cfg(feature = "proxy")]
 fn selection(request: &Value, doc: &Value) -> Value {
     request
         .get("selection")
@@ -104,6 +107,7 @@ fn selection(request: &Value, doc: &Value) -> Value {
         .cloned()
         .unwrap_or(json!([]))
 }
+#[cfg(feature = "proxy")]
 fn selected_names(selection: &Value) -> Vec<&str> {
     let items = selection.as_array().map(Vec::as_slice).unwrap_or(&[]);
     items
@@ -115,6 +119,7 @@ fn selected_names(selection: &Value) -> Vec<&str> {
         })
         .collect()
 }
+#[cfg(feature = "proxy")]
 fn last_body(data: &[Value], doc: &Value) -> Option<String> {
     let bodies = doc["bodies"].as_array()?;
     for f in active_features(doc) {
@@ -134,6 +139,7 @@ fn last_body(data: &[Value], doc: &Value) -> Option<String> {
     }
     None
 }
+#[cfg(feature = "proxy")]
 pub(crate) fn default_body(request: &Value) -> Result<String, String> {
     let data = payloads(request);
     let doc = document(&data).ok_or("args.body requires a fresh complete document inspection")?;
@@ -159,6 +165,7 @@ pub(crate) fn default_body(request: &Value) -> Result<String, String> {
     Err("args.body: target is ambiguous; select one body or supply its exact inspected name".into())
 }
 
+#[cfg(feature = "proxy")]
 pub(crate) fn summary(request: &Value, joint: bool, joint_origins: bool) -> String {
     let data = payloads(request);
     let Some(doc) = document(&data) else {
@@ -248,7 +255,7 @@ pub(crate) fn summary(request: &Value, joint: bool, joint_origins: bool) -> Stri
     summary.to_string()
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "proxy"))]
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;

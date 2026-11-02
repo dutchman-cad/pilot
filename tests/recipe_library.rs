@@ -508,6 +508,7 @@ fn independent_ranking_and_calibrated_misses() {
 }
 fn sample(id: &str) -> Value {
     match id {
+        "named_feature" => json!({"feature":"Well","parameter":"depth","mode":"change","value":3}),
         "cross_drilled_box" => {
             json!({"length":24,"width":30,"height":36,"holes":[{"axis":"X","diameter":6},{"axis":"Y","diameter":6},{"axis":"Z","diameter":6}]})
         }
@@ -553,7 +554,7 @@ fn generated_schema_and_expander_cases() {
         let args = sample(&r.id);
         validate(&args, &r.schema).unwrap();
         // Joint discovery depends on contact topology, not the parameter domain.
-        if r.id != "revolute_joint" && r.id != "joint" {
+        if !matches!(r.id.as_str(), "revolute_joint" | "joint" | "named_feature") {
             lib.build(&json!({"recipe":r.id,"args":args}), &req, &cat)
                 .unwrap();
         }
@@ -566,7 +567,7 @@ fn generated_schema_and_expander_cases() {
                 let expanded =
                     dutchman_pilot::planner::recipe_expand(&r.expander, &changed, &req, &cat)
                         .is_ok();
-                if r.id != "revolute_joint" && r.id != "joint" {
+                if !matches!(r.id.as_str(), "revolute_joint" | "joint" | "named_feature") {
                     assert_eq!(valid, expanded, "{}.{key}", r.id);
                 }
             }
@@ -704,7 +705,7 @@ fn geometry_schema_extension_and_generated_numeric_boundaries() {
                 let accepted = validate(&args, &r.schema).is_ok();
                 let expanded =
                     dutchman_pilot::planner::recipe_expand(&r.expander, &args, &req, &cat).is_ok();
-                if r.id != "revolute_joint" && r.id != "joint" {
+                if !matches!(r.id.as_str(), "revolute_joint" | "joint" | "named_feature") {
                     assert_eq!(accepted, expanded, "{}.{key}={n}", r.id);
                 }
             }
@@ -1119,6 +1120,12 @@ fn every_flat_form_maps_to_the_same_typed_commands() {
     let req = json!({"messages":[{"role":"user","content":"build the selected recipe"}],"tools":[{"function":{"name":"execute"}}]});
     for r in &lib.recipes {
         let mut nested = sample(&r.id);
+        if r.id == "named_feature" {
+            // This scalar schema is already flat. Fresh geometry and command
+            // equivalence are checked by the named-feature public CLI replays.
+            assert_eq!(to_slots(&nested, &r.schema).unwrap(), nested);
+            continue;
+        }
         if r.id == "revolute_joint" {
             nested = json!({"pin_component":"Base","hole_component":"Arm","angle_deg":45});
         }
