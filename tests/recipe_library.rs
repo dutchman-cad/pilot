@@ -651,7 +651,7 @@ fn audit_draft_requires_review_and_round_trips() {
     assert_eq!(r.examples[0], "Make a block 41 by 23 by 17 mm");
     assert_eq!(r.expander, "sequence");
     assert_eq!(r.schema["properties"].as_object().unwrap().len(), 3);
-    assert_eq!(Library::embedded().unwrap().recipes.len(), 20);
+    assert_eq!(Library::embedded().unwrap().recipes.len(), 21);
     assert!(draft(&audit, 1, &review)
         .unwrap_err()
         .contains("cannot create"));
@@ -1448,6 +1448,10 @@ fn audited_first_fills_replay_with_documented_defaults() {
 fn enums_reject_containers_and_redundancy_preserves_bounds() {
     let lib = Library::embedded().unwrap();
     for recipe in &lib.recipes {
+        // This form is built from the inspected design, not from a static fill schema.
+        if recipe.id == "named_feature" {
+            continue;
+        }
         for (key, field) in recipe.schema["x-pilot-fill"]["properties"]
             .as_object()
             .unwrap()
