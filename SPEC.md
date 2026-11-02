@@ -96,8 +96,16 @@ Request side:
   plane; front face/edge alone does not. Supplied choices always win.
   Existing-part edit verbs may replace creation forms with edit forms after inspection
   confirms a body; pattern and joint forms retain their routing, and creation requests
-  retain creation forms. Matching
-  supplied shell dimensions are discarded after comparison with inspected bounds
+  retain creation forms. Outside box/container sizes with a wall thickness select
+  the enclosure form even when opening words are absent or an edge treatment is
+  requested. Omitted openings
+  keep the form default; exact box/container matching requires an explicit opening,
+  lid/cover, or closed choice (legacy named enclosure matches remain supported).
+  Closed containers use a bounded interior box cut. A single explicit all-edge fillet
+  radius or chamfer distance is recovered without changing supplied form choices;
+  shell construction precedes public edge lookup and the finishing command. A refused
+  finish reports the failure and retains the shell without retrying the build.
+  Matching supplied shell dimensions are discarded after comparison with inspected bounds
   (0.001 mm or one part per million); mismatches name the measured size. Flat field
   names accept unambiguous singular/plural word variants. An omitted revolute angle
   uses a single explicit request rotation, including a quarter turn, with an

@@ -6941,6 +6941,63 @@ mod tests {
     }
 
     #[test]
+    fn direct_shell_fillet_refusal_keeps_shell_without_model_recovery() {
+        for no_model in [false, true] {
+            let mut f = Fixture::new(vec![]);
+            f.proxy.cfg.direct_recipes = true;
+            if no_model {
+                f.proxy.cfg.upstream = "none".into();
+            }
+            let mut req =
+                planner::cases::request("open top box 68x46x32mm walls 2mm fillet all edges 3mm");
+            for phase in 0..2 {
+                let response: Value = serde_json::from_slice(&f.chat(req.clone()).body).unwrap();
+                let message = response["choices"][0]["message"].clone();
+                let calls = message["tool_calls"].as_array().unwrap();
+                req["messages"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(message.clone());
+                for call in calls {
+                    let args: Value =
+                        serde_json::from_str(call["function"]["arguments"].as_str().unwrap())
+                            .unwrap();
+                    let data = match args["command"].as_str().unwrap() {
+                        "solid.box" | "solid.shell" if phase == 0 => json!({"error":null}),
+                        "model.edges" if phase == 0 => {
+                            json!({"body":"PilotRecipe1","edges":[{"index":0}]})
+                        }
+                        "solid.fillet" if phase == 1 => {
+                            json!({"isError":true,"error":"a blend ending in an earlier round"})
+                        }
+                        "document.inspect" if phase == 1 => {
+                            json!({"bodies":[{"name":"PilotRecipe1","volume_mm3":15552.,"bbox":{"min":[0.,0.,0.],"max":[68.,46.,32.]}}],"timeline":[]})
+                        }
+                        _ => panic!("unexpected phase {phase}: {args}"),
+                    };
+                    req["messages"].as_array_mut().unwrap().push(
+                        json!({"role":"tool","tool_call_id":call["id"],"content":data.to_string()}),
+                    );
+                }
+            }
+            let response: Value = serde_json::from_slice(&f.chat(req).body).unwrap();
+            let message = &response["choices"][0]["message"];
+            assert!(message["tool_calls"].is_null());
+            let text = message["content"].as_str().unwrap();
+            assert!(text.contains("fillet could not build"), "{text}");
+            assert!(text.contains("shell remains in place"), "{text}");
+            assert!(f
+                .proxy
+                .scripted
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .requests
+                .is_empty());
+        }
+    }
+
+    #[test]
     fn direct_natural_first_turn_edits_with_recorded_inspection() {
         let inspect: Value = serde_json::from_str(include_str!(
             "../tests/fixtures/inspect-single-body-0.20.json"

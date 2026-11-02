@@ -10,15 +10,26 @@ pub(super) struct ShellBox {
     pub(super) centred: bool,
     pub(super) lip: Option<[f64; 2]>,
     pub(super) outer: bool,
+    pub(super) closed: bool,
+    pub(super) rounding: Option<(bool, f64)>,
 }
 fn lip_word(s: &str) -> bool {
     matches!(s, "lip" | "rim" | "ridge")
 }
+fn edge_kind(s: &str) -> Option<bool> {
+    match s {
+        "fillet" | "fillets" | "filleted" | "round" | "rounded" => Some(true),
+        "chamfer" | "chamfers" | "chamfered" | "bevel" | "bevelled" => Some(false),
+        _ => None,
+    }
+}
 pub(super) fn candidate(i: &Input<'_>) -> bool {
     i.any(&["box", "enclosure", "container"])
         && (i.any(&[
-            "shell", "shelled", "hollow", "hollowed", "open", "opening", "remove",
-        ]) || i.t.iter().any(|s| lip_word(s)))
+            "shell", "shelled", "hollow", "hollowed", "open", "opening", "remove", "wall", "walls",
+            "closed",
+        ]) || (i.has("thickness") && dimensions(&i.t).is_some_and(|d| d.len() >= 4))
+            || i.t.iter().any(|s| lip_word(s)))
         || parse_explicit(i).is_some()
 }
 pub(super) fn vocabulary(i: &Input<'_>) -> bool {
@@ -33,9 +44,18 @@ pub(super) fn vocabulary(i: &Input<'_>) -> bool {
             || s.split_once('/')
                 .is_some_and(|(a, b)| a.parse::<f64>().is_ok() && b.parse::<f64>().is_ok())
             || slots::scale(s).is_some()
+            || edge_kind(s).is_some()
             || matches!(
                 s.as_str(),
                 "shell"
+                    | "closed"
+                    | "fillet"
+                    | "chamfer"
+                    | "round"
+                    | "bevel"
+                    | "all"
+                    | "radius"
+                    | "distance"
                     | "shelled"
                     | "hollow"
                     | "hollowed"
@@ -163,12 +183,141 @@ fn role(words: &[String], in_lip: bool) -> Result<Option<Role>, ()> {
     }
 }
 pub(super) fn parse(i: &Input<'_>) -> Option<Slots> {
-    parse_original(i).or_else(|| parse_explicit(i))
+    parse_original(i)
+        .or_else(|| parse_explicit(i))
+        .or_else(|| parse_container(i))
+}
+
+/// Recognise a complete edge clause only. Unclear request inference adds nothing.
+pub(super) fn rounding(t: &[String]) -> Option<(usize, bool, f64)> {
+    if t.iter().any(|s| {
+        matches!(
+            s.as_str(),
+            "not" | "no" | "without" | "or" | "except" | "instead"
+        )
+    }) {
+        return None;
+    }
+    let feature = t.iter().position(|s| edge_kind(s).is_some())?;
+    let fillet = edge_kind(&t[feature])?;
+    let mut at = feature;
+    // Noun clauses may put the size before the treatment: "0.2 mm fillets".
+    if dimensions(&t[feature..])?.is_empty() {
+        if at > 0 && slots::scale(&t[at - 1]).is_some() {
+            at -= 1;
+        }
+        if at > 0 && (t[at - 1].parse::<f64>().is_ok() || t[at - 1].contains('/')) {
+            at -= 1;
+        }
+        if at > 0 && t[at].contains('/') && t[at - 1].parse::<f64>().is_ok() {
+            at -= 1;
+        }
+        if at > 0
+            && !matches!(
+                t[at - 1].as_str(),
+                "with" | "and" | "a" | "an" | "radius" | "distance"
+            )
+        {
+            return None;
+        }
+    }
+    let tail = &t[at..];
+    let d = dimensions(tail)?;
+    if d.len() != 1
+        || !positive(&d)
+        || !tail.iter().any(|s| s == "all")
+        || !tail.iter().any(|s| s == "edges")
+    {
+        return None;
+    }
+    if !tail.iter().all(|s| {
+        s.parse::<f64>().is_ok()
+            || s.split_once('/')
+                .is_some_and(|(a, b)| a.parse::<f64>().is_ok() && b.parse::<f64>().is_ok())
+            || slots::scale(s).is_some()
+            || edge_kind(s).is_some()
+            || matches!(
+                s.as_str(),
+                "fillet"
+                    | "chamfer"
+                    | "round"
+                    | "bevel"
+                    | "all"
+                    | "the"
+                    | "edges"
+                    | "with"
+                    | "a"
+                    | "radius"
+                    | "distance"
+                    | "of"
+                    | "and"
+                    | "on"
+            )
+    }) {
+        return None;
+    }
+    if tail.iter().filter(|s| edge_kind(s).is_some()).count() != 1 {
+        return None;
+    }
+    Some((at, fillet, d[0].value))
+}
+
+fn parse_container(i: &Input<'_>) -> Option<Slots> {
+    let edge = rounding(&i.t);
+    let mut t = i.t[..edge.map_or(i.t.len(), |e| e.0)].to_vec();
+    while t
+        .last()
+        .is_some_and(|s| matches!(s.as_str(), "and" | "then" | "with"))
+    {
+        t.pop();
+    }
+    let closed = t.iter().any(|s| s == "closed");
+    if closed
+        && t.iter()
+            .any(|s| matches!(s.as_str(), "open" | "opening" | "lid" | "cover"))
+    {
+        return None;
+    }
+    // Hollow describes the cavity, never the choice of an opening.
+    t.retain(|s| !matches!(s.as_str(), "hollow" | "closed"));
+    if closed {
+        t.extend(["open".into(), "top".into()]);
+    }
+    // An explicit outside qualifier belongs to the sizes here, not a lip.
+    if !t.iter().any(|s| lip_word(s)) {
+        t.retain(|s| s != "outside" && s != "outer");
+    }
+    let stripped = Input {
+        text: i.text,
+        t,
+        data: i.data,
+        messages: i.messages,
+    };
+    let parsed = parse_original(&stripped).or_else(|| parse_explicit(&stripped))?;
+    let mut shell = match parsed {
+        Slots::Shell { size, wall } => ShellBox {
+            size,
+            wall,
+            floor: wall,
+            bottom: false,
+            centred: false,
+            lip: None,
+            outer: false,
+            closed: false,
+            rounding: None,
+        },
+        Slots::ShellBox(s) => s,
+        _ => return None,
+    };
+    shell.closed = closed;
+    shell.rounding = edge.map(|(_, f, a)| (f, a));
+    shell.into_slots().ok()
 }
 
 fn parse_original(i: &Input<'_>) -> Option<Slots> {
     // `cover` belongs to the new grammar; it was outside this vocabulary before.
-    if i.has("cover")
+    if i.any(&["cover", "closed"])
+        || i.t.iter().any(|s| edge_kind(s).is_some())
         || !vocabulary(i)
         || !i.any(&["box", "enclosure", "container"])
         || !i.any(&[
@@ -294,6 +443,8 @@ fn parse_original(i: &Input<'_>) -> Option<Slots> {
         centred,
         lip,
         outer,
+        closed: false,
+        rounding: None,
     }
     .into_slots()
     .ok()
@@ -522,6 +673,8 @@ fn parse_explicit(i: &Input<'_>) -> Option<Slots> {
         centred: false,
         lip: lip.map(|(w, h)| [w.unwrap_or(wall / 2.0), h]),
         outer,
+        closed: false,
+        rounding: None,
     }
     .into_slots()
     .ok()
@@ -557,7 +710,18 @@ impl ShellBox {
                 ));
             }
         }
-        if !self.bottom && !self.centred && self.lip.is_none() && self.floor == self.wall {
+        if self.closed
+            && (self.wall * 2.0 >= self.size[2] || self.floor != self.wall || self.lip.is_some())
+        {
+            return Err("closed enclosure needs room for two walls in height and a uniform floor without a lip".into());
+        }
+        if !self.closed
+            && self.rounding.is_none()
+            && !self.bottom
+            && !self.centred
+            && self.lip.is_none()
+            && self.floor == self.wall
+        {
             return Ok(Slots::Shell {
                 size: self.size,
                 wall: self.wall,
@@ -574,7 +738,9 @@ impl ShellBox {
                 - (x - 2.0 * (inset + w)) * (y - 2.0 * (inset + w)))
                 * h
         });
-        x * y * z - (x - 2.0 * t) * (y - 2.0 * t) * (z - self.floor) + ring
+        x * y * z
+            - (x - 2.0 * t) * (y - 2.0 * t) * (z - self.floor - if self.closed { t } else { 0.0 })
+            + ring
     }
     pub(super) fn commands(&self) -> Vec<(&'static str, Value)> {
         let [x, y, z] = self.size;
@@ -594,6 +760,12 @@ impl ShellBox {
                 json!({"faces":[[ox+x/2.0,oy+y/2.0,oz+if self.bottom {0.0} else {z}]],"thickness":t,"direction":"inside"}),
             ),
         ];
+        if self.closed {
+            out[1] = (
+                "solid.box",
+                json!({"length":x-2.0*t,"width":y-2.0*t,"height":z-2.0*t,"corner":[ox+t,oy+t,oz+t],"operation":"cut"}),
+            );
+        }
         if self.floor > t {
             // Overlap the shell rather than only touching the cavity faces:
             // converted inch dimensions can differ there by floating-point noise.
@@ -624,6 +796,9 @@ impl ShellBox {
             }
             out.push(("sketch.finish", json!({})));
             out.push(("solid.extrude",json!({"distance":h,"profiles":[{"point":[ox+inset+w/2.0,oy+y/2.0]}],"operation":"join","direction":if self.bottom {"negative"} else {"positive"}})));
+        }
+        if self.rounding.is_some() {
+            out.push(("model.edges", json!({})));
         }
         out
     }
