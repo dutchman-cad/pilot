@@ -555,6 +555,8 @@ fn named_feature_new_wordings_reach_forms_before_creation_and_failures_stay_repo
         for step in c["setup"].as_array().unwrap() {
             s.execute(step["command"].as_str().unwrap(), step["params"].clone());
         }
+        let original_doc = s.execute("document.inspect", json!({"measure":true}));
+        let original_feature = s.execute("timeline.inspect", json!({"feature":c["feature"]}));
         let mut f = fill_fixture(vec![]);
         f.proxy.catalog = context_tests::public_catalog::catalog().unwrap();
         f.proxy.cfg.direct_recipes = true;
@@ -565,6 +567,33 @@ fn named_feature_new_wordings_reach_forms_before_creation_and_failures_stay_repo
         let text = result["content"].as_str().unwrap();
         if c["report"] == true {
             assert!(text.contains("unverified"), "{c}: {result}");
+            assert!(text.contains("design has been restored"), "{result}");
+            let restored = s.execute("document.inspect", json!({"measure":true}));
+            for (a, b) in restored["bodies"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .zip(original_doc["bodies"].as_array().unwrap())
+            {
+                assert!(
+                    (a["volume_mm3"].as_f64().unwrap() - b["volume_mm3"].as_f64().unwrap()).abs()
+                        < 0.001
+                );
+                assert_eq!(a["bbox"], b["bbox"]);
+            }
+            assert_eq!(
+                s.execute("timeline.inspect", json!({"feature":c["feature"]}))["definition"],
+                original_feature["definition"]
+            );
+            assert!(f
+                .proxy
+                .scripted
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .requests
+                .iter()
+                .all(|r| r["tools"][0]["function"]["name"] == "pilot_fill"));
         } else {
             assert!(
                 text.contains("Measured") && !text.contains("unverified"),
@@ -574,4 +603,437 @@ fn named_feature_new_wordings_reach_forms_before_creation_and_failures_stay_repo
         let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
         assert!(log.contains("named_feature"), "{log}");
     }
+}
+
+#[test]
+fn named_feature_round_development_edits_have_independent_geometry_oracles() {
+    let cases: Vec<Value> = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/dev_named_feature_round.json"
+    ))
+    .unwrap();
+    assert!(cases.len() >= 30);
+    let cat = context_tests::public_catalog::catalog().unwrap();
+    for c in cases {
+        let Some(mut s) = Session::new() else { return };
+        for step in c["setup"].as_array().unwrap() {
+            s.execute(step["command"].as_str().unwrap(), step["params"].clone());
+        }
+        let mut req = inspected(&mut s, c["prompt"].as_str().unwrap(), &cat);
+        let schema = planner::named_feature::form(&req);
+        let exact = planner::named_feature::exact(&req, &cat).unwrap();
+        assert_eq!(exact.is_some(), c["exact"] == true, "{c}: {schema}");
+        if c["exact"] == true {
+            assert_eq!(
+                schema["properties"]["parameter"]["enum"][0], c["parameter"],
+                "{c}"
+            );
+        }
+        let args = json!({"feature":c["feature"],"parameter":c["parameter"],"mode":c["mode"],"value":c["value"]});
+        let plan =
+            exact.unwrap_or_else(|| planner::named_feature::build(&args, &req, &cat).unwrap());
+        assert_eq!(plan.slots["field"], c["field"], "{c}");
+        let emitted = direct::calls(&req, &plan, 0);
+        req["messages"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"role":"assistant","tool_calls":emitted}));
+        for call in &plan.calls {
+            let data = s.execute(
+                call["arguments"]["command"].as_str().unwrap(),
+                call["arguments"]["params"].clone(),
+            );
+            req["messages"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({"role":"tool","content":data.to_string()}));
+        }
+        assert!(
+            planner::named_feature::completion(&req, &plan).is_none(),
+            "{c}: {plan:?}"
+        );
+        let doc = s.execute("document.inspect", json!({"measure":true}));
+        let b = &doc["bodies"][0];
+        let expected = c["volume"].as_f64().unwrap();
+        assert!(
+            (b["volume_mm3"].as_f64().unwrap() - expected).abs() < expected * 0.0002,
+            "{c}: {b}"
+        );
+        for (i, edge) in ["min", "max"].iter().enumerate() {
+            for a in 0..3 {
+                assert!(
+                    (b["bbox"][edge][a].as_f64().unwrap() - c["bounds"][i][a].as_f64().unwrap())
+                        .abs()
+                        < 0.001,
+                    "{c}: {b}"
+                );
+            }
+        }
+        let detail = s.execute("timeline.inspect", json!({"feature":c["feature"]}));
+        let actual = detail["definition"]
+            .pointer(&format!(
+                "/{}",
+                c["field"].as_str().unwrap().replace('.', "/")
+            ))
+            .unwrap();
+        let actual = actual
+            .as_f64()
+            .unwrap_or_else(|| actual.as_str().unwrap().parse().unwrap());
+        assert!(
+            (actual - c["after"].as_f64().unwrap()).abs() < 0.001,
+            "{c}: {detail}"
+        );
+    }
+}
+
+fn round_context(text: &str) -> Value {
+    let mut req = request();
+    req["messages"] = json!([{"role":"user","content":text}]);
+    for data in round_payloads(6., 4., 20.) {
+        req["messages"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"role":"tool","content":data.to_string()}));
+    }
+    req
+}
+fn round_payloads(height: f64, radius: f64, base: f64) -> Vec<Value> {
+    vec![
+        json!({"body":"Atlas","faces":[
+            {"name":"F2:+z","exact":true,"centroid":[12.,12.,base+height],"plane_normal":[0,0,1],"area":std::f64::consts::PI*radius*radius},
+            {"name":"F2:-z","exact":true,"centroid":[12.,12.,base],"plane_normal":[0,0,-1]},
+            {"name":"F2:side","exact":true,"cylinder":{"radius":radius,"origin":[12.,12.,base]}}
+        ]}),
+        json!({"id":2,"name":"Perch","definition":{"radius":radius,"height":height,"base":[12.,12.,base],"axis":[0,0,1],"operation":"join","participants":["Atlas"]}}),
+        json!({"bodies":[{"name":"Atlas","volume_mm3":32000.+std::f64::consts::PI*radius*radius*height,"bbox":{"min":[0,0,0],"max":[40.,40.,base+height]}}],"timeline":[{"id":2,"name":"Perch","type":"CylinderFeature"}]}),
+    ]
+}
+fn fake_named_results(req: &mut Value, msg: Value, payloads: &[Value], error: bool) {
+    req["messages"].as_array_mut().unwrap().push(msg.clone());
+    for (i, c) in msg["tool_calls"].as_array().unwrap().iter().enumerate() {
+        let data = if i == 0 {
+            if error {
+                json!({"error":"masked tool failure"})
+            } else {
+                json!({"ok":true})
+            }
+        } else {
+            payloads[i - 1].clone()
+        };
+        req["messages"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"role":"tool","tool_call_id":c["id"],"content":data.to_string()}));
+    }
+}
+fn chat_message(f: &mut Fixture, req: &Value) -> Value {
+    let out = f.chat(req.clone());
+    let out: Value = serde_json::from_slice(&out.body).unwrap();
+    out["choices"][0]["message"].clone()
+}
+#[test]
+fn named_feature_failed_verification_restores_and_never_reaches_native_tools() {
+    for (prompt, retries) in [
+        ("Change Perch height to 9 mm", 0),
+        ("Raise Perch by 2 mm", 1),
+    ] {
+        for error in [false, true] {
+            let mut f = fill_fixture(vec![call(
+                "execute",
+                json!({"command":"solid.box","params":{"length":99,"width":99,"height":99}}),
+            )]);
+            f.proxy.cfg.direct_recipes = true;
+            let mut req = request();
+            req["messages"] = json!([{"role":"user","content":prompt}]);
+            let before = round_payloads(6., 4., 20.);
+            let first = loop {
+                let msg = chat_message(&mut f, &req);
+                let calls = msg["tool_calls"].as_array().unwrap();
+                let args: Value =
+                    serde_json::from_str(calls[0]["function"]["arguments"].as_str().unwrap())
+                        .unwrap();
+                if args["command"] == "timeline.edit" {
+                    break msg;
+                }
+                req["messages"].as_array_mut().unwrap().push(msg.clone());
+                for c in calls {
+                    let args: Value =
+                        serde_json::from_str(c["function"]["arguments"].as_str().unwrap()).unwrap();
+                    let payload = match args["command"].as_str().unwrap() {
+                        "document.inspect" => &before[2],
+                        "timeline.inspect" => &before[1],
+                        "model.faces" => &before[0],
+                        other => panic!("unexpected native command {other}"),
+                    };
+                    req["messages"].as_array_mut().unwrap().push(
+                        json!({"role":"tool","tool_call_id":c["id"],"content":payload.to_string()}),
+                    );
+                }
+            };
+            assert_eq!(first["tool_calls"].as_array().unwrap().len(), 4, "{first}");
+            fake_named_results(&mut req, first, &before, error);
+            for attempt in 0..=retries {
+                let restore = chat_message(&mut f, &req);
+                let args: Value = serde_json::from_str(
+                    restore["tool_calls"][0]["function"]["arguments"]
+                        .as_str()
+                        .unwrap(),
+                )
+                .unwrap();
+                assert_eq!(args["command"], "timeline.edit");
+                if attempt == 0 {
+                    assert_eq!(args["params"]["set"], json!({"height":6.}));
+                } else {
+                    assert_eq!(args["params"]["set"], json!({"base":[12.,12.,20.]}));
+                }
+                fake_named_results(&mut req, restore, &before, false);
+                if attempt < retries {
+                    let retry = chat_message(&mut f, &req);
+                    let args: Value = serde_json::from_str(
+                        retry["tool_calls"][0]["function"]["arguments"]
+                            .as_str()
+                            .unwrap(),
+                    )
+                    .unwrap();
+                    assert_eq!(args["params"]["set"], json!({"base":[12.,12.,22.]}));
+                    fake_named_results(&mut req, retry, &before, false);
+                }
+            }
+            let done = chat_message(&mut f, &req);
+            assert!(done["tool_calls"].is_null(), "{done}");
+            assert!(
+                done["content"]
+                    .as_str()
+                    .unwrap()
+                    .contains("design has been restored"),
+                "{done}"
+            );
+            // Resending the same completed turn cannot reopen the native-tool path.
+            assert_eq!(chat_message(&mut f, &req), done);
+            assert!(f
+                .proxy
+                .scripted
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .requests
+                .is_empty());
+        }
+    }
+}
+#[test]
+fn named_feature_round_words_never_select_radius_for_axial_edits() {
+    let cat = Catalog::bundled().unwrap();
+    for (prompt, parameter, field) in [
+        ("Raise Perch by 2 mm", "height", "height"),
+        ("Lower Perch by 1 mm", "height", "height"),
+        ("Make Perch 2 mm taller", "height", "height"),
+        ("Set Perch distance to 9 mm", "height", "height"),
+        ("Make Perch 8 mm high", "height", "height"),
+        ("Widen Perch by 2 mm", "diameter", "radius"),
+        ("Set Perch across to 12 mm", "diameter", "radius"),
+    ] {
+        assert!(planner::named_feature::candidate(prompt), "{prompt}");
+        let req = round_context(prompt);
+        let plan = planner::named_feature::exact(&req, &cat).unwrap().unwrap();
+        assert_eq!(plan.slots["parameter"], parameter);
+        assert_eq!(plan.slots["field"], field);
+        assert_eq!(
+            planner::named_feature::form(&req)["properties"]["parameter"]["enum"][0],
+            parameter
+        );
+        let wrong = if parameter == "height" {
+            "diameter"
+        } else {
+            "height"
+        };
+        assert!(planner::named_feature::build(
+            &json!({"feature":"Perch","parameter":wrong,"mode":"change","value":2}),
+            &req,
+            &cat
+        )
+        .is_err());
+    }
+    for prompt in [
+        "Change Perch by 2 mm",
+        "Make Perch bigger by 2 mm",
+        "Change Perch height and diameter to 9 mm",
+        "Set Perch depth to 9 mm",
+        "Raise Perch radius by 2 mm",
+        "Raise Perch position by 2 mm",
+    ] {
+        assert!(
+            planner::named_feature::exact(&round_context(prompt), &cat)
+                .unwrap()
+                .is_none(),
+            "{prompt}"
+        );
+    }
+}
+
+#[test]
+fn named_feature_existing_changes_precede_creation_forms_and_routes() {
+    let library = crate::recipe_library::Library::embedded().unwrap();
+    for prompt in [
+        "Make Perch 8 mm high",
+        "Make Perch 12 mm across",
+        "Change the plate thickness to 7 mm",
+        "Make the round recess 2 mm deeper",
+    ] {
+        let band = library
+            .form_band_in_design(prompt, &["Atlas".into()])
+            .unwrap();
+        assert_eq!(band["band"], "fill", "{prompt}: {band}");
+        assert_eq!(
+            band["recipes"][0]["id"], "named_feature",
+            "{prompt}: {band}"
+        );
+    }
+    for prompt in [
+        "make a plate 40x30x6 mm",
+        "create a new pad 8 mm high",
+        "Move Atlas by an offset of 3 mm along X",
+    ] {
+        assert!(!planner::named_feature::candidate(prompt), "{prompt}");
+        let band = library
+            .form_band_in_design(prompt, &["Atlas".into()])
+            .unwrap();
+        assert_ne!(
+            band["recipes"][0]["id"], "named_feature",
+            "{prompt}: {band}"
+        );
+    }
+}
+
+#[test]
+fn named_feature_preserves_existing_move_offset_path() {
+    let Some(mut s) = Session::new() else { return };
+    s.execute(
+        "solid.box",
+        json!({"length":40,"width":30,"height":12,"body_name":"Atlas"}),
+    );
+    let mut f = fill_fixture(vec![]);
+    f.proxy.catalog = context_tests::public_catalog::catalog().unwrap();
+    f.proxy.cfg.direct_recipes = true;
+    f.proxy.scripted.as_ref().unwrap().borrow_mut().model =
+        Some(
+            |wire| match wire["tools"][0]["function"]["name"].as_str().unwrap() {
+                "pilot_route" => call("pilot_route", json!({"recipe":"move"})),
+                "pilot_fill" => call("pilot_fill", json!({"body":"Atlas","delta":[3,0,0]})),
+                other => panic!("move unexpectedly reached native tools: {other}"),
+            },
+        );
+    let mut req = request();
+    req["messages"] =
+        json!([{"role":"user","content":"Move the body by an offset of 3 mm along X"}]);
+    let done = drive(&mut f, &mut s, &mut req);
+    assert!(
+        done["content"]
+            .as_str()
+            .unwrap()
+            .contains("Built from the model's form:"),
+        "{done}"
+    );
+    let doc = s.execute("document.inspect", json!({"measure":true}));
+    assert_eq!(doc["bodies"][0]["bbox"]["min"], json!([3., 0., 0.]));
+    assert_eq!(doc["bodies"][0]["bbox"]["max"], json!([43., 30., 12.]));
+    assert!(!f
+        .proxy
+        .scripted
+        .as_ref()
+        .unwrap()
+        .borrow()
+        .requests
+        .is_empty());
+}
+
+#[test]
+fn named_feature_plate_height_edit_and_exact_creation_keep_their_paths() {
+    let Some(mut s) = Session::new() else { return };
+    s.execute(
+        "solid.box",
+        json!({"length":42,"width":34,"height":8,"body_name":"Anvil"}),
+    );
+    let mut f = fill_fixture(vec![]);
+    f.proxy.catalog = context_tests::public_catalog::catalog().unwrap();
+    f.proxy.cfg.direct_recipes = true;
+    let mut req = request();
+    req["messages"] = json!([{"role":"user","content":"Make the plate 2 mm thicker"}]);
+    let done = drive(&mut f, &mut s, &mut req);
+    assert!(
+        done["content"].as_str().unwrap().contains("Measured"),
+        "{done}"
+    );
+    let doc = s.execute("document.inspect", json!({"measure":true}));
+    assert_eq!(doc["bodies"].as_array().unwrap().len(), 1);
+    assert_eq!(doc["bodies"][0]["volume_mm3"], 14280.);
+    assert_eq!(doc["bodies"][0]["bbox"]["max"], json!([42., 34., 10.]));
+    assert!(f
+        .proxy
+        .scripted
+        .as_ref()
+        .unwrap()
+        .borrow()
+        .requests
+        .is_empty());
+    req["messages"] = json!([{"role":"user","content":"make a plate 42x34x8 mm"}]);
+    let plan = planner::plan_direct(&req, &f.proxy.catalog)
+        .unwrap()
+        .unwrap();
+    assert_ne!(plan.rule, "named_feature");
+}
+
+#[test]
+fn named_feature_move_hole_by_offset_keeps_position_edit() {
+    let Some(mut s) = Session::new() else { return };
+    setup(&mut s, &json!({"kind":"hole","named":false}));
+    let mut f = fill_fixture(vec![]);
+    f.proxy.catalog = context_tests::public_catalog::catalog().unwrap();
+    f.proxy.cfg.direct_recipes = true;
+    let mut req = request();
+    req["messages"] =
+        json!([{"role":"user","content":"Move the hole by an offset of 3 mm along X"}]);
+    let done = drive(&mut f, &mut s, &mut req);
+    assert!(
+        done["content"].as_str().unwrap().contains("Measured"),
+        "{done}"
+    );
+    let detail = s.execute("timeline.inspect", json!({"feature":"Hole1"}));
+    assert_eq!(detail["definition"]["position"], json!([25., 21., 32.]));
+    assert!(f
+        .proxy
+        .scripted
+        .as_ref()
+        .unwrap()
+        .borrow()
+        .requests
+        .is_empty());
+}
+
+#[test]
+fn named_feature_next_parameter_can_verify_and_is_tried_only_once() {
+    let cat = Catalog::bundled().unwrap();
+    let mut req = round_context("Make Perch bigger by 2 mm");
+    let first = planner::named_feature::build(
+        &json!({"feature":"Perch","parameter":"height","mode":"change","value":2}),
+        &req,
+        &cat,
+    )
+    .unwrap();
+    let restored = planner::named_feature::restore(&first, &cat).unwrap();
+    let retry = planner::named_feature::retry(&restored, &cat)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        retry.calls[0]["arguments"]["params"]["set"],
+        json!({"radius":5.})
+    );
+    let msg = json!({"role":"assistant","tool_calls":direct::calls(&req,&retry,0)});
+    fake_named_results(&mut req, msg, &round_payloads(6., 5., 20.), false);
+    assert!(planner::named_feature::completion(&req, &retry).is_none());
+    assert!(planner::named_feature::retry(
+        &planner::named_feature::restore(&retry, &cat).unwrap(),
+        &cat
+    )
+    .unwrap()
+    .is_none());
 }

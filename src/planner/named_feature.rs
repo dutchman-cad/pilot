@@ -63,13 +63,20 @@ pub fn candidate(text: &str) -> bool {
         || lower_phrase(&w, &["needs", "to", "be"])
         || lower_phrase(&w, &["up", "by"])
         || lower_phrase(&w, &["down", "to"]);
-    edit && !(has("move")
-        && (text.contains(',')
-            || slots::tokens(text)
-                .iter()
-                .filter(|v| slots::number(v).is_some())
-                .count()
-                >= 3))
+    let feature_move = w.iter().any(|v| {
+        matches!(
+            v.as_str(),
+            "hole" | "pocket" | "recess" | "slot" | "pad" | "boss" | "rib" | "tab" | "counterbore"
+        )
+    });
+    edit && !(has("move") && has("offset") && !feature_move)
+        && !(has("move")
+            && (text.contains(',')
+                || slots::tokens(text)
+                    .iter()
+                    .filter(|v| slots::number(v).is_some())
+                    .count()
+                    >= 3))
         && (!has("make")
             || has("the")
             || has("this")
@@ -86,6 +93,12 @@ pub fn candidate(text: &str) -> bool {
                         | "width"
                         | "length"
                         | "diameter"
+                        | "distance"
+                        | "across"
+                        | "tall"
+                        | "high"
+                        | "thick"
+                        | "deep"
                         | "thicker"
                         | "thinner"
                         | "taller"
@@ -364,21 +377,34 @@ fn matching(request: &Value) -> Vec<Feature> {
     let kind_requested = w.iter().any(|v| {
         matches!(
             v.as_str(),
-            "pocket" | "recess" | "slot" | "boss" | "pad" | "rib" | "tab" | "hole" | "counterbore"
+            "pocket"
+                | "recess"
+                | "slot"
+                | "boss"
+                | "pad"
+                | "rib"
+                | "tab"
+                | "hole"
+                | "counterbore"
+                | "plate"
         )
     });
     let mut matches: Vec<_> = fs
         .into_iter()
         .filter(|f| {
             let kind = w.iter().any(|v| match v.as_str() {
-                "pocket" | "recess" | "slot" => f.kind == "pocket",
+                "pocket" | "recess" | "slot" => {
+                    f.kind == "pocket" || (f.kind == "hole" && f.type_name != "HoleFeature")
+                }
                 "boss" | "pad" | "rib" | "tab" => f.kind == "pad",
                 "hole" => f.kind == "hole" || f.kind == "counterbore",
                 "counterbore" => f.kind == "counterbore",
+                "plate" => f.type_name == "BoxFeature" && f.definition["operation"] == "new_body",
                 _ => false,
             });
             (!(f.definition["operation"] == "new_body")
                 || named.contains(&f.name)
+                || (w.iter().any(|v| v == "plate") && kind)
                 || (!bodies.is_empty() && !kind))
                 && (if named.is_empty() {
                     if kind_requested {
@@ -490,32 +516,41 @@ pub fn form(request: &Value) -> Value {
     let mut s = schema();
     let fs = matching(request);
     s["properties"]["feature"]["enum"] = json!(fs.iter().map(|f| &f.name).collect::<Vec<_>>());
-    let parameters: std::collections::BTreeSet<_> = fs
-        .iter()
-        .flat_map(|f| {
-            [
-                "depth",
-                "height",
-                "width",
-                "length",
-                "diameter",
-                "x",
-                "y",
-                "z",
-                "start_offset",
-            ]
-            .into_iter()
-            .filter(move |p| {
-                let available = if matches!(*p, "x" | "y" | "z") {
-                    f.definition["position"].is_array() || f.definition["base"].is_array()
-                } else {
-                    field(f, p).is_some()
-                };
-                available && witness(f, p).is_some()
-            })
-        })
-        .collect();
+    let mut parameters = Vec::new();
+    for f in &fs {
+        for p in preferred(request, f).into_iter().chain([
+            "height",
+            "depth",
+            "diameter",
+            "width",
+            "length",
+            "x",
+            "y",
+            "z",
+            "start_offset",
+        ]) {
+            if available(f, p) && !parameters.contains(&p) {
+                parameters.push(p);
+            }
+        }
+    }
     s["properties"]["parameter"]["enum"] = json!(parameters);
+    s["properties"]["parameter"]["enumNames"] = json!(parameters
+        .iter()
+        .map(|p| {
+            match *p {
+                "height" => "Height (mm)",
+                "depth" => "Depth (mm)",
+                "diameter" => "Diameter (mm)",
+                "width" => "Width (mm)",
+                "length" => "Length (mm)",
+                "start_offset" => "Start offset (mm)",
+                "x" => "X position (mm)",
+                "y" => "Y position (mm)",
+                _ => "Z position (mm)",
+            }
+        })
+        .collect::<Vec<_>>());
     s["properties"]["feature"]["description"] = json!(fs
         .iter()
         .map(|f| format!(
@@ -549,6 +584,125 @@ pub fn form(request: &Value) -> Value {
         .join("; "));
     s
 }
+fn user_text(request: &Value) -> &str {
+    request["messages"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .rev()
+        .find(|m| m["role"] == "user")
+        .and_then(|m| m["content"].as_str())
+        .unwrap_or("")
+}
+fn available(f: &Feature, p: &str) -> bool {
+    (if matches!(p, "x" | "y" | "z") {
+        f.definition["position"].is_array() || f.definition["base"].is_array()
+    } else {
+        field(f, p).is_some()
+    }) && witness(f, p).is_some()
+}
+// Semantic groups are shared by exact parsing, form ordering and bounded recovery.
+fn intentions(request: &Value, f: &Feature) -> Vec<&'static str> {
+    let w = words(user_text(request));
+    let has = |terms: &[&str]| w.iter().any(|v| terms.contains(&v.as_str()));
+    let axial = if f.kind == "pad" { "height" } else { "depth" };
+    let mut out = Vec::new();
+    if has(&[
+        "height",
+        "tall",
+        "high",
+        "thick",
+        "taller",
+        "thickness",
+        "thicker",
+        "thinner",
+        "higher",
+    ]) {
+        out.push("height");
+    }
+    if has(&["raise", "lower"]) {
+        out.push(axial);
+    }
+    if has(&["depth", "deep", "deeper", "deepen", "shallower"]) {
+        out.push("depth");
+    }
+    if has(&["distance"]) {
+        out.push(axial);
+    }
+    if has(&["radius"]) {
+        out.push("radius");
+    }
+    if has(&["position"]) && !has(&["x", "y", "z"]) {
+        out.push("position");
+    }
+    if has(&["diameter", "across"]) {
+        out.push("diameter");
+    }
+    if has(&["widen", "wider", "narrower", "width"]) {
+        out.push(if f.faces.iter().any(|v| v["cylinder"].is_object()) {
+            "diameter"
+        } else {
+            "width"
+        });
+    }
+    if has(&["length"]) {
+        out.push("length");
+    }
+    for p in ["x", "y", "z"] {
+        if has(&[p]) {
+            out.push(p);
+        }
+    }
+    // Offset in a move request belongs to the existing move recipe.
+    if has(&["offset"]) && (has(&["start"]) || !has(&["move", "shift"])) {
+        out.push("start_offset");
+    }
+    out.sort_unstable();
+    out.dedup();
+    out
+}
+fn unambiguous(request: &Value, f: &Feature) -> bool {
+    intentions(request, f).len() == 1
+}
+fn preferred(request: &Value, f: &Feature) -> Vec<&'static str> {
+    let mut out = intentions(request, f);
+    let w = words(user_text(request));
+    if out.is_empty()
+        && w.iter().any(|v| {
+            matches!(
+                v.as_str(),
+                "bigger" | "smaller" | "resize" | "grow" | "shrink" | "shorter" | "thicken"
+            )
+        })
+    {
+        out.extend([
+            if f.kind == "pad" { "height" } else { "depth" },
+            "diameter",
+            "width",
+            "length",
+        ]);
+    }
+    if w.iter().any(|v| matches!(v.as_str(), "raise" | "lower"))
+        && !w.iter().any(|v| {
+            matches!(
+                v.as_str(),
+                "height"
+                    | "depth"
+                    | "distance"
+                    | "tall"
+                    | "taller"
+                    | "deep"
+                    | "deeper"
+                    | "shallower"
+            )
+        })
+        && f.direction.is_some_and(|(a, _)| a == 2)
+    {
+        out.extend(["start_offset", "z"]);
+    }
+    out.retain(|p| available(f, p));
+    out
+}
 fn parsed(request: &Value) -> Option<Value> {
     let text = request["messages"]
         .as_array()?
@@ -569,74 +723,12 @@ fn parsed(request: &Value) -> Option<Value> {
     let [value] = values.as_slice() else {
         return None;
     };
-    if (has("shorter") || has("thicken"))
-        && !has("height")
-        && !has("depth")
-        && !has("length")
-        && !has("width")
-    {
-        return None;
-    }
-    let parameter = if has("offset") {
-        "start_offset"
-    } else if has("diameter") {
-        "diameter"
-    } else if has("widen") || has("wider") || has("narrower") {
-        if matching(request)
-            .iter()
-            .all(|f| field(f, "width").is_some())
-        {
-            "width"
-        } else {
-            "diameter"
-        }
-    } else if has("width") {
-        "width"
-    } else if has("length") {
-        "length"
-    } else if has("shift") || has("move") {
-        if has("x") {
-            "x"
-        } else if has("y") {
-            "y"
-        } else if has("z") {
-            "z"
-        } else {
-            return None;
-        }
-    } else if has("offset") {
-        "start_offset"
-    } else if has("depth")
-        || has("deep")
-        || has("deepen")
-        || has("deeper")
-        || has("shallower")
-        || w.iter().any(|v| {
-            matches!(
-                v.as_str(),
-                "pocket" | "recess" | "slot" | "hole" | "counterbore"
-            )
-        })
-    {
-        "depth"
-    } else if has("height")
-        || has("tall")
-        || has("taller")
-        || has("shorter")
-        || has("raise")
-        || has("lower")
-        || has("thicken")
-        || has("thickness")
-    {
-        "height"
-    } else {
-        return None;
-    };
-    // Multiple dimensional interpretations belong on the inspected form.
-    let dimensions = [
-        "height", "depth", "width", "length", "diameter", "offset", "x", "y", "z",
-    ];
-    if dimensions.iter().filter(|d| has(d)).count() > 1 {
+    let fs = matching(request);
+    let [f] = fs.as_slice() else { return None };
+    let choices = preferred(request, f);
+    let parameter = *choices.first()?;
+    // A word must identify the dimension itself. A feature noun alone is not intent.
+    if !unambiguous(request, f) || !available(f, parameter) {
         return None;
     }
     let relative = has("by")
@@ -728,6 +820,7 @@ fn field(f: &Feature, p: &str) -> Option<(String, f64)> {
         return Some(("radius".into(), radius * 2.));
     }
     let path = match p {
+        "depth" if f.type_name == "CylinderFeature" => "height",
         "depth" | "height" if d["extent"].is_object() => "extent.distance",
         "depth" => "depth",
         "height" => "height",
@@ -743,6 +836,20 @@ fn field(f: &Feature, p: &str) -> Option<(String, f64)> {
 // Geometry witness: a certified feature-owned plane or cylinder. Its displacement,
 // radius or span must change by the computed amount; parameter echo alone is insufficient.
 fn witness(f: &Feature, p: &str) -> Option<(Value, f64, f64)> {
+    if matches!(p, "x" | "y" | "z") {
+        if let Some(face) = f.faces.iter().find(|v| v["cylinder"].is_object()) {
+            let a = match p {
+                "x" => 0,
+                "y" => 1,
+                _ => 2,
+            };
+            return Some((
+                json!({"face":face["name"],"kind":"origin","axis":a}),
+                number(&face["cylinder"]["origin"][a])?,
+                1.,
+            ));
+        }
+    }
     if p == "diameter" {
         let face = f.faces.iter().find(|v| {
             v["cylinder"].is_object()
@@ -777,15 +884,7 @@ fn witness(f: &Feature, p: &str) -> Option<(Value, f64, f64)> {
                     .and_then(axis)
                     .is_some_and(|(i, _)| i == a)
         })?
-    } else if f.kind == "hole" || f.kind == "counterbore" {
-        if matches!(p, "x" | "y" | "z") {
-            let face = f.faces.iter().find(|v| v["cylinder"].is_object())?;
-            return Some((
-                json!({"face":face["name"],"kind":"origin","axis":a}),
-                number(&face["cylinder"]["origin"][a])?,
-                1.,
-            ));
-        }
+    } else if f.type_name == "HoleFeature" {
         f.faces.iter().find(|v| {
             v["name"].as_str().is_some_and(|n| {
                 n.ends_with(if f.kind == "counterbore" {
@@ -794,6 +893,15 @@ fn witness(f: &Feature, p: &str) -> Option<(Value, f64, f64)> {
                     ":bore:base"
                 })
             })
+        })?
+    } else if f.type_name == "CylinderFeature" && matches!(p, "height" | "depth") {
+        let terminal =
+            number(&f.definition["base"][a])? + f.direction?.1 * number(&f.definition["height"])?;
+        f.faces.iter().find(|v| {
+            point(&v["plane_normal"])
+                .and_then(axis)
+                .is_some_and(|(i, _)| i == a)
+                && number(&v["centroid"][a]).is_some_and(|v| (v - terminal).abs() < 0.001)
         })?
     } else {
         f.faces
@@ -876,9 +984,20 @@ fn volume_change(f: &Feature, p: &str, before: f64, after: f64, witness: &Value)
     } else {
         1.
     };
-    if f.type_name == "CylinderFeature" && p == "height" {
-        let diameter = field(f, "diameter")?.1;
-        return Some(cut * std::f64::consts::PI * diameter * diameter / 4. * delta);
+    if matches!(p, "height" | "depth")
+        && (f.type_name == "CylinderFeature"
+            || (f.type_name == "ExtrudeFeature" && f.kind == "hole"))
+    {
+        let radius = f
+            .faces
+            .iter()
+            .find_map(|face| number(&face["cylinder"]["radius"]))?;
+        let scale = witness["kind"]
+            .as_str()
+            .filter(|k| *k == "plane")
+            .and_then(|_| self::witness(f, p))
+            .map(|(_, _, scale)| scale.abs())?;
+        return Some(cut * std::f64::consts::PI * radius * radius * delta * scale);
     }
     if p == "diameter" {
         let depth = if f.kind == "counterbore" {
@@ -936,6 +1055,9 @@ pub fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<Plan, S
     let p = args["parameter"]
         .as_str()
         .ok_or("args.parameter is required")?;
+    if !intentions(request, f).is_empty() && !preferred(request, f).contains(&p) {
+        return Err("args.parameter conflicts with the requested dimension; choose a parameter matching the request".into());
+    }
     let mode = args["mode"]
         .as_str()
         .filter(|s| matches!(*s, "set" | "change"))
@@ -1084,12 +1206,63 @@ pub fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<Plan, S
         ],
         facts: None,
         slots: json!({"feature":f.name,"body":f.body,"id":f.id,"parameter":p,"field":path,"before":before,"after":after,"witness":witness,"measured_before":measured,"measured_after":expected,"attachments":attachments,"bounds_after":bbox,
+            "restore_set":original_set(f, &path), "bounds_before":f.bbox,
+            "args":args, "recovery_request":request,
             "size_before":exposed_size(f,p,measured).unwrap_or(before),
             "size_after":exposed_size(f,p,measured).unwrap_or(before) + derivative.abs()*(after-before),"volume_before":f.volume,
             "volume_after":f.volume.zip(volume_change(f,p,before,after,&witness)).map(|(v,d)| v+d)}),
         expected: None,
         continuation: None,
     })
+}
+fn original_set(f: &Feature, path: &str) -> Value {
+    if let Some((parent, child)) = path.split_once('.') {
+        json!({parent: {child: f.definition[parent][child]}})
+    } else {
+        json!({path: f.definition[path]})
+    }
+}
+/// Restore the original field, then measure it before considering a single alternative.
+pub fn restore(plan: &Plan, catalog: &Catalog) -> Result<Plan, String> {
+    let mut restored = plan.clone();
+    restored.slots["restoring"] = json!(true);
+    for (after, before) in [
+        ("after", "before"),
+        ("measured_after", "measured_before"),
+        ("size_after", "size_before"),
+        ("volume_after", "volume_before"),
+        ("bounds_after", "bounds_before"),
+    ] {
+        restored.slots[after] = plan.slots[before].clone();
+    }
+    restored.slots["attachments"] = json!([]);
+    restored.calls[0] = call(
+        catalog,
+        "timeline.edit",
+        json!({"feature":plan.slots["feature"], "set":plan.slots["restore_set"]}),
+    )?;
+    Ok(restored)
+}
+pub fn retry(plan: &Plan, catalog: &Catalog) -> Result<Option<Plan>, String> {
+    if plan.slots["retried"] == true {
+        return Ok(None);
+    }
+    let request = &plan.slots["recovery_request"];
+    let fs = matching(request);
+    let [f] = fs.as_slice() else { return Ok(None) };
+    let choices = preferred(request, f);
+    let Some(index) = choices.iter().position(|p| plan.slots["parameter"] == *p) else {
+        return Ok(None);
+    };
+    let Some(next) = choices.get(index + 1) else {
+        return Ok(None);
+    };
+    let mut args = plan.slots["args"].clone();
+    args["parameter"] = json!(next);
+    Ok(build(&args, request, catalog).ok().map(|mut p| {
+        p.slots["retried"] = json!(true);
+        p
+    }))
 }
 fn changed_payloads(request: &Value, plan: &Plan) -> Option<Vec<Value>> {
     let messages = request["messages"].as_array()?;

@@ -567,6 +567,15 @@ impl Library {
     }
     /// Refine an existing-part edit after public inspection, leaving ranking calibration intact.
     pub fn form_band_in_design(&self, request: &str, bodies: &[String]) -> Result<Value, String> {
+        // Existing feature edits precede both creation forms and ranked route lists.
+        // Exact recipes are resolved by the caller before this form decision.
+        if !bodies.is_empty() && planner::named_feature::candidate(request) {
+            if let Some(r) = self.recipes.iter().find(|r| r.id == "named_feature") {
+                return Ok(
+                    json!({"band":"fill","recipes":[{"id":r.id,"description":r.description,"schema":r.schema,"score":4.5}]}),
+                );
+            }
+        }
         let mut band = self.form_band(request)?;
         if !bodies.is_empty() && band["band"] != "low" {
             if let Some(id) = creation_form_edit(&band, request) {

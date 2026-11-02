@@ -1,0 +1,2048 @@
+[
+  {
+    "prompt": "Raise the Perch by 2 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 56,
+          "width": 44,
+          "height": 20,
+          "body_name": "Compass1"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 3,
+          "height": 6,
+          "base": [
+            18,
+            18,
+            20
+          ],
+          "axis": "Z",
+          "operation": "join",
+          "targets": [
+            "Compass1"
+          ],
+          "name": "Perch"
+        }
+      }
+    ],
+    "body": "Compass1",
+    "feature": "Perch",
+    "parameter": "height",
+    "mode": "change",
+    "value": 2,
+    "exact": true,
+    "field": "height",
+    "after": 8,
+    "volume": 49506.19467105847,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        56,
+        44,
+        28
+      ]
+    ]
+  },
+  {
+    "prompt": "Make the Perch 2 mm taller",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 59,
+          "width": 46,
+          "height": 22,
+          "body_name": "Compass2"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 4,
+          "height": 7,
+          "base": [
+            18,
+            18,
+            22
+          ],
+          "axis": "Z",
+          "operation": "join",
+          "targets": [
+            "Compass2"
+          ],
+          "name": "Perch"
+        }
+      }
+    ],
+    "body": "Compass2",
+    "feature": "Perch",
+    "parameter": "height",
+    "mode": "change",
+    "value": 2,
+    "exact": true,
+    "field": "height",
+    "after": 9,
+    "volume": 60160.38934211693,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        59,
+        46,
+        31
+      ]
+    ]
+  },
+  {
+    "prompt": "Change Perch height to 11 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 62,
+          "width": 48,
+          "height": 24,
+          "body_name": "Compass3"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 5,
+          "height": 8,
+          "base": [
+            18,
+            18,
+            24
+          ],
+          "axis": "Z",
+          "operation": "join",
+          "targets": [
+            "Compass3"
+          ],
+          "name": "Perch"
+        }
+      }
+    ],
+    "body": "Compass3",
+    "feature": "Perch",
+    "parameter": "height",
+    "mode": "set",
+    "value": 11,
+    "exact": true,
+    "field": "height",
+    "after": 11,
+    "volume": 72287.9379797372,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        62,
+        48,
+        35
+      ]
+    ]
+  },
+  {
+    "prompt": "Lower the Perch by 1 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 65,
+          "width": 50,
+          "height": 20,
+          "body_name": "Compass4"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 3,
+          "height": 9,
+          "base": [
+            18,
+            18,
+            20
+          ],
+          "axis": "Z",
+          "operation": "join",
+          "targets": [
+            "Compass4"
+          ],
+          "name": "Perch"
+        }
+      }
+    ],
+    "body": "Compass4",
+    "feature": "Perch",
+    "parameter": "height",
+    "mode": "change",
+    "value": -1,
+    "exact": true,
+    "field": "height",
+    "after": 8,
+    "volume": 65226.19467105847,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        65,
+        50,
+        28
+      ]
+    ]
+  },
+  {
+    "prompt": "Widen the Perch by 2 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 68,
+          "width": 44,
+          "height": 22,
+          "body_name": "Compass5"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 4,
+          "height": 6,
+          "base": [
+            18,
+            18,
+            22
+          ],
+          "axis": "Z",
+          "operation": "join",
+          "targets": [
+            "Compass5"
+          ],
+          "name": "Perch"
+        }
+      }
+    ],
+    "body": "Compass5",
+    "feature": "Perch",
+    "parameter": "diameter",
+    "mode": "change",
+    "value": 2,
+    "exact": true,
+    "field": "radius",
+    "after": 5.0,
+    "volume": 66295.23889803847,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        68,
+        44,
+        28
+      ]
+    ]
+  },
+  {
+    "prompt": "Set Perch across to 14 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 56,
+          "width": 46,
+          "height": 24,
+          "body_name": "Compass6"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 5,
+          "height": 7,
+          "base": [
+            18,
+            18,
+            24
+          ],
+          "axis": "Z",
+          "operation": "join",
+          "targets": [
+            "Compass6"
+          ],
+          "name": "Perch"
+        }
+      }
+    ],
+    "body": "Compass6",
+    "feature": "Perch",
+    "parameter": "diameter",
+    "mode": "set",
+    "value": 14,
+    "exact": true,
+    "field": "radius",
+    "after": 7.0,
+    "volume": 62901.5662801813,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        56,
+        46,
+        31
+      ]
+    ]
+  },
+  {
+    "prompt": "Raise the Perch by 2 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 59,
+          "width": 48,
+          "height": 20,
+          "body_name": "Compass7"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 3,
+          "height": 8,
+          "base": [
+            18,
+            18,
+            20
+          ],
+          "axis": "Z",
+          "operation": "join",
+          "targets": [
+            "Compass7"
+          ],
+          "name": "Perch"
+        }
+      }
+    ],
+    "body": "Compass7",
+    "feature": "Perch",
+    "parameter": "height",
+    "mode": "change",
+    "value": 2,
+    "exact": true,
+    "field": "height",
+    "after": 10,
+    "volume": 56922.74333882308,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        59,
+        48,
+        30
+      ]
+    ]
+  },
+  {
+    "prompt": "Make the Perch 2 mm taller",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 62,
+          "width": 50,
+          "height": 22,
+          "body_name": "Compass8"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 4,
+          "height": 9,
+          "base": [
+            18,
+            18,
+            22
+          ],
+          "axis": "Z",
+          "operation": "join",
+          "targets": [
+            "Compass8"
+          ],
+          "name": "Perch"
+        }
+      }
+    ],
+    "body": "Compass8",
+    "feature": "Perch",
+    "parameter": "height",
+    "mode": "change",
+    "value": 2,
+    "exact": true,
+    "field": "height",
+    "after": 11,
+    "volume": 68752.9203070318,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        62,
+        50,
+        33
+      ]
+    ]
+  },
+  {
+    "prompt": "Change Perch height to 9 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 65,
+          "width": 44,
+          "height": 24,
+          "body_name": "Compass9"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 5,
+          "height": 6,
+          "base": [
+            18,
+            18,
+            24
+          ],
+          "axis": "Z",
+          "operation": "join",
+          "targets": [
+            "Compass9"
+          ],
+          "name": "Perch"
+        }
+      }
+    ],
+    "body": "Compass9",
+    "feature": "Perch",
+    "parameter": "height",
+    "mode": "set",
+    "value": 9,
+    "exact": true,
+    "field": "height",
+    "after": 9,
+    "volume": 69346.8583470577,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        65,
+        44,
+        33
+      ]
+    ]
+  },
+  {
+    "prompt": "Lower the Perch by 1 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 68,
+          "width": 46,
+          "height": 20,
+          "body_name": "Compass10"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 3,
+          "height": 7,
+          "base": [
+            18,
+            18,
+            20
+          ],
+          "axis": "Z",
+          "operation": "join",
+          "targets": [
+            "Compass10"
+          ],
+          "name": "Perch"
+        }
+      }
+    ],
+    "body": "Compass10",
+    "feature": "Perch",
+    "parameter": "height",
+    "mode": "change",
+    "value": -1,
+    "exact": true,
+    "field": "height",
+    "after": 6,
+    "volume": 62729.64600329385,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        68,
+        46,
+        26
+      ]
+    ]
+  },
+  {
+    "prompt": "Widen the Perch by 2 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 56,
+          "width": 48,
+          "height": 22,
+          "body_name": "Compass11"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 4,
+          "height": 8,
+          "base": [
+            18,
+            18,
+            22
+          ],
+          "axis": "Z",
+          "operation": "join",
+          "targets": [
+            "Compass11"
+          ],
+          "name": "Perch"
+        }
+      }
+    ],
+    "body": "Compass11",
+    "feature": "Perch",
+    "parameter": "diameter",
+    "mode": "change",
+    "value": 2,
+    "exact": true,
+    "field": "radius",
+    "after": 5.0,
+    "volume": 59764.31853071796,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        56,
+        48,
+        30
+      ]
+    ]
+  },
+  {
+    "prompt": "Set Perch across to 14 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 59,
+          "width": 50,
+          "height": 24,
+          "body_name": "Compass12"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 5,
+          "height": 9,
+          "base": [
+            18,
+            18,
+            24
+          ],
+          "axis": "Z",
+          "operation": "join",
+          "targets": [
+            "Compass12"
+          ],
+          "name": "Perch"
+        }
+      }
+    ],
+    "body": "Compass12",
+    "feature": "Perch",
+    "parameter": "diameter",
+    "mode": "set",
+    "value": 14,
+    "exact": true,
+    "field": "radius",
+    "after": 7.0,
+    "volume": 72185.4423602331,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        59,
+        50,
+        33
+      ]
+    ]
+  },
+  {
+    "prompt": "Deepen the Cup by 2 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 62,
+          "width": 44,
+          "height": 20,
+          "body_name": "Compass13"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 3,
+          "height": 6,
+          "base": [
+            18,
+            18,
+            20
+          ],
+          "axis": [
+            0,
+            0,
+            -1
+          ],
+          "operation": "cut",
+          "targets": [
+            "Compass13"
+          ],
+          "name": "Cup"
+        }
+      }
+    ],
+    "body": "Compass13",
+    "feature": "Cup",
+    "parameter": "depth",
+    "mode": "change",
+    "value": 2,
+    "exact": true,
+    "field": "height",
+    "after": 8,
+    "volume": 54333.80532894153,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        62,
+        44,
+        20
+      ]
+    ]
+  },
+  {
+    "prompt": "Make the recess Cup 2 mm deeper",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 65,
+          "width": 46,
+          "height": 22,
+          "body_name": "Compass14"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 4,
+          "height": 7,
+          "base": [
+            18,
+            18,
+            22
+          ],
+          "axis": [
+            0,
+            0,
+            -1
+          ],
+          "operation": "cut",
+          "targets": [
+            "Compass14"
+          ],
+          "name": "Cup"
+        }
+      }
+    ],
+    "body": "Compass14",
+    "feature": "Cup",
+    "parameter": "depth",
+    "mode": "change",
+    "value": 2,
+    "exact": true,
+    "field": "height",
+    "after": 9,
+    "volume": 65327.61065788307,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        65,
+        46,
+        22
+      ]
+    ]
+  },
+  {
+    "prompt": "Change Cup depth to 11 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 68,
+          "width": 48,
+          "height": 24,
+          "body_name": "Compass15"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 5,
+          "height": 8,
+          "base": [
+            18,
+            18,
+            24
+          ],
+          "axis": [
+            0,
+            0,
+            -1
+          ],
+          "operation": "cut",
+          "targets": [
+            "Compass15"
+          ],
+          "name": "Cup"
+        }
+      }
+    ],
+    "body": "Compass15",
+    "feature": "Cup",
+    "parameter": "depth",
+    "mode": "set",
+    "value": 11,
+    "exact": true,
+    "field": "height",
+    "after": 11,
+    "volume": 77472.0620202628,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        68,
+        48,
+        24
+      ]
+    ]
+  },
+  {
+    "prompt": "Make Cup 1 mm shallower",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 56,
+          "width": 50,
+          "height": 20,
+          "body_name": "Compass16"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 3,
+          "height": 9,
+          "base": [
+            18,
+            18,
+            20
+          ],
+          "axis": [
+            0,
+            0,
+            -1
+          ],
+          "operation": "cut",
+          "targets": [
+            "Compass16"
+          ],
+          "name": "Cup"
+        }
+      }
+    ],
+    "body": "Compass16",
+    "feature": "Cup",
+    "parameter": "depth",
+    "mode": "change",
+    "value": -1,
+    "exact": true,
+    "field": "height",
+    "after": 8,
+    "volume": 55773.80532894153,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        56,
+        50,
+        20
+      ]
+    ]
+  },
+  {
+    "prompt": "Widen the recess Cup by 2 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 59,
+          "width": 44,
+          "height": 22,
+          "body_name": "Compass17"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 4,
+          "height": 6,
+          "base": [
+            18,
+            18,
+            22
+          ],
+          "axis": [
+            0,
+            0,
+            -1
+          ],
+          "operation": "cut",
+          "targets": [
+            "Compass17"
+          ],
+          "name": "Cup"
+        }
+      }
+    ],
+    "body": "Compass17",
+    "feature": "Cup",
+    "parameter": "diameter",
+    "mode": "change",
+    "value": 2,
+    "exact": true,
+    "field": "radius",
+    "after": 5.0,
+    "volume": 56640.76110196153,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        59,
+        44,
+        22
+      ]
+    ]
+  },
+  {
+    "prompt": "Set Cup diameter to 14 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 62,
+          "width": 46,
+          "height": 24,
+          "body_name": "Compass18"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 5,
+          "height": 7,
+          "base": [
+            18,
+            18,
+            24
+          ],
+          "axis": [
+            0,
+            0,
+            -1
+          ],
+          "operation": "cut",
+          "targets": [
+            "Compass18"
+          ],
+          "name": "Cup"
+        }
+      }
+    ],
+    "body": "Compass18",
+    "feature": "Cup",
+    "parameter": "diameter",
+    "mode": "set",
+    "value": 14,
+    "exact": true,
+    "field": "radius",
+    "after": 7.0,
+    "volume": 67370.4337198187,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        62,
+        46,
+        24
+      ]
+    ]
+  },
+  {
+    "prompt": "Deepen the Cup by 2 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 65,
+          "width": 48,
+          "height": 20,
+          "body_name": "Compass19"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 3,
+          "height": 8,
+          "base": [
+            18,
+            18,
+            20
+          ],
+          "axis": [
+            0,
+            0,
+            -1
+          ],
+          "operation": "cut",
+          "targets": [
+            "Compass19"
+          ],
+          "name": "Cup"
+        }
+      }
+    ],
+    "body": "Compass19",
+    "feature": "Cup",
+    "parameter": "depth",
+    "mode": "change",
+    "value": 2,
+    "exact": true,
+    "field": "height",
+    "after": 10,
+    "volume": 62117.25666117692,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        65,
+        48,
+        20
+      ]
+    ]
+  },
+  {
+    "prompt": "Make the recess Cup 2 mm deeper",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 68,
+          "width": 50,
+          "height": 22,
+          "body_name": "Compass20"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 4,
+          "height": 9,
+          "base": [
+            18,
+            18,
+            22
+          ],
+          "axis": [
+            0,
+            0,
+            -1
+          ],
+          "operation": "cut",
+          "targets": [
+            "Compass20"
+          ],
+          "name": "Cup"
+        }
+      }
+    ],
+    "body": "Compass20",
+    "feature": "Cup",
+    "parameter": "depth",
+    "mode": "change",
+    "value": 2,
+    "exact": true,
+    "field": "height",
+    "after": 11,
+    "volume": 74247.0796929682,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        68,
+        50,
+        22
+      ]
+    ]
+  },
+  {
+    "prompt": "Change Cup depth to 9 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 56,
+          "width": 44,
+          "height": 24,
+          "body_name": "Compass21"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 5,
+          "height": 6,
+          "base": [
+            18,
+            18,
+            24
+          ],
+          "axis": [
+            0,
+            0,
+            -1
+          ],
+          "operation": "cut",
+          "targets": [
+            "Compass21"
+          ],
+          "name": "Cup"
+        }
+      }
+    ],
+    "body": "Compass21",
+    "feature": "Cup",
+    "parameter": "depth",
+    "mode": "set",
+    "value": 9,
+    "exact": true,
+    "field": "height",
+    "after": 9,
+    "volume": 58429.14165294229,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        56,
+        44,
+        24
+      ]
+    ]
+  },
+  {
+    "prompt": "Make Cup 1 mm shallower",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 59,
+          "width": 46,
+          "height": 20,
+          "body_name": "Compass22"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 3,
+          "height": 7,
+          "base": [
+            18,
+            18,
+            20
+          ],
+          "axis": [
+            0,
+            0,
+            -1
+          ],
+          "operation": "cut",
+          "targets": [
+            "Compass22"
+          ],
+          "name": "Cup"
+        }
+      }
+    ],
+    "body": "Compass22",
+    "feature": "Cup",
+    "parameter": "depth",
+    "mode": "change",
+    "value": -1,
+    "exact": true,
+    "field": "height",
+    "after": 6,
+    "volume": 54110.35399670615,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        59,
+        46,
+        20
+      ]
+    ]
+  },
+  {
+    "prompt": "Widen the recess Cup by 2 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 62,
+          "width": 48,
+          "height": 22,
+          "body_name": "Compass23"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 4,
+          "height": 8,
+          "base": [
+            18,
+            18,
+            22
+          ],
+          "axis": [
+            0,
+            0,
+            -1
+          ],
+          "operation": "cut",
+          "targets": [
+            "Compass23"
+          ],
+          "name": "Cup"
+        }
+      }
+    ],
+    "body": "Compass23",
+    "feature": "Cup",
+    "parameter": "diameter",
+    "mode": "change",
+    "value": 2,
+    "exact": true,
+    "field": "radius",
+    "after": 5.0,
+    "volume": 64843.68146928204,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        62,
+        48,
+        22
+      ]
+    ]
+  },
+  {
+    "prompt": "Set Cup diameter to 14 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 65,
+          "width": 50,
+          "height": 24,
+          "body_name": "Compass24"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 5,
+          "height": 9,
+          "base": [
+            18,
+            18,
+            24
+          ],
+          "axis": [
+            0,
+            0,
+            -1
+          ],
+          "operation": "cut",
+          "targets": [
+            "Compass24"
+          ],
+          "name": "Cup"
+        }
+      }
+    ],
+    "body": "Compass24",
+    "feature": "Cup",
+    "parameter": "diameter",
+    "mode": "set",
+    "value": 14,
+    "exact": true,
+    "field": "radius",
+    "after": 7.0,
+    "volume": 76614.5576397669,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        65,
+        50,
+        24
+      ]
+    ]
+  },
+  {
+    "prompt": "Change Cup distance to 9 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 68,
+          "width": 44,
+          "height": 20,
+          "body_name": "Compass25"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY",
+          "offset": 20
+        }
+      },
+      {
+        "command": "sketch.circle.center",
+        "params": {
+          "center": [
+            18,
+            18
+          ],
+          "radius": 3
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 6,
+          "direction": "negative",
+          "operation": "cut",
+          "targets": [
+            "Compass25"
+          ],
+          "name": "Cup"
+        }
+      }
+    ],
+    "body": "Compass25",
+    "feature": "Cup",
+    "parameter": "depth",
+    "mode": "set",
+    "value": 9,
+    "exact": true,
+    "field": "extent.distance",
+    "after": 9,
+    "volume": 59585.53099505923,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        68,
+        44,
+        20
+      ]
+    ]
+  },
+  {
+    "prompt": "Make Cup 2 mm deeper",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 56,
+          "width": 46,
+          "height": 22,
+          "body_name": "Compass26"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY",
+          "offset": 22
+        }
+      },
+      {
+        "command": "sketch.circle.center",
+        "params": {
+          "center": [
+            18,
+            18
+          ],
+          "radius": 4
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 7,
+          "direction": "negative",
+          "operation": "cut",
+          "targets": [
+            "Compass26"
+          ],
+          "name": "Cup"
+        }
+      }
+    ],
+    "body": "Compass26",
+    "feature": "Cup",
+    "parameter": "depth",
+    "mode": "change",
+    "value": 2,
+    "exact": true,
+    "field": "extent.distance",
+    "after": 9,
+    "volume": 56219.61065788307,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        56,
+        46,
+        22
+      ]
+    ]
+  },
+  {
+    "prompt": "Deepen Cup by 2 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 59,
+          "width": 48,
+          "height": 24,
+          "body_name": "Compass27"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY",
+          "offset": 24
+        }
+      },
+      {
+        "command": "sketch.circle.center",
+        "params": {
+          "center": [
+            18,
+            18
+          ],
+          "radius": 5
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 8,
+          "direction": "negative",
+          "operation": "cut",
+          "targets": [
+            "Compass27"
+          ],
+          "name": "Cup"
+        }
+      }
+    ],
+    "body": "Compass27",
+    "feature": "Cup",
+    "parameter": "depth",
+    "mode": "change",
+    "value": 2,
+    "exact": true,
+    "field": "extent.distance",
+    "after": 10,
+    "volume": 67182.60183660255,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        59,
+        48,
+        24
+      ]
+    ]
+  },
+  {
+    "prompt": "Set Cup depth to 12 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 62,
+          "width": 50,
+          "height": 20,
+          "body_name": "Compass28"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY",
+          "offset": 20
+        }
+      },
+      {
+        "command": "sketch.circle.center",
+        "params": {
+          "center": [
+            18,
+            18
+          ],
+          "radius": 3
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 9,
+          "direction": "negative",
+          "operation": "cut",
+          "targets": [
+            "Compass28"
+          ],
+          "name": "Cup"
+        }
+      }
+    ],
+    "body": "Compass28",
+    "feature": "Cup",
+    "parameter": "depth",
+    "mode": "set",
+    "value": 12,
+    "exact": true,
+    "field": "extent.distance",
+    "after": 12,
+    "volume": 61660.7079934123,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        62,
+        50,
+        20
+      ]
+    ]
+  },
+  {
+    "prompt": "Make Cup 1 mm shallower",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 65,
+          "width": 44,
+          "height": 22,
+          "body_name": "Compass29"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY",
+          "offset": 22
+        }
+      },
+      {
+        "command": "sketch.circle.center",
+        "params": {
+          "center": [
+            18,
+            18
+          ],
+          "radius": 4
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 6,
+          "direction": "negative",
+          "operation": "cut",
+          "targets": [
+            "Compass29"
+          ],
+          "name": "Cup"
+        }
+      }
+    ],
+    "body": "Compass29",
+    "feature": "Cup",
+    "parameter": "depth",
+    "mode": "change",
+    "value": -1,
+    "exact": true,
+    "field": "extent.distance",
+    "after": 5,
+    "volume": 62668.67258771282,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        65,
+        44,
+        22
+      ]
+    ]
+  },
+  {
+    "prompt": "Change Cup depth by 2 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 68,
+          "width": 46,
+          "height": 24,
+          "body_name": "Compass30"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY",
+          "offset": 24
+        }
+      },
+      {
+        "command": "sketch.circle.center",
+        "params": {
+          "center": [
+            18,
+            18
+          ],
+          "radius": 5
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 7,
+          "direction": "negative",
+          "operation": "cut",
+          "targets": [
+            "Compass30"
+          ],
+          "name": "Cup"
+        }
+      }
+    ],
+    "body": "Compass30",
+    "feature": "Cup",
+    "parameter": "depth",
+    "mode": "change",
+    "value": 2,
+    "exact": true,
+    "field": "extent.distance",
+    "after": 9,
+    "volume": 74365.1416529423,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        68,
+        46,
+        24
+      ]
+    ]
+  },
+  {
+    "prompt": "Make Perch bigger by 2 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 56,
+          "width": 48,
+          "height": 20,
+          "body_name": "Compass31"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 3,
+          "height": 8,
+          "base": [
+            18,
+            18,
+            20
+          ],
+          "axis": "Z",
+          "operation": "join",
+          "targets": [
+            "Compass31"
+          ],
+          "name": "Perch"
+        }
+      }
+    ],
+    "body": "Compass31",
+    "feature": "Perch",
+    "parameter": "height",
+    "mode": "change",
+    "value": 2,
+    "exact": false,
+    "field": "height",
+    "after": 10,
+    "volume": 54042.74333882308,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        56,
+        48,
+        30
+      ]
+    ]
+  },
+  {
+    "prompt": "Resize Perch to 12 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 59,
+          "width": 50,
+          "height": 22,
+          "body_name": "Compass32"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 4,
+          "height": 9,
+          "base": [
+            18,
+            18,
+            22
+          ],
+          "axis": "Z",
+          "operation": "join",
+          "targets": [
+            "Compass32"
+          ],
+          "name": "Perch"
+        }
+      }
+    ],
+    "body": "Compass32",
+    "feature": "Perch",
+    "parameter": "height",
+    "mode": "set",
+    "value": 12,
+    "exact": false,
+    "field": "height",
+    "after": 12,
+    "volume": 65503.18578948924,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        59,
+        50,
+        34
+      ]
+    ]
+  },
+  {
+    "prompt": "Make Perch smaller by 1 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 62,
+          "width": 44,
+          "height": 24,
+          "body_name": "Compass33"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 5,
+          "height": 6,
+          "base": [
+            18,
+            18,
+            24
+          ],
+          "axis": "Z",
+          "operation": "join",
+          "targets": [
+            "Compass33"
+          ],
+          "name": "Perch"
+        }
+      }
+    ],
+    "body": "Compass33",
+    "feature": "Perch",
+    "parameter": "height",
+    "mode": "change",
+    "value": -1,
+    "exact": false,
+    "field": "height",
+    "after": 5,
+    "volume": 65864.69908169872,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        62,
+        44,
+        29
+      ]
+    ]
+  },
+  {
+    "prompt": "Change Perch by 2 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 65,
+          "width": 46,
+          "height": 20,
+          "body_name": "Compass34"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 3,
+          "height": 7,
+          "base": [
+            18,
+            18,
+            20
+          ],
+          "axis": "Z",
+          "operation": "join",
+          "targets": [
+            "Compass34"
+          ],
+          "name": "Perch"
+        }
+      }
+    ],
+    "body": "Compass34",
+    "feature": "Perch",
+    "parameter": "height",
+    "mode": "change",
+    "value": 2,
+    "exact": false,
+    "field": "height",
+    "after": 9,
+    "volume": 60054.46900494077,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        65,
+        46,
+        29
+      ]
+    ]
+  },
+  {
+    "prompt": "Adjust Perch to 11 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 68,
+          "width": 48,
+          "height": 22,
+          "body_name": "Compass35"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 4,
+          "height": 8,
+          "base": [
+            18,
+            18,
+            22
+          ],
+          "axis": "Z",
+          "operation": "join",
+          "targets": [
+            "Compass35"
+          ],
+          "name": "Perch"
+        }
+      }
+    ],
+    "body": "Compass35",
+    "feature": "Perch",
+    "parameter": "height",
+    "mode": "set",
+    "value": 11,
+    "exact": false,
+    "field": "height",
+    "after": 11,
+    "volume": 72360.9203070318,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        68,
+        48,
+        33
+      ]
+    ]
+  },
+  {
+    "prompt": "Make Perch 2 mm bigger",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 56,
+          "width": 50,
+          "height": 24,
+          "body_name": "Compass36"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 5,
+          "height": 9,
+          "base": [
+            18,
+            18,
+            24
+          ],
+          "axis": "Z",
+          "operation": "join",
+          "targets": [
+            "Compass36"
+          ],
+          "name": "Perch"
+        }
+      }
+    ],
+    "body": "Compass36",
+    "feature": "Perch",
+    "parameter": "height",
+    "mode": "change",
+    "value": 2,
+    "exact": false,
+    "field": "height",
+    "after": 11,
+    "volume": 68063.9379797372,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        56,
+        50,
+        35
+      ]
+    ]
+  }
+]

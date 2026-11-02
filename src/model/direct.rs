@@ -102,6 +102,12 @@ impl Proxy {
             conversation.direct_handback = None;
             conversation.direct_index = index;
         }
+        if let Some((reply_index, text)) = &conversation.named_feature_reply {
+            if *reply_index == index {
+                return Ok(Outcome::Reply(reply(request, text.clone(), audit.count)?));
+            }
+            conversation.named_feature_reply = None;
+        }
         if conversation.direct_failed {
             return Ok(Outcome::Continue);
         }
@@ -157,6 +163,48 @@ impl Proxy {
                                 .into()
                         })
                 };
+                if previous.rule == "named_feature" {
+                    if previous.slots["restoring"] == true {
+                        if difference.is_none() {
+                            if let Some(next) =
+                                planner::named_feature::retry(&previous, &self.catalog)?
+                            {
+                                return self.direct_turn(
+                                    request,
+                                    &Some(next),
+                                    index,
+                                    conversation,
+                                    audit,
+                                );
+                            }
+                        }
+                        conversation.direct_failed = true;
+                        conversation.completion_checked = true;
+                        conversation.pending_recipe = None;
+                        let text = if difference.is_none() {
+                            "The edit could not be confirmed (unverified). The design has been restored."
+                        } else {
+                            "The edit could not be confirmed. Restoring the original field could not be verified; inspect the design before editing further."
+                        };
+                        conversation.named_feature_reply = Some((index, text.into()));
+                        return Ok(Outcome::Reply(reply(request, text.into(), audit.count)?));
+                    }
+                    if difference.is_some() {
+                        let restore = planner::named_feature::restore(&previous, &self.catalog)?;
+                        audit.record(
+                            "named_feature_restore",
+                            &Value::Null,
+                            &json!({"reason":difference,"feature":previous.slots["feature"]}),
+                        )?;
+                        return self.direct_turn(
+                            request,
+                            &Some(restore),
+                            index,
+                            conversation,
+                            audit,
+                        );
+                    }
+                }
                 if let Some(reason) = difference {
                     if let Some(text) = shell_edge_failure(request, &previous, from_model) {
                         conversation.direct_failed = true;

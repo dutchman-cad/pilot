@@ -949,7 +949,13 @@ impl Proxy {
             conversation.direct = None;
             conversation.direct_failed = false;
             conversation.direct_handback = None;
+            conversation.named_feature_reply = None;
             conversation.shortcut_args = None;
+        }
+        if let Some((index, text)) = &conversation.named_feature_reply {
+            if *index == user_index {
+                return direct::reply(&original, text.clone(), audit.count);
+            }
         }
         let pending_form = conversation
             .form_pending
@@ -1358,7 +1364,10 @@ impl Proxy {
             json!({"band":"low"})
         };
         let edit_intent = crate::recipe_library::creation_form_edit(&band, last_user(&original));
-        if edit_intent.is_some() && !planner::recipe_targets(&original).is_empty() {
+        if recipe.is_none()
+            && !planner::recipe_targets(&original).is_empty()
+            && (edit_intent.is_some() || (named_edit && (form_allowed || continuing_form)))
+        {
             band = self
                 .recipes
                 .form_band_in_design(last_user(&original), &planner::recipe_targets(&original))?;
