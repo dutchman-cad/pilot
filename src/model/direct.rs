@@ -102,6 +102,12 @@ impl Proxy {
             conversation.direct_handback = None;
             conversation.direct_index = index;
         }
+        if let Some((reply_index, text)) = &conversation.named_feature_reply {
+            if *reply_index == index {
+                return Ok(Outcome::Reply(reply(request, text.clone(), audit.count)?));
+            }
+            conversation.named_feature_reply = None;
+        }
         if conversation.direct_failed {
             return Ok(Outcome::Continue);
         }
@@ -143,6 +149,8 @@ impl Proxy {
                         "Recipe target is unresolved: inspection must identify exactly one requested body. No edit plan was built. No change was made.".into())
                 } else if previous.continuation.is_some() {
                     recipe.is_none().then(|| "Recipe completion is unverified: the edge lookup could not resolve the requested edges.".into())
+                } else if previous.rule == "named_feature" {
+                    planner::named_feature::completion(request, &previous)
                 } else if let Some(expected) = &previous.expected {
                     planner::completion(request, expected)
                 } else {
@@ -155,6 +163,48 @@ impl Proxy {
                                 .into()
                         })
                 };
+                if previous.rule == "named_feature" {
+                    if previous.slots["restoring"] == true {
+                        if difference.is_none() {
+                            if let Some(next) =
+                                planner::named_feature::retry(&previous, &self.catalog)?
+                            {
+                                return self.direct_turn(
+                                    request,
+                                    &Some(next),
+                                    index,
+                                    conversation,
+                                    audit,
+                                );
+                            }
+                        }
+                        conversation.direct_failed = true;
+                        conversation.completion_checked = true;
+                        conversation.pending_recipe = None;
+                        let text = if difference.is_none() {
+                            "The edit could not be confirmed (unverified). The design has been restored."
+                        } else {
+                            "The edit could not be confirmed. Restoring the original field could not be verified; inspect the design before editing further."
+                        };
+                        conversation.named_feature_reply = Some((index, text.into()));
+                        return Ok(Outcome::Reply(reply(request, text.into(), audit.count)?));
+                    }
+                    if difference.is_some() {
+                        let restore = planner::named_feature::restore(&previous, &self.catalog)?;
+                        audit.record(
+                            "named_feature_restore",
+                            &Value::Null,
+                            &json!({"reason":difference,"feature":previous.slots["feature"]}),
+                        )?;
+                        return self.direct_turn(
+                            request,
+                            &Some(restore),
+                            index,
+                            conversation,
+                            audit,
+                        );
+                    }
+                }
                 if let Some(reason) = difference {
                     if let Some(text) = shell_edge_failure(request, &previous, from_model) {
                         conversation.direct_failed = true;
@@ -195,6 +245,9 @@ impl Proxy {
                         &json!({"rule":previous.rule,"from_model":from_model}),
                         &json!({"reason":reason,"from_model":from_model}),
                     )?;
+                    if previous.rule == "named_feature" {
+                        return Ok(Outcome::Reply(reply(request, reason, audit.count)?));
+                    }
                     if self.cfg.upstream == "none" {
                         let text = format!(
                             "Exact match (no model): {reason} No model is configured to recover."

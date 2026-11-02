@@ -1,0 +1,7190 @@
+[
+  {
+    "prompt": "Change the Plinth height to 9 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 60,
+          "width": 40,
+          "height": 24,
+          "body_name": "Lantern1"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            45,
+            28,
+            24
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern1"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 12,
+          "width": 10,
+          "height": 10,
+          "corner": [
+            10,
+            10,
+            20
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern1"
+          ],
+          "name": "Plinth"
+        }
+      }
+    ],
+    "body": "Lantern1",
+    "feature": "Plinth",
+    "parameter": "height",
+    "mode": "set",
+    "value": 9,
+    "volume": 58936,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        60,
+        40,
+        33
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 0
+  },
+  {
+    "prompt": "Increase Plinth height by 2 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 61,
+          "width": 42,
+          "height": 25,
+          "body_name": "Lantern2"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            46,
+            30,
+            25
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern2"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 12,
+          "width": 10,
+          "height": 10,
+          "corner": [
+            10,
+            10,
+            21
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern2"
+          ],
+          "name": "Plinth"
+        }
+      }
+    ],
+    "body": "Lantern2",
+    "feature": "Plinth",
+    "parameter": "height",
+    "mode": "change",
+    "value": 2,
+    "volume": 65266,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        61,
+        42,
+        33
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 0
+  },
+  {
+    "prompt": "Reduce the Plinth height by 1 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 62,
+          "width": 44,
+          "height": 26,
+          "body_name": "Lantern3"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            47,
+            32,
+            26
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern3"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 12,
+          "width": 10,
+          "height": 10,
+          "corner": [
+            10,
+            10,
+            22
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern3"
+          ],
+          "name": "Plinth"
+        }
+      }
+    ],
+    "body": "Lantern3",
+    "feature": "Plinth",
+    "parameter": "height",
+    "mode": "change",
+    "value": -1,
+    "volume": 71784,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        62,
+        44,
+        31
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 0
+  },
+  {
+    "prompt": "Plinth should be 10 mm tall",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 63,
+          "width": 46,
+          "height": 27,
+          "body_name": "Lantern4"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            48,
+            34,
+            27
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern4"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 12,
+          "width": 10,
+          "height": 10,
+          "corner": [
+            10,
+            10,
+            23
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern4"
+          ],
+          "name": "Plinth"
+        }
+      }
+    ],
+    "body": "Lantern4",
+    "feature": "Plinth",
+    "parameter": "height",
+    "mode": "set",
+    "value": 10,
+    "volume": 79702,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        63,
+        46,
+        37
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 0
+  },
+  {
+    "prompt": "The Plinth needs to be 7 mm tall",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 64,
+          "width": 48,
+          "height": 28,
+          "body_name": "Lantern5"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            49,
+            36,
+            28
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern5"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 12,
+          "width": 10,
+          "height": 10,
+          "corner": [
+            10,
+            10,
+            24
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern5"
+          ],
+          "name": "Plinth"
+        }
+      }
+    ],
+    "body": "Lantern5",
+    "feature": "Plinth",
+    "parameter": "height",
+    "mode": "set",
+    "value": 7,
+    "volume": 87112,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        64,
+        48,
+        35
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 0
+  },
+  {
+    "prompt": "Set Plinth height to 8 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 65,
+          "width": 50,
+          "height": 24,
+          "body_name": "Lantern6"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            50,
+            38,
+            24
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern6"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 12,
+          "width": 10,
+          "height": 10,
+          "corner": [
+            10,
+            10,
+            20
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern6"
+          ],
+          "name": "Plinth"
+        }
+      }
+    ],
+    "body": "Lantern6",
+    "feature": "Plinth",
+    "parameter": "height",
+    "mode": "set",
+    "value": 8,
+    "volume": 79216,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        65,
+        50,
+        32
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 0
+  },
+  {
+    "prompt": "Extend Extrude1 height by 3 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 62,
+          "width": 41,
+          "height": 25,
+          "body_name": "Cleat1"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            47,
+            29,
+            25
+          ],
+          "operation": "join",
+          "targets": [
+            "Cleat1"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            10,
+            10
+          ],
+          "p1": [
+            22,
+            20
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 31,
+          "operation": "join",
+          "targets": [
+            "Cleat1"
+          ]
+        }
+      }
+    ],
+    "body": "Cleat1",
+    "feature": "Extrude1",
+    "parameter": "height",
+    "mode": "change",
+    "value": 3,
+    "volume": 64886,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        62,
+        41,
+        34
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 1
+  },
+  {
+    "prompt": "Trim Extrude1 height by 2 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 63,
+          "width": 43,
+          "height": 26,
+          "body_name": "Cleat2"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            48,
+            31,
+            26
+          ],
+          "operation": "join",
+          "targets": [
+            "Cleat2"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            10,
+            10
+          ],
+          "p1": [
+            22,
+            20
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 32,
+          "operation": "join",
+          "targets": [
+            "Cleat2"
+          ]
+        }
+      }
+    ],
+    "body": "Cleat2",
+    "feature": "Extrude1",
+    "parameter": "height",
+    "mode": "change",
+    "value": -2,
+    "volume": 71170,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        63,
+        43,
+        30
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 1
+  },
+  {
+    "prompt": "Extrude1 should be 11 mm taller",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 64,
+          "width": 45,
+          "height": 27,
+          "body_name": "Cleat3"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            49,
+            33,
+            27
+          ],
+          "operation": "join",
+          "targets": [
+            "Cleat3"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            10,
+            10
+          ],
+          "p1": [
+            22,
+            20
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 33,
+          "operation": "join",
+          "targets": [
+            "Cleat3"
+          ]
+        }
+      }
+    ],
+    "body": "Cleat3",
+    "feature": "Extrude1",
+    "parameter": "height",
+    "mode": "change",
+    "value": 11,
+    "volume": 80056,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        64,
+        45,
+        44
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 1
+  },
+  {
+    "prompt": "Make Extrude1 2 mm shorter",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 65,
+          "width": 47,
+          "height": 28,
+          "body_name": "Cleat4"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            50,
+            35,
+            28
+          ],
+          "operation": "join",
+          "targets": [
+            "Cleat4"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            10,
+            10
+          ],
+          "p1": [
+            22,
+            20
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 34,
+          "operation": "join",
+          "targets": [
+            "Cleat4"
+          ]
+        }
+      }
+    ],
+    "body": "Cleat4",
+    "feature": "Extrude1",
+    "parameter": "height",
+    "mode": "change",
+    "value": -2,
+    "volume": 86276,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        65,
+        47,
+        32
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 1
+  },
+  {
+    "prompt": "The height of Extrude1 needs to be 12 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 66,
+          "width": 49,
+          "height": 24,
+          "body_name": "Cleat5"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            51,
+            37,
+            24
+          ],
+          "operation": "join",
+          "targets": [
+            "Cleat5"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            10,
+            10
+          ],
+          "p1": [
+            22,
+            20
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 30,
+          "operation": "join",
+          "targets": [
+            "Cleat5"
+          ]
+        }
+      }
+    ],
+    "body": "Cleat5",
+    "feature": "Extrude1",
+    "parameter": "height",
+    "mode": "set",
+    "value": 12,
+    "volume": 79312,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        66,
+        49,
+        36
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 1
+  },
+  {
+    "prompt": "Thicken Extrude1 by 1 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 67,
+          "width": 51,
+          "height": 25,
+          "body_name": "Cleat6"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            52,
+            39,
+            25
+          ],
+          "operation": "join",
+          "targets": [
+            "Cleat6"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY"
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            10,
+            10
+          ],
+          "p1": [
+            22,
+            20
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 31,
+          "operation": "join",
+          "targets": [
+            "Cleat6"
+          ]
+        }
+      }
+    ],
+    "body": "Cleat6",
+    "feature": "Extrude1",
+    "parameter": "height",
+    "mode": "change",
+    "value": 1,
+    "volume": 86521,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        67,
+        51,
+        32
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 1
+  },
+  {
+    "prompt": "Cut1 needs to be 9 mm deep",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 64,
+          "width": 42,
+          "height": 26,
+          "body_name": "Sump1"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            49,
+            30,
+            26
+          ],
+          "operation": "join",
+          "targets": [
+            "Sump1"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY",
+          "offset": 32
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            10,
+            10
+          ],
+          "p1": [
+            22,
+            20
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 12,
+          "direction": "negative",
+          "operation": "cut",
+          "targets": [
+            "Sump1"
+          ],
+          "name": "Cut1"
+        }
+      }
+    ],
+    "body": "Sump1",
+    "feature": "Cut1",
+    "parameter": "depth",
+    "mode": "set",
+    "value": 9,
+    "volume": 69064,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        64,
+        42,
+        30
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 2
+  },
+  {
+    "prompt": "Decrease Cut1 depth by 2 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 65,
+          "width": 44,
+          "height": 27,
+          "body_name": "Sump2"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            50,
+            32,
+            27
+          ],
+          "operation": "join",
+          "targets": [
+            "Sump2"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY",
+          "offset": 33
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            10,
+            10
+          ],
+          "p1": [
+            22,
+            20
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 12,
+          "direction": "negative",
+          "operation": "cut",
+          "targets": [
+            "Sump2"
+          ],
+          "name": "Cut1"
+        }
+      }
+    ],
+    "body": "Sump2",
+    "feature": "Cut1",
+    "parameter": "depth",
+    "mode": "change",
+    "value": -2,
+    "volume": 76996,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        65,
+        44,
+        31
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 2
+  },
+  {
+    "prompt": "Make Cut1 3 mm deeper",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 66,
+          "width": 46,
+          "height": 28,
+          "body_name": "Sump3"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            51,
+            34,
+            28
+          ],
+          "operation": "join",
+          "targets": [
+            "Sump3"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY",
+          "offset": 34
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            10,
+            10
+          ],
+          "p1": [
+            22,
+            20
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 12,
+          "direction": "negative",
+          "operation": "cut",
+          "targets": [
+            "Sump3"
+          ],
+          "name": "Cut1"
+        }
+      }
+    ],
+    "body": "Sump3",
+    "feature": "Cut1",
+    "parameter": "depth",
+    "mode": "change",
+    "value": 3,
+    "volume": 84184,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        66,
+        46,
+        32
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 2
+  },
+  {
+    "prompt": "The depth of Cut1 should be 5 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 67,
+          "width": 48,
+          "height": 24,
+          "body_name": "Sump4"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            52,
+            36,
+            24
+          ],
+          "operation": "join",
+          "targets": [
+            "Sump4"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY",
+          "offset": 30
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            10,
+            10
+          ],
+          "p1": [
+            22,
+            20
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 12,
+          "direction": "negative",
+          "operation": "cut",
+          "targets": [
+            "Sump4"
+          ],
+          "name": "Cut1"
+        }
+      }
+    ],
+    "body": "Sump4",
+    "feature": "Cut1",
+    "parameter": "depth",
+    "mode": "set",
+    "value": 5,
+    "volume": 76840,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        67,
+        48,
+        28
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 2
+  },
+  {
+    "prompt": "Set Cut1 depth to 8 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 68,
+          "width": 50,
+          "height": 25,
+          "body_name": "Sump5"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            53,
+            38,
+            25
+          ],
+          "operation": "join",
+          "targets": [
+            "Sump5"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY",
+          "offset": 31
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            10,
+            10
+          ],
+          "p1": [
+            22,
+            20
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 12,
+          "direction": "negative",
+          "operation": "cut",
+          "targets": [
+            "Sump5"
+          ],
+          "name": "Cut1"
+        }
+      }
+    ],
+    "body": "Sump5",
+    "feature": "Cut1",
+    "parameter": "depth",
+    "mode": "set",
+    "value": 8,
+    "volume": 84296,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        68,
+        50,
+        29
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 2
+  },
+  {
+    "prompt": "Reduce Cut1 depth by 1 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 69,
+          "width": 52,
+          "height": 26,
+          "body_name": "Sump6"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            54,
+            40,
+            26
+          ],
+          "operation": "join",
+          "targets": [
+            "Sump6"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY",
+          "offset": 32
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            10,
+            10
+          ],
+          "p1": [
+            22,
+            20
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 12,
+          "direction": "negative",
+          "operation": "cut",
+          "targets": [
+            "Sump6"
+          ],
+          "name": "Cut1"
+        }
+      }
+    ],
+    "body": "Sump6",
+    "feature": "Cut1",
+    "parameter": "depth",
+    "mode": "change",
+    "value": -1,
+    "volume": 92944,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        69,
+        52,
+        30
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 2
+  },
+  {
+    "prompt": "Lift the pad in body Outrigger up by 2 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 66,
+          "width": 43,
+          "height": 27,
+          "body_name": "Yoke1"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            51,
+            31,
+            27
+          ],
+          "operation": "join",
+          "targets": [
+            "Yoke1"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 30,
+          "width": 20,
+          "height": 18,
+          "corner": [
+            100,
+            0,
+            0
+          ],
+          "body_name": "Outrigger"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 10,
+          "width": 8,
+          "height": 8,
+          "corner": [
+            106,
+            5,
+            18
+          ],
+          "operation": "join",
+          "targets": [
+            "Outrigger"
+          ],
+          "name": "Pylon"
+        }
+      }
+    ],
+    "body": "Outrigger",
+    "feature": "Pylon",
+    "parameter": "height",
+    "mode": "change",
+    "value": 2,
+    "volume": 11600,
+    "bounds": [
+      [
+        100,
+        0,
+        0
+      ],
+      [
+        130,
+        20,
+        28
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 3
+  },
+  {
+    "prompt": "The Outrigger pad should be 11 mm tall",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 67,
+          "width": 45,
+          "height": 28,
+          "body_name": "Yoke2"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            52,
+            33,
+            28
+          ],
+          "operation": "join",
+          "targets": [
+            "Yoke2"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 31,
+          "width": 20,
+          "height": 19,
+          "corner": [
+            100,
+            0,
+            0
+          ],
+          "body_name": "Outrigger"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 10,
+          "width": 8,
+          "height": 8,
+          "corner": [
+            106,
+            5,
+            19
+          ],
+          "operation": "join",
+          "targets": [
+            "Outrigger"
+          ],
+          "name": "Pylon"
+        }
+      }
+    ],
+    "body": "Outrigger",
+    "feature": "Pylon",
+    "parameter": "height",
+    "mode": "set",
+    "value": 11,
+    "volume": 12660,
+    "bounds": [
+      [
+        100,
+        0,
+        0
+      ],
+      [
+        131,
+        20,
+        30
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 3
+  },
+  {
+    "prompt": "Lower the pad in Outrigger by 1 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 68,
+          "width": 47,
+          "height": 24,
+          "body_name": "Yoke3"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            53,
+            35,
+            24
+          ],
+          "operation": "join",
+          "targets": [
+            "Yoke3"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 32,
+          "width": 20,
+          "height": 20,
+          "corner": [
+            100,
+            0,
+            0
+          ],
+          "body_name": "Outrigger"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 10,
+          "width": 8,
+          "height": 8,
+          "corner": [
+            106,
+            5,
+            20
+          ],
+          "operation": "join",
+          "targets": [
+            "Outrigger"
+          ],
+          "name": "Pylon"
+        }
+      }
+    ],
+    "body": "Outrigger",
+    "feature": "Pylon",
+    "parameter": "height",
+    "mode": "change",
+    "value": -1,
+    "volume": 13360,
+    "bounds": [
+      [
+        100,
+        0,
+        0
+      ],
+      [
+        132,
+        20,
+        27
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 3
+  },
+  {
+    "prompt": "Outrigger pad height needs to be 12 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 69,
+          "width": 49,
+          "height": 25,
+          "body_name": "Yoke4"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            54,
+            37,
+            25
+          ],
+          "operation": "join",
+          "targets": [
+            "Yoke4"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 33,
+          "width": 20,
+          "height": 21,
+          "corner": [
+            100,
+            0,
+            0
+          ],
+          "body_name": "Outrigger"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 10,
+          "width": 8,
+          "height": 8,
+          "corner": [
+            106,
+            5,
+            21
+          ],
+          "operation": "join",
+          "targets": [
+            "Outrigger"
+          ],
+          "name": "Pylon"
+        }
+      }
+    ],
+    "body": "Outrigger",
+    "feature": "Pylon",
+    "parameter": "height",
+    "mode": "set",
+    "value": 12,
+    "volume": 14820,
+    "bounds": [
+      [
+        100,
+        0,
+        0
+      ],
+      [
+        133,
+        20,
+        33
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 3
+  },
+  {
+    "prompt": "Make the Outrigger pad 3 mm taller",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 70,
+          "width": 51,
+          "height": 26,
+          "body_name": "Yoke5"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            55,
+            39,
+            26
+          ],
+          "operation": "join",
+          "targets": [
+            "Yoke5"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 34,
+          "width": 20,
+          "height": 22,
+          "corner": [
+            100,
+            0,
+            0
+          ],
+          "body_name": "Outrigger"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 10,
+          "width": 8,
+          "height": 8,
+          "corner": [
+            106,
+            5,
+            22
+          ],
+          "operation": "join",
+          "targets": [
+            "Outrigger"
+          ],
+          "name": "Pylon"
+        }
+      }
+    ],
+    "body": "Outrigger",
+    "feature": "Pylon",
+    "parameter": "height",
+    "mode": "change",
+    "value": 3,
+    "volume": 15840,
+    "bounds": [
+      [
+        100,
+        0,
+        0
+      ],
+      [
+        134,
+        20,
+        33
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 3
+  },
+  {
+    "prompt": "Change the Outrigger pad height to 6 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 71,
+          "width": 53,
+          "height": 27,
+          "body_name": "Yoke6"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            56,
+            41,
+            27
+          ],
+          "operation": "join",
+          "targets": [
+            "Yoke6"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 35,
+          "width": 20,
+          "height": 23,
+          "corner": [
+            100,
+            0,
+            0
+          ],
+          "body_name": "Outrigger"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 10,
+          "width": 8,
+          "height": 8,
+          "corner": [
+            106,
+            5,
+            23
+          ],
+          "operation": "join",
+          "targets": [
+            "Outrigger"
+          ],
+          "name": "Pylon"
+        }
+      }
+    ],
+    "body": "Outrigger",
+    "feature": "Pylon",
+    "parameter": "height",
+    "mode": "set",
+    "value": 6,
+    "volume": 16580,
+    "bounds": [
+      [
+        100,
+        0,
+        0
+      ],
+      [
+        135,
+        20,
+        29
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 3
+  },
+  {
+    "prompt": "Widen Turret to 14 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 68,
+          "width": 44,
+          "height": 28,
+          "body_name": "Spindle1"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            53,
+            32,
+            28
+          ],
+          "operation": "join",
+          "targets": [
+            "Spindle1"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 5,
+          "height": 8,
+          "base": [
+            20,
+            18,
+            28
+          ],
+          "operation": "join",
+          "targets": [
+            "Spindle1"
+          ],
+          "name": "Turret"
+        }
+      }
+    ],
+    "body": "Spindle1",
+    "feature": "Turret",
+    "parameter": "diameter",
+    "mode": "set",
+    "value": 14,
+    "volume": 85263.5043202072,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        68,
+        44,
+        36
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 4
+  },
+  {
+    "prompt": "Turret should be 2 mm wider",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 69,
+          "width": 46,
+          "height": 24,
+          "body_name": "Spindle2"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            54,
+            34,
+            24
+          ],
+          "operation": "join",
+          "targets": [
+            "Spindle2"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 5,
+          "height": 8,
+          "base": [
+            20,
+            18,
+            24
+          ],
+          "operation": "join",
+          "targets": [
+            "Spindle2"
+          ],
+          "name": "Turret"
+        }
+      }
+    ],
+    "body": "Spindle2",
+    "feature": "Turret",
+    "parameter": "diameter",
+    "mode": "change",
+    "value": 2,
+    "volume": 77336.77868423387,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        69,
+        46,
+        32
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 4
+  },
+  {
+    "prompt": "Make Turret 1 mm narrower",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 70,
+          "width": 48,
+          "height": 25,
+          "body_name": "Spindle3"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            55,
+            36,
+            25
+          ],
+          "operation": "join",
+          "targets": [
+            "Spindle3"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 5,
+          "height": 8,
+          "base": [
+            20,
+            18,
+            25
+          ],
+          "operation": "join",
+          "targets": [
+            "Spindle3"
+          ],
+          "name": "Turret"
+        }
+      }
+    ],
+    "body": "Spindle3",
+    "feature": "Turret",
+    "parameter": "diameter",
+    "mode": "change",
+    "value": -1,
+    "volume": 84764.93800988155,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        70,
+        48,
+        33
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 4
+  },
+  {
+    "prompt": "Set Turret diameter to 13 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 71,
+          "width": 50,
+          "height": 26,
+          "body_name": "Spindle4"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            56,
+            38,
+            26
+          ],
+          "operation": "join",
+          "targets": [
+            "Spindle4"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 5,
+          "height": 8,
+          "base": [
+            20,
+            18,
+            26
+          ],
+          "operation": "join",
+          "targets": [
+            "Spindle4"
+          ],
+          "name": "Turret"
+        }
+      }
+    ],
+    "body": "Spindle4",
+    "feature": "Turret",
+    "parameter": "diameter",
+    "mode": "set",
+    "value": 13,
+    "volume": 93617.85831691335,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        71,
+        50,
+        34
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 4
+  },
+  {
+    "prompt": "Decrease the diameter of Turret by 2 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 72,
+          "width": 52,
+          "height": 27,
+          "body_name": "Spindle5"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            57,
+            40,
+            27
+          ],
+          "operation": "join",
+          "targets": [
+            "Spindle5"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 5,
+          "height": 8,
+          "base": [
+            20,
+            18,
+            27
+          ],
+          "operation": "join",
+          "targets": [
+            "Spindle5"
+          ],
+          "name": "Turret"
+        }
+      }
+    ],
+    "body": "Spindle5",
+    "feature": "Turret",
+    "parameter": "diameter",
+    "mode": "change",
+    "value": -2,
+    "volume": 101746.12385965949,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        72,
+        52,
+        35
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 4
+  },
+  {
+    "prompt": "The Turret diameter needs to be 11 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 73,
+          "width": 54,
+          "height": 28,
+          "body_name": "Spindle6"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            58,
+            42,
+            28
+          ],
+          "operation": "join",
+          "targets": [
+            "Spindle6"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.cylinder",
+        "params": {
+          "radius": 5,
+          "height": 8,
+          "base": [
+            20,
+            18,
+            28
+          ],
+          "operation": "join",
+          "targets": [
+            "Spindle6"
+          ],
+          "name": "Turret"
+        }
+      }
+    ],
+    "body": "Spindle6",
+    "feature": "Turret",
+    "parameter": "diameter",
+    "mode": "set",
+    "value": 11,
+    "volume": 111392.26542216874,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        73,
+        54,
+        36
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 4
+  },
+  {
+    "prompt": "Deepen Hole1 by 2 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 70,
+          "width": 45,
+          "height": 24,
+          "body_name": "Manifold1"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            55,
+            33,
+            24
+          ],
+          "operation": "join",
+          "targets": [
+            "Manifold1"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            18,
+            24
+          ],
+          "diameter": 8,
+          "depth": 10,
+          "targets": [
+            "Manifold1"
+          ]
+        }
+      }
+    ],
+    "body": "Manifold1",
+    "feature": "Hole1",
+    "parameter": "depth",
+    "mode": "change",
+    "value": 2,
+    "volume": 75252.81421051075,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        70,
+        45,
+        28
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 5
+  },
+  {
+    "prompt": "Hole1 should be 1 mm shallower",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 71,
+          "width": 47,
+          "height": 25,
+          "body_name": "Manifold2"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            56,
+            35,
+            25
+          ],
+          "operation": "join",
+          "targets": [
+            "Manifold2"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            18,
+            25
+          ],
+          "diameter": 8,
+          "depth": 10,
+          "targets": [
+            "Manifold2"
+          ]
+        }
+      }
+    ],
+    "body": "Manifold2",
+    "feature": "Hole1",
+    "parameter": "depth",
+    "mode": "change",
+    "value": -1,
+    "volume": 83228.61065788308,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        71,
+        47,
+        29
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 5
+  },
+  {
+    "prompt": "Change Hole1 depth to 13 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 72,
+          "width": 49,
+          "height": 26,
+          "body_name": "Manifold3"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            57,
+            37,
+            26
+          ],
+          "operation": "join",
+          "targets": [
+            "Manifold3"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            18,
+            26
+          ],
+          "diameter": 8,
+          "depth": 10,
+          "targets": [
+            "Manifold3"
+          ]
+        }
+      }
+    ],
+    "body": "Manifold3",
+    "feature": "Hole1",
+    "parameter": "depth",
+    "mode": "set",
+    "value": 13,
+    "volume": 91330.54872805331,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        72,
+        49,
+        30
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 5
+  },
+  {
+    "prompt": "Increase Hole1 depth by 3 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 73,
+          "width": 51,
+          "height": 27,
+          "body_name": "Manifold4"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            58,
+            39,
+            27
+          ],
+          "operation": "join",
+          "targets": [
+            "Manifold4"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            18,
+            27
+          ],
+          "diameter": 8,
+          "depth": 10,
+          "targets": [
+            "Manifold4"
+          ]
+        }
+      }
+    ],
+    "body": "Manifold4",
+    "feature": "Hole1",
+    "parameter": "depth",
+    "mode": "change",
+    "value": 3,
+    "volume": 100123.54872805331,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        73,
+        51,
+        31
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 5
+  },
+  {
+    "prompt": "Set the Hole1 depth down to 8 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 74,
+          "width": 53,
+          "height": 28,
+          "body_name": "Manifold5"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            59,
+            41,
+            28
+          ],
+          "operation": "join",
+          "targets": [
+            "Manifold5"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            18,
+            28
+          ],
+          "diameter": 8,
+          "depth": 10,
+          "targets": [
+            "Manifold5"
+          ]
+        }
+      }
+    ],
+    "body": "Manifold5",
+    "feature": "Hole1",
+    "parameter": "depth",
+    "mode": "set",
+    "value": 8,
+    "volume": 109669.87614034051,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        74,
+        53,
+        32
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 5
+  },
+  {
+    "prompt": "Hole1 needs to be 14 mm deep",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 75,
+          "width": 55,
+          "height": 24,
+          "body_name": "Manifold6"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            60,
+            43,
+            24
+          ],
+          "operation": "join",
+          "targets": [
+            "Manifold6"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            18,
+            24
+          ],
+          "diameter": 8,
+          "depth": 10,
+          "targets": [
+            "Manifold6"
+          ]
+        }
+      }
+    ],
+    "body": "Manifold6",
+    "feature": "Hole1",
+    "parameter": "depth",
+    "mode": "set",
+    "value": 14,
+    "volume": 98552.28324559589,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        75,
+        55,
+        28
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 5
+  },
+  {
+    "prompt": "Counterbore depth should be 4 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 72,
+          "width": 46,
+          "height": 25,
+          "body_name": "Latch1"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            57,
+            34,
+            25
+          ],
+          "operation": "join",
+          "targets": [
+            "Latch1"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            18,
+            25
+          ],
+          "diameter": 6,
+          "depth": 12,
+          "type": "counterbore",
+          "cb_diameter": 12,
+          "cb_depth": 3,
+          "targets": [
+            "Latch1"
+          ]
+        }
+      },
+      {
+        "command": "timeline.rename",
+        "params": {
+          "feature": "Hole1",
+          "name": "Counterbore"
+        }
+      }
+    ],
+    "body": "Latch1",
+    "feature": "Counterbore",
+    "parameter": "depth",
+    "mode": "set",
+    "value": 4,
+    "volume": 82377.4159868246,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        72,
+        46,
+        29
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 6
+  },
+  {
+    "prompt": "Make the counterbore 14 mm across",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 73,
+          "width": 48,
+          "height": 26,
+          "body_name": "Latch2"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            58,
+            36,
+            26
+          ],
+          "operation": "join",
+          "targets": [
+            "Latch2"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            18,
+            26
+          ],
+          "diameter": 6,
+          "depth": 12,
+          "type": "counterbore",
+          "cb_diameter": 12,
+          "cb_depth": 3,
+          "targets": [
+            "Latch2"
+          ]
+        }
+      },
+      {
+        "command": "timeline.rename",
+        "params": {
+          "feature": "Hole1",
+          "name": "Counterbore"
+        }
+      }
+    ],
+    "body": "Latch2",
+    "feature": "Counterbore",
+    "parameter": "diameter",
+    "mode": "set",
+    "value": 14,
+    "volume": 90643.71687498153,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        73,
+        48,
+        30
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 6
+  },
+  {
+    "prompt": "Reduce counterbore depth by 1 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 74,
+          "width": 50,
+          "height": 27,
+          "body_name": "Latch3"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            59,
+            38,
+            27
+          ],
+          "operation": "join",
+          "targets": [
+            "Latch3"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            18,
+            27
+          ],
+          "diameter": 6,
+          "depth": 12,
+          "type": "counterbore",
+          "cb_diameter": 12,
+          "cb_depth": 3,
+          "targets": [
+            "Latch3"
+          ]
+        }
+      },
+      {
+        "command": "timeline.rename",
+        "params": {
+          "feature": "Hole1",
+          "name": "Counterbore"
+        }
+      }
+    ],
+    "body": "Latch3",
+    "feature": "Counterbore",
+    "parameter": "depth",
+    "mode": "change",
+    "value": -1,
+    "volume": 99647.06199011845,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        74,
+        50,
+        31
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 6
+  },
+  {
+    "prompt": "Counterbore needs to be 2 mm wider",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 75,
+          "width": 52,
+          "height": 28,
+          "body_name": "Latch4"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            60,
+            40,
+            28
+          ],
+          "operation": "join",
+          "targets": [
+            "Latch4"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            18,
+            28
+          ],
+          "diameter": 6,
+          "depth": 12,
+          "type": "counterbore",
+          "cb_diameter": 12,
+          "cb_depth": 3,
+          "targets": [
+            "Latch4"
+          ]
+        }
+      },
+      {
+        "command": "timeline.rename",
+        "params": {
+          "feature": "Hole1",
+          "name": "Counterbore"
+        }
+      }
+    ],
+    "body": "Latch4",
+    "feature": "Counterbore",
+    "parameter": "diameter",
+    "mode": "change",
+    "value": 2,
+    "volume": 108739.71687498153,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        75,
+        52,
+        32
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 6
+  },
+  {
+    "prompt": "Change counterbore depth to 5 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 76,
+          "width": 54,
+          "height": 24,
+          "body_name": "Latch5"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            61,
+            42,
+            24
+          ],
+          "operation": "join",
+          "targets": [
+            "Latch5"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            18,
+            24
+          ],
+          "diameter": 6,
+          "depth": 12,
+          "type": "counterbore",
+          "cb_diameter": 12,
+          "cb_depth": 3,
+          "targets": [
+            "Latch5"
+          ]
+        }
+      },
+      {
+        "command": "timeline.rename",
+        "params": {
+          "feature": "Hole1",
+          "name": "Counterbore"
+        }
+      }
+    ],
+    "body": "Latch5",
+    "feature": "Counterbore",
+    "parameter": "depth",
+    "mode": "set",
+    "value": 5,
+    "volume": 97988.59298517767,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        76,
+        54,
+        28
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 6
+  },
+  {
+    "prompt": "Set the counterbore diameter to 13 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 77,
+          "width": 56,
+          "height": 25,
+          "body_name": "Latch6"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            62,
+            44,
+            25
+          ],
+          "operation": "join",
+          "targets": [
+            "Latch6"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            18,
+            25
+          ],
+          "diameter": 6,
+          "depth": 12,
+          "type": "counterbore",
+          "cb_diameter": 12,
+          "cb_depth": 3,
+          "targets": [
+            "Latch6"
+          ]
+        }
+      },
+      {
+        "command": "timeline.rename",
+        "params": {
+          "feature": "Hole1",
+          "name": "Counterbore"
+        }
+      }
+    ],
+    "body": "Latch6",
+    "feature": "Counterbore",
+    "parameter": "diameter",
+    "mode": "set",
+    "value": 13,
+    "volume": 107403.33412621672,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        77,
+        56,
+        29
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 6
+  },
+  {
+    "prompt": "Make Web 2 mm taller",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 74,
+          "width": 47,
+          "height": 26,
+          "body_name": "Webbing1"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            59,
+            35,
+            26
+          ],
+          "operation": "join",
+          "targets": [
+            "Webbing1"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY",
+          "offset": 26
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            10,
+            10
+          ],
+          "p1": [
+            22,
+            20
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 12,
+          "direction": "symmetric",
+          "operation": "join",
+          "targets": [
+            "Webbing1"
+          ],
+          "name": "Web"
+        }
+      }
+    ],
+    "body": "Webbing1",
+    "feature": "Web",
+    "parameter": "height",
+    "mode": "change",
+    "value": 2,
+    "volume": 91644,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        74,
+        47,
+        34
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 7
+  },
+  {
+    "prompt": "Web height should be 9 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 75,
+          "width": 49,
+          "height": 27,
+          "body_name": "Webbing2"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            60,
+            37,
+            27
+          ],
+          "operation": "join",
+          "targets": [
+            "Webbing2"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY",
+          "offset": 27
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            10,
+            10
+          ],
+          "p1": [
+            22,
+            20
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 12,
+          "direction": "symmetric",
+          "operation": "join",
+          "targets": [
+            "Webbing2"
+          ],
+          "name": "Web"
+        }
+      }
+    ],
+    "body": "Webbing2",
+    "feature": "Web",
+    "parameter": "height",
+    "mode": "set",
+    "value": 9,
+    "volume": 100561,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        75,
+        49,
+        36
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 7
+  },
+  {
+    "prompt": "Trim the Web height by 1 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 76,
+          "width": 51,
+          "height": 28,
+          "body_name": "Webbing3"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            61,
+            39,
+            28
+          ],
+          "operation": "join",
+          "targets": [
+            "Webbing3"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY",
+          "offset": 28
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            10,
+            10
+          ],
+          "p1": [
+            22,
+            20
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 12,
+          "direction": "symmetric",
+          "operation": "join",
+          "targets": [
+            "Webbing3"
+          ],
+          "name": "Web"
+        }
+      }
+    ],
+    "body": "Webbing3",
+    "feature": "Web",
+    "parameter": "height",
+    "mode": "change",
+    "value": -1,
+    "volume": 109384,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        76,
+        51,
+        33
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 7
+  },
+  {
+    "prompt": "Increase Web height by 3 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 77,
+          "width": 53,
+          "height": 24,
+          "body_name": "Webbing4"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            62,
+            41,
+            24
+          ],
+          "operation": "join",
+          "targets": [
+            "Webbing4"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY",
+          "offset": 24
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            10,
+            10
+          ],
+          "p1": [
+            22,
+            20
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 12,
+          "direction": "symmetric",
+          "operation": "join",
+          "targets": [
+            "Webbing4"
+          ],
+          "name": "Web"
+        }
+      }
+    ],
+    "body": "Webbing4",
+    "feature": "Web",
+    "parameter": "height",
+    "mode": "change",
+    "value": 3,
+    "volume": 99280,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        77,
+        53,
+        33
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 7
+  },
+  {
+    "prompt": "The Web needs to be 10 mm tall",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 78,
+          "width": 55,
+          "height": 25,
+          "body_name": "Webbing5"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            63,
+            43,
+            25
+          ],
+          "operation": "join",
+          "targets": [
+            "Webbing5"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY",
+          "offset": 25
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            10,
+            10
+          ],
+          "p1": [
+            22,
+            20
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 12,
+          "direction": "symmetric",
+          "operation": "join",
+          "targets": [
+            "Webbing5"
+          ],
+          "name": "Web"
+        }
+      }
+    ],
+    "body": "Webbing5",
+    "feature": "Web",
+    "parameter": "height",
+    "mode": "set",
+    "value": 10,
+    "volume": 108706,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        78,
+        55,
+        35
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 7
+  },
+  {
+    "prompt": "Set Web height to 7 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 79,
+          "width": 57,
+          "height": 26,
+          "body_name": "Webbing6"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            64,
+            45,
+            26
+          ],
+          "operation": "join",
+          "targets": [
+            "Webbing6"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY",
+          "offset": 26
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            10,
+            10
+          ],
+          "p1": [
+            22,
+            20
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 12,
+          "direction": "symmetric",
+          "operation": "join",
+          "targets": [
+            "Webbing6"
+          ],
+          "name": "Web"
+        }
+      }
+    ],
+    "body": "Webbing6",
+    "feature": "Web",
+    "parameter": "height",
+    "mode": "set",
+    "value": 7,
+    "volume": 118174,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        79,
+        57,
+        33
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 7
+  },
+  {
+    "prompt": "Change Fork height to 12 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 76,
+          "width": 48,
+          "height": 27,
+          "body_name": "Forked1"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            61,
+            36,
+            27
+          ],
+          "operation": "join",
+          "targets": [
+            "Forked1"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY",
+          "offset": 27
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            10,
+            10
+          ],
+          "p1": [
+            22,
+            20
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 8,
+          "distance2": 3,
+          "operation": "join",
+          "targets": [
+            "Forked1"
+          ],
+          "name": "Fork"
+        }
+      }
+    ],
+    "body": "Forked1",
+    "feature": "Fork",
+    "parameter": "height",
+    "mode": "set",
+    "value": 12,
+    "volume": 99712,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        76,
+        48,
+        35
+      ]
+    ],
+    "report": false,
+    "reject": true,
+    "group": 8
+  },
+  {
+    "prompt": "Fork should be 2 mm taller",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 77,
+          "width": 50,
+          "height": 28,
+          "body_name": "Forked2"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            62,
+            38,
+            28
+          ],
+          "operation": "join",
+          "targets": [
+            "Forked2"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY",
+          "offset": 28
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            10,
+            10
+          ],
+          "p1": [
+            22,
+            20
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 8,
+          "distance2": 3,
+          "operation": "join",
+          "targets": [
+            "Forked2"
+          ],
+          "name": "Fork"
+        }
+      }
+    ],
+    "body": "Forked2",
+    "feature": "Fork",
+    "parameter": "height",
+    "mode": "set",
+    "value": 12,
+    "volume": 109016,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        77,
+        50,
+        36
+      ]
+    ],
+    "report": false,
+    "reject": true,
+    "group": 8
+  },
+  {
+    "prompt": "Reduce Fork height by 1 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 78,
+          "width": 52,
+          "height": 24,
+          "body_name": "Forked3"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            63,
+            40,
+            24
+          ],
+          "operation": "join",
+          "targets": [
+            "Forked3"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY",
+          "offset": 24
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            10,
+            10
+          ],
+          "p1": [
+            22,
+            20
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 8,
+          "distance2": 3,
+          "operation": "join",
+          "targets": [
+            "Forked3"
+          ],
+          "name": "Fork"
+        }
+      }
+    ],
+    "body": "Forked3",
+    "feature": "Fork",
+    "parameter": "height",
+    "mode": "set",
+    "value": 12,
+    "volume": 98560,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        78,
+        52,
+        32
+      ]
+    ],
+    "report": false,
+    "reject": true,
+    "group": 8
+  },
+  {
+    "prompt": "The Fork needs to be 9 mm tall",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 79,
+          "width": 54,
+          "height": 25,
+          "body_name": "Forked4"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            64,
+            42,
+            25
+          ],
+          "operation": "join",
+          "targets": [
+            "Forked4"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY",
+          "offset": 25
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            10,
+            10
+          ],
+          "p1": [
+            22,
+            20
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 8,
+          "distance2": 3,
+          "operation": "join",
+          "targets": [
+            "Forked4"
+          ],
+          "name": "Fork"
+        }
+      }
+    ],
+    "body": "Forked4",
+    "feature": "Fork",
+    "parameter": "height",
+    "mode": "set",
+    "value": 12,
+    "volume": 107866,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        79,
+        54,
+        33
+      ]
+    ],
+    "report": false,
+    "reject": true,
+    "group": 8
+  },
+  {
+    "prompt": "Extend Fork height by 4 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 80,
+          "width": 56,
+          "height": 26,
+          "body_name": "Forked5"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            65,
+            44,
+            26
+          ],
+          "operation": "join",
+          "targets": [
+            "Forked5"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY",
+          "offset": 26
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            10,
+            10
+          ],
+          "p1": [
+            22,
+            20
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 8,
+          "distance2": 3,
+          "operation": "join",
+          "targets": [
+            "Forked5"
+          ],
+          "name": "Fork"
+        }
+      }
+    ],
+    "body": "Forked5",
+    "feature": "Fork",
+    "parameter": "height",
+    "mode": "set",
+    "value": 12,
+    "volume": 117696,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        80,
+        56,
+        34
+      ]
+    ],
+    "report": false,
+    "reject": true,
+    "group": 8
+  },
+  {
+    "prompt": "Set Fork height to 11 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 81,
+          "width": 58,
+          "height": 27,
+          "body_name": "Forked6"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            66,
+            46,
+            27
+          ],
+          "operation": "join",
+          "targets": [
+            "Forked6"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "sketch.create",
+        "params": {
+          "plane": "XY",
+          "offset": 27
+        }
+      },
+      {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+          "p0": [
+            10,
+            10
+          ],
+          "p1": [
+            22,
+            20
+          ]
+        }
+      },
+      {
+        "command": "sketch.finish",
+        "params": {}
+      },
+      {
+        "command": "solid.extrude",
+        "params": {
+          "distance": 8,
+          "distance2": 3,
+          "operation": "join",
+          "targets": [
+            "Forked6"
+          ],
+          "name": "Fork"
+        }
+      }
+    ],
+    "body": "Forked6",
+    "feature": "Fork",
+    "parameter": "height",
+    "mode": "set",
+    "value": 12,
+    "volume": 128062,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        81,
+        58,
+        35
+      ]
+    ],
+    "report": false,
+    "reject": true,
+    "group": 8
+  },
+  {
+    "prompt": "The Drain depth needs to be 8 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 78,
+          "width": 49,
+          "height": 28,
+          "body_name": "Drainpan1"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            63,
+            37,
+            28
+          ],
+          "operation": "join",
+          "targets": [
+            "Drainpan1"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            18,
+            28
+          ],
+          "diameter": 8,
+          "targets": [
+            "Drainpan1"
+          ]
+        }
+      },
+      {
+        "command": "timeline.rename",
+        "params": {
+          "feature": "Hole1",
+          "name": "Drain"
+        }
+      }
+    ],
+    "body": "Drainpan1",
+    "feature": "Drain",
+    "parameter": "depth",
+    "mode": "set",
+    "value": 8,
+    "volume": 105864.56649119176,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        78,
+        49,
+        32
+      ]
+    ],
+    "report": false,
+    "reject": true,
+    "group": 9
+  },
+  {
+    "prompt": "Deepen Drain by 2 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 79,
+          "width": 51,
+          "height": 24,
+          "body_name": "Drainpan2"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            64,
+            39,
+            24
+          ],
+          "operation": "join",
+          "targets": [
+            "Drainpan2"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            18,
+            24
+          ],
+          "diameter": 8,
+          "targets": [
+            "Drainpan2"
+          ]
+        }
+      },
+      {
+        "command": "timeline.rename",
+        "params": {
+          "feature": "Hole1",
+          "name": "Drain"
+        }
+      }
+    ],
+    "body": "Drainpan2",
+    "feature": "Drain",
+    "parameter": "depth",
+    "mode": "set",
+    "value": 8,
+    "volume": 95745.62842102151,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        79,
+        51,
+        28
+      ]
+    ],
+    "report": false,
+    "reject": true,
+    "group": 9
+  },
+  {
+    "prompt": "Change Drain depth to 10 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 80,
+          "width": 53,
+          "height": 25,
+          "body_name": "Drainpan3"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            65,
+            41,
+            25
+          ],
+          "operation": "join",
+          "targets": [
+            "Drainpan3"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            18,
+            25
+          ],
+          "diameter": 8,
+          "targets": [
+            "Drainpan3"
+          ]
+        }
+      },
+      {
+        "command": "timeline.rename",
+        "params": {
+          "feature": "Hole1",
+          "name": "Drain"
+        }
+      }
+    ],
+    "body": "Drainpan3",
+    "feature": "Drain",
+    "parameter": "depth",
+    "mode": "set",
+    "value": 8,
+    "volume": 104999.36293856407,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        80,
+        53,
+        29
+      ]
+    ],
+    "report": false,
+    "reject": true,
+    "group": 9
+  },
+  {
+    "prompt": "Drain should be 1 mm shallower",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 81,
+          "width": 55,
+          "height": 26,
+          "body_name": "Drainpan4"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            66,
+            43,
+            26
+          ],
+          "operation": "join",
+          "targets": [
+            "Drainpan4"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            18,
+            26
+          ],
+          "diameter": 8,
+          "targets": [
+            "Drainpan4"
+          ]
+        }
+      },
+      {
+        "command": "timeline.rename",
+        "params": {
+          "feature": "Hole1",
+          "name": "Drain"
+        }
+      }
+    ],
+    "body": "Drainpan4",
+    "feature": "Drain",
+    "parameter": "depth",
+    "mode": "set",
+    "value": 8,
+    "volume": 114779.09745610664,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        81,
+        55,
+        30
+      ]
+    ],
+    "report": false,
+    "reject": true,
+    "group": 9
+  },
+  {
+    "prompt": "Set Drain depth to 7 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 82,
+          "width": 57,
+          "height": 27,
+          "body_name": "Drainpan5"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            67,
+            45,
+            27
+          ],
+          "operation": "join",
+          "targets": [
+            "Drainpan5"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            18,
+            27
+          ],
+          "diameter": 8,
+          "targets": [
+            "Drainpan5"
+          ]
+        }
+      },
+      {
+        "command": "timeline.rename",
+        "params": {
+          "feature": "Hole1",
+          "name": "Drain"
+        }
+      }
+    ],
+    "body": "Drainpan5",
+    "feature": "Drain",
+    "parameter": "depth",
+    "mode": "set",
+    "value": 8,
+    "volume": 125096.8319736492,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        82,
+        57,
+        31
+      ]
+    ],
+    "report": false,
+    "reject": true,
+    "group": 9
+  },
+  {
+    "prompt": "Increase Drain depth by 3 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 83,
+          "width": 59,
+          "height": 28,
+          "body_name": "Drainpan6"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            68,
+            47,
+            28
+          ],
+          "operation": "join",
+          "targets": [
+            "Drainpan6"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            18,
+            28
+          ],
+          "diameter": 8,
+          "targets": [
+            "Drainpan6"
+          ]
+        }
+      },
+      {
+        "command": "timeline.rename",
+        "params": {
+          "feature": "Hole1",
+          "name": "Drain"
+        }
+      }
+    ],
+    "body": "Drainpan6",
+    "feature": "Drain",
+    "parameter": "depth",
+    "mode": "set",
+    "value": 8,
+    "volume": 135964.56649119177,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        83,
+        59,
+        32
+      ]
+    ],
+    "report": false,
+    "reject": true,
+    "group": 9
+  },
+  {
+    "prompt": "Raise the Step by 2 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 80,
+          "width": 50,
+          "height": 24,
+          "body_name": "Pedestal1"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            65,
+            38,
+            24
+          ],
+          "operation": "join",
+          "targets": [
+            "Pedestal1"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 12,
+          "width": 10,
+          "height": 6,
+          "corner": [
+            10,
+            10,
+            24
+          ],
+          "operation": "join",
+          "targets": [
+            "Pedestal1"
+          ],
+          "name": "Step"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 6,
+          "width": 6,
+          "height": 4,
+          "corner": [
+            12,
+            12,
+            30
+          ],
+          "operation": "join",
+          "targets": [
+            "Pedestal1"
+          ],
+          "name": "Crown"
+        }
+      }
+    ],
+    "body": "Pedestal1",
+    "feature": "Step",
+    "parameter": "height",
+    "mode": "change",
+    "value": 2,
+    "volume": 97288,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        80,
+        50,
+        34
+      ]
+    ],
+    "report": true,
+    "reject": false,
+    "group": 10
+  },
+  {
+    "prompt": "Lower Step by 1 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 81,
+          "width": 52,
+          "height": 25,
+          "body_name": "Pedestal2"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            66,
+            40,
+            25
+          ],
+          "operation": "join",
+          "targets": [
+            "Pedestal2"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 12,
+          "width": 10,
+          "height": 6,
+          "corner": [
+            10,
+            10,
+            25
+          ],
+          "operation": "join",
+          "targets": [
+            "Pedestal2"
+          ],
+          "name": "Step"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 6,
+          "width": 6,
+          "height": 4,
+          "corner": [
+            12,
+            12,
+            31
+          ],
+          "operation": "join",
+          "targets": [
+            "Pedestal2"
+          ],
+          "name": "Crown"
+        }
+      }
+    ],
+    "body": "Pedestal2",
+    "feature": "Step",
+    "parameter": "height",
+    "mode": "change",
+    "value": -1,
+    "volume": 106420,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        81,
+        52,
+        35
+      ]
+    ],
+    "report": false,
+    "reject": true,
+    "group": 10
+  },
+  {
+    "prompt": "Step height should be 9 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 82,
+          "width": 54,
+          "height": 26,
+          "body_name": "Pedestal3"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            67,
+            42,
+            26
+          ],
+          "operation": "join",
+          "targets": [
+            "Pedestal3"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 12,
+          "width": 10,
+          "height": 6,
+          "corner": [
+            10,
+            10,
+            26
+          ],
+          "operation": "join",
+          "targets": [
+            "Pedestal3"
+          ],
+          "name": "Step"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 6,
+          "width": 6,
+          "height": 4,
+          "corner": [
+            12,
+            12,
+            32
+          ],
+          "operation": "join",
+          "targets": [
+            "Pedestal3"
+          ],
+          "name": "Crown"
+        }
+      }
+    ],
+    "body": "Pedestal3",
+    "feature": "Step",
+    "parameter": "height",
+    "mode": "set",
+    "value": 9,
+    "volume": 116500,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        82,
+        54,
+        36
+      ]
+    ],
+    "report": true,
+    "reject": false,
+    "group": 10
+  },
+  {
+    "prompt": "Make Step 3 mm taller",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 83,
+          "width": 56,
+          "height": 27,
+          "body_name": "Pedestal4"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            68,
+            44,
+            27
+          ],
+          "operation": "join",
+          "targets": [
+            "Pedestal4"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 12,
+          "width": 10,
+          "height": 6,
+          "corner": [
+            10,
+            10,
+            27
+          ],
+          "operation": "join",
+          "targets": [
+            "Pedestal4"
+          ],
+          "name": "Step"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 6,
+          "width": 6,
+          "height": 4,
+          "corner": [
+            12,
+            12,
+            33
+          ],
+          "operation": "join",
+          "targets": [
+            "Pedestal4"
+          ],
+          "name": "Crown"
+        }
+      }
+    ],
+    "body": "Pedestal4",
+    "feature": "Step",
+    "parameter": "height",
+    "mode": "change",
+    "value": 3,
+    "volume": 126868,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        83,
+        56,
+        37
+      ]
+    ],
+    "report": true,
+    "reject": false,
+    "group": 10
+  },
+  {
+    "prompt": "Change Step height to 7 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 84,
+          "width": 58,
+          "height": 28,
+          "body_name": "Pedestal5"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            69,
+            46,
+            28
+          ],
+          "operation": "join",
+          "targets": [
+            "Pedestal5"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 12,
+          "width": 10,
+          "height": 6,
+          "corner": [
+            10,
+            10,
+            28
+          ],
+          "operation": "join",
+          "targets": [
+            "Pedestal5"
+          ],
+          "name": "Step"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 6,
+          "width": 6,
+          "height": 4,
+          "corner": [
+            12,
+            12,
+            34
+          ],
+          "operation": "join",
+          "targets": [
+            "Pedestal5"
+          ],
+          "name": "Crown"
+        }
+      }
+    ],
+    "body": "Pedestal5",
+    "feature": "Step",
+    "parameter": "height",
+    "mode": "set",
+    "value": 7,
+    "volume": 137620,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        84,
+        58,
+        38
+      ]
+    ],
+    "report": true,
+    "reject": false,
+    "group": 10
+  },
+  {
+    "prompt": "The Step needs to be 10 mm tall",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 85,
+          "width": 60,
+          "height": 24,
+          "body_name": "Pedestal6"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            70,
+            48,
+            24
+          ],
+          "operation": "join",
+          "targets": [
+            "Pedestal6"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 12,
+          "width": 10,
+          "height": 6,
+          "corner": [
+            10,
+            10,
+            24
+          ],
+          "operation": "join",
+          "targets": [
+            "Pedestal6"
+          ],
+          "name": "Step"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 6,
+          "width": 6,
+          "height": 4,
+          "corner": [
+            12,
+            12,
+            30
+          ],
+          "operation": "join",
+          "targets": [
+            "Pedestal6"
+          ],
+          "name": "Crown"
+        }
+      }
+    ],
+    "body": "Pedestal6",
+    "feature": "Step",
+    "parameter": "height",
+    "mode": "set",
+    "value": 10,
+    "volume": 123856,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        85,
+        60,
+        34
+      ]
+    ],
+    "report": true,
+    "reject": false,
+    "group": 10
+  },
+  {
+    "prompt": "Outrigger should be 22 mm wide",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 82,
+          "width": 51,
+          "height": 25,
+          "body_name": "Coupler1"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            67,
+            39,
+            25
+          ],
+          "operation": "join",
+          "targets": [
+            "Coupler1"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 30,
+          "width": 20,
+          "height": 20,
+          "corner": [
+            100,
+            0,
+            0
+          ],
+          "body_name": "Outrigger"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 10,
+          "width": 8,
+          "height": 6,
+          "corner": [
+            106,
+            5,
+            20
+          ],
+          "operation": "join",
+          "targets": [
+            "Outrigger"
+          ],
+          "name": "Saddle"
+        }
+      }
+    ],
+    "body": "Outrigger",
+    "feature": "Box2",
+    "parameter": "width",
+    "mode": "set",
+    "value": 22,
+    "volume": 13680,
+    "bounds": [
+      [
+        100,
+        0,
+        0
+      ],
+      [
+        130,
+        22,
+        26
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 11
+  },
+  {
+    "prompt": "Increase Outrigger width by 2 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 83,
+          "width": 53,
+          "height": 26,
+          "body_name": "Coupler2"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            68,
+            41,
+            26
+          ],
+          "operation": "join",
+          "targets": [
+            "Coupler2"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 31,
+          "width": 20,
+          "height": 21,
+          "corner": [
+            100,
+            0,
+            0
+          ],
+          "body_name": "Outrigger"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 10,
+          "width": 8,
+          "height": 6,
+          "corner": [
+            106,
+            5,
+            21
+          ],
+          "operation": "join",
+          "targets": [
+            "Outrigger"
+          ],
+          "name": "Saddle"
+        }
+      }
+    ],
+    "body": "Outrigger",
+    "feature": "Box2",
+    "parameter": "width",
+    "mode": "change",
+    "value": 2,
+    "volume": 14802,
+    "bounds": [
+      [
+        100,
+        0,
+        0
+      ],
+      [
+        131,
+        22,
+        27
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 11
+  },
+  {
+    "prompt": "Reduce Outrigger width by 1 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 84,
+          "width": 55,
+          "height": 27,
+          "body_name": "Coupler3"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            69,
+            43,
+            27
+          ],
+          "operation": "join",
+          "targets": [
+            "Coupler3"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 32,
+          "width": 20,
+          "height": 22,
+          "corner": [
+            100,
+            0,
+            0
+          ],
+          "body_name": "Outrigger"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 10,
+          "width": 8,
+          "height": 6,
+          "corner": [
+            106,
+            5,
+            22
+          ],
+          "operation": "join",
+          "targets": [
+            "Outrigger"
+          ],
+          "name": "Saddle"
+        }
+      }
+    ],
+    "body": "Outrigger",
+    "feature": "Box2",
+    "parameter": "width",
+    "mode": "change",
+    "value": -1,
+    "volume": 13856,
+    "bounds": [
+      [
+        100,
+        0,
+        0
+      ],
+      [
+        132,
+        19,
+        28
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 11
+  },
+  {
+    "prompt": "Set Outrigger width to 24 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 85,
+          "width": 57,
+          "height": 28,
+          "body_name": "Coupler4"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            70,
+            45,
+            28
+          ],
+          "operation": "join",
+          "targets": [
+            "Coupler4"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 33,
+          "width": 20,
+          "height": 23,
+          "corner": [
+            100,
+            0,
+            0
+          ],
+          "body_name": "Outrigger"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 10,
+          "width": 8,
+          "height": 6,
+          "corner": [
+            106,
+            5,
+            23
+          ],
+          "operation": "join",
+          "targets": [
+            "Outrigger"
+          ],
+          "name": "Saddle"
+        }
+      }
+    ],
+    "body": "Outrigger",
+    "feature": "Box2",
+    "parameter": "width",
+    "mode": "set",
+    "value": 24,
+    "volume": 18696,
+    "bounds": [
+      [
+        100,
+        0,
+        0
+      ],
+      [
+        133,
+        24,
+        29
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 11
+  },
+  {
+    "prompt": "The Outrigger width needs to be 21 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 86,
+          "width": 59,
+          "height": 24,
+          "body_name": "Coupler5"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            71,
+            47,
+            24
+          ],
+          "operation": "join",
+          "targets": [
+            "Coupler5"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 34,
+          "width": 20,
+          "height": 24,
+          "corner": [
+            100,
+            0,
+            0
+          ],
+          "body_name": "Outrigger"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 10,
+          "width": 8,
+          "height": 6,
+          "corner": [
+            106,
+            5,
+            24
+          ],
+          "operation": "join",
+          "targets": [
+            "Outrigger"
+          ],
+          "name": "Saddle"
+        }
+      }
+    ],
+    "body": "Outrigger",
+    "feature": "Box2",
+    "parameter": "width",
+    "mode": "set",
+    "value": 21,
+    "volume": 17616,
+    "bounds": [
+      [
+        100,
+        0,
+        0
+      ],
+      [
+        134,
+        21,
+        30
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 11
+  },
+  {
+    "prompt": "Change the Outrigger width to 23 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 87,
+          "width": 61,
+          "height": 25,
+          "body_name": "Coupler6"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            72,
+            49,
+            25
+          ],
+          "operation": "join",
+          "targets": [
+            "Coupler6"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 35,
+          "width": 20,
+          "height": 25,
+          "corner": [
+            100,
+            0,
+            0
+          ],
+          "body_name": "Outrigger"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 10,
+          "width": 8,
+          "height": 6,
+          "corner": [
+            106,
+            5,
+            25
+          ],
+          "operation": "join",
+          "targets": [
+            "Outrigger"
+          ],
+          "name": "Saddle"
+        }
+      }
+    ],
+    "body": "Outrigger",
+    "feature": "Box2",
+    "parameter": "width",
+    "mode": "set",
+    "value": 23,
+    "volume": 20605,
+    "bounds": [
+      [
+        100,
+        0,
+        0
+      ],
+      [
+        135,
+        23,
+        31
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 11
+  },
+  {
+    "prompt": "The Joist width should be 13 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 60,
+          "width": 40,
+          "height": 24,
+          "body_name": "Lantern1"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            45,
+            28,
+            24
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern1"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 12,
+          "width": 10,
+          "height": 10,
+          "corner": [
+            10,
+            10,
+            20
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern1"
+          ],
+          "name": "Joist"
+        }
+      }
+    ],
+    "body": "Lantern1",
+    "feature": "Joist",
+    "parameter": "width",
+    "mode": "set",
+    "value": 13,
+    "volume": 58792,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        60,
+        40,
+        30
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 12
+  },
+  {
+    "prompt": "Make Joist 2 mm narrower",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 61,
+          "width": 42,
+          "height": 25,
+          "body_name": "Lantern2"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            46,
+            30,
+            25
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern2"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 12,
+          "width": 10,
+          "height": 10,
+          "corner": [
+            10,
+            10,
+            21
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern2"
+          ],
+          "name": "Joist"
+        }
+      }
+    ],
+    "body": "Lantern2",
+    "feature": "Joist",
+    "parameter": "width",
+    "mode": "change",
+    "value": -2,
+    "volume": 64882,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        61,
+        42,
+        31
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 12
+  },
+  {
+    "prompt": "Increase the Joist width by 1 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 62,
+          "width": 44,
+          "height": 26,
+          "body_name": "Lantern3"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            47,
+            32,
+            26
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern3"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 12,
+          "width": 10,
+          "height": 10,
+          "corner": [
+            10,
+            10,
+            22
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern3"
+          ],
+          "name": "Joist"
+        }
+      }
+    ],
+    "body": "Lantern3",
+    "feature": "Joist",
+    "parameter": "width",
+    "mode": "change",
+    "value": 1,
+    "volume": 71976,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        62,
+        44,
+        32
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 12
+  },
+  {
+    "prompt": "Joist needs to be 8 mm wide",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 63,
+          "width": 46,
+          "height": 27,
+          "body_name": "Lantern4"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            48,
+            34,
+            27
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern4"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 12,
+          "width": 10,
+          "height": 10,
+          "corner": [
+            10,
+            10,
+            23
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern4"
+          ],
+          "name": "Joist"
+        }
+      }
+    ],
+    "body": "Lantern4",
+    "feature": "Joist",
+    "parameter": "width",
+    "mode": "set",
+    "value": 8,
+    "volume": 79078,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        63,
+        46,
+        33
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 12
+  },
+  {
+    "prompt": "Set Joist width down to 7 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 64,
+          "width": 48,
+          "height": 28,
+          "body_name": "Lantern5"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            49,
+            36,
+            28
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern5"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 12,
+          "width": 10,
+          "height": 10,
+          "corner": [
+            10,
+            10,
+            24
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern5"
+          ],
+          "name": "Joist"
+        }
+      }
+    ],
+    "body": "Lantern5",
+    "feature": "Joist",
+    "parameter": "width",
+    "mode": "set",
+    "value": 7,
+    "volume": 86776,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        64,
+        48,
+        34
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 12
+  },
+  {
+    "prompt": "Change Joist width to 12 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 65,
+          "width": 50,
+          "height": 24,
+          "body_name": "Lantern6"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            50,
+            38,
+            24
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern6"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 12,
+          "width": 10,
+          "height": 10,
+          "corner": [
+            10,
+            10,
+            20
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern6"
+          ],
+          "name": "Joist"
+        }
+      }
+    ],
+    "body": "Lantern6",
+    "feature": "Joist",
+    "parameter": "width",
+    "mode": "set",
+    "value": 12,
+    "volume": 79120,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        65,
+        50,
+        30
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 12
+  },
+  {
+    "prompt": "Joist length should be 15 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 60,
+          "width": 40,
+          "height": 24,
+          "body_name": "Lantern1"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            45,
+            28,
+            24
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern1"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 12,
+          "width": 10,
+          "height": 10,
+          "corner": [
+            10,
+            10,
+            20
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern1"
+          ],
+          "name": "Joist"
+        }
+      }
+    ],
+    "body": "Lantern1",
+    "feature": "Joist",
+    "parameter": "length",
+    "mode": "set",
+    "value": 15,
+    "volume": 58756,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        60,
+        40,
+        30
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 13
+  },
+  {
+    "prompt": "Extend the Joist length by 2 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 61,
+          "width": 42,
+          "height": 25,
+          "body_name": "Lantern2"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            46,
+            30,
+            25
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern2"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 12,
+          "width": 10,
+          "height": 10,
+          "corner": [
+            10,
+            10,
+            21
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern2"
+          ],
+          "name": "Joist"
+        }
+      }
+    ],
+    "body": "Lantern2",
+    "feature": "Joist",
+    "parameter": "length",
+    "mode": "change",
+    "value": 2,
+    "volume": 65146,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        61,
+        42,
+        31
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 13
+  },
+  {
+    "prompt": "Trim Joist length by 3 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 62,
+          "width": 44,
+          "height": 26,
+          "body_name": "Lantern3"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            47,
+            32,
+            26
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern3"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 12,
+          "width": 10,
+          "height": 10,
+          "corner": [
+            10,
+            10,
+            22
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern3"
+          ],
+          "name": "Joist"
+        }
+      }
+    ],
+    "body": "Lantern3",
+    "feature": "Joist",
+    "parameter": "length",
+    "mode": "change",
+    "value": -3,
+    "volume": 71724,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        62,
+        44,
+        32
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 13
+  },
+  {
+    "prompt": "Reduce Joist length to 10 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 63,
+          "width": 46,
+          "height": 27,
+          "body_name": "Lantern4"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            48,
+            34,
+            27
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern4"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 12,
+          "width": 10,
+          "height": 10,
+          "corner": [
+            10,
+            10,
+            23
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern4"
+          ],
+          "name": "Joist"
+        }
+      }
+    ],
+    "body": "Lantern4",
+    "feature": "Joist",
+    "parameter": "length",
+    "mode": "set",
+    "value": 10,
+    "volume": 79102,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        63,
+        46,
+        33
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 13
+  },
+  {
+    "prompt": "The Joist length needs to be 16 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 64,
+          "width": 48,
+          "height": 28,
+          "body_name": "Lantern5"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            49,
+            36,
+            28
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern5"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 12,
+          "width": 10,
+          "height": 10,
+          "corner": [
+            10,
+            10,
+            24
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern5"
+          ],
+          "name": "Joist"
+        }
+      }
+    ],
+    "body": "Lantern5",
+    "feature": "Joist",
+    "parameter": "length",
+    "mode": "set",
+    "value": 16,
+    "volume": 87232,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        64,
+        48,
+        34
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 13
+  },
+  {
+    "prompt": "Decrease Joist length by 1 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 65,
+          "width": 50,
+          "height": 24,
+          "body_name": "Lantern6"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            50,
+            38,
+            24
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern6"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 12,
+          "width": 10,
+          "height": 10,
+          "corner": [
+            10,
+            10,
+            20
+          ],
+          "operation": "join",
+          "targets": [
+            "Lantern6"
+          ],
+          "name": "Joist"
+        }
+      }
+    ],
+    "body": "Lantern6",
+    "feature": "Joist",
+    "parameter": "length",
+    "mode": "change",
+    "value": -1,
+    "volume": 78916,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        65,
+        50,
+        30
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 13
+  },
+  {
+    "prompt": "Hole2 should be 2 mm deeper",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 70,
+          "width": 45,
+          "height": 24,
+          "body_name": "Manifold1"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            55,
+            33,
+            24
+          ],
+          "operation": "join",
+          "targets": [
+            "Manifold1"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            18,
+            24
+          ],
+          "diameter": 8,
+          "depth": 10,
+          "targets": [
+            "Manifold1"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            34,
+            18,
+            24
+          ],
+          "diameter": 6,
+          "depth": 7,
+          "targets": [
+            "Manifold1"
+          ]
+        }
+      }
+    ],
+    "body": "Manifold1",
+    "feature": "Hole2",
+    "parameter": "depth",
+    "mode": "change",
+    "value": 2,
+    "volume": 75098.87617048486,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        70,
+        45,
+        28
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 14
+  },
+  {
+    "prompt": "Decrease Hole2 diameter by 1 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 71,
+          "width": 47,
+          "height": 25,
+          "body_name": "Manifold2"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            56,
+            35,
+            25
+          ],
+          "operation": "join",
+          "targets": [
+            "Manifold2"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            18,
+            25
+          ],
+          "diameter": 8,
+          "depth": 10,
+          "targets": [
+            "Manifold2"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            34,
+            18,
+            25
+          ],
+          "diameter": 6,
+          "depth": 7,
+          "targets": [
+            "Manifold2"
+          ]
+        }
+      }
+    ],
+    "body": "Manifold2",
+    "feature": "Hole2",
+    "parameter": "diameter",
+    "mode": "change",
+    "value": -1,
+    "volume": 83040.90049683109,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        71,
+        47,
+        29
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 14
+  },
+  {
+    "prompt": "Change Hole2 depth to 9 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 72,
+          "width": 49,
+          "height": 26,
+          "body_name": "Manifold3"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            57,
+            37,
+            26
+          ],
+          "operation": "join",
+          "targets": [
+            "Manifold3"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            18,
+            26
+          ],
+          "diameter": 8,
+          "depth": 10,
+          "targets": [
+            "Manifold3"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            34,
+            18,
+            26
+          ],
+          "diameter": 6,
+          "depth": 7,
+          "targets": [
+            "Manifold3"
+          ]
+        }
+      }
+    ],
+    "body": "Manifold3",
+    "feature": "Hole2",
+    "parameter": "depth",
+    "mode": "set",
+    "value": 9,
+    "volume": 91226.87617048486,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        72,
+        49,
+        30
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 14
+  },
+  {
+    "prompt": "Hole2 needs to be bigger by 2 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 73,
+          "width": 51,
+          "height": 27,
+          "body_name": "Manifold4"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            58,
+            39,
+            27
+          ],
+          "operation": "join",
+          "targets": [
+            "Manifold4"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            18,
+            27
+          ],
+          "diameter": 8,
+          "depth": 10,
+          "targets": [
+            "Manifold4"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            34,
+            18,
+            27
+          ],
+          "diameter": 6,
+          "depth": 7,
+          "targets": [
+            "Manifold4"
+          ]
+        }
+      }
+    ],
+    "body": "Manifold4",
+    "feature": "Hole2",
+    "parameter": "diameter",
+    "mode": "change",
+    "value": 2,
+    "volume": 99922.48679822359,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        73,
+        51,
+        31
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 14
+  },
+  {
+    "prompt": "Make Hole2 smaller by 1 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 74,
+          "width": 53,
+          "height": 28,
+          "body_name": "Manifold5"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            59,
+            41,
+            28
+          ],
+          "operation": "join",
+          "targets": [
+            "Manifold5"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            18,
+            28
+          ],
+          "diameter": 8,
+          "depth": 10,
+          "targets": [
+            "Manifold5"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            34,
+            18,
+            28
+          ],
+          "diameter": 6,
+          "depth": 7,
+          "targets": [
+            "Manifold5"
+          ]
+        }
+      }
+    ],
+    "body": "Manifold5",
+    "feature": "Hole2",
+    "parameter": "diameter",
+    "mode": "change",
+    "value": -1,
+    "volume": 109431.90049683109,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        74,
+        53,
+        32
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 14
+  },
+  {
+    "prompt": "Set Hole2 diameter to 7 mm",
+    "setup": [
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 75,
+          "width": 55,
+          "height": 24,
+          "body_name": "Manifold6"
+        }
+      },
+      {
+        "command": "solid.box",
+        "params": {
+          "length": 8,
+          "width": 8,
+          "height": 4,
+          "corner": [
+            60,
+            43,
+            24
+          ],
+          "operation": "join",
+          "targets": [
+            "Manifold6"
+          ],
+          "name": "Marker"
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            20,
+            18,
+            24
+          ],
+          "diameter": 8,
+          "depth": 10,
+          "targets": [
+            "Manifold6"
+          ]
+        }
+      },
+      {
+        "command": "solid.hole",
+        "params": {
+          "position": [
+            34,
+            18,
+            24
+          ],
+          "diameter": 6,
+          "depth": 7,
+          "targets": [
+            "Manifold6"
+          ]
+        }
+      }
+    ],
+    "body": "Manifold6",
+    "feature": "Hole2",
+    "parameter": "diameter",
+    "mode": "set",
+    "value": 7,
+    "volume": 98483.95360538032,
+    "bounds": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        75,
+        55,
+        28
+      ]
+    ],
+    "report": false,
+    "reject": false,
+    "group": 14
+  }
+]

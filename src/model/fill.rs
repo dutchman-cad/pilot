@@ -127,6 +127,7 @@ pub(super) fn needs_names(recipe: &Value) -> bool {
         recipe["schema"]["x-pilot-expander"].as_str(),
         Some(
             "fillet"
+                | "named_feature"
                 | "chamfer"
                 | "move"
                 | "mirror"
@@ -146,10 +147,17 @@ pub(super) fn offer(
     error: Option<&str>,
 ) -> Result<(), String> {
     let mut schema = crate::recipe_library::forms::compact(&recipe["schema"]);
+    if recipe["id"] == "named_feature" {
+        schema = planner::named_feature::form(outgoing);
+    }
     requested_fields(&mut schema, recipe, last_user(outgoing))?;
     *outgoing = clean(
         outgoing,
-        crate::recipe_library::forms::line(recipe["id"].as_str().unwrap_or("")),
+        if recipe["id"] == "named_feature" {
+            "Select one inspected feature name and its parameter. Supply mode set for an absolute value or change for a signed amount in mm. For raise/lower supply the world vertical change; Pilot computes the feature direction. Decline if the target is ambiguous; never choose between indistinguishable candidates.".into()
+        } else {
+            crate::recipe_library::forms::line(recipe["id"].as_str().unwrap_or(""))
+        },
         needs_names(recipe),
         recipe["id"] == "revolute_joint" || recipe["id"] == "joint",
         recipe["id"] == "joint",
@@ -421,6 +429,7 @@ pub(super) fn accept(
         o.remove("decline");
     }
     if needs_names(recipe)
+        && recipe["id"] != "named_feature"
         && recipe["id"] != "revolute_joint"
         && recipe["id"] != "joint"
         && !planner::patterns::is_pattern(recipe["id"].as_str().unwrap_or(""))

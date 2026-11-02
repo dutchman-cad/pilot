@@ -26,6 +26,21 @@ with `--planner`, when a leading clause matches, Pilot offers that computed plan
 in context and asks the model to submit calls for the whole request. Offered calls still need
 client approval and results; they are never described as already executed.
 
+The `named_feature` form handles changes to one existing pocket, recess, slot,
+hole, counterbore, boss, pad, rib or tab. Pilot inspects the current document,
+timeline definitions and feature-owned faces before listing actual feature names,
+types, sizes, positions and bodies. A unique noun/body/name match with an explicit
+parameter and value can run without the model. Otherwise the form supplies only a
+feature, parameter, absolute value or signed relative amount in mm. Equally matching
+features require clarification; names and simple spatial extremes can separate them.
+Pilot computes relative values and emits `timeline.edit`. Raise/lower use world Z:
+a downward cut becomes shallower when its floor rises, while an upward cut becomes
+deeper. Completion compares fresh certified face positions or cylinder diameters
+against the measured before value, and reports both measurements. Missing geometry,
+unevaluated dimensions and unsupported edits receive a form error rather than a guess.
+Inspection is bounded to 12 bodies, 12 timeline features and 2,048 faces per body.
+This recipe contributes no documents to the existing retrieval index.
+
 Use `--upstream none` for a no-model assistant; it rejects `--no-direct-recipes`.
 `/v1/models` then lists `pilot-recipes`; other requests receive a fixed
 no-model explanation listing supported kinds from the recipe table. Otherwise,

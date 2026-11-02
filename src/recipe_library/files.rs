@@ -1,6 +1,7 @@
 //! Explicit inputs let rustc track recipes separately for every checkout.
 #[rustfmt::skip]
 pub(super) const EMBEDDED: &[(&str, &str)] = &[
+    ("named_feature.md", include_str!("../../recipes/named_feature.md")),
     ("box.md", include_str!("../../recipes/box.md")),
     ("chamfer.md", include_str!("../../recipes/chamfer.md")),
     ("circular_pattern.md", include_str!("../../recipes/circular_pattern.md")),
