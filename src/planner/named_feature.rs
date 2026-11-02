@@ -51,6 +51,10 @@ pub fn candidate(text: &str) -> bool {
         && !w
             .windows(2)
             .any(|v| matches!(v[0].as_str(), "a" | "an") && noun(&v[1]))
+        // "make a hexagon pocket" creates one; one adjective may separate them.
+        && !w
+            .windows(3)
+            .any(|v| matches!(v[0].as_str(), "a" | "an") && noun(&v[2]))
         && !w.iter().any(|v| {
             matches!(
                 v.as_str(),
