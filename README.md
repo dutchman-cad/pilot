@@ -93,13 +93,13 @@ command before it runs.
 ## How well it works
 
 Pilot is an early beta. On four blind test sets (56 requests never used during development,
-three runs each), gemma4 e4b on 0.1.0-beta.8:
+three runs each), gemma4 e4b on [0.1.0-beta.9](https://github.com/dutchman-cad/pilot/releases/tag/v0.1.0-beta.9):
 
 | How the part was built | Attempts | Built correctly |
 | --- | ---: | ---: |
-| The model filled in a recipe's form | 150 | 100 (67%) |
-| Pilot read every value from the request, no model | 4 | 3 |
-| The model drove SolidCraft itself, with Pilot's repairs | 14 | 3 (21%) |
+| The model filled in a recipe's form | 149 | 101 (68%) |
+| Pilot read every value from the request, no model | 3 | 3 |
+| The model drove SolidCraft itself, with Pilot's repairs | 16 | 2 (12%) |
 | **All** | **168** | **106 (63%)** |
 
 The same model without Pilot built 4 of the 56 (7%). So the recipes are what make a small
@@ -115,9 +115,9 @@ runs each, the same settings with and without Pilot, average parts built correct
 
 | Requests | Without Pilot | With Pilot |
 | --- | ---: | ---: |
-| A recipe was offered (15) | 3.7 (24%) | 6.3 (42%) |
-| No recipe (10) | 2.0 (20%) | 2.7 (27%) |
-| **All 25** | **5.7 (23%)** | **9.0 (36%)** |
+| A recipe was offered (15) | 3.7 (24%) | 6.0 (40%) |
+| No recipe (10) | 2.0 (20%) | 3.3 (33%) |
+| **All 25** | **5.7 (23%)** | **9.3 (37%)** |
 
 So Pilot helps on requests like these, mostly where a recipe fits, and most of them still
 fail. The most common failures are holes that are missing or the wrong size, wrong overall
