@@ -1,5 +1,21 @@
 # Pilot changelog
 
+## 0.1.0-beta.9 (2026-11-01)
+
+- Free-form requests: Pilot now helps when a request has no recipe. Common call mistakes
+  are repaired when the intent is clear, inch and cm sizes are stated in millimetres for the
+  model, each hole or circle cut reports what it made, exact hole examples come from `how`,
+  a part left as touching separate bodies gets the exact join call, and a build whose overall
+  size differs from the request is handed back once.
+- More exact matches without a model: round turned parts, repeated studs, pegs, and legs on
+  a base, plate grids and bolt circles in more wordings, clearly stated enclosures, plain
+  rectangles, explicit channel openings, omitted T stem offsets, and angle sizes in drafting
+  notation.
+- Build replies round measured size and volume.
+- SolidCraft 98: sketch corner radius for rounding requests, click verbs both builds accept,
+  TCP sessions survive slow model turns, Gemma's own call syntax, and field values without a
+  repeated unit.
+
 ## 0.1.0-beta.8 (2026-10-29)
 
 - Plates: "front plane" builds on XZ, a row of holes or studs can sit along one edge, and
