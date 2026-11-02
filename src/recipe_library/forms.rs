@@ -538,6 +538,9 @@ pub fn request_defaults(
         .and_then(|m| m["content"].as_str())
         .unwrap_or("");
     if text.len() > 65_536 {
+        if id == "enclosure" {
+            return Ok(recovered);
+        }
         return Err(format!(
             "{} request exceeds 65536 bytes",
             if id == "revolute_joint" {
@@ -590,7 +593,23 @@ pub fn request_defaults(
                         .iter()
                         .any(|w| matches!(*w, "no" | "not" | "without"))
             });
+            let unclear = words
+                .iter()
+                .any(|w| matches!(*w, "not" | "no" | "without" | "or"))
+                || (words.contains(&"closed") && (top || bottom));
             match (top, bottom) {
+                _ if unclear => None,
+                (false, false)
+                    if words.contains(&"closed")
+                        && args["wall"]
+                            .as_f64()
+                            .zip(args["height"].as_f64())
+                            .is_some_and(|(w, h)| w > 0.0 && 2.0 * w < h)
+                        && args.get("lip").is_none()
+                        && args.get("floor").is_none_or(|f| f == &args["wall"]) =>
+                {
+                    Some(("open", "closed", "explicit closed container"))
+                }
                 (true, false) => Some(("open", "top", "explicit opening in request")),
                 (false, true) => Some(("open", "bottom", "explicit opening in request")),
                 (false, false) if cover => Some(("open", "bottom", "cover/lid opens underneath")),
