@@ -190,6 +190,9 @@ impl Proxy {
                         &json!({"rule":previous.rule,"from_model":from_model}),
                         &json!({"reason":reason,"from_model":from_model}),
                     )?;
+                    if previous.rule == "named_feature" {
+                        return Ok(Outcome::Reply(reply(request, reason, audit.count)?));
+                    }
                     if self.cfg.upstream == "none" {
                         let text = format!(
                             "Exact match (no model): {reason} No model is configured to recover."

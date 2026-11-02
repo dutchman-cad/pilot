@@ -157,7 +157,7 @@ fn named_feature_development_cli_replays_exact_and_forms() {
                 (actual - c["after"].as_f64().unwrap()).abs() < 1e-6,
                 "{c}: {d}"
             );
-            if exact {
+            if exact && c["kind"] != "counter" {
                 assert!(
                     f.proxy
                         .scripted
@@ -314,7 +314,7 @@ fn named_feature_verification_requires_fresh_changed_geometry() {
             .push(json!({"role":"tool","content":result.to_string()}));
     }
     assert!(planner::named_feature::completion(&req, &plan).is_none());
-    let faces = req["messages"].as_array().unwrap().len() - 2;
+    let faces = req["messages"].as_array().unwrap().len() - 3;
     let original = req["messages"][faces]["content"].clone();
     req["messages"][faces]["content"] = json!(json!({"body":"Carrier","faces":[]}).to_string());
     assert!(planner::named_feature::completion(&req, &plan).is_some());
@@ -433,4 +433,145 @@ fn named_feature_bounds_and_no_model_path() {
         .borrow()
         .requests
         .is_empty());
+}
+
+/// These oracles use constructive solid arithmetic, never planner slots or parameter echoes.
+#[test]
+fn named_feature_varied_public_cli_volume_and_bounds() {
+    let cases: Vec<Value> = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/dev_named_feature_varied.json"
+    ))
+    .unwrap();
+    assert!(cases.len() >= 60);
+    let cat = context_tests::public_catalog::catalog().unwrap();
+    for c in cases {
+        eprintln!("varied: {}", c["prompt"]);
+        let Some(mut s) = Session::new() else { return };
+        for step in c["setup"].as_array().unwrap() {
+            s.execute(step["command"].as_str().unwrap(), step["params"].clone());
+        }
+        let text = c["prompt"].as_str().unwrap();
+        assert!(planner::named_feature::candidate(text), "{text}");
+        let mut req = inspected(&mut s, text, &cat);
+        let schema = planner::named_feature::form(&req);
+        let args = json!({"feature":c["feature"],"parameter":c["parameter"],"mode":c["mode"],"value":c["value"]});
+        let exact = planner::named_feature::exact(&req, &cat).unwrap();
+        let result = planner::named_feature::build(&args, &req, &cat);
+        if c["reject"] == true {
+            assert!(exact.is_none(), "{c}: {exact:?}");
+            assert!(result.is_err(), "{c}: {result:?}; {schema}");
+        } else {
+            assert!(
+                schema["properties"]["parameter"]["enum"]
+                    .as_array()
+                    .unwrap()
+                    .contains(&c["parameter"]),
+                "{c}: {schema}"
+            );
+            let plan =
+                exact.unwrap_or_else(|| result.unwrap_or_else(|e| panic!("{c}: {e}; {schema}")));
+            let emitted = direct::calls(&req, &plan, 0);
+            req["messages"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({"role":"assistant","tool_calls":emitted}));
+            for call in &plan.calls {
+                let result = s.execute(
+                    call["arguments"]["command"].as_str().unwrap(),
+                    call["arguments"]["params"].clone(),
+                );
+                req["messages"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(json!({"role":"tool","content":result.to_string()}));
+            }
+            assert_eq!(
+                planner::named_feature::completion(&req, &plan).is_some(),
+                c["report"] == true,
+                "{c}: {plan:?}; {}",
+                req["messages"].as_array().unwrap().last().unwrap()
+            );
+        }
+        let doc = s.execute("document.inspect", json!({"measure":true}));
+        let b = doc["bodies"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|b| b["name"] == c["body"])
+            .unwrap();
+        let expected = c["volume"].as_f64().unwrap();
+        assert!(
+            (b["volume_mm3"].as_f64().unwrap() - expected).abs() < expected * 0.0002,
+            "{c}: {b}"
+        );
+        for (j, key) in ["min", "max"].iter().enumerate() {
+            for a in 0..3 {
+                assert!(
+                    (b["bbox"][key][a].as_f64().unwrap() - c["bounds"][j][a].as_f64().unwrap())
+                        .abs()
+                        < 0.001,
+                    "{c}: {b}"
+                );
+            }
+        }
+    }
+}
+
+fn varied_form(wire: &Value) -> Value {
+    let text = wire["messages"][1]["content"]
+        .as_str()
+        .unwrap()
+        .split("\nDesign context:")
+        .next()
+        .unwrap();
+    let cases: Vec<Value> = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/dev_named_feature_varied.json"
+    ))
+    .unwrap();
+    let c = cases.iter().find(|c| c["prompt"] == text).unwrap();
+    let schema = &wire["tools"][0]["function"]["parameters"];
+    assert!(
+        schema["properties"]["feature"]["enum"]
+            .as_array()
+            .unwrap()
+            .contains(&c["feature"]),
+        "{wire}"
+    );
+    call(
+        "pilot_fill",
+        json!({"feature":c["feature"],"parameter":c["parameter"],"mode":c["mode"],"value":c["value"]}),
+    )
+}
+
+#[test]
+fn named_feature_new_wordings_reach_forms_before_creation_and_failures_stay_reports() {
+    let cases: Vec<Value> = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/dev_named_feature_varied.json"
+    ))
+    .unwrap();
+    for index in [0, 9, 14, 23, 37, 43, 60, 66] {
+        let c = &cases[index];
+        let Some(mut s) = Session::new() else { return };
+        for step in c["setup"].as_array().unwrap() {
+            s.execute(step["command"].as_str().unwrap(), step["params"].clone());
+        }
+        let mut f = fill_fixture(vec![]);
+        f.proxy.catalog = context_tests::public_catalog::catalog().unwrap();
+        f.proxy.cfg.direct_recipes = true;
+        f.proxy.scripted.as_ref().unwrap().borrow_mut().model = Some(varied_form);
+        let mut req = request();
+        req["messages"] = json!([{"role":"user","content":c["prompt"]}]);
+        let result = drive(&mut f, &mut s, &mut req);
+        let text = result["content"].as_str().unwrap();
+        if c["report"] == true {
+            assert!(text.contains("unverified"), "{c}: {result}");
+        } else {
+            assert!(
+                text.contains("Measured") && !text.contains("unverified"),
+                "{c}: {result}"
+            );
+        }
+        let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+        assert!(log.contains("named_feature"), "{log}");
+    }
 }

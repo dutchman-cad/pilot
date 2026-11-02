@@ -15,12 +15,6 @@ fn words(text: &str) -> Vec<String> {
         .map(String::from)
         .collect()
 }
-fn noun(w: &str) -> bool {
-    matches!(
-        w,
-        "pocket" | "recess" | "slot" | "hole" | "boss" | "pad" | "rib" | "tab" | "counterbore"
-    )
-}
 pub fn candidate(text: &str) -> bool {
     if text.len() > 2048 {
         return false;
@@ -30,31 +24,86 @@ pub fn candidate(text: &str) -> bool {
     let edit = w.iter().any(|v| {
         matches!(
             v.as_str(),
-            "raise" | "lower" | "deepen" | "widen" | "shift" | "move" | "resize" | "make"
+            "raise"
+                | "lower"
+                | "deepen"
+                | "widen"
+                | "shift"
+                | "move"
+                | "resize"
+                | "make"
+                | "change"
+                | "increase"
+                | "reduce"
+                | "decrease"
+                | "set"
+                | "extend"
+                | "trim"
+                | "thicken"
+                | "taller"
+                | "shorter"
+                | "deeper"
+                | "shallower"
+                | "wider"
+                | "narrower"
+                | "bigger"
+                | "smaller"
+                | "higher"
+                | "thicker"
+                | "thinner"
+                | "adjust"
+                | "alter"
+                | "grow"
+                | "shrink"
+                | "lengthen"
+                | "shorten"
+                | "broaden"
         )
-    });
-    let existing = has("the") || has("this") || has("existing") || has("body") || !has("make");
-    edit && existing
-        && w.iter()
-            .filter(|v| {
+    }) || lower_phrase(&w, &["should", "be"])
+        || lower_phrase(&w, &["needs", "to", "be"])
+        || lower_phrase(&w, &["up", "by"])
+        || lower_phrase(&w, &["down", "to"]);
+    edit && !(has("move")
+        && (text.contains(',')
+            || slots::tokens(text)
+                .iter()
+                .filter(|v| slots::number(v).is_some())
+                .count()
+                >= 3))
+        && (!has("make")
+            || has("the")
+            || has("this")
+            || w.iter().filter(|v| v.parse::<f64>().is_ok()).count() <= 1)
+        && !(has("make")
+            && !has("the")
+            && !has("this")
+            && !has("existing")
+            && !w.iter().any(|v| {
                 matches!(
                     v.as_str(),
-                    "raise" | "lower" | "deepen" | "widen" | "shift" | "move" | "resize" | "make"
+                    "height"
+                        | "depth"
+                        | "width"
+                        | "length"
+                        | "diameter"
+                        | "thicker"
+                        | "thinner"
+                        | "taller"
+                        | "shorter"
+                        | "deeper"
+                        | "shallower"
+                        | "wider"
+                        | "narrower"
+                        | "bigger"
+                        | "smaller"
                 )
-            })
-            .count()
-            == 1
-        && w.iter().any(|v| noun(v))
+            }))
         && slots::tokens(text)
             .iter()
             .any(|v| slots::number(v).is_some())
-        && !w
-            .windows(2)
-            .any(|v| matches!(v[0].as_str(), "a" | "an") && noun(&v[1]))
-        // "make a hexagon pocket" creates one; one adjective may separate them.
-        && !w
-            .windows(3)
-            .any(|v| matches!(v[0].as_str(), "a" | "an") && noun(&v[2]))
+        && !(has("make") && (has("a") || has("an")))
+        && !lower_phrase(&w, &["whole", "body"])
+        && !lower_phrase(&w, &["move", "it"])
         && !w.iter().any(|v| {
             matches!(
                 v.as_str(),
@@ -81,7 +130,6 @@ pub fn candidate(text: &str) -> bool {
                     | "what"
                     | "which"
                     | "why"
-                    | "don't"
                     | "explain"
                     | "describe"
                     | "how"
@@ -94,6 +142,12 @@ pub fn candidate(text: &str) -> bool {
             )
         })
 }
+fn lower_phrase(words: &[String], phrase: &[&str]) -> bool {
+    words
+        .windows(phrase.len())
+        .any(|w| w.iter().zip(phrase).all(|(a, b)| a == b))
+}
+
 fn number(v: &Value) -> Option<f64> {
     v.as_f64()
         .or_else(|| {
@@ -101,6 +155,9 @@ fn number(v: &Value) -> Option<f64> {
                 .and_then(|s| s.trim().strip_suffix(" mm").unwrap_or(s).parse().ok())
         })
         .filter(|v| v.is_finite() && v.abs() <= MAX_MM)
+}
+fn volume(v: &Value) -> Option<f64> {
+    v.as_f64().filter(|v| v.is_finite() && *v >= 0.)
 }
 fn point(v: &Value) -> Option<[f64; 3]> {
     Some([number(&v[0])?, number(&v[1])?, number(&v[2])?])
@@ -120,6 +177,9 @@ struct Feature {
     type_name: String,
     faces: Vec<Value>,
     direction: Option<(usize, f64)>,
+    context_faces: Vec<Value>,
+    volume: Option<f64>,
+    bbox: Value,
 }
 fn features(request: &Value) -> Vec<Feature> {
     let data = form_context::payloads(request);
@@ -128,13 +188,19 @@ fn features(request: &Value) -> Vec<Feature> {
     };
     let mut out = Vec::new();
     // A partial timeline is never enough to claim a unique target.
-    if doc["timeline"].as_array().is_none_or(|a| a.len() > 12) {
+    if doc["timeline"].as_array().is_none_or(|a| a.len() > 64) {
         return out;
     }
     if doc["bodies"].as_array().is_none_or(|a| a.len() > 12) {
         return out;
     }
-    for f in form_context::active_features(doc) {
+    for f in doc["timeline"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .rev()
+        .filter(|f| f["suppressed"] != true && f["rolled_back"] != true && f["error"].is_null())
+    {
         let Some(d) = form_context::detail(&data, f) else {
             continue;
         };
@@ -143,9 +209,6 @@ fn features(request: &Value) -> Vec<Feature> {
             continue;
         };
         let def = &d["definition"];
-        if f["type"] == "BoxFeature" && def["operation"] == "new_body" {
-            continue;
-        }
         let kind = match f["type"].as_str() {
             Some("HoleFeature") => {
                 if def["hole"]["type"] == "counterbore" {
@@ -217,7 +280,7 @@ fn features(request: &Value) -> Vec<Feature> {
                         return None;
                     }
                     let sign = match def["extent"]["direction"].as_str() {
-                        Some("positive") => 1.,
+                        Some("positive" | "symmetric") => 1.,
                         Some("negative") => -1.,
                         _ => return None,
                     };
@@ -235,13 +298,29 @@ fn features(request: &Value) -> Vec<Feature> {
         };
         out.push(Feature {
             name: name.into(),
-            body,
+            body: body.clone(),
             id,
             definition: def.clone(),
             kind: kind.into(),
             type_name: f["type"].as_str().unwrap_or("").into(),
             faces,
             direction,
+            context_faces: data
+                .iter()
+                .rev()
+                .find(|d| d["body"] == body && d["faces"].is_array())
+                .and_then(|d| d["faces"].as_array())
+                .cloned()
+                .unwrap_or_default(),
+            bbox: doc["bodies"]
+                .as_array()
+                .and_then(|bs| bs.iter().find(|b| b["name"] == body))
+                .map(|b| b["bbox"].clone())
+                .unwrap_or(Value::Null),
+            volume: doc["bodies"]
+                .as_array()
+                .and_then(|bs| bs.iter().find(|b| b["name"] == body))
+                .and_then(|b| volume(&b["volume_mm3"])),
         });
     }
     out
@@ -282,6 +361,12 @@ fn matching(request: &Value) -> Vec<Feature> {
     {
         return Vec::new();
     }
+    let kind_requested = w.iter().any(|v| {
+        matches!(
+            v.as_str(),
+            "pocket" | "recess" | "slot" | "boss" | "pad" | "rib" | "tab" | "hole" | "counterbore"
+        )
+    });
     let mut matches: Vec<_> = fs
         .into_iter()
         .filter(|f| {
@@ -292,7 +377,18 @@ fn matching(request: &Value) -> Vec<Feature> {
                 "counterbore" => f.kind == "counterbore",
                 _ => false,
             });
-            kind && (named.is_empty() || named.contains(&f.name))
+            (!(f.definition["operation"] == "new_body")
+                || named.contains(&f.name)
+                || (!bodies.is_empty() && !kind))
+                && (if named.is_empty() {
+                    if kind_requested {
+                        kind
+                    } else {
+                        !bodies.is_empty() && f.definition["operation"] == "new_body"
+                    }
+                } else {
+                    named.contains(&f.name)
+                })
                 && (bodies.is_empty() || bodies.contains(&f.body))
         })
         .collect();
@@ -352,12 +448,33 @@ fn matching(request: &Value) -> Vec<Feature> {
     matches
 }
 pub fn reads(request: &Value, catalog: &Catalog) -> Result<Vec<Value>, String> {
-    let mut calls = form_context::reads(request, false, catalog)?;
+    let data = form_context::payloads(request);
+    let Some(doc) = form_context::document(&data) else {
+        return form_context::reads(request, false, catalog);
+    };
+    if doc["timeline"].as_array().is_none_or(|t| t.len() > 64) {
+        return Ok(Vec::new());
+    }
+    let mut calls = Vec::new();
+    for f in doc["timeline"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .rev()
+        .filter(|f| f["suppressed"] != true && f["rolled_back"] != true && f["error"].is_null())
+    {
+        if form_context::detail(&data, f).is_none() {
+            calls.push(call(
+                catalog,
+                "timeline.inspect",
+                json!({"feature":f["name"]}),
+            )?);
+        }
+    }
     if !calls.is_empty() {
         return Ok(calls);
     }
-    let data = form_context::payloads(request);
-    if let Some(doc) = form_context::document(&data) {
+    {
         for b in doc["bodies"].as_array().into_iter().flatten().take(12) {
             if !data
                 .iter()
@@ -416,7 +533,12 @@ pub fn form(request: &Value) -> Value {
                 "start_offset"
             ]
             .iter()
-            .filter_map(|p| field(f, p).map(|(_, n)| (p, json!(n))))
+            .filter_map(|p| field(f, p).map(|(_, n)| {
+                let size = witness(f, p)
+                    .and_then(|(_, m, _)| exposed_size(f, p, m))
+                    .unwrap_or(n);
+                (p, json!(size))
+            }))
             .collect::<std::collections::BTreeMap<_, _>>()),
             f.faces
                 .first()
@@ -447,11 +569,19 @@ fn parsed(request: &Value) -> Option<Value> {
     let [value] = values.as_slice() else {
         return None;
     };
+    if (has("shorter") || has("thicken"))
+        && !has("height")
+        && !has("depth")
+        && !has("length")
+        && !has("width")
+    {
+        return None;
+    }
     let parameter = if has("offset") {
         "start_offset"
     } else if has("diameter") {
         "diameter"
-    } else if has("widen") || has("wider") {
+    } else if has("widen") || has("wider") || has("narrower") {
         if matching(request)
             .iter()
             .all(|f| field(f, "width").is_some())
@@ -479,6 +609,8 @@ fn parsed(request: &Value) -> Option<Value> {
     } else if has("depth")
         || has("deep")
         || has("deepen")
+        || has("deeper")
+        || has("shallower")
         || w.iter().any(|v| {
             matches!(
                 v.as_str(),
@@ -487,9 +619,26 @@ fn parsed(request: &Value) -> Option<Value> {
         })
     {
         "depth"
-    } else {
+    } else if has("height")
+        || has("tall")
+        || has("taller")
+        || has("shorter")
+        || has("raise")
+        || has("lower")
+        || has("thicken")
+        || has("thickness")
+    {
         "height"
+    } else {
+        return None;
     };
+    // Multiple dimensional interpretations belong on the inspected form.
+    let dimensions = [
+        "height", "depth", "width", "length", "diameter", "offset", "x", "y", "z",
+    ];
+    if dimensions.iter().filter(|d| has(d)).count() > 1 {
+        return None;
+    }
     let relative = has("by")
         || (!has("to")
             && [
@@ -499,18 +648,33 @@ fn parsed(request: &Value) -> Option<Value> {
                 "shorter",
                 "shallower",
                 "higher",
+                "narrower",
+                "thicker",
+                "thinner",
             ]
             .iter()
             .any(|s| has(s)));
-    if !relative && !has("to") && !has("make") && !has("resize") {
+    if !relative && !has("to") && !has("make") && !has("resize") && !has("set") && !has("be") {
         return None;
     }
-    let value =
-        if relative && (has("lower") || has("shorter") || has("shallower") || has("negative")) {
-            -value
-        } else {
-            *value
-        };
+    let value = if relative
+        && (has("lower")
+            || has("shorter")
+            || has("shallower")
+            || has("negative")
+            || has("reduce")
+            || has("decrease")
+            || has("trim")
+            || has("narrower")
+            || has("thinner")
+            || has("down")
+            || has("shrink")
+            || has("shorten"))
+    {
+        -value.abs()
+    } else {
+        *value
+    };
     Some(json!({"parameter":parameter,"mode":if relative{"change"}else{"set"},"value":value}))
 }
 pub fn exact(request: &Value, catalog: &Catalog) -> Result<Option<Plan>, String> {
@@ -519,12 +683,31 @@ pub fn exact(request: &Value, catalog: &Catalog) -> Result<Option<Plan>, String>
     let Some(mut args) = parsed(request) else {
         return Ok(None);
     };
+    if f.definition["extent"]["direction"] == "symmetric" || f.kind == "counterbore" {
+        return Ok(None);
+    }
     args["feature"] = json!(f.name);
     // Unsupported geometry stays on the form path; it never guesses a field.
-    Ok(build(&args, request, catalog).ok())
+    Ok(build(&args, request, catalog)
+        .ok()
+        .filter(|p| p.slots["attachments"].as_array().is_none_or(Vec::is_empty)))
 }
 fn field(f: &Feature, p: &str) -> Option<(String, f64)> {
     let d = &f.definition;
+    if matches!(p, "height" | "depth" | "start_offset")
+        && d["extent"].is_object()
+        && (d["extent"]["distance2"].is_string()
+            || d["extent"]["distance2"].is_number()
+            || d["extent"]["through_all"] == true
+            || d["extent"].get("to").is_some())
+    {
+        return None;
+    }
+    if (p == "height" && (f.kind == "hole" || f.kind == "counterbore"))
+        || (p == "depth" && f.kind == "pad")
+    {
+        return None;
+    }
     if f.kind == "counterbore" && matches!(p, "depth" | "diameter") {
         let path = if p == "depth" {
             "hole.cb_depth"
@@ -620,8 +803,119 @@ fn witness(f: &Feature, p: &str) -> Option<(Value, f64, f64)> {
     Some((
         json!({"face":face["name"],"kind":"plane","axis":a}),
         number(&face["centroid"][a])?,
-        sign,
+        if f.definition["extent"]["direction"] == "symmetric"
+            && p != "start_offset"
+            && f.definition["extent"]["convention"] != "legacy_per_side"
+        {
+            sign * 0.5
+        } else {
+            sign
+        },
     ))
+}
+// The exposed size is measured from the supporting material, not necessarily
+// from the feature's sketch plane (which may be buried inside that material).
+fn exposed_size(f: &Feature, p: &str, measured: f64) -> Option<f64> {
+    let (a, sign) = match p {
+        "height" | "depth" => f.direction?,
+        "length" => (0, 1.),
+        "width" => (1, 1.),
+        _ => return None,
+    };
+    let (_, original) = field(f, p)?;
+    let scale = witness(f, p)?.2.abs();
+    let start = measured - original * scale * sign;
+    let prefix = format!("F{}:", f.id);
+    let support = f
+        .context_faces
+        .iter()
+        .filter(|v| {
+            v["exact"] == true
+                && !v["name"].as_str().is_some_and(|n| n.starts_with(&prefix))
+                && point(&v["plane_normal"])
+                    .and_then(axis)
+                    .is_some_and(|(i, _)| i == a)
+                && v["name"]
+                    .as_str()
+                    .and_then(|n| n.split(':').next())
+                    .is_some_and(|owner| {
+                        // Require the support's footprint to contain the target terminal centre.
+                        let terminal = f.faces.iter().find(|q| {
+                            number(&q["centroid"][a]).is_some_and(|x| (x - measured).abs() < 0.001)
+                        });
+                        terminal.is_some_and(|terminal| {
+                            (0..3).filter(|i| *i != a).all(|i| {
+                                let coordinates: Vec<_> = f
+                                    .context_faces
+                                    .iter()
+                                    .filter(|q| {
+                                        q["name"].as_str().and_then(|n| n.split(':').next())
+                                            == Some(owner)
+                                    })
+                                    .filter_map(|q| number(&q["centroid"][i]))
+                                    .collect();
+                                let x = number(&terminal["centroid"][i]).unwrap_or(f64::NAN);
+                                coordinates.iter().any(|v| *v <= x + 0.001)
+                                    && coordinates.iter().any(|v| *v >= x - 0.001)
+                            })
+                        })
+                    })
+        })
+        .filter_map(|v| number(&v["centroid"][a]))
+        .filter(|v| (measured - v) * sign > 0.001 && (v - start) * sign >= -0.001)
+        .min_by(|x, y| ((measured - x) * sign).total_cmp(&((measured - y) * sign)))?;
+    Some((measured - support) * sign)
+}
+fn volume_change(f: &Feature, p: &str, before: f64, after: f64, witness: &Value) -> Option<f64> {
+    let delta = after - before;
+    if matches!(p, "x" | "y" | "z") {
+        return Some(0.);
+    }
+    let cut = if matches!(f.kind.as_str(), "pocket" | "hole" | "counterbore") {
+        -1.
+    } else {
+        1.
+    };
+    if f.type_name == "CylinderFeature" && p == "height" {
+        let diameter = field(f, "diameter")?.1;
+        return Some(cut * std::f64::consts::PI * diameter * diameter / 4. * delta);
+    }
+    if p == "diameter" {
+        let depth = if f.kind == "counterbore" {
+            number(&f.definition["hole"]["cb_depth"])?
+        } else {
+            field(f, "depth")
+                .or_else(|| field(f, "height"))
+                .map(|(_, v)| v)
+                .or_else(|| {
+                    let (a, _) = f.direction?;
+                    Some(number(&f.bbox["max"][a])? - number(&f.bbox["min"][a])?)
+                })?
+        };
+        return Some(cut * std::f64::consts::PI / 4. * (after * after - before * before) * depth);
+    }
+    if matches!(f.kind.as_str(), "hole" | "counterbore")
+        && p == "depth"
+        && f.type_name == "HoleFeature"
+    {
+        let bore = number(&f.definition["diameter"])?;
+        let area = if f.kind == "counterbore" {
+            let cb = number(&f.definition["hole"]["cb_diameter"])?;
+            (cb * cb - bore * bore) * std::f64::consts::PI / 4.
+        } else {
+            bore * bore * std::f64::consts::PI / 4.
+        };
+        return Some(-area * delta);
+    }
+    let face = f.faces.iter().find(|v| v["name"] == witness["face"])?;
+    let scale = if f.definition["extent"]["direction"] == "symmetric"
+        && f.definition["extent"]["convention"] != "legacy_per_side"
+    {
+        0.5
+    } else {
+        1.
+    };
+    Some(cut * number(&face["area"])? * delta * scale)
 }
 pub fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<Plan, String> {
     crate::recipe_library::validate_structure(args, &schema())?;
@@ -699,7 +993,14 @@ pub fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<Plan, S
     let after = if vertical && mode == "set" && matches!(p, "depth" | "height") {
         before + (value - measured) / derivative
     } else if mode == "change" {
-        before + delta
+        before
+            + if matches!(p, "height" | "depth") && !vertical {
+                delta / derivative.abs()
+            } else {
+                delta
+            }
+    } else if let Some(size) = exposed_size(f, p, measured) {
+        before + (value - size) / derivative.abs()
     } else {
         value
     };
@@ -709,15 +1010,66 @@ pub fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<Plan, S
     {
         return Err("args.value produces an invalid feature size; size must be positive and at most 1000000 mm".into());
     }
+    if after < before && matches!(p, "height" | "depth") {
+        let data = form_context::payloads(request);
+        if data.iter().any(|d| {
+            d["id"].as_u64().is_some_and(|id| id > f.id)
+                && d["definition"]["participants"]
+                    .as_array()
+                    .is_some_and(|bs| bs.iter().any(|b| b == &f.body))
+                && ["corner", "base", "position"].iter().any(|key| {
+                    point(&d["definition"][key]).is_some_and(|pos| {
+                        f.direction
+                            .is_some_and(|(a, _)| (pos[a] - measured).abs() < 0.001)
+                    })
+                })
+        }) {
+            return Err("Changing this support would detach a later feature; move its attachment with the support before editing".into());
+        }
+    }
+    let attachments: Vec<_> = form_context::payloads(request)
+        .iter()
+        .filter(|_| matches!(p, "height" | "depth" | "start_offset"))
+        .filter(|d| {
+            d["id"].as_u64().is_some_and(|id| id > f.id)
+                && d["definition"]["participants"]
+                    .as_array()
+                    .is_some_and(|bs| bs.iter().any(|b| b == &f.body))
+        })
+        .filter(|d| {
+            ["corner", "base", "position"].iter().any(|key| {
+                point(&d["definition"][key]).is_some_and(|pos| {
+                    f.direction
+                        .is_some_and(|(a, _)| (pos[a] - measured).abs() < 0.001)
+                })
+            })
+        })
+        .map(|d| d["name"].clone())
+        .collect();
     let mut set = json!({});
     if let Some(a) = coordinate {
         let mut pos = f.definition[&path].clone();
         pos[a] = json!(after);
         set[&path] = pos;
     } else {
-        set[&path] = json!(if path == "radius" { after / 2. } else { after });
+        let v = json!(if path == "radius" { after / 2. } else { after });
+        if let Some((parent, child)) = path.split_once('.') {
+            set[parent] = json!({child: v});
+        } else {
+            set[&path] = v;
+        }
     }
     let expected = measured + derivative * (after - before);
+    let mut bbox = f.bbox.clone();
+    if witness["kind"] == "plane" && f.kind == "pad" {
+        if let Some(a) = witness["axis"].as_u64().map(|n| n as usize) {
+            for edge in ["min", "max"] {
+                if number(&bbox[edge][a]).is_some_and(|v| (v - measured).abs() < 0.001) {
+                    bbox[edge][a] = json!(expected);
+                }
+            }
+        }
+    }
     Ok(Plan {
         rule: "named_feature",
         calls: vec![
@@ -728,14 +1080,18 @@ pub fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<Plan, S
             )?,
             call(catalog, "model.faces", json!({"body":f.body}))?,
             call(catalog, "timeline.inspect", json!({"feature":f.name}))?,
+            call(catalog, "document.inspect", json!({"measure":true}))?,
         ],
         facts: None,
-        slots: json!({"feature":f.name,"body":f.body,"id":f.id,"parameter":p,"field":path,"before":before,"after":after,"witness":witness,"measured_before":measured,"measured_after":expected}),
+        slots: json!({"feature":f.name,"body":f.body,"id":f.id,"parameter":p,"field":path,"before":before,"after":after,"witness":witness,"measured_before":measured,"measured_after":expected,"attachments":attachments,"bounds_after":bbox,
+            "size_before":exposed_size(f,p,measured).unwrap_or(before),
+            "size_after":exposed_size(f,p,measured).unwrap_or(before) + derivative.abs()*(after-before),"volume_before":f.volume,
+            "volume_after":f.volume.zip(volume_change(f,p,before,after,&witness)).map(|(v,d)| v+d)}),
         expected: None,
         continuation: None,
     })
 }
-fn measured_after(request: &Value, plan: &Plan) -> Option<f64> {
+fn changed_payloads(request: &Value, plan: &Plan) -> Option<Vec<Value>> {
     let messages = request["messages"].as_array()?;
     let start = messages.iter().rposition(|m| {
         m["role"] == "assistant"
@@ -755,6 +1111,10 @@ fn measured_after(request: &Value, plan: &Plan) -> Option<f64> {
         .filter(|m| m["role"] == "tool")
         .filter_map(tool_payload)
         .collect();
+    Some(data)
+}
+fn measured_after(request: &Value, plan: &Plan) -> Option<f64> {
+    let data = changed_payloads(request, plan)?;
     let s = &plan.slots;
     let faces = data
         .iter()
@@ -772,9 +1132,41 @@ fn measured_after(request: &Value, plan: &Plan) -> Option<f64> {
     })
 }
 pub fn completion(request: &Value, plan: &Plan) -> Option<String> {
-    if measured_after(request, plan)
-        .zip(number(&plan.slots["measured_after"]))
-        .is_some_and(|(a, b)| (a - b).abs() < 0.001)
+    let data = changed_payloads(request, plan).unwrap_or_default();
+    let volume_ok = volume(&plan.slots["volume_after"]).is_some_and(|expected| {
+        form_context::document(&data)
+            .and_then(|d| d["bodies"].as_array())
+            .and_then(|bs| bs.iter().find(|b| b["name"] == plan.slots["body"]))
+            .and_then(|b| volume(&b["volume_mm3"]))
+            .is_some_and(|actual| {
+                (actual - expected).abs()
+                    <= 0.01_f64.max(
+                        (expected - volume(&plan.slots["volume_before"]).unwrap_or(expected)).abs()
+                            * 0.002,
+                    )
+            })
+    });
+    let bounds_ok = form_context::document(&data)
+        .and_then(|d| d["bodies"].as_array())
+        .and_then(|bs| bs.iter().find(|b| b["name"] == plan.slots["body"]))
+        .is_some_and(|b| {
+            ["min", "max"].iter().all(|edge| {
+                (0..3).all(|a| {
+                    number(&b["bbox"][edge][a])
+                        .zip(number(&plan.slots["bounds_after"][edge][a]))
+                        .is_some_and(|(actual, expected)| (actual - expected).abs() < 0.001)
+                })
+            })
+        });
+    let attachments_ok = plan.slots["attachments"]
+        .as_array()
+        .is_none_or(Vec::is_empty);
+    if attachments_ok
+        && volume_ok
+        && bounds_ok
+        && measured_after(request, plan)
+            .zip(number(&plan.slots["measured_after"]))
+            .is_some_and(|(a, b)| (a - b).abs() < 0.001)
     {
         None
     } else {
@@ -806,8 +1198,8 @@ pub fn summary(request: &Value, plan: &Plan) -> String {
         "Exact match (no model): {} {}: {} → {} mm. Measured {measurement} {} → {} mm.",
         plan.slots["feature"].as_str().unwrap_or("feature"),
         plan.slots["parameter"].as_str().unwrap_or("parameter"),
-        plan.slots["before"],
-        plan.slots["after"],
+        plan.slots["size_before"],
+        plan.slots["size_after"],
         number(&plan.slots["measured_before"])
             .map(|v| json!(rounded(v, 4)))
             .unwrap_or(Value::Null),
