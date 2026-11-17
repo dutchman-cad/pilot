@@ -381,12 +381,23 @@ fn named_feature_two_candidates_never_guesses() {
         );
     }
     let err = planner::named_feature::build(
-        &json!({"feature":"Hole1","parameter":"depth","mode":"change","value":3}),
+        &json!({"feature":"Hole3","parameter":"depth","mode":"change","value":3}),
         &req,
         &f.proxy.catalog,
     )
     .unwrap_err();
-    assert!(err.contains("ambiguous"));
+    assert!(
+        err.contains("ambiguous") && err.contains("\"Hole1\""),
+        "{err}"
+    );
+    // A form fill that names one candidate selects it.
+    let plan = planner::named_feature::build(
+        &json!({"feature":"Hole1","parameter":"depth","mode":"change","value":3}),
+        &req,
+        &f.proxy.catalog,
+    )
+    .unwrap();
+    assert_eq!(plan.slots["feature"], "Hole1");
     // A body or actual name separates the candidates, without a model.
     req["messages"][0]["content"] = json!("deepen the hole Hole1 by 3 mm");
     assert!(planner::named_feature::exact(&req, &f.proxy.catalog)
@@ -1036,4 +1047,112 @@ fn named_feature_next_parameter_can_verify_and_is_tried_only_once() {
     )
     .unwrap()
     .is_none());
+}
+
+/// Two round cuts on one plate that a generic request matches equally.
+fn two_hole_context(text: &str, names: [&str; 2]) -> Value {
+    let area = std::f64::consts::PI * 9.;
+    let mut faces = Vec::new();
+    let mut timeline = Vec::new();
+    let mut details = Vec::new();
+    for (i, (name, x)) in names.iter().zip([15., 45.]).enumerate() {
+        let id = i + 2;
+        faces.push(json!({"name":format!("F{id}:wall"),"exact":true,"cylinder":{"radius":3.,"origin":[x,20.,10.]}}));
+        faces.push(json!({"name":format!("F{id}:floor"),"exact":true,"centroid":[x,20.,4.],"plane_normal":[0,0,1],"area":area}));
+        timeline.push(json!({"id":id,"name":name,"type":"CylinderFeature"}));
+        details.push(json!({"id":id,"name":name,"definition":{"radius":3.,"height":6.,"base":[x,20.,10.],"axis":[0,0,-1],"operation":"cut"}}));
+    }
+    let mut req = request();
+    req["messages"] = json!([{"role":"user","content":text}]);
+    let doc = json!({"bodies":[{"name":"Plate","volume_mm3":24000.-2.*area*6.,"bbox":{"min":[0,0,0],"max":[60.,40.,10.]}}],"timeline":timeline});
+    for data in details
+        .into_iter()
+        .chain([json!({"body":"Plate","faces":faces}), doc])
+    {
+        req["messages"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"role":"tool","content":data.to_string()}));
+    }
+    req
+}
+fn picked(req: &Value, feature: &str) -> Result<String, String> {
+    let cat = Catalog::bundled().unwrap();
+    planner::named_feature::build(
+        &json!({"feature":feature,"parameter":"depth","mode":"change","value":2}),
+        req,
+        &cat,
+    )
+    .map(|plan| {
+        assert_eq!(
+            plan.calls[0]["arguments"]["params"]["feature"],
+            plan.slots["feature"]
+        );
+        plan.slots["feature"].as_str().unwrap().to_string()
+    })
+}
+#[test]
+fn named_feature_form_name_selects_one_of_several_matches() {
+    let req = two_hole_context("deepen the hole by 2 mm", ["Hole A", "Hole B"]);
+    let cat = Catalog::bundled().unwrap();
+    assert!(planner::named_feature::exact(&req, &cat).unwrap().is_none());
+    assert_eq!(
+        planner::named_feature::form(&req)["properties"]["feature"]["enum"],
+        json!(["Hole B", "Hole A"])
+    );
+    assert_eq!(picked(&req, "Hole B").unwrap(), "Hole B");
+    assert_eq!(picked(&req, "Hole A").unwrap(), "Hole A");
+    for unknown in ["Hole C", "Hole", "Base / Hole B", "Hole B hole"] {
+        let err = picked(&req, unknown).unwrap_err();
+        assert!(err.contains("ambiguous"), "{unknown}: {err}");
+        assert!(
+            err.contains("\"Hole A\" (body Plate)") && err.contains("\"Hole B\" (body Plate)"),
+            "{err}"
+        );
+    }
+}
+#[test]
+fn named_feature_loose_form_names_resolve_only_when_unique() {
+    let req = two_hole_context("deepen the hole by 2 mm", ["Hole A", "Hole B"]);
+    for variant in [
+        "hole b",
+        "  Hole   B ",
+        "\"Hole B\"",
+        "'hole B'",
+        "Plate / Hole B",
+        "plate:Hole B",
+        "Plate: \"hole b\"",
+        "\"Plate / Hole B\"",
+    ] {
+        assert_eq!(picked(&req, variant).as_deref(), Ok("Hole B"), "{variant}");
+    }
+    // Two inspected names that differ only in case and spacing.
+    let req = two_hole_context("deepen the hole by 2 mm", ["Hole A", "hole  a"]);
+    assert_eq!(picked(&req, "Hole A").unwrap(), "Hole A");
+    assert_eq!(picked(&req, "hole  a").unwrap(), "hole  a");
+    for variant in ["HOLE A", "Plate / hole a"] {
+        let err = picked(&req, variant).unwrap_err();
+        assert!(err.contains("ambiguous"), "{variant}: {err}");
+    }
+}
+#[test]
+fn named_feature_retry_keeps_the_chosen_candidate() {
+    let cat = Catalog::bundled().unwrap();
+    let req = two_hole_context("Make the hole bigger by 2 mm", ["Hole A", "Hole B"]);
+    let first = planner::named_feature::build(
+        &json!({"feature":"plate / hole b","parameter":"depth","mode":"change","value":2}),
+        &req,
+        &cat,
+    )
+    .unwrap();
+    assert_eq!(first.slots["feature"], "Hole B");
+    let restored = planner::named_feature::restore(&first, &cat).unwrap();
+    let retry = planner::named_feature::retry(&restored, &cat)
+        .unwrap()
+        .unwrap();
+    assert_eq!(retry.slots["feature"], "Hole B");
+    assert_eq!(
+        retry.calls[0]["arguments"]["params"],
+        json!({"feature":"Hole B","set":{"radius":4.}})
+    );
 }
