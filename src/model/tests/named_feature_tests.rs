@@ -390,14 +390,14 @@ fn named_feature_two_candidates_never_guesses() {
         err.contains("ambiguous") && err.contains("\"Hole1\""),
         "{err}"
     );
-    // A form fill that names one candidate selects it.
-    let plan = planner::named_feature::build(
+    // A fill naming one candidate the user did not name is still a guess.
+    let err = planner::named_feature::build(
         &json!({"feature":"Hole1","parameter":"depth","mode":"change","value":3}),
         &req,
         &f.proxy.catalog,
     )
-    .unwrap();
-    assert_eq!(plan.slots["feature"], "Hole1");
+    .unwrap_err();
+    assert!(err.contains("ambiguous"), "{err}");
     // A body or actual name separates the candidates, without a model.
     req["messages"][0]["content"] = json!("deepen the hole Hole1 by 3 mm");
     assert!(planner::named_feature::exact(&req, &f.proxy.catalog)
@@ -1100,8 +1100,14 @@ fn named_feature_form_name_selects_one_of_several_matches() {
         planner::named_feature::form(&req)["properties"]["feature"]["enum"],
         json!(["Hole B", "Hole A"])
     );
-    assert_eq!(picked(&req, "Hole B").unwrap(), "Hole B");
-    assert_eq!(picked(&req, "Hole A").unwrap(), "Hole A");
+    // The user named neither, so a fill that picks one is a guess.
+    for guess in ["Hole A", "Hole B"] {
+        let err = picked(&req, guess).unwrap_err();
+        assert!(err.contains("ambiguous"), "{guess}: {err}");
+    }
+    // Named by the user, the candidate the fill picks is the one built.
+    let named = two_hole_context("deepen Hole B by 2 mm.", ["Hole A", "Hole B"]);
+    assert_eq!(picked(&named, "Hole B").unwrap(), "Hole B");
     for unknown in ["Hole C", "Hole", "Base / Hole B", "Hole B hole"] {
         let err = picked(&req, unknown).unwrap_err();
         assert!(err.contains("ambiguous"), "{unknown}: {err}");
@@ -1113,7 +1119,7 @@ fn named_feature_form_name_selects_one_of_several_matches() {
 }
 #[test]
 fn named_feature_loose_form_names_resolve_only_when_unique() {
-    let req = two_hole_context("deepen the hole by 2 mm", ["Hole A", "Hole B"]);
+    let req = two_hole_context("deepen Hole B by 2 mm", ["Hole A", "Hole B"]);
     for variant in [
         "hole b",
         "  Hole   B ",
@@ -1127,7 +1133,7 @@ fn named_feature_loose_form_names_resolve_only_when_unique() {
         assert_eq!(picked(&req, variant).as_deref(), Ok("Hole B"), "{variant}");
     }
     // Two inspected names that differ only in case and spacing.
-    let req = two_hole_context("deepen the hole by 2 mm", ["Hole A", "hole  a"]);
+    let req = two_hole_context("deepen Hole A by 2 mm", ["Hole A", "hole  a"]);
     assert_eq!(picked(&req, "Hole A").unwrap(), "Hole A");
     assert_eq!(picked(&req, "hole  a").unwrap(), "hole  a");
     for variant in ["HOLE A", "Plate / hole a"] {
@@ -1138,7 +1144,7 @@ fn named_feature_loose_form_names_resolve_only_when_unique() {
 #[test]
 fn named_feature_retry_keeps_the_chosen_candidate() {
     let cat = Catalog::bundled().unwrap();
-    let req = two_hole_context("Make the hole bigger by 2 mm", ["Hole A", "Hole B"]);
+    let req = two_hole_context("Make Hole B bigger by 2 mm", ["Hole A", "Hole B"]);
     let first = planner::named_feature::build(
         &json!({"feature":"plate / hole b","parameter":"depth","mode":"change","value":2}),
         &req,
