@@ -74,24 +74,54 @@ impl Session {
         self.send(json!({"jsonrpc":"2.0","method":"notifications/initialized"}));
     }
 }
-fn fake() -> PathBuf {
-    // Reuse the crate's already-built serde_json, keeping the fake server Rust-only.
-    let deps = std::env::current_exe()
-        .unwrap()
-        .parent()
+// Every .rlib under the profile directory (target/<profile>), at most a few levels down.
+// Cargo used to put them all in deps/; newer versions give each crate build/<crate>/<hash>/out/.
+fn rlibs() -> Vec<PathBuf> {
+    let exe = std::env::current_exe().unwrap();
+    let profile = exe
+        .ancestors()
+        .skip(1)
+        .find(|a| a.join("deps").is_dir() || a.join("build").is_dir())
         .unwrap()
         .to_path_buf();
-    let library = std::fs::read_dir(&deps)
-        .unwrap()
-        .map(|e| e.unwrap().path())
-        .find(|p| {
+    let mut found = Vec::new();
+    let mut pending = vec![(profile, 0)];
+    while let Some((dir, depth)) = pending.pop() {
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        for path in entries.map(|e| e.unwrap().path()) {
+            if path.is_dir() {
+                if depth < 4 {
+                    pending.push((path, depth + 1));
+                }
+            } else if path.extension().is_some_and(|s| s == "rlib") {
+                found.push(path);
+            }
+        }
+    }
+    found
+}
+fn fake() -> PathBuf {
+    // Reuse the crate's already-built serde_json, keeping the fake server Rust-only.
+    let rlibs = rlibs();
+    let library = rlibs
+        .iter()
+        .filter(|p| {
             p.file_name()
                 .unwrap()
                 .to_string_lossy()
                 .starts_with("libserde_json-")
-                && p.extension().is_some_and(|s| s == "rlib")
         })
-        .unwrap();
+        .max_by_key(|p| p.metadata().and_then(|m| m.modified()).ok())
+        .unwrap()
+        .clone();
+    let mut search: Vec<PathBuf> = rlibs
+        .iter()
+        .filter_map(|p| p.parent().map(PathBuf::from))
+        .collect();
+    search.sort();
+    search.dedup();
     static NEXT_FAKE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let sequence = NEXT_FAKE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let dir = std::env::temp_dir().join(format!(
@@ -100,20 +130,19 @@ fn fake() -> PathBuf {
     ));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join(format!("fake-child{}", std::env::consts::EXE_SUFFIX));
-    let output = Command::new("rustc")
+    let mut rustc = Command::new("rustc");
+    rustc
         .args(["--edition=2021", "--crate-name", "fake_child"])
         .arg(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/tests/support/fake_child.rs"
         ))
         .arg("--extern")
-        .arg(format!("serde_json={}", library.display()))
-        .arg("-L")
-        .arg(format!("dependency={}", deps.display()))
-        .arg("-o")
-        .arg(&path)
-        .output()
-        .unwrap();
+        .arg(format!("serde_json={}", library.display()));
+    for dir in &search {
+        rustc.arg("-L").arg(format!("dependency={}", dir.display()));
+    }
+    let output = rustc.arg("-o").arg(&path).output().unwrap();
     assert!(
         output.status.success(),
         "{}",
