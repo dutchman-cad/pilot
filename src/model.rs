@@ -3369,6 +3369,7 @@ mod tests {
     mod body_hint_tests;
     mod context_tests;
     mod holefact_tests;
+    mod named_feature_kinds_tests;
     mod named_feature_tests;
     mod sizecheck_tests;
     use super::*;
