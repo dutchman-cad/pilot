@@ -1801,7 +1801,7 @@ pub fn summary(request: &Value, plan: &Plan) -> String {
     )
 }
 /// Development trace of each selection step, for focused tests.
-#[cfg(test)]
+#[cfg(all(test, feature = "proxy"))]
 pub(crate) fn trace(request: &Value) -> Value {
     let params = [
         "height",
