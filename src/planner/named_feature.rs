@@ -1079,20 +1079,12 @@ fn chosen<'a>(name: &str, fs: &'a [Feature]) -> Option<&'a Feature> {
 pub fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<Plan, String> {
     crate::recipe_library::validate_structure(args, &schema())?;
     let fs = matching(request);
-    // Among several equal candidates the fill decides only when the user named that one;
-    // otherwise a guessed pick builds the wrong feature, so the ambiguity stands.
-    let spaced = |t: &str| {
-        let t: String = t
-            .chars()
-            .map(|c| if c.is_alphanumeric() { c } else { ' ' })
-            .collect();
-        format!(" {} ", loose(&t))
-    };
-    let said = spaced(user_text(request));
+    // Several equal candidates stay ambiguous: a fill's pick among them is a guess, and a
+    // guessed edit builds and verifies on the wrong feature. Inspecting resolves it instead.
     let f = args["feature"]
         .as_str()
         .and_then(|name| chosen(name, &fs))
-        .filter(|f| fs.len() < 2 || said.contains(&spaced(&f.name)))
+        .filter(|_| fs.len() < 2)
         .ok_or_else(|| {
             if fs.len() > 1 {
                 format!(

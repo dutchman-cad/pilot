@@ -1100,14 +1100,11 @@ fn named_feature_form_name_selects_one_of_several_matches() {
         planner::named_feature::form(&req)["properties"]["feature"]["enum"],
         json!(["Hole B", "Hole A"])
     );
-    // The user named neither, so a fill that picks one is a guess.
+    // A fill that picks one of several equal candidates is a guess.
     for guess in ["Hole A", "Hole B"] {
         let err = picked(&req, guess).unwrap_err();
         assert!(err.contains("ambiguous"), "{guess}: {err}");
     }
-    // Named by the user, the candidate the fill picks is the one built.
-    let named = two_hole_context("deepen Hole B by 2 mm.", ["Hole A", "Hole B"]);
-    assert_eq!(picked(&named, "Hole B").unwrap(), "Hole B");
     for unknown in ["Hole C", "Hole", "Base / Hole B", "Hole B hole"] {
         let err = picked(&req, unknown).unwrap_err();
         assert!(err.contains("ambiguous"), "{unknown}: {err}");
@@ -1132,11 +1129,9 @@ fn named_feature_loose_form_names_resolve_only_when_unique() {
     ] {
         assert_eq!(picked(&req, variant).as_deref(), Ok("Hole B"), "{variant}");
     }
-    // Two inspected names that differ only in case and spacing.
+    // Two inspected names that differ only in case and spacing both fit: no pick stands.
     let req = two_hole_context("deepen Hole A by 2 mm", ["Hole A", "hole  a"]);
-    assert_eq!(picked(&req, "Hole A").unwrap(), "Hole A");
-    assert_eq!(picked(&req, "hole  a").unwrap(), "hole  a");
-    for variant in ["HOLE A", "Plate / hole a"] {
+    for variant in ["Hole A", "hole  a", "HOLE A", "Plate / hole a"] {
         let err = picked(&req, variant).unwrap_err();
         assert!(err.contains("ambiguous"), "{variant}: {err}");
     }
