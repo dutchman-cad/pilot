@@ -787,8 +787,17 @@ pub fn exact(request: &Value, catalog: &Catalog) -> Result<Option<Plan>, String>
 /// Wording that changes one size of something already there, never wording that adds one.
 /// Unclear wording returns false so creation routing stays as it was.
 pub fn change_wording(text: &str) -> bool {
+    wording(text).is_some()
+}
+/// A size change said with a comparative or a change verb ("taller", "deepen"): clear enough
+/// to inspect an opened design before any earlier result has shown its bodies.
+pub fn relative_change_wording(text: &str) -> bool {
+    wording(text) == Some(true)
+}
+// Some(relative) for size-change wording, None otherwise.
+fn wording(text: &str) -> Option<bool> {
     if text.len() > 2048 {
-        return false;
+        return None;
     }
     let lower = text.to_ascii_lowercase();
     let w: Vec<_> = lower
@@ -832,7 +841,7 @@ pub fn change_wording(text: &str) -> bool {
             "thick",
             "across",
         ]);
-    (1..=2).contains(&sizes)
+    let change = (1..=2).contains(&sizes)
         && (comparative || directional || sized)
         && !w
             .windows(2)
@@ -876,7 +885,8 @@ pub fn change_wording(text: &str) -> bool {
             "how",
             "explain",
             "describe",
-        ])
+        ]);
+    change.then_some(comparative || directional)
 }
 /// Earlier public tool results in this conversation reported at least one body.
 pub fn design_in_history(request: &Value) -> bool {

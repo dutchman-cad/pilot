@@ -165,27 +165,22 @@ fn adding_a_feature_to_the_same_design_keeps_the_creation_form() {
 }
 
 #[test]
-fn empty_design_change_wording_is_unchanged() {
-    let mut old = fill_fixture(vec![call("pilot_fill", json!({"decline":true}))]);
-    old.proxy
-        .recipes
-        .recipes
-        .retain(|r| r.id != "named_feature");
-    let mut new = fill_fixture(vec![call("pilot_fill", json!({"decline":true}))]);
+fn first_turn_relative_change_inspects_before_any_form() {
+    let mut f = fill_fixture(vec![call("pilot_fill", json!({"decline":true}))]);
     let mut req = request();
     req["messages"] = json!([{"role":"user","content":CHANGE}]);
-    let a = old.chat(req.clone());
-    let b = new.chat(req);
-    assert_eq!(a.status, b.status);
-    let log = fs::read_to_string(new.dir.join("log.jsonl")).unwrap();
-    assert!(
-        !log.contains("\"feature_change\"") && !log.contains("form_inspect"),
-        "{log}"
-    );
-    let a = old.proxy.scripted.as_ref().unwrap().borrow();
-    let b = new.proxy.scripted.as_ref().unwrap().borrow();
-    assert_eq!(
-        serde_json::to_vec(&a.requests).unwrap(),
-        serde_json::to_vec(&b.requests).unwrap()
-    );
+    f.chat(req);
+    let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+    // No result has shown a body yet, so Pilot reads the design before choosing a form.
+    assert!(log.contains("form_inspect"), "{log}");
+    assert!(!log.contains("\"feature_change\""), "{log}");
+}
+
+#[test]
+fn set_to_size_wording_waits_for_an_earlier_body() {
+    // Without a comparative or change verb, an edit is only assumed once a body was shown.
+    let text = "Set the Post height to 15 mm";
+    assert!(planner::named_feature::change_wording(text));
+    assert!(!planner::named_feature::relative_change_wording(text));
+    assert!(planner::named_feature::relative_change_wording(CHANGE));
 }

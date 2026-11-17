@@ -1379,7 +1379,8 @@ impl Proxy {
             && band["recipes"][0].is_object()
             && !fill::needs_names(&band["recipes"][0])
             && planner::named_feature::change_wording(last_user(&original))
-            && planner::named_feature::design_in_history(&original);
+            && (planner::named_feature::design_in_history(&original)
+                || planner::named_feature::relative_change_wording(last_user(&original)));
         if feature_change
             && planner::named_feature::reads(&original, &self.catalog).is_ok_and(|r| r.is_empty())
             && planner::named_feature::existing_change(&original)
