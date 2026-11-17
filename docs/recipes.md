@@ -40,6 +40,11 @@ against the measured before value, and reports both measurements. Missing geomet
 unevaluated dimensions and unsupported edits receive a form error rather than a guess.
 Inspection is bounded to 12 bodies, 12 timeline features and 2,048 faces per body.
 This recipe contributes no documents to the existing retrieval index.
+When a creation form would otherwise be offered, earlier tool results showed a body,
+and the request changes a size (change verb or comparative word plus one or two
+lengths, no add/new/another or second-intent wording), Pilot inspects first and
+offers this form instead only if exactly one inspected feature is meant and it has a
+measurable parameter; otherwise the creation form stays (audited as `feature_change`).
 
 Use `--upstream none` for a no-model assistant; it rejects `--no-direct-recipes`.
 `/v1/models` then lists `pilot-recipes`; other requests receive a fixed
