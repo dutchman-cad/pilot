@@ -565,15 +565,20 @@ impl Library {
             json!({"hit":hit,"message":if hit {"Choose a recipe and fill its schema through pilot_build."} else {"No good recipe hit. Do not improvise CAD; explain what Pilot can build or ask one question. Closest recipes follow."},"recipes":recipes}),
         )
     }
+    /// The named feature edit form, offered alone at the fill threshold.
+    pub fn named_band(&self) -> Option<Value> {
+        let r = self.recipes.iter().find(|r| r.id == "named_feature")?;
+        Some(
+            json!({"band":"fill","recipes":[{"id":r.id,"description":r.description,"schema":r.schema,"score":4.5}]}),
+        )
+    }
     /// Refine an existing-part edit after public inspection, leaving ranking calibration intact.
     pub fn form_band_in_design(&self, request: &str, bodies: &[String]) -> Result<Value, String> {
         // Existing feature edits precede both creation forms and ranked route lists.
         // Exact recipes are resolved by the caller before this form decision.
         if !bodies.is_empty() && planner::named_feature::candidate(request) {
-            if let Some(r) = self.recipes.iter().find(|r| r.id == "named_feature") {
-                return Ok(
-                    json!({"band":"fill","recipes":[{"id":r.id,"description":r.description,"schema":r.schema,"score":4.5}]}),
-                );
+            if let Some(band) = self.named_band() {
+                return Ok(band);
             }
         }
         let mut band = self.form_band(request)?;
@@ -594,10 +599,8 @@ impl Library {
     /// One bounded decision shared by the proxy and development calibration.
     pub fn form_band(&self, request: &str) -> Result<Value, String> {
         if planner::named_feature::candidate(request) {
-            if let Some(r) = self.recipes.iter().find(|r| r.id == "named_feature") {
-                return Ok(
-                    json!({"band":"fill","recipes":[{"id":r.id,"description":r.description,"schema":r.schema,"score":4.5}]}),
-                );
+            if let Some(band) = self.named_band() {
+                return Ok(band);
             }
         }
         if request.trim().is_empty() || request.len() > 2048 {

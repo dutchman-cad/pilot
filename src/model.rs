@@ -1372,19 +1372,40 @@ impl Proxy {
                 .recipes
                 .form_band_in_design(last_user(&original), &planner::recipe_targets(&original))?;
         }
+        // A change to one existing feature must not fill a creation form: inspect first,
+        // then offer the named edit only when exactly one inspected feature is meant.
+        let feature_change = recipe.is_none()
+            && matches!(band["band"].as_str(), Some("fill" | "route"))
+            && band["recipes"][0].is_object()
+            && !fill::needs_names(&band["recipes"][0])
+            && planner::named_feature::change_wording(last_user(&original))
+            && planner::named_feature::design_in_history(&original);
+        if feature_change
+            && planner::named_feature::reads(&original, &self.catalog).is_ok_and(|r| r.is_empty())
+            && planner::named_feature::existing_change(&original)
+        {
+            if let Some(named) = self.recipes.named_band() {
+                audit.record(
+                    "feature_change",
+                    &Value::Null,
+                    &json!({"replaced":band["recipes"][0]["id"],"band":band["band"]}),
+                )?;
+                band = named;
+            }
+        }
         let all_candidates = band["recipes"].as_array().map(Vec::as_slice).unwrap_or(&[]);
         let candidates =
             &all_candidates[..all_candidates
                 .len()
                 .min(if band["band"] == "fill" { 1 } else { 4 })];
         if matches!(band["band"].as_str(), Some("fill" | "route"))
-            && (candidates.iter().any(fill::needs_names) || edit_intent.is_some())
+            && (candidates.iter().any(fill::needs_names) || edit_intent.is_some() || feature_change)
         {
             let joint = candidates
                 .iter()
                 .take(4)
                 .any(|r| r["id"] == "revolute_joint" || r["id"] == "joint");
-            let named = candidates.iter().any(|r| r["id"] == "named_feature");
+            let named = feature_change || candidates.iter().any(|r| r["id"] == "named_feature");
             let reads = if named {
                 planner::named_feature::reads(&original, &self.catalog)?
             } else {
@@ -3370,6 +3391,7 @@ mod tests {
     mod context_tests;
     mod holefact_tests;
     mod named_feature_tests;
+    mod route_edit_tests;
     mod sizecheck_tests;
     use super::*;
     use std::{
