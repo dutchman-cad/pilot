@@ -8,7 +8,7 @@ const ADD: &str = "add a 6 mm boss 10 mm tall to the plate";
 /// A plate with one named boss, plus the earlier turn that made it.
 fn design(s: &mut Session) -> Vec<Value> {
     let mut history = vec![
-        json!({"role":"user","content":"Model a 60 x 40 x 6 mm plate called Base with an 8 mm post named Post, 10 mm tall"}),
+        json!({"role":"user","content":"Base: 60 by 40 by 6 mm, carrying Post, 8 mm across and standing 10 mm up"}),
     ];
     for (n, (command, params)) in [
         (
