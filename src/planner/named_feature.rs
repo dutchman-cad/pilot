@@ -1045,21 +1045,72 @@ fn volume_change(f: &Feature, p: &str, before: f64, after: f64, witness: &Value)
     };
     Some(cut * number(&face["area"])? * delta * scale)
 }
+/// Trimmed, unquoted, lowercase text with single spaces.
+fn loose(text: &str) -> String {
+    let t = text.trim();
+    let t = [('"', '"'), ('\'', '\''), ('`', '`'), ('“', '”'), ('‘', '’')]
+        .iter()
+        .find_map(|(a, b)| t.strip_prefix(*a).and_then(|s| s.strip_suffix(*b)))
+        .unwrap_or(t);
+    t.split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase()
+}
+// The model may echo an inspected name loosely. Take a unique exact name first, then a
+// unique loose one (also as "<body> / <name>" or "<body>:<name>"); never a nearest guess.
+fn chosen<'a>(name: &str, fs: &'a [Feature]) -> Option<&'a Feature> {
+    let only = |hits: Vec<&'a Feature>| match hits.as_slice() {
+        [f] => Some(*f),
+        _ => None,
+    };
+    let exact: Vec<_> = fs.iter().filter(|f| f.name == name).collect();
+    if !exact.is_empty() {
+        return only(exact);
+    }
+    let whole = loose(name);
+    only(
+        fs.iter()
+            .filter(|f| {
+                let target = loose(&f.name);
+                whole == target
+                    || [name, whole.as_str()].iter().any(|text| {
+                        ['/', ':'].iter().any(|sep| {
+                            text.split_once(*sep).is_some_and(|(body, rest)| {
+                                loose(body) == loose(&f.body) && loose(rest) == target
+                            })
+                        })
+                    })
+            })
+            .collect(),
+    )
+}
 pub fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<Plan, String> {
     crate::recipe_library::validate_structure(args, &schema())?;
     let fs = matching(request);
-    if fs.len() > 1 {
-        return Err("args.feature is ambiguous: several inspected features fit equally; ask for a feature name or body before editing".into());
-    }
-    let f = fs
-        .iter()
-        .find(|f| args["feature"] == f.name)
+    // Several equal candidates stay ambiguous: a fill's pick among them is a guess, and a
+    // guessed edit builds and verifies on the wrong feature. Inspecting resolves it instead.
+    let f = args["feature"]
+        .as_str()
+        .and_then(|name| chosen(name, &fs))
+        .filter(|_| fs.len() < 2)
         .ok_or_else(|| {
-            format!(
-                "args.feature {} must be one of the inspected matching feature names: {}",
-                args["feature"],
-                json!(fs.iter().map(|f| &f.name).collect::<Vec<_>>())
-            )
+            if fs.len() > 1 {
+                format!(
+                    "args.feature {} is ambiguous: several inspected features fit equally; set args.feature to exactly one of: {}",
+                    args["feature"],
+                    fs.iter()
+                        .map(|f| format!("{} (body {})", json!(f.name), f.body))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            } else {
+                format!(
+                    "args.feature {} must be one of the inspected matching feature names: {}",
+                    args["feature"],
+                    json!(fs.iter().map(|f| &f.name).collect::<Vec<_>>())
+                )
+            }
         })?;
     let p = args["parameter"]
         .as_str()
@@ -1266,7 +1317,10 @@ pub fn retry(plan: &Plan, catalog: &Catalog) -> Result<Option<Plan>, String> {
     }
     let request = &plan.slots["recovery_request"];
     let fs = matching(request);
-    let [f] = fs.as_slice() else { return Ok(None) };
+    // The plan names its resolved feature, including one chosen among several candidates.
+    let Some(f) = fs.iter().find(|f| plan.slots["feature"] == f.name) else {
+        return Ok(None);
+    };
     let choices = preferred(request, f);
     let Some(index) = choices.iter().position(|p| plan.slots["parameter"] == *p) else {
         return Ok(None);
@@ -1275,6 +1329,7 @@ pub fn retry(plan: &Plan, catalog: &Catalog) -> Result<Option<Plan>, String> {
         return Ok(None);
     };
     let mut args = plan.slots["args"].clone();
+    args["feature"] = json!(f.name);
     args["parameter"] = json!(next);
     Ok(build(&args, request, catalog).ok().map(|mut p| {
         p.slots["retried"] = json!(true);
