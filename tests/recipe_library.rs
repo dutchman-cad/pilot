@@ -2357,3 +2357,44 @@ fn enclosure_opening_follows_the_named_part() {
 
 #[path = "support/dev_l_notation.rs"]
 mod dev_l_notation;
+
+#[test]
+fn body_moves_and_renames_keep_their_operation() {
+    let lib = Library::embedded().unwrap();
+    let bodies = vec!["Block".to_string()];
+    for text in [
+        "Please move the block 17 mm along Y.",
+        "Shift this body 9 mm along Z.",
+        "Translate the solid 12 mm along X.",
+    ] {
+        for band in [
+            lib.form_band(text).unwrap(),
+            lib.form_band_in_design(text, &bodies).unwrap(),
+        ] {
+            assert_eq!(band["band"], "fill", "{text}: {band}");
+            assert_eq!(band["recipes"][0]["id"], "move", "{text}: {band}");
+        }
+    }
+    for text in [
+        "Please rename this solid to Mounting Plate.",
+        "Rename Block to L profile.",
+        "Rename the box to Make 24.",
+    ] {
+        assert_eq!(lib.form_band(text).unwrap()["band"], "low", "{text}");
+        assert_eq!(
+            lib.form_band_in_design(text, &bodies).unwrap()["band"],
+            "low",
+            "{text}"
+        );
+    }
+    for text in [
+        "Move the hole 3 mm along X.",
+        "Shift the boss 4 mm along Y.",
+    ] {
+        assert_eq!(
+            lib.form_band(text).unwrap()["recipes"][0]["id"],
+            "named_feature",
+            "{text}"
+        );
+    }
+}

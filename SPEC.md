@@ -96,7 +96,10 @@ Request side:
   plane; front face/edge alone does not. Supplied choices always win.
   Existing-part edit verbs may replace creation forms with edit forms after inspection
   confirms a body; pattern and joint forms retain their routing, and creation requests
-  retain creation forms. Outside box/container sizes with a wall thickness select
+  retain creation forms. Whole-body move/shift requests with generic solid names
+  stay on body translation forms rather than named-feature parameter edits. Rename
+  requests use native commands; words in the requested name never select a form.
+  Outside box/container sizes with a wall thickness select
   the enclosure form even when opening words are absent or an edge treatment is
   requested. Omitted openings
   keep the form default; exact box/container matching requires an explicit opening,

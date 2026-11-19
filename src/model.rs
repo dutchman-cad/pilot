@@ -8321,6 +8321,53 @@ mod tests {
         }
     }
     #[test]
+    fn forced_fill_leaves_body_rename_with_native_tools() {
+        for (text, name) in [
+            (
+                "Please rename this solid to Mounting Plate.",
+                "Mounting Plate",
+            ),
+            ("Rename Block to L profile.", "L profile"),
+            ("Rename the box to Make 24.", "Make 24"),
+        ] {
+            let native = call(
+                "execute",
+                json!({"command":"body.rename","params":{"body":"Block","name":name}}),
+            );
+            let mut f = fill_fixture(vec![native.clone()]);
+            let mut req = request();
+            req["messages"][0]["content"] = json!(text);
+            let out = f.chat(req);
+            assert_eq!(out.status, 200, "{text}");
+            let response: Value = serde_json::from_slice(&out.body).unwrap();
+            assert_eq!(
+                response["choices"][0]["message"]["tool_calls"],
+                native["choices"][0]["message"]["tool_calls"]
+            );
+            let script = f.proxy.scripted.as_ref().unwrap().borrow();
+            assert_eq!(script.requests.len(), 1);
+            assert_eq!(last_user(&script.requests[0]), text);
+            assert!(!script.requests[0]["tools"]
+                .to_string()
+                .contains("pilot_fill"));
+            assert!(!script.requests[0]["tools"]
+                .to_string()
+                .contains("pilot_route"));
+            for name in ["execute", "batch", "inspect"] {
+                assert!(script.requests[0]["tools"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|t| t["function"]["name"] == name));
+            }
+            let log = fs::read_to_string(f.dir.join("log.jsonl")).unwrap();
+            assert!(
+                !log.contains("fill_offered") && !log.contains("route_offered"),
+                "{log}"
+            );
+        }
+    }
+    #[test]
     fn forced_fill_falls_back_on_decline_text_other_tool_and_third_invalid() {
         for rejected in [
             vec![call("pilot_fill", json!({"decline":true}))],
