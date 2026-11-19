@@ -78,9 +78,11 @@ pub fn candidate(text: &str) -> bool {
         ]
         .iter()
         .any(|word| has(word));
-    edit && !has("rename")
-        && !body_move
-        && !(has("move") && has("offset") && !feature_move)
+    // A rename has no feature parameter to edit, whatever the new name says.
+    if has("rename") || body_move {
+        return false;
+    }
+    edit && !(has("move") && has("offset") && !feature_move)
         && !(has("move")
             && (text.contains(',')
                 || slots::tokens(text)
