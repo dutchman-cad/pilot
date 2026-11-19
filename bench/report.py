@@ -38,17 +38,19 @@ def report(paths):
         if (via, settings) != previous:
             print(f'\nReached via: {via}' + (' (agent prompt; separate from API scores)' if via.startswith('agent-') else ''))
             print(f'Model settings: {settings}')
-            print('| Set | Model / agent version | Direct | Pilot | Paired Δ | Errors (direct/Pilot) |')
-            print('| --- | --- | --- | --- | --- | --- |')
+            print('| Set | Model / agent version | Direct | Pilot | Paired Δ | Errors (direct/Pilot) | Skipped (direct/Pilot) |')
+            print('| --- | --- | --- | --- | --- | --- | --- |')
             previous = (via, settings)
         modes = [{(t, r): row for (t, r, p), row in trials.items() if p == flag} for flag in (False, True)]
+        skipped = '/'.join(str(sum(bool(r.get('skipped')) for r in rows.values())) for rows in modes)
+        modes = [{key: row for key, row in rows.items() if not row.get('skipped')} for rows in modes]
         def score(rows):
             return f"{sum(bool(r['pass']) and not r.get('error') for r in rows.values())}/{len(rows)}" if rows else '—'
         common = modes[0].keys() & modes[1].keys()
         delta = sum(bool(modes[1][k]['pass']) - bool(modes[0][k]['pass']) for k in common)
         change = f'{delta:+d}/{len(common)} pairs' if common else '—'
         errors = '/'.join(str(sum(bool(r.get('error')) for r in rows.values())) for rows in modes)
-        print(f"| {name} | {model.replace('|', '/').replace(chr(10), ' ')} | {score(modes[0])} | {score(modes[1])} | {change} | {errors} |")
+        print(f"| {name} | {model.replace('|', '/').replace(chr(10), ' ')} | {score(modes[0])} | {score(modes[1])} | {change} | {errors} | {skipped} |")
 
 
 def main():
