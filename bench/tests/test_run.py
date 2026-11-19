@@ -7,8 +7,9 @@ import json
 from pathlib import Path
 import sys
 import time
+from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import run
@@ -83,6 +84,105 @@ class RunnerTests(unittest.TestCase):
         with patch('run.MCP', side_effect=RuntimeError('broken fixture')), patch('run.reference', return_value=[]):
             with self.assertRaisesRegex(RuntimeError, 'broken fixture'):
                 run.run_one(type('Args', (), {'solidcraft':'unused'})(), Path('.'), {'setup_steps':0}, 'negative', None)
+
+
+class VersionGateTests(unittest.TestCase):
+    def setUp(self):
+        self.task = {'id': 'refusal', 'prompt': 'Make it left-handed.',
+                     'max_solidcraft': '0.20', 'check': {'honest': True}}
+
+    def test_numeric_inclusive_release_line_and_patch_bounds(self):
+        for version in ('0.19.0', '0.20', '0.20.0', '0.20.99'):
+            with self.subTest(version=version):
+                self.assertIsNone(run.skip_reason(self.task, {'version': version}))
+        for version in ('0.21.0', '0.44.0', '0.100.0', '1.0.0', '0.21.0-rc.1+build.2'):
+            with self.subTest(version=version):
+                self.assertIn(version, run.skip_reason(self.task, {'version': version}))
+        task = dict(self.task, max_solidcraft='0.20.1')
+        self.assertIsNone(run.skip_reason(task, {'version': '0.20.1'}))
+        self.assertIsNotNone(run.skip_reason(task, {'version': '0.20.2'}))
+        self.assertIsNone(run.skip_reason({}, {}))
+
+    def test_unknown_versions_fail_instead_of_skipping_or_scoring(self):
+        for version in (None, '', 'unknown', '0.20garbage', 20, '9' * 101):
+            with self.subTest(version=version), self.assertRaisesRegex(ValueError, 'invalid SolidCraft version'):
+                run.skip_reason(self.task, {'version': version})
+
+    def test_task_loader_validates_gate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)/'tasks.json'
+            for task in (dict(self.task, max_solidcraft='bad'),
+                         dict(self.task, check={'bodies': 1})):
+                run.save(path, {'format': 1, 'tasks': [task]})
+                with self.assertRaises(ValueError):
+                    run.task_file(path)
+
+    def test_new_versions_skip_all_modes_before_setup_model_and_checks(self):
+        args = SimpleNamespace(solidcraft='unused', replay_setup=True)
+        for mode in ('model', 'reference', 'negative', 'nothing'):
+            app = MagicMock()
+            app.__enter__.return_value = app
+            app.info = {'serverInfo': {'version': '0.44.0'}}
+            with self.subTest(mode=mode), patch('run.reference', return_value=[]), \
+                    patch('run.MCP', return_value=app), patch('run.replay') as replay, \
+                    patch('run.converse') as converse, patch('run.score') as score:
+                record = run.run_one(args, Path('.'), self.task, mode, None)
+                self.assertTrue(record['skipped'])
+                self.assertIsNone(record['pass'])
+                self.assertIsNone(record['matched'])
+                self.assertEqual(record['solidcraft']['version'], '0.44.0')
+                replay.assert_not_called()
+                converse.assert_not_called()
+                score.assert_not_called()
+                app.call.assert_not_called()
+
+    def test_old_version_still_scores_the_original_refusal(self):
+        app = MagicMock()
+        app.__enter__.return_value = app
+        app.info = {'serverInfo': {'version': '0.19.0'}}
+        args = SimpleNamespace(solidcraft='unused', replay_setup=True)
+        with patch('run.reference', return_value=[]), patch('run.MCP', return_value=app), \
+                patch('run.replay'), patch('run.check.inspect_for_task', return_value={}), \
+                patch('run.score', return_value={'pass': True, 'reason': 'ok'}) as score:
+            record = run.run_one(args, Path('.'), self.task, 'reference', None)
+        self.assertTrue(record['pass'])
+        self.assertTrue(record['matched'])
+        self.assertNotIn('skipped', record)
+        self.assertEqual(score.call_count, 2)
+
+    def test_skip_is_recorded_and_printed_without_failure_exit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            argv = ['run.py', '--model', 'm', '--solidcraft', 'unused', '--out', directory]
+            skipped = {'task': 'refusal', 'pass': None, 'matched': None, 'skipped': True,
+                       'reason': 'version gate', 'solidcraft': {'version': '0.44.0'}}
+            with patch.object(sys, 'argv', argv), patch('run.task_file', return_value=[self.task]), \
+                    patch('run.run_one', return_value=skipped), contextlib.redirect_stdout(io.StringIO()) as output:
+                self.assertEqual(run.main(), 0)
+            self.assertIn('refusal: SKIP', output.getvalue())
+            for filename in ('results.jsonl', '01-refusal.json'):
+                row = json.loads((Path(directory)/filename).read_text())
+                self.assertTrue(row['skipped'])
+                self.assertIsNone(row['pass'])
+
+    def test_report_excludes_skips_from_scores_and_either_side_of_pairs(self):
+        rows = []
+        for task, skips in [('both', (True, True)), ('direct', (True, False)),
+                            ('pilot', (False, True)), ('neither', (False, False))]:
+            for flag in (False, True):
+                rows.append(dict(format=1, set='v3', model='m', task=task, rep=1,
+                                 mode='model', through_pilot=flag, skipped=skips[flag],
+                                 **{'pass': None if skips[flag] else flag}))
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)/'results.jsonl'
+            path.write_text(''.join(json.dumps(row)+'\n' for row in rows))
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                report.report([path])
+            self.assertIn('Skipped (direct/Pilot)', output.getvalue())
+            self.assertIn('| 0/2 | 2/2 | +1/1 pairs | 0/0 | 2/2 |', output.getvalue())
+            path.write_text(''.join(json.dumps(row)+'\n' for row in rows[:2]))
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                report.report([path])
+            self.assertIn('| — | — | — | 0/0 | 1/1 |', output.getvalue())
 
 
 if __name__ == '__main__':
