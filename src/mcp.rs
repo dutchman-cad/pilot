@@ -5,7 +5,7 @@ use crate::guidance::{how_answer, how_tool, paging, payload, state_hint, unique_
 use crate::{model, planner};
 use serde_json::{json, Value};
 use std::{
-    collections::{BTreeMap, BTreeSet, VecDeque},
+    collections::{BTreeSet, VecDeque},
     io::{self, BufRead, BufReader, Read, Write},
     path::PathBuf,
     process::{Child, ChildStdin, Command, Stdio},
