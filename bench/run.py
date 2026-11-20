@@ -108,9 +108,10 @@ def verify_start(binary, prefix, state):
 
 class MCP:
     """One CLI process and one isolated design per task; bounded stdio JSON RPC."""
-    def __init__(self, binary, start=None, pilot=None):
+    def __init__(self, binary, start=None, pilot=None, log=None):
         self.binary = binary
         self.pilot = pilot
+        self.log = log
         self.start = start
         self.process = None
         self.messages = queue.Queue(maxsize=256)
@@ -118,7 +119,8 @@ class MCP:
         self.deadline = time.monotonic() + TIMEOUT
 
     def __enter__(self):
-        command = ([self.pilot, 'mcp', '--solidcraft-cli', self.binary, '--']
+        command = ([self.pilot, 'mcp', '--solidcraft-cli', self.binary,
+                    *(['--log', str(self.log)] if self.log is not None else []), '--']
                    if self.pilot else [self.binary, 'mcp'])
         if self.start is not None:
             command.extend(['--in', str(self.start)])
@@ -273,7 +275,8 @@ def endpoint(args, out):
         port = sock.getsockname()[1]
     with tempfile.TemporaryDirectory(prefix='pilot-bench-settings-') as directory, open(os.devnull, 'wb') as log:
         command = [args.through_pilot, 'model', '--listen', f'127.0.0.1:{port}',
-                   '--upstream', upstream, '--no-direct-recipes']
+                   '--upstream', upstream, '--no-direct-recipes',
+                   '--log', str((out / 'pilot-rewrites.jsonl').resolve())]
         settings = {k: v for k, v in model_settings(args).items() if v is not None}
         if settings:
             path = Path(directory) / 'model-settings.json'
@@ -473,8 +476,9 @@ def run_one(args, root, task, mode, url):
     commands = reference(root, task)
     prefix = setup(root, task, commands)
     start = None if getattr(args, 'replay_setup', False) else start_path(root, task)
-    with MCP(args.solidcraft, start, getattr(args, 'through_pilot', None)
-             if getattr(args, 'agent', None) else None) as app:
+    pilot = getattr(args, 'through_pilot', None) if getattr(args, 'agent', None) else None
+    with MCP(args.solidcraft, start, pilot,
+             log=(args.out / 'pilot-rewrites.jsonl').resolve() if pilot else None) as app:
         if start is None:
             replay(app, prefix)
         elif mode != 'model':
