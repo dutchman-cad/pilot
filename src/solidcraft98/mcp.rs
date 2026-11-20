@@ -8,8 +8,6 @@ use super::{
 use crate::audit::Audit;
 use serde_json::{json, Value};
 use std::{
-    collections::BTreeMap,
-    fs::OpenOptions,
     io::{self, BufRead, Read, Write},
     path::PathBuf,
 };
@@ -164,12 +162,6 @@ impl Server {
                 d.join("rewrites.jsonl")
             }
         };
-        let file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(path)
-            .map_err(|e| format!("cannot open rewrite log: {e}"))?;
-        let size = file.metadata().map_err(|e| e.to_string())?.len();
         let transport = if matches!(cfg.endpoint, Endpoint::Tcp(_)) {
             "tcp"
         } else {
@@ -181,14 +173,7 @@ impl Server {
             action_limit: 40,
             last_text: String::new(),
             screen: None,
-            audit: Audit {
-                events: None,
-                file,
-                size,
-                model: "mcp98".into(),
-                count: 0,
-                kinds: BTreeMap::new(),
-            },
+            audit: Audit::open(path, "mcp98".into()),
             observation: 0,
             actions: 0,
             offer: None,

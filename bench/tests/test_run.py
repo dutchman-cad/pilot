@@ -64,8 +64,17 @@ class RunnerTests(unittest.TestCase):
                 child.return_value.poll.return_value = None
                 with run.endpoint(args, Path(directory)) as url:
                     self.assertEqual(url, 'http://127.0.0.1:12345/v1')
-                self.assertEqual(child.call_args.args[0], ['pilot','model','--listen','127.0.0.1:12345','--upstream','http://example.invalid/v1','--no-direct-recipes'])
+                self.assertEqual(child.call_args.args[0], ['pilot','model','--listen','127.0.0.1:12345','--upstream','http://example.invalid/v1','--no-direct-recipes','--log',str((Path(directory)/'pilot-rewrites.jsonl').resolve())])
                 child.return_value.terminate.assert_called_once()
+
+    def test_pilot_mcp_uses_run_log_before_passthrough_args(self):
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / 'pilot-rewrites.jsonl'
+            with patch('run.subprocess.Popen') as child, patch('run.threading.Thread'), patch('run.agents.kill_tree'), patch.object(run.MCP, 'rpc', side_effect=[{}, {'tools': []}]), patch.object(run.MCP, 'send'):
+                with run.MCP('solidcraft', Path('part.solidcraft'), 'pilot', log):
+                    self.assertEqual(child.call_args.args[0], [
+                        'pilot', 'mcp', '--solidcraft-cli', 'solidcraft',
+                        '--log', str(log), '--', '--in', 'part.solidcraft'])
 
     def test_report_pairs_and_rejects_duplicate_trials(self):
         rows = [{'format':1, 'set':'v1', 'model':'model', 'task':'cube', 'rep':1,
