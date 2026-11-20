@@ -181,7 +181,18 @@ impl Catalog {
 
     /// Combine task evidence from `how` with conservative id similarity.
     pub fn suggestions(&self, id: &str, task: &str) -> Result<Vec<String>, String> {
+        self.suggestions_with_params(id, task, &Value::Null)
+    }
+
+    /// Parameter names disambiguate hints only; values never select or run a call.
+    pub fn suggestions_with_params(
+        &self,
+        id: &str,
+        task: &str,
+        params: &Value,
+    ) -> Result<Vec<String>, String> {
         query_limit(id)?;
+        let verb = id.rsplit('.').next().unwrap_or("");
         let task: String = task
             .chars()
             .scan(0usize, |bytes, c| {
@@ -206,9 +217,21 @@ impl Catalog {
                 .map_or(0, |(score, _)| *score);
             // Documentation-only matches and distant ids are not useful guidance.
             let close_id = edits <= 2 && similarity >= 60 || similarity >= 80;
-            if close_id || task_score >= 10 {
+            let same_verb = id.contains('.') && command.id.rsplit('.').next() == Some(verb);
+            let names = hint_parameter_names(&command.params);
+            let shared_params = params.as_object().map_or(0, |params| {
+                params
+                    .keys()
+                    .take(256)
+                    .filter(|key| names.contains(key.as_str()))
+                    .count()
+            });
+            if close_id || task_score >= 10 || same_verb {
                 ranked.push((
-                    task_score * 4 + if close_id { similarity } else { 0 },
+                    usize::from(same_verb) * 200
+                        + shared_params * 40
+                        + task_score * 4
+                        + if close_id { similarity } else { 0 },
                     &command.id,
                 ));
             }
@@ -222,7 +245,16 @@ impl Catalog {
     }
 
     pub fn unknown_hint(&self, id: &str, task: &str) -> Result<String, String> {
-        let suggestions = self.suggestions(id, task)?;
+        self.unknown_hint_with_params(id, task, &Value::Null)
+    }
+
+    pub fn unknown_hint_with_params(
+        &self,
+        id: &str,
+        task: &str,
+        params: &Value,
+    ) -> Result<String, String> {
+        let suggestions = self.suggestions_with_params(id, task, params)?;
         if suggestions.is_empty() {
             Ok(format!(
                 "unknown {id}; no close command; use the how tool or list_commands"
@@ -402,6 +434,27 @@ fn distance(a: &str, b: &str) -> usize {
         }
     }
     row[b.len()]
+}
+
+// Hint evidence may use names from prose declarations without turning that
+// prose into a validation contract (for example, `body: its name`).
+fn hint_parameter_names(doc: &str) -> BTreeSet<&str> {
+    let mut names = BTreeSet::new();
+    for section in top_level_parts(doc, ';').unwrap_or_default() {
+        for part in top_level_parts(section, ',').unwrap_or_default() {
+            let raw = part
+                .split_once(':')
+                .map_or_else(|| part.split('(').next().unwrap_or(""), |(name, _)| name);
+            let name = raw.trim().trim_end_matches('?');
+            if parameter_name(name) {
+                names.insert(name);
+                if names.len() >= 256 {
+                    return names;
+                }
+            }
+        }
+    }
+    names
 }
 
 /// Shared conservative contract for freeform public docs. Only explicit declarations
@@ -950,6 +1003,32 @@ mod tests {
         assert_eq!(
             parameter_schema(&format!("a: {}{}", "[".repeat(65), "]".repeat(65)))["required"],
             json!([])
+        );
+    }
+
+    #[test]
+    fn invented_rename_ranks_body_from_parameter_names() {
+        let catalog = Catalog::bundled().unwrap();
+        for task in ["", "Give the existing solid a clearer label"] {
+            let suggestions = catalog
+                .suggestions_with_params(
+                    "document.rename",
+                    task,
+                    &json!({"body":"Body1","name":"Mount"}),
+                )
+                .unwrap();
+            assert_eq!(suggestions[0], "body.rename");
+            assert!(suggestions.len() <= 3);
+        }
+        assert_eq!(
+            catalog
+                .suggestions_with_params(
+                    "document.rename",
+                    "",
+                    &json!({"feature":"Pad1","name":"Mount"})
+                )
+                .unwrap()[0],
+            "timeline.rename"
         );
     }
 
