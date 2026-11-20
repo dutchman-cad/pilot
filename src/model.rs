@@ -4742,13 +4742,12 @@ mod tests {
                 // client's agent loop gets SolidCraft's own error and can recover.
                 assert!(wire.contains("document.rename"), "{wire}");
                 assert!(wire.contains("tool_calls"), "{wire}");
-                assert!(
-                    !wire.contains("unknown document.rename; closest"),
-                    "{wire}"
-                );
+                assert!(!wire.contains("unknown document.rename; closest"), "{wire}");
                 let requests = f.proxy.scripted.as_ref().unwrap().borrow().requests.len();
                 assert!((2..=3).contains(&requests));
-                assert!(last_hint(&f, 1).starts_with("unknown document.rename; closest: body.rename"));
+                assert!(
+                    last_hint(&f, 1).starts_with("unknown document.rename; closest: body.rename")
+                );
             }
         }
     }
