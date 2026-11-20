@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import queue
+import re
 import socket
 import subprocess
 import sys
@@ -64,12 +65,38 @@ def task_file(path):
         if name in ids:
             raise ValueError("duplicate task id")
         ids.add(name)
+        if 'max_solidcraft' in task:
+            version_parts(task['max_solidcraft'])
+            if not task.get('check', {}).get('honest'):
+                raise ValueError("max_solidcraft requires an honest-refusal check")
         turns = task.get('turns', [])
         if len(turns) > 8:
             raise ValueError("at most eight user turns are supported")
         if turns and task['prompt'] != turns[0]['prompt']:
             raise ValueError("top-level prompt must equal the first turn prompt")
     return tasks
+
+
+def version_parts(version):
+    """Parse a bounded release version; suffixes use their numeric release line."""
+    if not isinstance(version, str) or len(version) > 100 or not re.fullmatch(
+            r'[0-9]{1,6}\.[0-9]{1,6}(?:\.[0-9]{1,6})?(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?', version):
+        raise ValueError(f"invalid SolidCraft version: {version!r}")
+    return tuple(int(n) for n in re.split(r'[-+]', version, maxsplit=1)[0].split('.'))
+
+
+def skip_reason(task, server_info):
+    """An inclusive major.minor bound covers every patch in that release line."""
+    if 'max_solidcraft' not in task:
+        return None
+    maximum = task['max_solidcraft']
+    bound = version_parts(maximum)
+    version = server_info.get('version')
+    current = version_parts(version)
+    current = (current + (0, 0, 0))[:len(bound)]
+    if current > bound:
+        return f"honest refusal applies only through SolidCraft {maximum}; running {version}"
+    return None
 
 
 def reference(root, task):
@@ -479,6 +506,11 @@ def run_one(args, root, task, mode, url):
     pilot = getattr(args, 'through_pilot', None) if getattr(args, 'agent', None) else None
     with MCP(args.solidcraft, start, pilot,
              log=(args.out / 'pilot-rewrites.jsonl').resolve() if pilot else None) as app:
+        reason = skip_reason(task, app.info.get('serverInfo', {}))
+        if reason:
+            return {'task': task['id'], 'pass': None, 'matched': None, 'skipped': True,
+                    'reason': reason, 'solidcraft': app.info['serverInfo'],
+                    'wall_s': round(time.monotonic() - started, 3)}
         if start is None:
             replay(app, prefix)
         elif mode != 'model':
@@ -629,8 +661,9 @@ def main():
                     summary['artifact'] = artifact
                     output.write(encode(summary).decode() + '\n')
                     output.flush()
-                    failures += not record['matched']
-                    print(f"{task['id']}: {'PASS' if record['matched'] else 'FAIL'} {record['reason']}", flush=True)
+                    failures += not record.get('skipped') and not record['matched']
+                    status = 'SKIP' if record.get('skipped') else 'PASS' if record['matched'] else 'FAIL'
+                    print(f"{task['id']}: {status} {record['reason']}", flush=True)
     return 1 if failures else 0
 
 
