@@ -327,6 +327,145 @@ fn named_feature_verification_requires_fresh_changed_geometry() {
     req["messages"][faces]["content"] = json!(data.to_string());
     assert!(planner::named_feature::completion(&req, &plan).is_some());
 }
+
+#[test]
+fn named_feature_pad_extents_verify_without_undo_and_reject_other_face_motion() {
+    for (direction, initial, prompt, delta, low, high) in [
+        ("positive", 8, "Extend Spire height by 10 mm", 10, -12., 38.),
+        ("negative", 8, "Grow Spire height by 10 mm", 10, -18., 32.),
+        ("positive", 18, "Trim Spire height by 4 mm", -4, -12., 34.),
+        (
+            "positive",
+            18,
+            "Shorten Spire height by 8 mm",
+            -8,
+            -12.,
+            32.,
+        ),
+        ("negative", 18, "Trim Spire height by 8 mm", -8, -12., 32.),
+    ] {
+        let Some(mut s) = Session::new() else { return };
+        s.execute(
+            "solid.box",
+            json!({"length":40,"width":40,"height":20,"body_name":"Carrier"}),
+        );
+        // A taller, unrelated tower hides the edited pad's initial terminal.
+        s.execute("solid.box", json!({"length":5,"width":5,"height":44,"corner":[30,30,-12],"operation":"join","targets":["Carrier"],"name":"Tower"}));
+        if direction == "positive" && initial == 8 {
+            s.execute("solid.box", json!({"length":10,"width":10,"height":initial,"corner":[10,10,20],"operation":"join","targets":["Carrier"],"name":"Spire"}));
+        } else {
+            s.execute(
+                "sketch.create",
+                json!({"plane":"XY","offset":if direction == "positive" {20} else {0}}),
+            );
+            s.execute(
+                "sketch.rectangle.two_point",
+                json!({"p0":[10,10],"p1":[20,20]}),
+            );
+            s.execute("sketch.finish", json!({}));
+            s.execute("solid.extrude", json!({"distance":initial,"direction":direction,"operation":"join","targets":["Carrier"],"name":"Spire"}));
+        }
+        let mut f = fill_fixture(vec![]);
+        f.proxy.catalog = context_tests::public_catalog::catalog().unwrap();
+        f.proxy.cfg.direct_recipes = true;
+        f.proxy.cfg.upstream = "none".into();
+        let mut req = inspected(&mut s, prompt, &f.proxy.catalog);
+        let plan = planner::named_feature::build(
+            &json!({"feature":"Spire","parameter":"height","mode":"change","value":delta}),
+            &req,
+            &f.proxy.catalog,
+        )
+        .unwrap();
+        let assert_bounds = |bbox: &Value| {
+            for (edge, coordinates) in [("min", [0., 0., low]), ("max", [40., 40., high])] {
+                for (a, expected) in coordinates.iter().enumerate() {
+                    assert!(
+                        (bbox[edge][a].as_f64().unwrap() - expected).abs() < 0.001,
+                        "{prompt}: {bbox}"
+                    );
+                }
+            }
+        };
+        assert_bounds(&plan.slots["bounds_after"]);
+        let out = drive(&mut f, &mut s, &mut req);
+        let text = out["content"].as_str().unwrap();
+        assert!(
+            text.contains("Measured") && !text.contains("restored") && !text.contains("unverified"),
+            "{prompt}: {out}"
+        );
+        let doc = s.execute("document.inspect", json!({"measure":true}));
+        assert_bounds(&doc["bodies"][0]["bbox"]);
+        assert!(
+            planner::named_feature::completion(&req, &plan).is_none(),
+            "{prompt}"
+        );
+        // Keep the terminal and volume correct, but move an unrelated X face.
+        let messages = req["messages"].as_array_mut().unwrap();
+        let measurement = messages
+            .iter_mut()
+            .rev()
+            .find(|m| {
+                m["role"] == "tool"
+                    && m["content"]
+                        .as_str()
+                        .is_some_and(|s| s.contains("volume_mm3"))
+            })
+            .unwrap();
+        let mut bad: Value =
+            serde_json::from_str(measurement["content"].as_str().unwrap()).unwrap();
+        bad["bodies"][0]["bbox"]["max"][0] = json!(41.);
+        measurement["content"] = json!(bad.to_string());
+        assert!(
+            planner::named_feature::completion(&req, &plan).is_some(),
+            "{prompt}: unrelated face movement must fail"
+        );
+    }
+}
+
+#[test]
+fn named_feature_symmetric_bounds_follow_both_ends_and_signed_changes() {
+    let cat = context_tests::public_catalog::catalog().unwrap();
+    for (convention, distance, delta, after_low, after_high) in [
+        ("total", 16., 3., -11., 11.),
+        ("total", 24., -2., -10., 10.),
+        ("legacy_per_side", 8., 3., -11., 11.),
+        ("legacy_per_side", 12., -2., -10., 10.),
+    ] {
+        let half = if convention == "total" {
+            distance / 2.
+        } else {
+            distance
+        };
+        for sign in [-1., 1.] {
+            let mut req = request();
+            req["messages"] = json!([{"role":"user","content":"Adjust Span height by 3 mm"}]);
+            for data in [
+                json!({"id":1,"definition":{"plane":{"name":"XY"}}}),
+                json!({"id":2,"name":"Span","definition":{"sketch":1,"operation":"join","extent":{"distance":distance,"direction":"symmetric","convention":convention}}}),
+                json!({"body":"Carrier","faces":[
+                    {"name":if sign > 0. {"F2:top"} else {"F2:bottom"},"exact":true,"centroid":[10,10,sign*half],"plane_normal":[0,0,sign],"area":100}
+                ]}),
+                json!({"bodies":[{"name":"Carrier","volume_mm3":10000,"bbox":{"min":[0,0,-10_f64.max(half)],"max":[40,40,10_f64.max(half)]}}],"timeline":[{"id":2,"name":"Span","type":"ExtrudeFeature"}]}),
+            ] {
+                req["messages"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(json!({"role":"tool","content":data.to_string()}));
+            }
+            let plan = planner::named_feature::build(
+                &json!({"feature":"Span","parameter":"height","mode":"change","value":delta}),
+                &req,
+                &cat,
+            )
+            .unwrap();
+            assert_eq!(
+                plan.slots["bounds_after"],
+                json!({"min":[0,0,after_low],"max":[40,40,after_high]}),
+                "{convention}: {delta}, witness direction {sign}"
+            );
+        }
+    }
+}
 #[test]
 fn named_feature_two_candidates_never_guesses() {
     let Some(mut s) = Session::new() else { return };

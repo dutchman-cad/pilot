@@ -917,6 +917,14 @@ fn witness(f: &Feature, p: &str) -> Option<(Value, f64, f64)> {
             .iter()
             .find(|v| point(&v["plane_normal"]).and_then(axis) == Some((a, 1.)))?
     };
+    let sign = if f.kind == "pad"
+        && f.definition["extent"]["direction"] == "symmetric"
+        && p != "start_offset"
+    {
+        point(&face["plane_normal"]).and_then(axis)?.1
+    } else {
+        sign
+    };
     Some((
         json!({"face":face["name"],"kind":"plane","axis":a}),
         number(&face["centroid"][a])?,
@@ -1202,9 +1210,69 @@ pub fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<Plan, S
     let mut bbox = f.bbox.clone();
     if witness["kind"] == "plane" && f.kind == "pad" {
         if let Some(a) = witness["axis"].as_u64().map(|n| n as usize) {
+            let mut terminals = vec![(measured, expected)];
+            if f.definition["extent"]["direction"] == "symmetric"
+                && matches!(p, "height" | "depth" | "start_offset")
+            {
+                if let Some((distance, sign)) = number(&f.definition["extent"]["distance"]).zip(
+                    f.faces
+                        .iter()
+                        .find(|face| face["name"] == witness["face"])
+                        .and_then(|face| point(&face["plane_normal"]))
+                        .and_then(axis)
+                        .map(|(_, sign)| sign),
+                ) {
+                    // The opposite terminal may be buried and have no exposed face yet.
+                    let span = distance
+                        * if f.definition["extent"]["convention"] == "legacy_per_side" {
+                            2.
+                        } else {
+                            1.
+                        };
+                    let other = measured - sign * span;
+                    let shift = expected - measured;
+                    terminals.push((
+                        other,
+                        other + if p == "start_offset" { shift } else { -shift },
+                    ));
+                }
+            }
             for edge in ["min", "max"] {
-                if number(&bbox[edge][a]).is_some_and(|v| (v - measured).abs() < 0.001) {
-                    bbox[edge][a] = json!(expected);
+                if let Some(old) = number(&f.bbox[edge][a]) {
+                    // An interior terminal can grow beyond the body's previous bound.
+                    // Only terminals already on a bound may pull it inward.
+                    let mut bound = terminals
+                        .iter()
+                        .find(|(before, _)| (old - before).abs() < 0.001)
+                        .map_or(old, |(_, after)| *after);
+                    for (_, after) in &terminals {
+                        bound = if edge == "min" {
+                            bound.min(*after)
+                        } else {
+                            bound.max(*after)
+                        };
+                    }
+                    // Shrinking a pad cannot pull an unchanged supporting face inward.
+                    for face in &f.context_faces {
+                        if face["exact"] == true
+                            && point(&face["plane_normal"]).and_then(axis)
+                                == Some((a, if edge == "min" { -1. } else { 1. }))
+                            && !terminals.iter().any(|(before, _)| {
+                                number(&face["centroid"][a])
+                                    .is_some_and(|v| (v - before).abs() < 0.001)
+                                    && f.faces.iter().any(|owned| owned["name"] == face["name"])
+                            })
+                        {
+                            if let Some(fixed) = number(&face["centroid"][a]) {
+                                bound = if edge == "min" {
+                                    bound.min(fixed)
+                                } else {
+                                    bound.max(fixed)
+                                };
+                            }
+                        }
+                    }
+                    bbox[edge][a] = json!(bound);
                 }
             }
         }
