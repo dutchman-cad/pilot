@@ -518,17 +518,7 @@ pub fn form(request: &Value) -> Value {
     s["properties"]["feature"]["enum"] = json!(fs.iter().map(|f| &f.name).collect::<Vec<_>>());
     let mut parameters = Vec::new();
     for f in &fs {
-        for p in preferred(request, f).into_iter().chain([
-            "height",
-            "depth",
-            "diameter",
-            "width",
-            "length",
-            "x",
-            "y",
-            "z",
-            "start_offset",
-        ]) {
+        for p in preferred(request, f).into_iter().chain(PARAMETERS) {
             if available(f, p) && !parameters.contains(&p) {
                 parameters.push(p);
             }
@@ -594,6 +584,17 @@ fn user_text(request: &Value) -> &str {
         .and_then(|m| m["content"].as_str())
         .unwrap_or("")
 }
+const PARAMETERS: [&str; 9] = [
+    "height",
+    "depth",
+    "diameter",
+    "width",
+    "length",
+    "x",
+    "y",
+    "z",
+    "start_offset",
+];
 fn available(f: &Feature, p: &str) -> bool {
     (if matches!(p, "x" | "y" | "z") {
         f.definition["position"].is_array() || f.definition["base"].is_array()
@@ -776,6 +777,14 @@ pub fn exact(request: &Value, catalog: &Catalog) -> Result<Option<Plan>, String>
         return Ok(None);
     };
     if f.definition["extent"]["direction"] == "symmetric" || f.kind == "counterbore" {
+        return Ok(None);
+    }
+    // Raise/lower of a sideways feature is unclear wording: leave it to the form.
+    if words(user_text(request))
+        .iter()
+        .any(|v| matches!(v.as_str(), "raise" | "lower"))
+        && f.direction.is_none_or(|(a, _)| a != 2)
+    {
         return Ok(None);
     }
     args["feature"] = json!(f.name);
@@ -1055,8 +1064,16 @@ pub fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<Plan, S
     let p = args["parameter"]
         .as_str()
         .ok_or("args.parameter is required")?;
-    if !intentions(request, f).is_empty() && !preferred(request, f).contains(&p) {
-        return Err("args.parameter conflicts with the requested dimension; choose a parameter matching the request".into());
+    // Request words only order the form; an available model choice always stands.
+    if !available(f, p) {
+        return Err(format!(
+            "args.parameter {p} is unavailable on {}; choose one of its available parameters: {}",
+            f.name,
+            json!(PARAMETERS
+                .iter()
+                .filter(|q| available(f, q))
+                .collect::<Vec<_>>())
+        ));
     }
     let mode = args["mode"]
         .as_str()
@@ -1103,11 +1120,11 @@ pub fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<Plan, S
         .and_then(|m| m["content"].as_str())
         .unwrap_or("");
     let w = words(text);
-    let vertical = w.iter().any(|v| matches!(v.as_str(), "raise" | "lower"));
+    // Raise/lower reads the value as world vertical only along a vertical feature;
+    // otherwise the words add nothing and the model's value applies as given.
+    let vertical = w.iter().any(|v| matches!(v.as_str(), "raise" | "lower"))
+        && f.direction.is_some_and(|(a, _)| a == 2);
     let delta = if mode == "change" && vertical && matches!(p, "depth" | "height") {
-        if f.direction.is_none_or(|(a, _)| a != 2) {
-            return Err("raise/lower requires an inspected vertical feature direction".into());
-        }
         value / derivative
     } else {
         value
