@@ -175,14 +175,14 @@ class EndpointAgentTests(unittest.TestCase):
             run.save(root/'reference.json', {'commands': []})
             task = {'id': 'box', 'prompt': 'Make a box', 'reference': 'reference.json', 'check': {'bodies': 1}}
             for agent in ('claude-code', 'codex'):
-                args = SimpleNamespace(agent=agent, agent_bin=str(binary), solidcraft='unused', through_pilot='pilot', replay_setup=True)
+                args = SimpleNamespace(agent=agent, agent_bin=str(binary), solidcraft='unused', through_pilot='pilot', replay_setup=True, out=root)
                 with patch.dict(os.environ, {'BENCH_API_KEY': 'never-print-this'}):
                     self.assertEqual(agents.version(args), 'fake-agent 1.2.3')
                     cad = CAD()
                     with patch('run.MCP', return_value=cad) as mcp:
                         result = run.run_one(args, root, task, 'model', None)
                     self.assertTrue(result['pass'], result['reason'])
-                    mcp.assert_called_once_with('unused', None, 'pilot')
+                    mcp.assert_called_once_with('unused', None, 'pilot', log=(root/'pilot-rewrites.jsonl').resolve())
                     capture = json.loads(Path(str(binary)+'.capture').read_text())
                     self.assertNotIn('never-print-this', json.dumps(capture))
                     self.assertFalse(Path(capture['config']).exists())

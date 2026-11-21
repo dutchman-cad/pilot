@@ -598,6 +598,11 @@ impl Library {
     }
     /// One bounded decision shared by the proxy and development calibration.
     pub fn form_band(&self, request: &str) -> Result<Value, String> {
+        // There is no rename form. The requested new name can contain arbitrary
+        // recipe vocabulary; leave the complete operation with native commands.
+        if request.len() <= 2048 && tokens(request).iter().any(|word| word == "rename") {
+            return Ok(json!({"band":"low","recipes":[]}));
+        }
         if planner::named_feature::candidate(request) {
             if let Some(band) = self.named_band() {
                 return Ok(band);

@@ -69,6 +69,19 @@ pub fn candidate(text: &str) -> bool {
             "hole" | "pocket" | "recess" | "slot" | "pad" | "boss" | "rib" | "tab" | "counterbore"
         )
     });
+    // Moving an entire solid belongs to the body translation recipe. A generic
+    // body noun is not a feature name or an editable feature parameter.
+    let body_move = (has("move") || has("shift"))
+        && !feature_move
+        && [
+            "body", "solid", "part", "block", "box", "cube", "cylinder", "sphere",
+        ]
+        .iter()
+        .any(|word| has(word));
+    // A rename has no feature parameter to edit, whatever the new name says.
+    if has("rename") || body_move {
+        return false;
+    }
     edit && !(has("move") && has("offset") && !feature_move)
         && !(has("move")
             && (text.contains(',')

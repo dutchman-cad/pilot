@@ -12,7 +12,8 @@ MCP server, `solidcraft-cli mcp`, documented in SolidCraft's docs/mcp.md).
 ## Principles
 
 1. **Opt-in and visible.** Nothing changes unless the user points SolidCraft (or an agent) at
-   Pilot. Every rewrite Pilot makes is logged, and can be shown to the user.
+   Pilot. Every rewrite Pilot makes is recorded in a bounded, best-effort log, and can be shown
+   to the user while retained. Log storage failures never fail model or MCP requests.
 2. **Explicit calls and selected recipes.** Pilot turns explicit JSON calls into native
    calls. In model-face plan mode only, an action pledge matching one fresh user recipe's
    intent and typed slots can become that recipe's catalogue-checked calls. Arbitrary prose
@@ -98,7 +99,11 @@ Request side:
   confirms a body; pattern and joint forms retain their routing, and creation requests
   retain creation forms. A size change to exactly one inspected existing feature,
   in a conversation whose earlier results showed a body, takes the named feature
-  form instead of a creation form; add/new wording and unclear matches keep it. Outside box/container sizes with a wall thickness select
+  form instead of a creation form; add/new wording and unclear matches keep it.
+  Whole-body move/shift requests with generic solid names
+  stay on body translation forms rather than named-feature parameter edits. Rename
+  requests use native commands; words in the requested name never select a form.
+  Outside box/container sizes with a wall thickness select
   the enclosure form even when opening words are absent or an edge treatment is
   requested. Omitted openings
   keep the form default; exact box/container matching requires an explicit opening,
@@ -172,7 +177,15 @@ it as a well-formed stream):
 3. **Empty reply retry.** An empty assistant turn is retried once with a one-line nudge
    ("your reply was empty; answer or call a tool"). Twice empty: pass it through.
 4. **Logging.** Each rewrite is recorded (`--log FILE`, JSON lines: time, model, kind, before,
-   after). A response header `x-dutchman-pilot: rewrites=N` tells clients something changed.
+   after). Both proxy faces default to `~/.local/share/dutchman-pilot/rewrites.jsonl`
+   (under the configured data directory); `--log FILE` selects another path. Before a
+   record would exceed 64 MiB, close and rename the log to `FILE.1`, replacing the
+   previous backup, then write to a fresh file. Retain at most two caps of log data.
+   File open, rotation, and write failures skip the record and warn once per process
+   on stderr; they never fail a client request. The 8 MiB per-record and 4096 rewrites
+   per-turn limits still apply. `bench/run.py --through-pilot` selects
+   `pilot-rewrites.jsonl` in each run's output directory. A response header
+   `x-dutchman-pilot: rewrites=N` tells clients something changed.
    Each upstream chat attempt also records content-free `upstream_request` and
    `upstream_response` observations in `after`, without increasing the rewrite count.
    `body_fnv1a64` fingerprints the exact sent/received body bytes (16 lowercase hex digits).

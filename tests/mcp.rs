@@ -423,7 +423,7 @@ fn fake_child_end_to_end() {
         serde_json::from_str(&dutchman_pilot::profile::log_summary(&log, true).unwrap()).unwrap();
     assert_eq!(summary["total"], records.len());
     assert_eq!(summary["by_model"]["mcp"]["total"], records.len());
-    // A full log never ends the session: rewrites are withheld, local answers say why.
+    // A full log rotates to FILE.1; rewrites and local answers carry on as usual.
     std::fs::OpenOptions::new()
         .write(true)
         .open(&log)
@@ -434,13 +434,15 @@ fn fake_child_end_to_end() {
     full.initialize();
     full.send(json!({"jsonrpc":"2.0","id":50,"method":"tools/list"}));
     let tools: Value = serde_json::from_str(&full.read()).unwrap();
-    assert_eq!(tools["result"]["tools"].as_array().unwrap().len(), 3);
+    assert!(tools["result"]["tools"].as_array().unwrap().len() > 3);
     let how = full.call(51, "how", json!({"task":"box"}));
-    assert!(how["error"]["message"].as_str().unwrap().contains("64 MiB"));
-    let unknown = texts(&full.call(52, "execute", json!({"command":"solid.bxo","params":{}})));
-    assert!(!unknown.contains("suggested:"));
+    assert!(how.get("error").is_none());
     assert!(texts(&full.call(53, "count", json!({}))).contains("executions"));
     drop(full);
+    let mut backup = log.as_os_str().to_os_string();
+    backup.push(".1");
+    assert_eq!(std::fs::metadata(&backup).unwrap().len(), 64 * 1_048_576);
+    assert!(std::fs::metadata(&log).unwrap().len() < 64 * 1_048_576);
     remove_dir_when_released(path.parent().unwrap());
 }
 

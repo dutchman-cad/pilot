@@ -5,8 +5,7 @@ use crate::guidance::{how_answer, how_tool, paging, payload, state_hint, unique_
 use crate::{model, planner};
 use serde_json::{json, Value};
 use std::{
-    collections::{BTreeMap, BTreeSet, VecDeque},
-    fs::OpenOptions,
+    collections::{BTreeSet, VecDeque},
     io::{self, BufRead, BufReader, Read, Write},
     path::PathBuf,
     process::{Child, ChildStdin, Command, Stdio},
@@ -280,7 +279,7 @@ impl Proxy {
                     }
                 };
                 let kind = if name == "how" { "how_answer" } else { "plan" };
-                // Every local answer is logged; when the log cannot take it, say so instead.
+                // Storage failures are best-effort; record and turn limits still apply.
                 let reply = match self.audit.record(kind, v, &reply) {
                     Ok(()) => reply,
                     Err(message) => {
@@ -539,7 +538,7 @@ impl Proxy {
         if !add_text(reply, text, first) {
             return Ok(false);
         }
-        // An unlogged rewrite is never sent: a full log leaves the reply as it was.
+        // Keep the existing record and turn limits on rewrites.
         if let Err(message) = self.audit.record(kind, &before, reply) {
             eprintln!("{}: {message}; {kind} not added", crate::identity::BINARY);
             *reply = before;
@@ -688,23 +687,7 @@ pub fn serve(cfg: Config) -> Result<(), String> {
             dir.join("rewrites.jsonl")
         }
     };
-    let file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(path)
-        .map_err(|e| format!("cannot open rewrite log: {e}"))?;
-    let size = file
-        .metadata()
-        .map_err(|e| format!("cannot inspect rewrite log: {e}"))?
-        .len();
-    let audit = Audit {
-        events: None,
-        file,
-        size,
-        model: "mcp".into(),
-        count: 0,
-        kinds: BTreeMap::new(),
-    };
+    let audit = Audit::open(path, "mcp".into());
     let mut child = Process(
         Command::new(&cfg.solidcraft_cli)
             .arg("mcp")
