@@ -14,7 +14,7 @@ use std::{
         Arc, Mutex, OnceLock,
     },
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 static NEXT: AtomicUsize = AtomicUsize::new(0);
 fn dir() -> PathBuf {
@@ -507,27 +507,75 @@ fn cli_offline_help_and_driver_bounds() {
     }
 }
 
+// Signal completion explicitly: on Windows, cloned transport sockets can keep the
+// peer's read waiting after the driver returns. A socket timeout is a poll, not EOF.
+struct ReplayPeer {
+    stop: Arc<AtomicBool>,
+    thread: Option<thread::JoinHandle<()>>,
+}
+impl ReplayPeer {
+    fn join(mut self) -> thread::Result<()> {
+        self.stop.store(true, Ordering::Relaxed);
+        self.thread.take().unwrap().join()
+    }
+}
+impl Drop for ReplayPeer {
+    fn drop(&mut self) {
+        self.stop.store(true, Ordering::Relaxed);
+        if let Some(thread) = self.thread.take() {
+            // Preserve the original test failure if unwinding.
+            let _ = thread.join();
+        }
+    }
+}
 // Public benchmark screens only. This peer checks the exact emitted wire sequence;
 // it never starts or connects to the shared application.
-fn replay_peer(
-    initial: String,
-    transitions: Vec<(String, String)>,
-) -> (Endpoint, thread::JoinHandle<()>) {
-    use std::io::{BufRead, BufReader, Write};
+fn replay_peer(initial: String, transitions: Vec<(String, String)>) -> (Endpoint, ReplayPeer) {
+    use std::io::{BufRead, BufReader, ErrorKind, Write};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let endpoint = Endpoint::Tcp(listener.local_addr().unwrap());
+    listener.set_nonblocking(true).unwrap();
+    let stop = Arc::new(AtomicBool::new(false));
+    let quit = stop.clone();
     let handle = thread::spawn(move || {
-        let (mut stream, _) = listener.accept().unwrap();
-        // Only a guard against a hung test: a loaded CI runner can take over ten seconds
-        // between commands.
+        // A final guard against a hung test, independent of model think time.
+        let deadline = Instant::now() + Duration::from_secs(120);
+        let mut stream = loop {
+            if quit.load(Ordering::Relaxed) {
+                return;
+            }
+            assert!(Instant::now() < deadline, "replay peer accept deadline");
+            match listener.accept() {
+                Ok((stream, _)) => break stream,
+                Err(e) if e.kind() == ErrorKind::WouldBlock => {
+                    thread::sleep(Duration::from_millis(10));
+                }
+                Err(e) => panic!("replay peer accept failed: {e}"),
+            }
+        };
         stream
-            .set_read_timeout(Some(Duration::from_secs(60)))
+            .set_read_timeout(Some(Duration::from_millis(100)))
+            .unwrap();
+        stream
+            .set_write_timeout(Some(Duration::from_secs(15)))
             .unwrap();
         let mut reader = BufReader::new(stream.try_clone().unwrap());
         let mut screen = initial;
         let mut transitions = VecDeque::from(transitions);
         let mut line = String::new();
-        while reader.read_line(&mut line).unwrap() != 0 {
+        while !quit.load(Ordering::Relaxed) {
+            assert!(Instant::now() < deadline, "replay peer command deadline");
+            match reader.read_line(&mut line) {
+                Ok(0) => break,
+                Ok(_) if !line.ends_with('\n') => continue,
+                Ok(_) => {}
+                // Unix reports WouldBlock; Windows reports TimedOut (WSAETIMEDOUT).
+                // Keep any partial command and wait for the rest or explicit shutdown.
+                Err(e) if matches!(e.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut) => {
+                    continue;
+                }
+                Err(e) => panic!("replay peer read failed: {e}"),
+            }
             let command = line.trim_end();
             let answer = if command == "look" {
                 screen.clone()
@@ -546,7 +594,43 @@ fn replay_peer(
         }
         assert!(transitions.is_empty(), "missing commands: {transitions:?}");
     });
-    (endpoint, handle)
+    (
+        endpoint,
+        ReplayPeer {
+            stop,
+            thread: Some(handle),
+        },
+    )
+}
+#[test]
+fn replay_peer_survives_idle_reads_and_stops_without_client_eof() {
+    use std::io::{BufRead, BufReader, Write};
+    let (endpoint, peer) = replay_peer(
+        "initial\n".into(),
+        vec![("type 20".into(), "updated\n".into())],
+    );
+    let Endpoint::Tcp(address) = endpoint else {
+        panic!("expected TCP replay peer");
+    };
+    assert!(address.ip().is_loopback());
+    let mut stream =
+        std::net::TcpStream::connect_timeout(&address, Duration::from_secs(3)).unwrap();
+    stream
+        .set_read_timeout(Some(Duration::from_secs(5)))
+        .unwrap();
+    stream.write_all(b"type ").unwrap();
+    // Exercise multiple read timeouts, including one with a partially read command.
+    thread::sleep(Duration::from_millis(350));
+    stream.write_all(b"20\n").unwrap();
+    let mut reader = BufReader::new(stream);
+    for expected in ["ok\n", ".\n"] {
+        let mut line = String::new();
+        reader.read_line(&mut line).unwrap();
+        assert_eq!(line, expected);
+    }
+    // Keep the client open: joining must not depend on EOF from cloned sockets.
+    peer.join().unwrap();
+    drop(reader);
 }
 fn public_fixture(name: &str) -> Value {
     serde_json::from_str(match name {
