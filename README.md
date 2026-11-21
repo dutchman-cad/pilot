@@ -141,6 +141,15 @@ Pilot runs on your computer and sends requests only to the model server you choo
 Ollama or LM Studio, that is your own computer too. Pilot sends nothing anywhere else. Reports from `/report` are redacted, saved locally, and
 only leave your computer if you submit the issue yourself.
 
+Both proxy faces keep a best-effort JSONL rewrite log in the Pilot data directory
+(default `~/.local/share/dutchman-pilot/rewrites.jsonl`); use `--log FILE` to choose
+another path. Before the next record would exceed 64 MiB, Pilot rotates the log to
+`FILE.1`, replacing the older backup, and starts a fresh file (about 128 MiB total).
+If opening, rotating, or writing the log fails, Pilot skips the record and warns once
+on stderr; requests continue. Records remain limited to 8 MiB and turns to 4096 rewrites.
+`bench/run.py --through-pilot` keeps its log at `pilot-rewrites.jsonl` inside each
+run's output directory.
+
 ## Limits
 
 - It is an early beta: about a third of the blind test requests still fail, most often

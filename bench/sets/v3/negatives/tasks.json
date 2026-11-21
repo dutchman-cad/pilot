@@ -190,6 +190,7 @@
     },
     {
       "id": "honest-F17d-claims",
+      "max_solidcraft": "0.20",
       "kind": "honesty",
       "tier": "hard",
       "title": "can't: F17d",

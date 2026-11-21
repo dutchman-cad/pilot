@@ -20,7 +20,7 @@ mod text_mode;
 use recovery::Conversation;
 use std::{
     collections::BTreeMap,
-    fs::{self, File, OpenOptions},
+    fs::{self, File},
     io::{Read, Write},
     net::{SocketAddr, TcpListener, TcpStream},
     path::{Path, PathBuf},
@@ -242,7 +242,7 @@ struct Proxy {
     profiles: Profiles,
     profile_path: PathBuf,
     settings: BTreeMap<String, ModelSettings>,
-    log: File,
+    log: PathBuf,
     conversations: Vec<Conversation>,
     turns: crate::capture::Ring,
     #[cfg(test)]
@@ -322,11 +322,7 @@ impl Server {
         for setting in settings.values() {
             setting.validate()?;
         }
-        let log = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(cfg.log.clone().unwrap_or(dir.join("rewrites.jsonl")))
-            .map_err(|e| format!("cannot open rewrite log: {e}"))?;
+        let log = cfg.log.clone().unwrap_or(dir.join("rewrites.jsonl"));
         let listener = TcpListener::bind(cfg.listen).map_err(|e| format!("cannot listen: {e}"))?;
         let agent = ureq::AgentBuilder::new()
             .redirects(0)
@@ -734,21 +730,7 @@ impl Proxy {
             .to_string();
         let key = serde_json::to_string(&(&self.cfg.upstream, &model))
             .map_err(|_| "cannot encode profile key")?;
-        let mut audit = Audit {
-            events: None,
-            file: self
-                .log
-                .try_clone()
-                .map_err(|e| format!("cannot open log: {e}"))?,
-            size: self
-                .log
-                .metadata()
-                .map_err(|e| format!("cannot inspect log: {e}"))?
-                .len(),
-            model,
-            count: 0,
-            kinds: BTreeMap::new(),
-        };
+        let mut audit = Audit::open(self.log.clone(), model);
         if let Some(note) = crate::report::chat_command(last_user(&body)) {
             let text = match crate::report::chat_reply(
                 self.turns.turns(),
@@ -3389,11 +3371,8 @@ mod tests {
                 NEXT.fetch_add(1, Ordering::Relaxed)
             ));
             fs::create_dir_all(&dir).unwrap();
-            let log = OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(dir.join("log.jsonl"))
-                .unwrap();
+            let log = dir.join("log.jsonl");
+            File::create(&log).unwrap();
             Self {
                 proxy: Proxy {
                     recipes: crate::recipe_library::Library::embedded().unwrap(),
@@ -3466,14 +3445,7 @@ mod tests {
                 .unwrap()
         }
         fn audit(&self) -> Audit {
-            Audit {
-                events: None,
-                file: self.proxy.log.try_clone().unwrap(),
-                size: 0,
-                model: "unit".into(),
-                count: 0,
-                kinds: BTreeMap::new(),
-            }
+            Audit::open(self.proxy.log.clone(), "unit".into())
         }
     }
     impl Drop for Fixture {
@@ -3481,6 +3453,35 @@ mod tests {
             let _ = fs::remove_dir_all(&self.dir);
         }
     }
+    #[test]
+    fn full_audit_log_and_failed_rotation_still_serve_model_requests() {
+        for blocked in [false, true] {
+            let reply = json!({"choices":[{"message":{"role":"assistant","content":"Hello"},"finish_reason":"stop"}]});
+            let mut fixture = Fixture::new(vec![reply.clone(), reply]);
+            File::options()
+                .write(true)
+                .open(&fixture.proxy.log)
+                .unwrap()
+                .set_len(64 * 1_048_576)
+                .unwrap();
+            let backup = fixture.dir.join("log.jsonl.1");
+            if blocked {
+                fs::create_dir(&backup).unwrap();
+            }
+            for _ in 0..2 {
+                let response =
+                    fixture.chat(json!({"messages":[{"role":"user","content":"Hello"}]}));
+                assert_eq!(response.status, 200);
+                let body: Value = serde_json::from_slice(&response.body).unwrap();
+                assert_eq!(body["choices"][0]["message"]["content"], "Hello");
+            }
+            if !blocked {
+                assert_eq!(fs::metadata(backup).unwrap().len(), 64 * 1_048_576);
+                assert!(fs::metadata(&fixture.proxy.log).unwrap().len() < 64 * 1_048_576);
+            }
+        }
+    }
+
     #[test]
     fn retries_keep_the_current_parallel_result_block_even_with_zero_window() {
         let mut f = Fixture::new(vec![reply(""), reply("Ready.")]);
