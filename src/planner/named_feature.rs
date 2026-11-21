@@ -784,6 +784,144 @@ pub fn exact(request: &Value, catalog: &Catalog) -> Result<Option<Plan>, String>
         .ok()
         .filter(|p| p.slots["attachments"].as_array().is_none_or(Vec::is_empty)))
 }
+/// Wording that changes one size of something already there, never wording that adds one.
+/// Unclear wording returns false so creation routing stays as it was.
+pub fn change_wording(text: &str) -> bool {
+    wording(text).is_some()
+}
+/// A size change said with a comparative or a change verb ("taller", "deepen"): clear enough
+/// to inspect an opened design before any earlier result has shown its bodies.
+pub fn relative_change_wording(text: &str) -> bool {
+    wording(text) == Some(true)
+}
+// Some(relative) for size-change wording, None otherwise.
+fn wording(text: &str) -> Option<bool> {
+    if text.len() > 2048 {
+        return None;
+    }
+    let lower = text.to_ascii_lowercase();
+    let w: Vec<_> = lower
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|s| !s.is_empty())
+        .collect();
+    let has = |terms: &[&str]| w.iter().any(|v| terms.contains(v));
+    let sizes = slots::tokens(text)
+        .windows(2)
+        .filter(|v| slots::number(&v[0]).is_some() && slots::scale(&v[1]).is_some())
+        .count();
+    let comparative = has(&[
+        "taller",
+        "shorter",
+        "deeper",
+        "shallower",
+        "wider",
+        "narrower",
+        "higher",
+        "thicker",
+        "thinner",
+        "longer",
+    ]);
+    let directional = has(&[
+        "raise", "lower", "deepen", "widen", "lengthen", "shorten", "thicken", "heighten",
+        "extend", "increase", "reduce", "decrease", "grow", "shrink",
+    ]);
+    let sized = has(&["make", "set", "change", "resize", "adjust"])
+        && has(&[
+            "height",
+            "depth",
+            "width",
+            "length",
+            "diameter",
+            "thickness",
+            "tall",
+            "deep",
+            "wide",
+            "long",
+            "high",
+            "thick",
+            "across",
+        ]);
+    let change = (1..=2).contains(&sizes)
+        && (comparative || directional || sized)
+        && !w
+            .windows(2)
+            .any(|v| v[0] == "make" && matches!(v[1], "a" | "an"))
+        && !has(&[
+            "add",
+            "create",
+            "build",
+            "new",
+            "another",
+            "second",
+            "insert",
+            "put",
+            "place",
+            "with",
+            "plus",
+            "also",
+            "and",
+            "then",
+            "copy",
+            "copies",
+            "duplicate",
+            "pattern",
+            "row",
+            "grid",
+            "mirror",
+            "whole",
+            "all",
+            "each",
+            "every",
+            "both",
+            "not",
+            "no",
+            "don",
+            "dont",
+            "never",
+            "without",
+            "what",
+            "which",
+            "why",
+            "how",
+            "explain",
+            "describe",
+        ]);
+    change.then_some(comparative || directional)
+}
+/// Earlier public tool results in this conversation reported at least one body.
+pub fn design_in_history(request: &Value) -> bool {
+    let messages = request["messages"]
+        .as_array()
+        .map(Vec::as_slice)
+        .unwrap_or(&[]);
+    let end = messages
+        .iter()
+        .rposition(|m| m["role"] == "user")
+        .unwrap_or(0);
+    messages[..end]
+        .iter()
+        .rev()
+        .take(4096)
+        .filter(|m| m["role"] == "tool")
+        .filter_map(tool_payload)
+        .any(|d| {
+            ["bodies", "created_bodies", "changed_bodies"]
+                .iter()
+                .any(|k| d[*k].as_array().is_some_and(|a| !a.is_empty()))
+        })
+}
+/// After inspection: the request changes exactly one existing feature with a measured size.
+pub fn existing_change(request: &Value) -> bool {
+    if !change_wording(user_text(request)) || matching(request).len() != 1 {
+        return false;
+    }
+    let s = form(request);
+    ["feature", "parameter"].iter().all(|k| {
+        s["properties"][*k]["enum"]
+            .as_array()
+            .is_some_and(|a| !a.is_empty())
+    })
+}
 fn field(f: &Feature, p: &str) -> Option<(String, f64)> {
     let d = &f.definition;
     if matches!(p, "height" | "depth" | "start_offset")

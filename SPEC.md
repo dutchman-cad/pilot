@@ -97,7 +97,9 @@ Request side:
   plane; front face/edge alone does not. Supplied choices always win.
   Existing-part edit verbs may replace creation forms with edit forms after inspection
   confirms a body; pattern and joint forms retain their routing, and creation requests
-  retain creation forms. Outside box/container sizes with a wall thickness select
+  retain creation forms. A size change to exactly one inspected existing feature,
+  in a conversation whose earlier results showed a body, takes the named feature
+  form instead of a creation form; add/new wording and unclear matches keep it. Outside box/container sizes with a wall thickness select
   the enclosure form even when opening words are absent or an edge treatment is
   requested. Omitted openings
   keep the form default; exact box/container matching requires an explicit opening,
