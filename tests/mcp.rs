@@ -74,24 +74,54 @@ impl Session {
         self.send(json!({"jsonrpc":"2.0","method":"notifications/initialized"}));
     }
 }
-fn fake() -> PathBuf {
-    // Reuse the crate's already-built serde_json, keeping the fake server Rust-only.
-    let deps = std::env::current_exe()
-        .unwrap()
-        .parent()
+// Every .rlib under the profile directory (target/<profile>), at most a few levels down.
+// Cargo used to put them all in deps/; newer versions give each crate build/<crate>/<hash>/out/.
+fn rlibs() -> Vec<PathBuf> {
+    let exe = std::env::current_exe().unwrap();
+    let profile = exe
+        .ancestors()
+        .skip(1)
+        .find(|a| a.join("deps").is_dir() || a.join("build").is_dir())
         .unwrap()
         .to_path_buf();
-    let library = std::fs::read_dir(&deps)
-        .unwrap()
-        .map(|e| e.unwrap().path())
-        .find(|p| {
+    let mut found = Vec::new();
+    let mut pending = vec![(profile, 0)];
+    while let Some((dir, depth)) = pending.pop() {
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        for path in entries.map(|e| e.unwrap().path()) {
+            if path.is_dir() {
+                if depth < 4 {
+                    pending.push((path, depth + 1));
+                }
+            } else if path.extension().is_some_and(|s| s == "rlib") {
+                found.push(path);
+            }
+        }
+    }
+    found
+}
+fn fake() -> PathBuf {
+    // Reuse the crate's already-built serde_json, keeping the fake server Rust-only.
+    let rlibs = rlibs();
+    let library = rlibs
+        .iter()
+        .filter(|p| {
             p.file_name()
                 .unwrap()
                 .to_string_lossy()
                 .starts_with("libserde_json-")
-                && p.extension().is_some_and(|s| s == "rlib")
         })
-        .unwrap();
+        .max_by_key(|p| p.metadata().and_then(|m| m.modified()).ok())
+        .unwrap()
+        .clone();
+    let mut search: Vec<PathBuf> = rlibs
+        .iter()
+        .filter_map(|p| p.parent().map(PathBuf::from))
+        .collect();
+    search.sort();
+    search.dedup();
     static NEXT_FAKE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let sequence = NEXT_FAKE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let dir = std::env::temp_dir().join(format!(
@@ -100,20 +130,19 @@ fn fake() -> PathBuf {
     ));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join(format!("fake-child{}", std::env::consts::EXE_SUFFIX));
-    let output = Command::new("rustc")
+    let mut rustc = Command::new("rustc");
+    rustc
         .args(["--edition=2021", "--crate-name", "fake_child"])
         .arg(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/tests/support/fake_child.rs"
         ))
         .arg("--extern")
-        .arg(format!("serde_json={}", library.display()))
-        .arg("-L")
-        .arg(format!("dependency={}", deps.display()))
-        .arg("-o")
-        .arg(&path)
-        .output()
-        .unwrap();
+        .arg(format!("serde_json={}", library.display()));
+    for dir in &search {
+        rustc.arg("-L").arg(format!("dependency={}", dir.display()));
+    }
+    let output = rustc.arg("-o").arg(&path).output().unwrap();
     assert!(
         output.status.success(),
         "{}",
@@ -394,7 +423,7 @@ fn fake_child_end_to_end() {
         serde_json::from_str(&dutchman_pilot::profile::log_summary(&log, true).unwrap()).unwrap();
     assert_eq!(summary["total"], records.len());
     assert_eq!(summary["by_model"]["mcp"]["total"], records.len());
-    // A full log never ends the session: rewrites are withheld, local answers say why.
+    // A full log rotates to FILE.1; rewrites and local answers carry on as usual.
     std::fs::OpenOptions::new()
         .write(true)
         .open(&log)
@@ -405,13 +434,15 @@ fn fake_child_end_to_end() {
     full.initialize();
     full.send(json!({"jsonrpc":"2.0","id":50,"method":"tools/list"}));
     let tools: Value = serde_json::from_str(&full.read()).unwrap();
-    assert_eq!(tools["result"]["tools"].as_array().unwrap().len(), 3);
+    assert!(tools["result"]["tools"].as_array().unwrap().len() > 3);
     let how = full.call(51, "how", json!({"task":"box"}));
-    assert!(how["error"]["message"].as_str().unwrap().contains("64 MiB"));
-    let unknown = texts(&full.call(52, "execute", json!({"command":"solid.bxo","params":{}})));
-    assert!(!unknown.contains("suggested:"));
+    assert!(how.get("error").is_none());
     assert!(texts(&full.call(53, "count", json!({}))).contains("executions"));
     drop(full);
+    let mut backup = log.as_os_str().to_os_string();
+    backup.push(".1");
+    assert_eq!(std::fs::metadata(&backup).unwrap().len(), 64 * 1_048_576);
+    assert!(std::fs::metadata(&log).unwrap().len() < 64 * 1_048_576);
     remove_dir_when_released(path.parent().unwrap());
 }
 

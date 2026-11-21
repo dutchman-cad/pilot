@@ -200,15 +200,18 @@ mod host {
         assert!(session.exchange("look").unwrap_err().contains("budget"));
     }
     #[test]
-    fn audit_failure_prevents_name_rewrite_dispatch() {
+    fn full_audit_log_rotates_without_blocking_name_rewrite() {
         let mut cfg = config(fake());
-        cfg.log = Some(dir().join("large-log"));
-        let file = std::fs::File::create(cfg.log.as_ref().unwrap()).unwrap();
+        let log = dir().join("large-log");
+        cfg.log = Some(log.clone());
+        let file = std::fs::File::create(&log).unwrap();
         file.set_len(64 * 1048576).unwrap();
         let mut s = Server::new(cfg).unwrap();
         let v = s.call("click", &json!({"name":"new part"}));
-        assert_eq!(v["isError"], true);
-        assert!(v.to_string().contains("64 MiB"));
+        assert!(!v.to_string().contains("64 MiB"));
+        let backup = log.with_file_name("large-log.1");
+        assert_eq!(std::fs::metadata(backup).unwrap().len(), 64 * 1048576);
+        assert!(std::fs::metadata(&log).unwrap().len() < 64 * 1048576);
     }
     #[test]
     fn offers_stale_bounds_repeated_state_and_turn_budget() {

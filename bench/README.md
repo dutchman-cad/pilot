@@ -40,7 +40,7 @@ with the original replay, so migration differences identify the affected task.
 | field | 2 | Verbatim user field reports; centred cube hole placement and honeycomb plate cuts |
 | v1 | 11 | Primitives, sketch/extrude, holes, fillets, moving, naming, measurement and making a change |
 | v2 | 12 | More involved geometry, parameter edits, patterns, selected edges, threads, assemblies, constrained sketches and measurement |
-| v3 | 40 | Solid builds/edits, sheet metal and honest refusals; a selected subset, with no claimed difficulty calibration |
+| v3 | 40 | Solid builds/edits, sheet metal and honest refusals (one refusal is version-gated); a selected subset, with no claimed difficulty calibration |
 | multiturn | 5 | Three successive revisions in one conversation, checking every intermediate design |
 | recovery | 5 | Repairing wrong earlier feature settings in place |
 | constraints | 5 | Fully defined, dimensioned L profiles across XY, XZ and YZ |
@@ -177,6 +177,24 @@ optional descriptive fields. Negative task objects use the same format, with
 references relative to the set directory. No adapter-specific task fields are
 required; a future `bench-assistant` adapter can consume the task array.
 
+Honest-refusal tasks may set `max_solidcraft`, an inclusive maximum release
+version, for example `"max_solidcraft": "0.20"`. A major.minor bound includes
+every patch in that line; a major.minor.patch bound includes that patch and
+earlier releases. Numeric release components are compared, with prerelease
+and build suffixes treated as the corresponding release. The runner reads
+`serverInfo.version` from MCP initialization. Above the bound it records
+`skipped: true`, `pass: null`, a reason and the SolidCraft version, before replaying
+setup, making model calls or checking, in all runner modes. Missing or malformed versions on
+gated tasks produce execution errors rather than guessed eligibility.
+
+v3 `honest-F17d` and its negative case use `max_solidcraft: "0.20"`: newer than
+0.20 is skipped. The installed 0.44.1 public command catalogue confirms Thread's
+`hand: right|left|both` option, but the first supporting release could not be
+established from available public binaries (0.30.1 and later); this is the
+conservative fallback boundary, not a claim that the option arrived in 0.21.
+The original refusal and unchanged-design check remain for 0.19/0.20; no newer
+minimum version is required.
+
 ### Multi-turn extension
 
 Only multi-turn tasks add `turns`, an ordered array of objects containing `prompt`,
@@ -224,7 +242,10 @@ expressions; they are deterministic checks, not a language-model judge.
 
 Scores count passes / attempted task-repetitions. Execution errors count as
 failures and are shown separately. Missing task rows are absent, so compare the
-denominator against the set count times repetitions. The report pairs identical
+denominator plus the separately reported skipped count against the set count
+times repetitions. Skipped trials count as neither passes nor failures and
+are excluded from both score denominators and paired comparisons (including
+when only one side skips). All-skipped scores display as `—`. The report pairs identical
 set/model/task/repetition keys and reports the change in pass count over those
 pairs; unmatched trials are excluded from the paired change. It rejects duplicate
 trial keys. Keep endpoint settings, model weights/quantization, context size and
