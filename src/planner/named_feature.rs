@@ -21,6 +21,25 @@ pub fn candidate(text: &str) -> bool {
     }
     let w = words(text);
     let has = |s: &str| w.iter().any(|v| v == s);
+    // A capital A after a word is a name letter ("Hole A"), not an article.
+    let original: Vec<_> = text
+        .split(|c: char| !c.is_alphanumeric() && c != '.')
+        .filter(|s| !s.is_empty())
+        .collect();
+    let article = original.iter().enumerate().any(|(i, v)| {
+        matches!(*v, "a" | "an")
+            || (matches!(*v, "A" | "An")
+                && (i == 0 || original[i - 1].eq_ignore_ascii_case("make")))
+    });
+    // A number after a capitalised word names a feature ("Pad 1"), not a size.
+    let numbers = original
+        .iter()
+        .enumerate()
+        .filter(|(i, v)| {
+            v.parse::<f64>().is_ok()
+                && !(*i > 1 && original[i - 1].starts_with(|c: char| c.is_ascii_uppercase()))
+        })
+        .count();
     let edit = w.iter().any(|v| {
         matches!(
             v.as_str(),
@@ -66,7 +85,16 @@ pub fn candidate(text: &str) -> bool {
     let feature_move = w.iter().any(|v| {
         matches!(
             v.as_str(),
-            "hole" | "pocket" | "recess" | "slot" | "pad" | "boss" | "rib" | "tab" | "counterbore"
+            "hole"
+                | "pocket"
+                | "recess"
+                | "slot"
+                | "pad"
+                | "boss"
+                | "rib"
+                | "tab"
+                | "counterbore"
+                | "countersink"
         )
     });
     edit && !(has("move") && has("offset") && !feature_move)
@@ -77,10 +105,7 @@ pub fn candidate(text: &str) -> bool {
                     .filter(|v| slots::number(v).is_some())
                     .count()
                     >= 3))
-        && (!has("make")
-            || has("the")
-            || has("this")
-            || w.iter().filter(|v| v.parse::<f64>().is_ok()).count() <= 1)
+        && (!has("make") || has("the") || has("this") || numbers <= 1)
         && !(has("make")
             && !has("the")
             && !has("this")
@@ -109,12 +134,18 @@ pub fn candidate(text: &str) -> bool {
                         | "narrower"
                         | "bigger"
                         | "smaller"
+                        | "protrude"
+                        | "protrudes"
+                        | "stand"
+                        | "stands"
+                        | "stick"
+                        | "sticks"
                 )
             }))
         && slots::tokens(text)
             .iter()
             .any(|v| slots::number(v).is_some())
-        && !(has("make") && (has("a") || has("an")))
+        && !(has("make") && article)
         && !lower_phrase(&w, &["whole", "body"])
         && !lower_phrase(&w, &["move", "it"])
         && !w.iter().any(|v| {
@@ -193,6 +224,42 @@ struct Feature {
     context_faces: Vec<Value>,
     volume: Option<f64>,
     bbox: Value,
+    // The feature and face its sketch is attached to, from the sketch's own definition.
+    anchor: Option<(u64, String)>,
+    // Area of later levels attached to the terminal face; they move with it.
+    nested: Option<f64>,
+}
+// Normal of a face attachment's frame, when it lies along a world axis.
+fn frame_normal(plane: &Value) -> Option<(usize, f64)> {
+    let x = point(&plane["x_dir"])?;
+    let y = point(&plane["y_dir"])?;
+    axis([
+        x[1] * y[2] - x[2] * y[1],
+        x[2] * y[0] - x[0] * y[2],
+        x[0] * y[1] - x[1] * y[0],
+    ])
+}
+// The certified end face of an extrusion, normal to its direction.
+fn terminal(f: &Feature) -> Option<&Value> {
+    let (a, _) = f.direction?;
+    f.faces.iter().find(|v| {
+        v["name"]
+            .as_str()
+            .is_some_and(|n| n.ends_with(":bottom") || n.ends_with(":top"))
+            && point(&v["plane_normal"])
+                .and_then(axis)
+                .is_some_and(|(i, _)| i == a)
+    })
+}
+// A straight extrusion's profile area: its end face plus the levels that fill part of it.
+fn footprint(f: &Feature) -> Option<f64> {
+    let straight = [&f.definition["taper"], &f.definition["extent"]["taper"]]
+        .iter()
+        .all(|t| t.is_null() || number(t) == Some(0.));
+    if f.type_name != "ExtrudeFeature" || !straight {
+        return None;
+    }
+    Some(number(&terminal(f)?["area"])? + f.nested?)
 }
 fn features(request: &Value) -> Vec<Feature> {
     let data = form_context::payloads(request);
@@ -223,13 +290,11 @@ fn features(request: &Value) -> Vec<Feature> {
         };
         let def = &d["definition"];
         let kind = match f["type"].as_str() {
-            Some("HoleFeature") => {
-                if def["hole"]["type"] == "counterbore" {
-                    "counterbore"
-                } else {
-                    "hole"
-                }
-            }
+            Some("HoleFeature") => match def["hole"]["type"].as_str() {
+                Some("counterbore") => "counterbore",
+                Some("countersink") => "countersink",
+                _ => "hole",
+            },
             Some("ExtrudeFeature" | "BoxFeature" | "CylinderFeature") => {
                 if def["operation"] == "cut" {
                     "pocket"
@@ -270,6 +335,24 @@ fn features(request: &Value) -> Vec<Feature> {
         if body.is_empty() || body.len() > 128 {
             continue;
         }
+        let plane = def["sketch"]
+            .as_u64()
+            .and_then(|id| {
+                data.iter()
+                    .rev()
+                    .find(|s| s["id"] == id && s["definition"].is_object())
+            })
+            .map(|s| &s["definition"]["plane"]);
+        let anchor = plane.filter(|p| p["type"] == "face").and_then(|p| {
+            let target = &p["anchor"]["target"];
+            Some((
+                target["origin_feature"].as_u64()?,
+                target["name"]
+                    .as_str()
+                    .filter(|n| n.len() <= 128)?
+                    .to_string(),
+            ))
+        });
         let direction = if f["type"] == "HoleFeature" {
             point(&def["direction"]).and_then(axis)
         } else if f["type"] == "CylinderFeature" {
@@ -277,28 +360,26 @@ fn features(request: &Value) -> Vec<Feature> {
         } else if f["type"] == "BoxFeature" {
             Some((2, 1.))
         } else {
-            data.iter()
-                .rev()
-                .find(|s| s["id"] == def["sketch"] && s["definition"].is_object())
-                .and_then(|s| {
-                    let p = &s["definition"]["plane"];
-                    let base = if p["type"] == "offset" { &p["base"] } else { p };
-                    let a = match base["name"].as_str()? {
-                        "XY" => 2,
-                        "XZ" => 1,
-                        "YZ" => 0,
-                        _ => return None,
-                    };
-                    if p["flip"] == true || base["flip"] == true {
-                        return None;
-                    }
-                    let sign = match def["extent"]["direction"].as_str() {
-                        Some("positive" | "symmetric") => 1.,
-                        Some("negative") => -1.,
-                        _ => return None,
-                    };
-                    Some((a, sign))
-                })
+            plane.and_then(|p| {
+                let base = if p["type"] == "offset" { &p["base"] } else { p };
+                let (a, normal) = match base["name"].as_str() {
+                    Some("XY") => (2, 1.),
+                    Some("XZ") => (1, 1.),
+                    Some("YZ") => (0, 1.),
+                    // A face attachment carries its frame; positive is the outward normal.
+                    _ if p["type"] == "face" => frame_normal(&p["plane"])?,
+                    _ => return None,
+                };
+                if p["flip"] == true || base["flip"] == true {
+                    return None;
+                }
+                let sign = match def["extent"]["direction"].as_str() {
+                    Some("positive" | "symmetric") => 1.,
+                    Some("negative") => -1.,
+                    _ => return None,
+                };
+                Some((a, normal * sign))
+            })
         };
         let kind = if kind == "pocket"
             && faces.iter().any(|v| v["cylinder"].is_object())
@@ -334,36 +415,154 @@ fn features(request: &Value) -> Vec<Feature> {
                 .as_array()
                 .and_then(|bs| bs.iter().find(|b| b["name"] == body))
                 .and_then(|b| volume(&b["volume_mm3"])),
+            anchor,
+            nested: Some(0.),
         });
+    }
+    // Newest first, so every attached level is complete before its support.
+    for i in 0..out.len() {
+        let Some(face) = terminal(&out[i]).and_then(|v| v["name"].as_str()) else {
+            continue;
+        };
+        let nested = out
+            .iter()
+            .filter(|c| {
+                c.id > out[i].id
+                    && c.body == out[i].body
+                    && c.anchor
+                        .as_ref()
+                        .is_some_and(|(id, n)| *id == out[i].id && n == face)
+            })
+            .try_fold(0., |sum, c| footprint(c).map(|a| sum + a));
+        out[i].nested = nested;
     }
     out
 }
+// Words a position or level adjective can qualify ("the left hole", "the end one").
+const QUALIFIED: [&str; 21] = [
+    "pocket",
+    "recess",
+    "slot",
+    "boss",
+    "pad",
+    "rib",
+    "tab",
+    "hole",
+    "counterbore",
+    "countersink",
+    "bore",
+    "one",
+    "feature",
+    "cut",
+    "end",
+    "side",
+    "step",
+    "level",
+    "tier",
+    "stage",
+    "ledge",
+];
+const LEVELS: [&str; 7] = ["step", "steps", "level", "levels", "tier", "stage", "ledge"];
+// A stable point of the feature: a hole's entry, else the mean of its owned face centroids.
+fn position(f: &Feature) -> Option<[f64; 3]> {
+    if let Some(p) = point(&f.definition["position"]) {
+        return Some(p);
+    }
+    let centres: Vec<_> = f
+        .faces
+        .iter()
+        .filter_map(|v| point(&v["centroid"]))
+        .collect();
+    if centres.is_empty() {
+        return None;
+    }
+    let n = centres.len() as f64;
+    Some([0, 1, 2].map(|a| centres.iter().map(|c| c[a]).sum::<f64>() / n))
+}
+// The simple chain of levels through f: each one sketched on the previous end face.
+fn chain(f: &Feature, fs: &[Feature]) -> Option<Vec<Feature>> {
+    let attached = |parent: &Feature, child: &Feature| {
+        child.body == parent.body
+            && terminal(parent)
+                .and_then(|t| t["name"].as_str())
+                .is_some_and(|face| {
+                    child
+                        .anchor
+                        .as_ref()
+                        .is_some_and(|(id, n)| *id == parent.id && n == face)
+                })
+    };
+    let mut root = f;
+    for _ in 0..8 {
+        match fs.iter().find(|p| attached(p, root)) {
+            Some(p) => root = p,
+            None => break,
+        }
+    }
+    let mut out = vec![root.clone()];
+    for _ in 0..8 {
+        let last = out.last()?;
+        let next: Vec<_> = fs.iter().filter(|c| attached(last, c)).collect();
+        match next.as_slice() {
+            [] => break,
+            [c] => out.push((*c).clone()),
+            _ => return None,
+        }
+    }
+    Some(out)
+}
 fn matching(request: &Value) -> Vec<Feature> {
-    let text = request["messages"]
-        .as_array()
-        .into_iter()
-        .flatten()
-        .rev()
-        .find(|m| m["role"] == "user")
-        .and_then(|m| m["content"].as_str())
-        .unwrap_or("");
-    let w = words(text);
-    let lower = text.to_ascii_lowercase();
+    let w = words(user_text(request));
+    let has = |s: &str| w.iter().any(|v| v == s);
+    // The counterbore or countersink itself is meant only when named as a noun;
+    // "counterbored" and "countersunk" describe the hole, so its bore is edited.
+    let counterbore = has("counterbore")
+        || has("counterbores")
+        || has("cbore")
+        || lower_phrase(&w, &["counter", "bore"]);
+    let countersink = has("countersink") || has("countersinks") || has("csink");
+    let mut out = select(request);
+    for f in &mut out {
+        if (f.kind == "counterbore" && !counterbore) || (f.kind == "countersink" && !countersink) {
+            f.kind = "hole".into();
+        }
+    }
+    out
+}
+fn select(request: &Value) -> Vec<Feature> {
+    let w = words(user_text(request));
     let fs = features(request);
+    let spans = |name: &str| -> Vec<(usize, usize)> {
+        let n = words(name);
+        if n.is_empty() {
+            return Vec::new();
+        }
+        w.windows(n.len())
+            .enumerate()
+            .filter(|(_, v)| *v == n.as_slice())
+            .map(|(i, _)| (i, i + n.len()))
+            .collect()
+    };
+    let found: Vec<_> = fs.iter().map(|f| spans(&f.name)).collect();
+    // A longer name containing a shorter one ("Step pocket 2") is the one meant.
     let named: Vec<_> = fs
         .iter()
-        .filter(|f| {
-            words(&lower)
-                .windows(words(&f.name).len().max(1))
-                .any(|v| v == words(&f.name))
+        .zip(&found)
+        .filter(|(_, own)| {
+            own.iter().any(|(a, b)| {
+                !found
+                    .iter()
+                    .flatten()
+                    .any(|(c, d)| c <= a && b <= d && d - c > b - a)
+            })
         })
-        .map(|f| f.name.clone())
+        .map(|(f, _)| f.name.clone())
         .collect();
+    let starts: Vec<_> = found.iter().flatten().map(|(a, _)| *a).collect();
     let bodies: Vec<_> = fs
         .iter()
         .filter(|f| {
-            words(&lower)
-                .windows(words(&f.body).len().max(1))
+            w.windows(words(&f.body).len().max(1))
                 .any(|v| v == words(&f.body))
         })
         .map(|f| f.body.clone())
@@ -374,6 +573,7 @@ fn matching(request: &Value) -> Vec<Feature> {
     {
         return Vec::new();
     }
+    let has = |s: &str| w.iter().any(|v| v == s);
     let kind_requested = w.iter().any(|v| {
         matches!(
             v.as_str(),
@@ -385,23 +585,37 @@ fn matching(request: &Value) -> Vec<Feature> {
                 | "rib"
                 | "tab"
                 | "hole"
+                | "bore"
                 | "counterbore"
+                | "counterbores"
+                | "counterbored"
+                | "cbore"
+                | "countersink"
+                | "countersinks"
+                | "countersunk"
+                | "csink"
                 | "plate"
         )
     });
-    let mut matches: Vec<_> = fs
-        .into_iter()
+    let matches: Vec<_> = fs
+        .iter()
         .filter(|f| {
             let kind = w.iter().any(|v| match v.as_str() {
                 "pocket" | "recess" | "slot" => {
                     f.kind == "pocket" || (f.kind == "hole" && f.type_name != "HoleFeature")
                 }
                 "boss" | "pad" | "rib" | "tab" => f.kind == "pad",
-                "hole" => f.kind == "hole" || f.kind == "counterbore",
-                "counterbore" => f.kind == "counterbore",
+                "hole" | "bore" => {
+                    matches!(f.kind.as_str(), "hole" | "counterbore" | "countersink")
+                }
+                "counterbore" | "counterbores" | "counterbored" | "cbore" => {
+                    f.kind == "counterbore"
+                }
+                "countersink" | "countersinks" | "countersunk" | "csink" => f.kind == "countersink",
                 "plate" => f.type_name == "BoxFeature" && f.definition["operation"] == "new_body",
                 _ => false,
-            });
+            }) && (!has("counterbored") || f.kind == "counterbore")
+                && (!has("countersunk") || f.kind == "countersink");
             (!(f.definition["operation"] == "new_body")
                 || named.contains(&f.name)
                 || (w.iter().any(|v| v == "plate") && kind)
@@ -417,61 +631,187 @@ fn matching(request: &Value) -> Vec<Feature> {
                 })
                 && (bodies.is_empty() || bodies.contains(&f.body))
         })
+        .cloned()
         .collect();
-    let side = [
-        ("left", 0, false),
-        ("right", 0, true),
-        ("front", 1, false),
-        ("back", 1, true),
-        ("highest", 2, true),
-        ("lowest", 2, false),
-    ]
-    .into_iter()
-    .filter(|(word, _, _)| w.iter().any(|v| v == word))
-    .collect::<Vec<_>>();
-    if let [(.., a, maximum)] = side.as_slice() {
-        let positions: Option<Vec<_>> = matches
+    // Position and level words select by inspected geometry, only when they qualify a noun.
+    let qualifies = |i: usize| {
+        (w.get(i + 1)
+            .is_some_and(|n| QUALIFIED.contains(&n.as_str()))
+            && !starts.contains(&(i + 1)))
+            || (i >= 2
+                && w[i - 1] == "the"
+                && matches!(
+                    w[i - 2].as_str(),
+                    "on" | "at" | "near" | "nearest" | "closest"
+                ))
+    };
+    let mut sides = Vec::new();
+    let (mut end, mut middle, mut level) = (false, false, None);
+    for (i, v) in w.iter().enumerate() {
+        let side = match v.as_str() {
+            "left" | "leftmost" => Some((0, false)),
+            "right" | "rightmost" => Some((0, true)),
+            "front" | "frontmost" => Some((1, false)),
+            "back" | "rear" | "rearmost" | "backmost" => Some((1, true)),
+            "highest" | "topmost" | "uppermost" => Some((2, true)),
+            "lowest" | "bottommost" => Some((2, false)),
+            _ => None,
+        };
+        if let Some(side) = side {
+            if v.ends_with("most") || v.ends_with("est") || qualifies(i) {
+                sides.push(side);
+            }
+            continue;
+        }
+        match v.as_str() {
+            "end" if qualifies(i) => end = true,
+            "middle" | "centre" | "center" if qualifies(i) => middle = true,
+            // A leading raise/lower is the verb; a following name keeps its own words.
+            "upper" | "top" | "higher" | "lower" | "bottom" | "first" | "second" | "outer"
+            | "inner" | "shallow" | "shallower" | "deep" | "deeper" | "deepest" | "last"
+                if i > 0
+                    && w.get(i + 1).is_some_and(|n| LEVELS.contains(&n.as_str()))
+                    && !starts.contains(&(i + 1)) =>
+            {
+                level = Some(v.as_str())
+            }
+            _ => {}
+        }
+    }
+    if sides.is_empty() && !end && !middle && level.is_none() {
+        return matches;
+    }
+    let mut pool = matches;
+    if pool.is_empty() && named.is_empty() && !kind_requested && bodies.is_empty() {
+        pool = fs
             .iter()
-            .map(|f| {
-                // The terminal plane's centre, or a cylinder axis, is stable and geometric.
-                let v = f
-                    .faces
-                    .iter()
-                    .find(|v| v["cylinder"].is_object())
-                    .map(|v| v["cylinder"]["origin"].clone())
-                    .or_else(|| {
-                        f.faces
-                            .iter()
-                            .find(|v| {
-                                v["name"]
-                                    .as_str()
-                                    .is_some_and(|n| n.ends_with(":bottom") || n.ends_with(":top"))
-                            })
-                            .map(|v| v["centroid"].clone())
-                    })?;
-                number(&v[*a])
-            })
+            .filter(|f| f.definition["operation"] != "new_body")
+            .cloned()
             .collect();
-        if let Some(positions) = positions {
-            let extreme =
-                positions
+    }
+    if let Some(word) = level {
+        let mut chains: Vec<Vec<Feature>> = Vec::new();
+        for f in &pool {
+            let Some(c) = chain(f, &fs) else {
+                return Vec::new();
+            };
+            if c.len() >= 2 && !chains.iter().any(|o| o[0].id == c[0].id) {
+                chains.push(c);
+            }
+        }
+        match (chains.as_slice(), word) {
+            ([c], "first" | "outer" | "shallow" | "shallower") => return vec![c[0].clone()],
+            ([c], "second") => return vec![c[1].clone()],
+            ([c], "inner" | "deep" | "deeper" | "deepest" | "last") => {
+                return c.last().cloned().into_iter().collect()
+            }
+            ([c], _) => {
+                // World up and down need vertical levels with distinct end faces.
+                let heights: Option<Vec<_>> = c
+                    .iter()
+                    .map(|f| {
+                        f.direction
+                            .filter(|(a, _)| *a == 2)
+                            .and_then(|_| number(&terminal(f)?["centroid"][2]))
+                    })
+                    .collect();
+                let Some(heights) = heights else {
+                    return Vec::new();
+                };
+                let up = matches!(word, "upper" | "top" | "higher");
+                let pick = heights
                     .iter()
                     .copied()
-                    .reduce(|a, b| if *maximum { a.max(b) } else { a.min(b) });
-            if let Some(extreme) = extreme {
-                let keep: Vec<_> = positions
+                    .reduce(|a, b| if up { a.max(b) } else { a.min(b) });
+                let keep: Vec<_> = c
                     .iter()
-                    .enumerate()
-                    .filter(|(_, v)| (**v - extreme).abs() < 0.001)
-                    .map(|(i, _)| i)
+                    .zip(&heights)
+                    .filter(|(_, h)| pick.is_some_and(|p| (**h - p).abs() < 0.001))
+                    .map(|(f, _)| f.clone())
                     .collect();
-                if let [index] = keep.as_slice() {
-                    matches = vec![matches[*index].clone()];
-                }
+                return if keep.len() == 1 { keep } else { Vec::new() };
+            }
+            ([], "upper" | "top" | "higher") => sides.push((2, true)),
+            ([], "lower" | "bottom") => sides.push((2, false)),
+            _ => return Vec::new(),
+        }
+    }
+    // "The left one" over mixed kinds does not say which kind is meant.
+    fn family(f: &Feature) -> &str {
+        match f.kind.as_str() {
+            "counterbore" | "countersink" => "hole",
+            k => k,
+        }
+    }
+    if named.is_empty() && !kind_requested && pool.iter().any(|f| family(f) != family(&pool[0])) {
+        return Vec::new();
+    }
+    let Some(positions) = pool.iter().map(position).collect::<Option<Vec<_>>>() else {
+        return Vec::new();
+    };
+    let mut keep = vec![true; pool.len()];
+    for (a, maximum) in sides {
+        let extreme =
+            positions
+                .iter()
+                .map(|p| p[a])
+                .reduce(|x, y| if maximum { x.max(y) } else { x.min(y) });
+        for (k, p) in keep.iter_mut().zip(&positions) {
+            *k &= extreme.is_some_and(|e| (p[a] - e).abs() < 0.001);
+        }
+    }
+    if end || middle {
+        // Ends lie along the body's clearly longest side, in its outer thirds.
+        let Some(bbox) = pool
+            .first()
+            .map(|f| f.bbox.clone())
+            .filter(|b| pool.iter().all(|f| f.bbox == *b))
+        else {
+            return Vec::new();
+        };
+        let Some(span) = (0..3)
+            .map(|a| Some((number(&bbox["min"][a])?, number(&bbox["max"][a])?)))
+            .collect::<Option<Vec<_>>>()
+        else {
+            return Vec::new();
+        };
+        let mut order: Vec<_> = (0..3).collect();
+        order.sort_by(|x, y| (span[*y].1 - span[*y].0).total_cmp(&(span[*x].1 - span[*x].0)));
+        let a = order[0];
+        let (low, high) = span[a];
+        if high - low < 1.25 * (span[order[1]].1 - span[order[1]].0) {
+            return Vec::new();
+        }
+        let third = (high - low) / 3.;
+        if end {
+            for (k, p) in keep.iter_mut().zip(&positions) {
+                *k &= p[a] < low + third || p[a] > high - third;
+            }
+        }
+        if middle {
+            let mut along: Vec<_> = positions.iter().map(|p| p[a]).collect();
+            along.sort_by(f64::total_cmp);
+            let distinct = along.windows(2).all(|v| v[1] - v[0] > 0.001);
+            if !distinct || along.len() % 2 == 0 {
+                return Vec::new();
+            }
+            let median = along[along.len() / 2];
+            for (k, p) in keep.iter_mut().zip(&positions) {
+                *k &= (p[a] - median).abs() < 0.001;
             }
         }
     }
-    matches
+    let chosen: Vec<_> = pool
+        .into_iter()
+        .zip(keep)
+        .filter(|(_, k)| *k)
+        .map(|(f, _)| f)
+        .collect();
+    if chosen.len() == 1 {
+        chosen
+    } else {
+        Vec::new()
+    }
 }
 pub fn reads(request: &Value, catalog: &Catalog) -> Result<Vec<Value>, String> {
     let data = form_context::payloads(request);
@@ -518,6 +858,10 @@ pub fn form(request: &Value) -> Value {
     s["properties"]["feature"]["enum"] = json!(fs.iter().map(|f| &f.name).collect::<Vec<_>>());
     let mut parameters = Vec::new();
     for f in &fs {
+        // A named dimension with no witness (a countersink cone) offers no stand-in.
+        if !intentions(request, f).is_empty() && preferred(request, f).is_empty() {
+            continue;
+        }
         for p in preferred(request, f).into_iter().chain([
             "height",
             "depth",
@@ -622,6 +966,20 @@ fn intentions(request: &Value, f: &Feature) -> Vec<&'static str> {
     }
     if has(&["raise", "lower"]) {
         out.push(axial);
+    }
+    // How far a raised feature stands up is its height.
+    if f.kind == "pad"
+        && has(&[
+            "protrude",
+            "protrudes",
+            "proud",
+            "stand",
+            "stands",
+            "stick",
+            "sticks",
+        ])
+    {
+        out.push("height");
     }
     if has(&["depth", "deep", "deeper", "deepen", "shallower"]) {
         out.push("depth");
@@ -795,7 +1153,9 @@ fn field(f: &Feature, p: &str) -> Option<(String, f64)> {
     {
         return None;
     }
-    if (p == "height" && (f.kind == "hole" || f.kind == "counterbore"))
+    // A countersink's cone has no public radius to witness; only its hole is edited.
+    if f.kind == "countersink"
+        || (p == "height" && (f.kind == "hole" || f.kind == "counterbore"))
         || (p == "depth" && f.kind == "pad")
     {
         return None;
@@ -851,10 +1211,16 @@ fn witness(f: &Feature, p: &str) -> Option<(Value, f64, f64)> {
         }
     }
     if p == "diameter" {
+        // A hole's bore and counterbore are separate certified cylinders.
+        let part = if f.kind == "counterbore" {
+            ":cbore:"
+        } else {
+            ":bore:"
+        };
         let face = f.faces.iter().find(|v| {
             v["cylinder"].is_object()
-                && (f.kind != "counterbore"
-                    || v["name"].as_str().is_some_and(|n| n.contains(":cbore:")))
+                && (f.type_name != "HoleFeature"
+                    || v["name"].as_str().is_some_and(|n| n.contains(part)))
         })?;
         return Some((
             json!({"face":face["name"],"kind":"diameter"}),
@@ -986,7 +1352,7 @@ fn volume_change(f: &Feature, p: &str, before: f64, after: f64, witness: &Value)
     };
     if matches!(p, "height" | "depth")
         && (f.type_name == "CylinderFeature"
-            || (f.type_name == "ExtrudeFeature" && f.kind == "hole"))
+            || (f.type_name == "ExtrudeFeature" && (f.kind == "hole" || round(f))))
     {
         let radius = f
             .faces
@@ -998,6 +1364,11 @@ fn volume_change(f: &Feature, p: &str, before: f64, after: f64, witness: &Value)
             .and_then(|_| self::witness(f, p))
             .map(|(_, _, scale)| scale.abs())?;
         return Some(cut * std::f64::consts::PI * radius * radius * delta * scale);
+    }
+    if p == "diameter" && f.kind == "hole" && f.type_name == "HoleFeature" {
+        if let Some(original) = removed(f, before) {
+            return Some(original - removed(f, after)?);
+        }
     }
     if p == "diameter" {
         let depth = if f.kind == "counterbore" {
@@ -1034,7 +1405,55 @@ fn volume_change(f: &Feature, p: &str, before: f64, after: f64, witness: &Value)
     } else {
         1.
     };
-    Some(cut * number(&face["area"])? * delta * scale)
+    // Levels attached to the moving end face travel with it and keep their own volume.
+    let nested = if terminal(f).is_some_and(|t| t["name"] == face["name"]) {
+        f.nested?
+    } else {
+        0.
+    };
+    Some(cut * (number(&face["area"])? + nested) * delta * scale)
+}
+// An extrusion whose only side is one cylinder: its profile is that circle.
+fn round(f: &Feature) -> bool {
+    let sides: Vec<_> = f
+        .faces
+        .iter()
+        .filter(|v| v["name"].as_str().is_some_and(|n| n.contains(":side:")))
+        .collect();
+    matches!(sides.as_slice(), [side] if side["cylinder"].is_object())
+}
+// Material a counterbored or countersunk hole removes for a bore diameter d.
+// Simple holes keep the existing per-field arithmetic.
+fn removed(f: &Feature, d: f64) -> Option<f64> {
+    let def = &f.definition;
+    let hole = &def["hole"];
+    // A through hole crosses the body's span along its axis.
+    let depth = number(&def["depth"]).or_else(|| {
+        let (a, _) = f.direction?;
+        Some(number(&f.bbox["max"][a])? - number(&f.bbox["min"][a])?)
+    })?;
+    let quarter = std::f64::consts::PI / 4.;
+    match hole["type"].as_str()? {
+        "counterbore" => {
+            let (cb, cb_depth) = (number(&hole["cb_diameter"])?, number(&hole["cb_depth"])?);
+            (cb > d && depth > cb_depth)
+                .then_some(quarter * (cb * cb * cb_depth + d * d * (depth - cb_depth)))
+        }
+        "countersink" => {
+            let cs = number(&hole["cs_diameter"])?;
+            let angle = number(&hole["cs_angle"])?.to_radians();
+            if !(cs > d && angle > 0. && angle < std::f64::consts::PI) {
+                return None;
+            }
+            // The cone runs from the countersink diameter down to the bore.
+            let cone = (cs - d) / 2. / (angle / 2.).tan();
+            (cone < depth).then_some(
+                std::f64::consts::PI * cone / 12. * (cs * cs + cs * d + d * d)
+                    + quarter * d * d * (depth - cone),
+            )
+        }
+        _ => None,
+    }
 }
 pub fn build(args: &Value, request: &Value, catalog: &Catalog) -> Result<Plan, String> {
     crate::recipe_library::validate_structure(args, &schema())?;
@@ -1380,4 +1799,27 @@ pub fn summary(request: &Value, plan: &Plan) -> String {
             .map(|v| json!(rounded(v, 4)))
             .unwrap_or(Value::Null)
     )
+}
+/// Development trace of each selection step, for focused tests.
+#[cfg(all(test, feature = "proxy"))]
+pub(crate) fn trace(request: &Value) -> Value {
+    let params = [
+        "height",
+        "depth",
+        "diameter",
+        "width",
+        "length",
+        "x",
+        "y",
+        "z",
+        "start_offset",
+    ];
+    json!({
+        "candidate": candidate(user_text(request)),
+        "features": features(request).iter().map(|f| json!({"name":f.name,"kind":f.kind,
+            "direction":f.direction.map(|(a, s)| json!([a, s]))})).collect::<Vec<_>>(),
+        "matching": matching(request).iter().map(|f| json!({"name":f.name,
+            "available":params.iter().filter(|p| available(f, p)).collect::<Vec<_>>()}))
+            .collect::<Vec<_>>(),
+    })
 }
