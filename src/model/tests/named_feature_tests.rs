@@ -846,12 +846,14 @@ fn named_feature_round_words_never_select_radius_for_axial_edits() {
         } else {
             "height"
         };
-        assert!(planner::named_feature::build(
+        // The model's available choice stands even where the words suggest another.
+        let plan = planner::named_feature::build(
             &json!({"feature":"Perch","parameter":wrong,"mode":"change","value":2}),
             &req,
-            &cat
+            &cat,
         )
-        .is_err());
+        .unwrap();
+        assert_eq!(plan.slots["parameter"], wrong);
     }
     for prompt in [
         "Change Perch by 2 mm",
@@ -1036,4 +1038,110 @@ fn named_feature_next_parameter_can_verify_and_is_tried_only_once() {
     )
     .unwrap()
     .is_none());
+}
+
+fn slot_context(text: &str) -> Value {
+    let mut req = request();
+    req["messages"] = json!([{"role":"user","content":text}]);
+    for data in [
+        json!({"body":"Block","faces":[
+            {"name":"F2:+z","exact":true,"centroid":[20.,14.,12.],"plane_normal":[0,0,1],"area":160.},
+            {"name":"F2:+y","exact":true,"centroid":[20.,10.,16.],"plane_normal":[0,1,0],"area":160.},
+            {"name":"F2:+x","exact":true,"centroid":[10.,14.,16.],"plane_normal":[1,0,0],"area":64.}
+        ]}),
+        json!({"id":2,"name":"Slot A","definition":{"corner":[10.,10.,12.],"length":20.,"width":8.,"height":8.,"operation":"cut","participants":["Block"]}}),
+        json!({"bodies":[{"name":"Block","volume_mm3":11520.,"bbox":{"min":[0,0,0],"max":[40.,30.,20.]}}],"timeline":[{"id":2,"name":"Slot A","type":"BoxFeature"}]}),
+    ] {
+        req["messages"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"role":"tool","content":data.to_string()}));
+    }
+    req
+}
+#[test]
+fn named_feature_model_choice_stands_over_request_words() {
+    let cat = Catalog::bundled().unwrap();
+    // "wider" suggests width; the model's available length choice is built as given.
+    let req = slot_context("make Slot A 3 mm wider");
+    assert_eq!(
+        planner::named_feature::form(&req)["properties"]["parameter"]["enum"][0],
+        "width"
+    );
+    let plan = planner::named_feature::build(
+        &json!({"feature":"Slot A","parameter":"length","mode":"change","value":3}),
+        &req,
+        &cat,
+    )
+    .unwrap();
+    assert_eq!(plan.slots["parameter"], "length");
+    assert_eq!(plan.slots["field"], "length");
+    assert_eq!(
+        plan.calls[0]["arguments"]["params"]["set"],
+        json!({"length":23.})
+    );
+}
+#[test]
+fn named_feature_unmatched_request_words_accept_available_choice() {
+    let cat = Catalog::bundled().unwrap();
+    // "deeper" names depth, which this box cut lacks: inference adds nothing.
+    let req = slot_context("make Slot A 4 mm deeper");
+    assert!(planner::named_feature::exact(&req, &cat).unwrap().is_none());
+    let plan = planner::named_feature::build(
+        &json!({"feature":"Slot A","parameter":"height","mode":"change","value":4}),
+        &req,
+        &cat,
+    )
+    .unwrap();
+    assert_eq!(plan.slots["parameter"], "height");
+    assert_eq!(
+        plan.calls[0]["arguments"]["params"]["set"],
+        json!({"height":12.})
+    );
+}
+#[test]
+fn named_feature_unavailable_parameter_names_available_ones() {
+    let cat = Catalog::bundled().unwrap();
+    let req = slot_context("make Slot A 4 mm deeper");
+    for parameter in ["depth", "diameter", "x"] {
+        let err = planner::named_feature::build(
+            &json!({"feature":"Slot A","parameter":parameter,"mode":"change","value":4}),
+            &req,
+            &cat,
+        )
+        .unwrap_err();
+        assert!(err.contains("unavailable on Slot A"), "{err}");
+        assert!(err.contains(r#"["height","width","length"]"#), "{err}");
+    }
+}
+#[test]
+fn named_feature_raise_on_sideways_feature_adds_nothing() {
+    let cat = Catalog::bundled().unwrap();
+    let mut req = request();
+    req["messages"] = json!([{"role":"user","content":"raise Rib B by 2 mm"}]);
+    for data in [
+        json!({"body":"Block","faces":[
+            {"name":"F3:top","exact":true,"centroid":[45.,15.,10.],"plane_normal":[1,0,0],"area":60.}
+        ]}),
+        json!({"id":1,"definition":{"plane":{"name":"YZ","offset":40}}}),
+        json!({"id":3,"name":"Rib B","definition":{"sketch":1,"extent":{"distance":5.,"direction":"positive"},"operation":"join","participants":["Block"]}}),
+        json!({"bodies":[{"name":"Block","volume_mm3":24300.,"bbox":{"min":[0,0,0],"max":[45.,30.,20.]}}],"timeline":[{"id":1,"name":"Sketch1","type":"Sketch"},{"id":3,"name":"Rib B","type":"ExtrudeFeature"}]}),
+    ] {
+        req["messages"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"role":"tool","content":data.to_string()}));
+    }
+    // No exact guess for a sideways raise; the model's fill applies as given.
+    assert!(planner::named_feature::exact(&req, &cat).unwrap().is_none());
+    let plan = planner::named_feature::build(
+        &json!({"feature":"Rib B","parameter":"height","mode":"change","value":2}),
+        &req,
+        &cat,
+    )
+    .unwrap();
+    assert_eq!(
+        plan.calls[0]["arguments"]["params"]["set"],
+        json!({"extent":{"distance":7.}})
+    );
 }
