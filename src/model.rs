@@ -1945,8 +1945,9 @@ impl Proxy {
                 .filter(|c| !c.is_empty() && c.len() <= 8)
                 .ok_or("upstream choices must contain 1 to 8 entries")?;
             let mut nudge = None;
+            let mut rejected_unknown = Vec::new();
             let single_choice = choices.len() == 1;
-            for choice in choices.iter_mut() {
+            for (choice_index, choice) in choices.iter_mut().enumerate() {
                 let message = choice
                     .get_mut("message")
                     .filter(|m| m.is_object())
@@ -2019,6 +2020,11 @@ impl Proxy {
                     audit,
                     profile,
                 )?;
+                if let Some((reason, _)) = &guard {
+                    if reason.starts_with("unknown ") {
+                        rejected_unknown.push((choice_index, reason.clone()));
+                    }
+                }
                 if message["tool_calls"]
                     .as_array()
                     .is_some_and(|c| !c.is_empty())
@@ -2173,7 +2179,13 @@ impl Proxy {
             }
             if let Some((reason, json_decided)) = nudge {
                 let command = recovery::failing_command(message, &reason);
-                if (!accepted || completion_nudge)
+                // After a success the hint retry helps once per unknown name: a name the
+                // history already shows being handed back is released at once.
+                let first_unknown = !rejected_unknown.is_empty()
+                    && !rejected_unknown
+                        .iter()
+                        .any(|(_, r)| already_handed_back(&body, r));
+                if (!accepted || completion_nudge || first_unknown)
                     && guard_backs < 2
                     && hand_backs < 2
                     && reason != last_reason
@@ -2211,6 +2223,13 @@ impl Proxy {
                     continue;
                 }
             }
+            // Recovery is exhausted. Release the call unchanged: ending the turn here
+            // would end the client's task, while SolidCraft's own error lets its
+            // agent loop recover. The log still shows what was let through.
+            for (index, reason) in rejected_unknown {
+                let choice = &response["choices"][index];
+                audit.record("unknown_command_released", choice, &json!(reason))?;
+            }
             let bytes = if stream {
                 emit_sse(&response, include_usage)?
             } else if response == before && !upstream.content_type.starts_with("text/event-stream")
@@ -2234,6 +2253,51 @@ impl Proxy {
         }
         Err("turn retry limit reached".into())
     }
+}
+/// True when earlier messages already carry an unknown-command report for the
+/// command named in `reason` ("unknown <id>; ..."). Bounded by message and byte caps.
+fn already_handed_back(body: &Value, reason: &str) -> bool {
+    const MAX_MESSAGES: usize = 64;
+    const MAX_BYTES: usize = 64 * 1024;
+    let Some(id) = reason
+        .strip_prefix("unknown ")
+        .and_then(|r| r.split(';').next())
+        .map(str::trim)
+        .filter(|id| !id.is_empty())
+    else {
+        return false;
+    };
+    let Some(messages) = body["messages"].as_array() else {
+        return false;
+    };
+    let mut budget = MAX_BYTES;
+    for message in messages.iter().rev().take(MAX_MESSAGES) {
+        if !matches!(message["role"].as_str(), Some("tool" | "user")) {
+            continue;
+        }
+        let text = match &message["content"] {
+            Value::String(s) => s.clone(),
+            Value::Array(parts) => parts
+                .iter()
+                .filter_map(|p| p["text"].as_str())
+                .collect::<Vec<_>>()
+                .join(" "),
+            _ => continue,
+        };
+        let end = (0..=text.len().min(budget))
+            .rev()
+            .find(|i| text.is_char_boundary(*i))
+            .unwrap_or(0);
+        budget -= end;
+        let text = &text[..end];
+        if text.contains("unknown") && text.contains(id) {
+            return true;
+        }
+        if budget == 0 {
+            break;
+        }
+    }
+    false
 }
 fn aliases98(message: &mut Value, audit: &mut Audit) -> Result<(), String> {
     if let Some(calls) = message["tool_calls"].as_array_mut() {
@@ -2958,7 +3022,7 @@ fn repair_calls(
             .ok_or("invalid upstream tool name")?
             .to_string();
         let Some(schema) = tool_schema(tools, &name) else {
-            guard.get_or_insert((format!("unknown tool {name}; use an advertised tool"), true));
+            guard = Some((format!("unknown tool {name}; use an advertised tool"), true));
             continue;
         };
         let before = call["function"]["arguments"].clone();
@@ -2999,7 +3063,13 @@ fn repair_calls(
         };
         for step in steps {
             if let Some(reason) = guard_command(step, catalog, task)? {
-                guard.get_or_insert((reason, true));
+                // Unknown calls must remain visible to the release guard even
+                // when an earlier call or batch step has an argument error.
+                if reason.starts_with("unknown ") {
+                    guard = Some((reason, true));
+                } else {
+                    guard.get_or_insert((reason, true));
+                }
             }
         }
         if args != arg_before_guard {
@@ -3154,7 +3224,11 @@ fn guard_command(
         if let Some(close) = guidance::unique_close(catalog, &id)? {
             id = close;
         } else {
-            return Ok(Some(catalog.unknown_hint(&id, task)?));
+            return Ok(Some(catalog.unknown_hint_with_params(
+                &id,
+                task,
+                &step["params"],
+            )?));
         }
     }
     if step["command"] != id {
@@ -4699,6 +4773,172 @@ mod tests {
                 .unwrap(),
         )
         .unwrap()
+    }
+
+    /// The latest hand-back the model saw, from the scripted upstream requests.
+    fn last_hint(f: &Fixture, request: usize) -> String {
+        let script = f.proxy.scripted.as_ref().unwrap().borrow();
+        script.requests[request]["messages"]
+            .as_array()
+            .unwrap()
+            .last()
+            .unwrap()["content"]
+            .as_str()
+            .unwrap()
+            .to_owned()
+    }
+
+    #[test]
+    fn invented_rename_retries_after_success_then_is_released() {
+        let bad = call(
+            "execute",
+            json!({
+                "command":"document.rename", "params":{"body":"Body1","name":"Mount"}
+            }),
+        );
+        for accepted in [false, true] {
+            for stream in [false, true] {
+                let mut f = Fixture::new(vec![bad.clone(); 3]);
+                f.proxy.cfg.planner = false;
+                let mut req = request();
+                req["stream"] = json!(stream);
+                req["messages"] =
+                    json!([{"role":"user","content":"Give the existing solid a clearer label"}]);
+                if accepted {
+                    req["messages"].as_array_mut().unwrap().extend([
+                        json!({"role":"assistant","tool_calls":[{"id":"created","type":"function","function":{"name":"execute","arguments":"{}"}}]}),
+                        json!({"role":"tool","tool_call_id":"created","content":"{\"created_bodies\":[\"Body1\"]}"}),
+                    ]);
+                    assert!(recovery::previous_accepted(&req));
+                }
+                let response = f.chat(req);
+                let wire = String::from_utf8(response.body).unwrap();
+                // Recovery is exhausted: the call goes out unchanged, so the
+                // client's agent loop gets SolidCraft's own error and can recover.
+                assert!(wire.contains("document.rename"), "{wire}");
+                assert!(wire.contains("tool_calls"), "{wire}");
+                assert!(!wire.contains("unknown document.rename; closest"), "{wire}");
+                let requests = f.proxy.scripted.as_ref().unwrap().borrow().requests.len();
+                assert!((2..=3).contains(&requests));
+                assert!(
+                    last_hint(&f, 1).starts_with("unknown document.rename; closest: body.rename")
+                );
+            }
+        }
+    }
+
+    fn rename_history(extra: bool, hint_name: &str) -> Value {
+        let mut messages = vec![
+            json!({"role":"user","content":"Give the existing solid a clearer label"}),
+            json!({"role":"assistant","tool_calls":[{"id":"created","type":"function","function":{"name":"execute","arguments":"{}"}}]}),
+            json!({"role":"tool","tool_call_id":"created","content":"{\"created_bodies\":[\"Body1\"]}"}),
+        ];
+        if extra {
+            messages.extend([
+                json!({"role":"assistant","tool_calls":[{"id":"bad","type":"function","function":{"name":"execute","arguments":"{}"}}]}),
+                json!({"role":"tool","tool_call_id":"bad","content":format!("error: unknown command {hint_name}; closest: body.rename")}),
+                json!({"role":"assistant","tool_calls":[{"id":"fine","type":"function","function":{"name":"execute","arguments":"{}"}}]}),
+                json!({"role":"tool","tool_call_id":"fine","content":"{\"created_bodies\":[\"Body2\"]}"}),
+            ]);
+        }
+        let mut req = request();
+        req["messages"] = json!(messages);
+        req
+    }
+
+    fn rename_call(name: &str) -> Value {
+        call(
+            "execute",
+            json!({"command":name,"params":{"body":"Body1","name":"Mount"}}),
+        )
+    }
+
+    #[test]
+    fn first_unknown_after_success_still_retries_with_hint() {
+        let mut f = Fixture::new(vec![rename_call("document.rename"); 3]);
+        f.proxy.cfg.planner = false;
+        f.chat(rename_history(false, ""));
+        assert!(f.proxy.scripted.as_ref().unwrap().borrow().requests.len() >= 2);
+        assert!(last_hint(&f, 1).starts_with("unknown document.rename; closest"));
+    }
+
+    #[test]
+    fn repeated_unknown_in_later_turn_is_released_without_retry() {
+        let mut f = Fixture::new(vec![rename_call("document.rename"); 3]);
+        f.proxy.cfg.planner = false;
+        let response = f.chat(rename_history(true, "document.rename"));
+        let wire = String::from_utf8(response.body).unwrap();
+        assert!(wire.contains("document.rename"), "{wire}");
+        assert_eq!(
+            f.proxy.scripted.as_ref().unwrap().borrow().requests.len(),
+            1
+        );
+    }
+
+    #[test]
+    fn different_unknown_in_later_turn_gets_one_retry() {
+        let mut f = Fixture::new(vec![rename_call("document.relabel"); 3]);
+        f.proxy.cfg.planner = false;
+        f.chat(rename_history(true, "document.rename"));
+        assert!(f.proxy.scripted.as_ref().unwrap().borrow().requests.len() >= 2);
+        assert!(last_hint(&f, 1).starts_with("unknown document.relabel"));
+    }
+
+    #[test]
+    fn invented_rename_in_a_batch_or_beside_a_valid_call_is_handed_back() {
+        let bad_step =
+            json!({"command":"document.rename","params":{"body":"Body1","name":"Mount"}});
+        let batch = call(
+            "batch",
+            json!({"commands":[
+                {"command":"solid.box","params":{"length":20}},
+                bad_step.clone()
+            ]}),
+        );
+        let mut f = Fixture::new(vec![batch; 3]);
+        f.proxy.cfg.planner = false;
+        f.chat(request());
+        assert!(f.proxy.scripted.as_ref().unwrap().borrow().requests.len() >= 2);
+        assert!(last_hint(&f, 1).contains("closest: body.rename"));
+
+        let mut mixed = call(
+            "execute",
+            json!({"command":"solid.box","params":{"length":20}}),
+        );
+        mixed["choices"][0]["message"]["tool_calls"]
+            .as_array_mut()
+            .unwrap()
+            .push(call("execute", bad_step)["choices"][0]["message"]["tool_calls"][0].clone());
+        mixed["choices"][0]["message"]["tool_calls"][1]["id"] = json!("unknown");
+        let mut f = Fixture::new(vec![mixed; 3]);
+        f.proxy.cfg.planner = false;
+        f.chat(request());
+        assert!(f.proxy.scripted.as_ref().unwrap().borrow().requests.len() >= 2);
+        assert!(last_hint(&f, 1).contains("closest: body.rename"));
+    }
+
+    #[test]
+    fn invented_rename_hint_allows_only_the_models_explicit_recovery() {
+        let mut f = Fixture::new(vec![
+            call(
+                "execute",
+                json!({"command":"document.rename","params":{"body":"Body1","name":"Mount"}}),
+            ),
+            call(
+                "execute",
+                json!({"command":"body.rename","params":{"body":"Body1","name":"Mount"}}),
+            ),
+        ]);
+        f.proxy.cfg.planner = false;
+        let mut req = request();
+        req["messages"] =
+            json!([{"role":"user","content":"Give the existing solid a clearer label"}]);
+        let response = f.chat(req);
+        assert_eq!(args(&response)["command"], "body.rename");
+        assert_eq!(
+            f.proxy.scripted.as_ref().unwrap().borrow().requests.len(),
+            2
+        );
     }
 
     #[test]
