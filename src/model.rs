@@ -2175,7 +2175,13 @@ impl Proxy {
             }
             if let Some((reason, json_decided)) = nudge {
                 let command = recovery::failing_command(message, &reason);
-                if (!accepted || completion_nudge || !rejected_unknown.is_empty())
+                // After a success the hint retry helps once per unknown name: a name the
+                // history already shows being handed back is released at once.
+                let first_unknown = !rejected_unknown.is_empty()
+                    && !rejected_unknown
+                        .iter()
+                        .any(|(_, r)| already_handed_back(&body, r));
+                if (!accepted || completion_nudge || first_unknown)
                     && guard_backs < 2
                     && hand_backs < 2
                     && reason != last_reason
@@ -2243,6 +2249,51 @@ impl Proxy {
         }
         Err("turn retry limit reached".into())
     }
+}
+/// True when earlier messages already carry an unknown-command report for the
+/// command named in `reason` ("unknown <id>; ..."). Bounded by message and byte caps.
+fn already_handed_back(body: &Value, reason: &str) -> bool {
+    const MAX_MESSAGES: usize = 64;
+    const MAX_BYTES: usize = 64 * 1024;
+    let Some(id) = reason
+        .strip_prefix("unknown ")
+        .and_then(|r| r.split(';').next())
+        .map(str::trim)
+        .filter(|id| !id.is_empty())
+    else {
+        return false;
+    };
+    let Some(messages) = body["messages"].as_array() else {
+        return false;
+    };
+    let mut budget = MAX_BYTES;
+    for message in messages.iter().rev().take(MAX_MESSAGES) {
+        if !matches!(message["role"].as_str(), Some("tool" | "user")) {
+            continue;
+        }
+        let text = match &message["content"] {
+            Value::String(s) => s.clone(),
+            Value::Array(parts) => parts
+                .iter()
+                .filter_map(|p| p["text"].as_str())
+                .collect::<Vec<_>>()
+                .join(" "),
+            _ => continue,
+        };
+        let end = (0..=text.len().min(budget))
+            .rev()
+            .find(|i| text.is_char_boundary(*i))
+            .unwrap_or(0);
+        budget -= end;
+        let text = &text[..end];
+        if text.contains("unknown") && text.contains(id) {
+            return true;
+        }
+        if budget == 0 {
+            break;
+        }
+    }
+    false
 }
 fn aliases98(message: &mut Value, audit: &mut Audit) -> Result<(), String> {
     if let Some(calls) = message["tool_calls"].as_array_mut() {
@@ -4750,6 +4801,63 @@ mod tests {
                 );
             }
         }
+    }
+
+    fn rename_history(extra: bool, hint_name: &str) -> Value {
+        let mut messages = vec![
+            json!({"role":"user","content":"Give the existing solid a clearer label"}),
+            json!({"role":"assistant","tool_calls":[{"id":"created","type":"function","function":{"name":"execute","arguments":"{}"}}]}),
+            json!({"role":"tool","tool_call_id":"created","content":"{\"created_bodies\":[\"Body1\"]}"}),
+        ];
+        if extra {
+            messages.extend([
+                json!({"role":"assistant","tool_calls":[{"id":"bad","type":"function","function":{"name":"execute","arguments":"{}"}}]}),
+                json!({"role":"tool","tool_call_id":"bad","content":format!("error: unknown command {hint_name}; closest: body.rename")}),
+                json!({"role":"assistant","tool_calls":[{"id":"fine","type":"function","function":{"name":"execute","arguments":"{}"}}]}),
+                json!({"role":"tool","tool_call_id":"fine","content":"{\"created_bodies\":[\"Body2\"]}"}),
+            ]);
+        }
+        let mut req = request();
+        req["messages"] = json!(messages);
+        req
+    }
+
+    fn rename_call(name: &str) -> Value {
+        call(
+            "execute",
+            json!({"command":name,"params":{"body":"Body1","name":"Mount"}}),
+        )
+    }
+
+    #[test]
+    fn first_unknown_after_success_still_retries_with_hint() {
+        let mut f = Fixture::new(vec![rename_call("document.rename"); 3]);
+        f.proxy.cfg.planner = false;
+        f.chat(rename_history(false, ""));
+        assert!(f.proxy.scripted.as_ref().unwrap().borrow().requests.len() >= 2);
+        assert!(last_hint(&f, 1).starts_with("unknown document.rename; closest"));
+    }
+
+    #[test]
+    fn repeated_unknown_in_later_turn_is_released_without_retry() {
+        let mut f = Fixture::new(vec![rename_call("document.rename"); 3]);
+        f.proxy.cfg.planner = false;
+        let response = f.chat(rename_history(true, "document.rename"));
+        let wire = String::from_utf8(response.body).unwrap();
+        assert!(wire.contains("document.rename"), "{wire}");
+        assert_eq!(
+            f.proxy.scripted.as_ref().unwrap().borrow().requests.len(),
+            1
+        );
+    }
+
+    #[test]
+    fn different_unknown_in_later_turn_gets_one_retry() {
+        let mut f = Fixture::new(vec![rename_call("document.relabel"); 3]);
+        f.proxy.cfg.planner = false;
+        f.chat(rename_history(true, "document.rename"));
+        assert!(f.proxy.scripted.as_ref().unwrap().borrow().requests.len() >= 2);
+        assert!(last_hint(&f, 1).starts_with("unknown document.relabel"));
     }
 
     #[test]

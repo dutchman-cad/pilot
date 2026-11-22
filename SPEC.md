@@ -327,7 +327,8 @@ Items marked (M) are in the model face, (T) in the tools face.
    benchmarks; `num_ctx` large enough (at least 8k for 7–8B) when the upstream is Ollama;
    JSON mode only on a retry where a JSON reply is already decided.
 6. **In-turn guards with hand-backs (M), at most 2 per turn:** an unknown command id gets
-   near-miss resolution, then "unknown x; closest a, b"; missing or misnamed arguments are
+   near-miss resolution, then "unknown x; closest a, b" (after an earlier success once per unknown name: a name the
+   request history already shows reported is released unchanged at once); missing or misnamed arguments are
    reconciled (case/punctuation/word match; a single unclaimed value of the right type), else
    "x needs y"; **an instruction answered only in prose that names a command** gets "you
    described x; run it, or say why not", handed back to the MODEL unless the selected-recipe
