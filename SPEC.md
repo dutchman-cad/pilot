@@ -97,7 +97,10 @@ Request side:
   plane; front face/edge alone does not. Supplied choices always win.
   Existing-part edit verbs may replace creation forms with edit forms after inspection
   confirms a body; pattern and joint forms retain their routing, and creation requests
-  retain creation forms. Whole-body move/shift requests with generic solid names
+  retain creation forms. A size change to exactly one inspected existing feature,
+  in a conversation whose earlier results showed a body, takes the named feature
+  form instead of a creation form; add/new wording and unclear matches keep it.
+  Whole-body move/shift requests with generic solid names
   stay on body translation forms rather than named-feature parameter edits. Rename
   requests use native commands; words in the requested name never select a form.
   Outside box/container sizes with a wall thickness select
